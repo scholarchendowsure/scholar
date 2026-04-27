@@ -1,50 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Users, 
-  Briefcase, 
-  FileSpreadsheet, 
-  Database, 
-  Trash2, 
-  LogOut,
-  Home,
-  User,
-  Building2,
-  Upload,
-  PieChart,
-  Calendar,
+import {
+  LayoutDashboard,
+  FileText,
+  Users,
+  Briefcase,
   DollarSign,
-  Bell,
-  Search,
-  Settings,
-  ChevronRight,
+  Building2,
+  PieChart,
+  Trash2,
   ChevronLeft,
-  Menu,
-  X,
-  ArrowRight,
-  FolderOpen,
-  AlertCircle
+  ChevronRight,
+  LogOut,
+  Upload,
+  FileSpreadsheet,
+  Database,
+  CheckCircle,
+  ArrowRight
 } from 'lucide-react';
-import { useAuth } from './auth-provider';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 
 const navItems = [
   {
     section: '核心功能',
     items: [
       { name: '仪表盘', href: '/', icon: LayoutDashboard, description: '数据概览与统计' },
-      { name: '案件管理', href: '/cases', icon: FileText, description: '外访案件全生命周期管理' },
-      { name: '我的案件', href: '/my-cases', icon: Briefcase, description: '个人负责的案件' },
+      { 
+        name: '案件管理', 
+        href: '/cases', 
+        icon: FileText, 
+        description: '外访案件全生命周期管理',
+        subItems: [
+          { name: '全部案件', href: '/cases' },
+          { name: '我的案件', href: '/my-cases' },
+          { name: '结清案件', href: '/cases/closed' },
+        ]
+      },
     ]
   },
   {
@@ -85,12 +83,21 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>(['核心功能', '专项管理']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['案件管理']);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
       prev.includes(section) 
         ? prev.filter(s => s !== section)
         : [...prev, section]
+    );
+  };
+
+  const toggleItem = (name: string) => {
+    setExpandedItems(prev => 
+      prev.includes(name) 
+        ? prev.filter(n => n !== name)
+        : [...prev, name]
     );
   };
 
@@ -165,51 +172,120 @@ export function Sidebar() {
             )}
             
             {(isCollapsed || expandedSections.includes(section.section)) && (
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {section.items.map((item) => {
-                  const isActive = pathname === item.href || 
-                    (item.href !== '/' && pathname.startsWith(item.href));
-                  
+                  const hasSubItems = item.subItems && item.subItems.length > 0;
+                  const isItemActive = item.href !== '/' 
+                    ? pathname.startsWith(item.href)
+                    : pathname === '/';
+                  const isExpanded = expandedItems.includes(item.name);
+
                   return (
-                    <TooltipProvider key={item.name}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={item.href}
-                            className={cn(
-                              "flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 group relative overflow-hidden",
-                              isActive
-                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/20"
-                                : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                    <div key={item.name} className="space-y-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {hasSubItems ? (
+                              <button
+                                onClick={() => toggleItem(item.name)}
+                                className={cn(
+                                  "w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 group relative overflow-hidden",
+                                  isItemActive
+                                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/20"
+                                    : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                                )}
+                              >
+                                {isItemActive && (
+                                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-cyan-400 rounded-r-full" />
+                                )}
+                                <item.icon className={cn(
+                                  "w-5 h-5 flex-shrink-0 transition-colors",
+                                  isItemActive
+                                    ? "text-white"
+                                    : "text-slate-500 group-hover:text-white"
+                                )} />
+                                {!isCollapsed && (
+                                  <span className="text-sm font-medium truncate flex-1 text-left">
+                                    {item.name}
+                                  </span>
+                                )}
+                                {!isCollapsed && hasSubItems && (
+                                  <ChevronRight className={cn(
+                                    "w-4 h-4 transition-transform",
+                                    isExpanded && "rotate-90"
+                                  )} />
+                                )}
+                              </button>
+                            ) : (
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  "flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 group relative overflow-hidden",
+                                  isItemActive
+                                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-900/20"
+                                    : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                                )}
+                              >
+                                {isItemActive && (
+                                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-cyan-400 rounded-r-full" />
+                                )}
+                                <item.icon className={cn(
+                                  "w-5 h-5 flex-shrink-0 transition-colors",
+                                  isItemActive
+                                    ? "text-white"
+                                    : "text-slate-500 group-hover:text-white"
+                                )} />
+                                {!isCollapsed && (
+                                  <span className="text-sm font-medium truncate">
+                                    {item.name}
+                                  </span>
+                                )}
+                                {isItemActive && !isCollapsed && (
+                                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" />
+                                )}
+                              </Link>
                             )}
-                          >
-                            {isActive && (
-                              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-cyan-400 rounded-r-full" />
-                            )}
-                            <item.icon className={cn(
-                              "w-5 h-5 flex-shrink-0 transition-colors",
-                              isActive
-                                ? "text-white"
-                                : "text-slate-500 group-hover:text-white"
-                            )} />
-                            {!isCollapsed && (
-                              <span className="text-sm font-medium truncate">
-                                {item.name}
-                              </span>
-                            )}
-                            {isActive && !isCollapsed && (
-                              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" />
-                            )}
-                          </Link>
-                        </TooltipTrigger>
-                        {isCollapsed && (
-                          <TooltipContent side="right" className="flex flex-col">
-                            <span className="font-medium">{item.name}</span>
-                            <span className="text-xs text-slate-400">{item.description}</span>
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </TooltipProvider>
+                          </TooltipTrigger>
+                          {isCollapsed && (
+                            <TooltipContent side="right" className="flex flex-col">
+                              <span className="font-medium">{item.name}</span>
+                              <span className="text-xs text-slate-400">{item.description}</span>
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      {/* 子菜单 */}
+                      {hasSubItems && isExpanded && !isCollapsed && (
+                        <div className="ml-6 space-y-1 border-l border-slate-700/50 pl-2">
+                          {item.subItems!.map((subItem) => {
+                            const isSubActive = subItem.href !== '/' 
+                              ? pathname === subItem.href
+                              : pathname === '/';
+                            
+                            return (
+                              <Link
+                                key={subItem.name}
+                                href={subItem.href}
+                                className={cn(
+                                  "flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-all duration-200 group",
+                                  isSubActive
+                                    ? "bg-blue-600/20 text-blue-400"
+                                    : "text-slate-400 hover:text-white hover:bg-slate-700/30"
+                                )}
+                              >
+                                {isSubActive ? (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                ) : (
+                                  <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                )}
+                                <span className="truncate">{subItem.name}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -283,47 +359,28 @@ export function Sidebar() {
 
   return (
     <>
-      {/* 移动端侧边栏开关 */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-50 flex items-center px-4">
-        <button
-          onClick={() => setIsMobileOpen(true)}
-          className="p-2 rounded-lg hover:bg-slate-100"
-        >
-          <Menu className="w-6 h-6 text-slate-600" />
-        </button>
-        <div className="ml-4 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-slate-800">贷后系统</span>
-        </div>
-      </div>
-
       {/* 移动端遮罩 */}
       {isMobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-50"
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* 移动端侧边栏 */}
-      {isMobileOpen && (
-        <div className="lg:hidden fixed left-0 top-0 bottom-0 w-64 z-50">
+      <div className="lg:hidden fixed z-50">
+        <div className={cn(
+          "fixed inset-y-0 left-0 z-50 transition-transform duration-300",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
           <SidebarContent />
         </div>
-      )}
-
-      {/* 桌面端侧边栏 */}
-      <div className="hidden lg:block fixed left-0 top-0 bottom-0 z-40">
-        <SidebarContent />
       </div>
 
-      {/* 内容区域左边距 */}
-      <div className={cn(
-        "hidden lg:block transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64"
-      )} />
+      {/* 桌面端侧边栏 */}
+      <div className="hidden lg:block">
+        <SidebarContent />
+      </div>
     </>
   );
 }
