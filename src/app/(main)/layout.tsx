@@ -11,12 +11,9 @@ import {
   Settings, 
   Calendar, 
   HelpCircle,
-  User,
   Home,
   RefreshCw,
-  Maximize2,
-  Menu,
-  LogOut
+  Maximize2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +39,7 @@ export default function MainLayout({
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -78,53 +75,24 @@ export default function MainLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/30 via-white to-indigo-50/30">
-      {/* 移动端侧边栏切换按钮 */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="bg-white shadow-lg border border-slate-200"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-      </div>
-
-      {/* 侧边栏 */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-40 transition-transform duration-300",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full",
-        "lg:translate-x-0"
-      )}>
-        <Sidebar onClose={() => setSidebarOpen(false)} />
-      </div>
-      
-      {/* 遮罩层 */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* 顶部侧边栏 */}
+      <Sidebar onClose={() => setSidebarExpanded(false)} />
       
       {/* 主内容区域 */}
-      <main className={cn(
-        "transition-all duration-300 min-h-screen",
-        sidebarOpen ? "lg:ml-64" : "lg:ml-0"
-      )}>
-        {/* 顶部导航栏 */}
-        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
-          <div className="h-16 px-4 lg:px-6 flex items-center justify-between">
+      <main className="min-h-screen">
+        {/* 功能导航栏 */}
+        <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
+          <div className="h-14 px-4 flex items-center justify-between">
             {/* 左侧 - 面包屑和标题 */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <div className="hidden lg:block">
-                  <nav className="flex items-center space-x-1 text-sm">
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 hover:text-slate-700">
-                      <Home className="w-4 h-4" />
-                    </Button>
-                    <span className="text-slate-300">/</span>
-                    <span className="text-slate-700 font-medium">{pageTitle}</span>
-                  </nav>
-                </div>
+                <nav className="flex items-center space-x-1 text-sm">
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 hover:text-slate-700">
+                    <Home className="w-4 h-4" />
+                  </Button>
+                  <span className="text-slate-300">/</span>
+                  <span className="text-slate-700 font-medium">{pageTitle}</span>
+                </nav>
                 <h1 className="text-xl font-bold text-slate-800 tracking-tight">
                   {pageTitle}
                 </h1>
@@ -236,52 +204,9 @@ export default function MainLayout({
                   <Settings className="w-4 h-4" />
                 </Button>
               </div>
-
-              {/* 用户信息 */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 hover:bg-slate-100">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="hidden md:flex flex-col items-start">
-                        <span className="text-sm font-medium text-slate-800">
-                          {user?.name || '用户'}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {user?.department || '贷后部'}
-                        </span>
-                      </div>
-                    </div>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel className="font-semibold text-slate-800">
-                    {user?.name || '用户'}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">
-                    <User className="w-4 h-4 mr-2" />
-                    个人中心
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    设置
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={logout}
-                    className="cursor-pointer text-red-600 hover:text-red-700 focus:text-red-700"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    退出登录
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
-        </header>
+        </div>
 
         {/* 页面内容 */}
         <div className="p-4 lg:p-6">
