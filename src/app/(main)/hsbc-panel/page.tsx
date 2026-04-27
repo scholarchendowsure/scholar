@@ -511,7 +511,7 @@ export default function HSBCPanelPage() {
       const response = await fetch('/api/hsbc/batch-dates');
       if (response.ok) {
         const data = await response.json();
-        setAvailableBatchDates(data.dates || []);
+        setAvailableBatchDates(data.data || []);
       }
     } catch (err) {
       console.error('获取批次日期失败:', err);
@@ -1057,7 +1057,7 @@ export default function HSBCPanelPage() {
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" />
               贷款详情
-              {selectedLoan?.pastdueAmount > 0 && (
+              {selectedLoan?.pastdueAmount && selectedLoan.pastdueAmount > 0 && (
                 <Badge className="bg-red-100 text-red-700">逾期</Badge>
               )}
             </DialogTitle>

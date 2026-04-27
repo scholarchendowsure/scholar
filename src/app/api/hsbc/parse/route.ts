@@ -78,97 +78,94 @@ export async function POST(request: NextRequest) {
     let rawData: (string | number)[][] = [];
     let isEncrypted = false;
 
-    // 方法1: 先尝试用 xlsx-populate 读取（支持加密文件）
+    // 首先尝试用 xlsx 库读取，看看是否需要解密
     try {
-      const XlsxPopulate = await import('xlsx-populate');
+      const XLSX = await import('xlsx');
       let workbook;
+      let needsPassword = false;
+      
       try {
-        // 先尝试不带密码
-        workbook = await XlsxPopulate.fromDataAsync(buffer);
-      } catch {
-        // 加密文件，用密码解密
+        workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+      } catch (e: unknown) {
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        if (errorMsg.includes('password') || errorMsg.includes('Password') || errorMsg.includes('encrypt')) {
+          needsPassword = true;
+        } else {
+          throw e;
+        }
+      }
+
+      if (needsPassword) {
+        // 需要密码，尝试用密码解密
         try {
-          workbook = await XlsxPopulate.fromDataAsync(buffer, { password: DECRYPT_PASSWORD });
+          workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false, password: DECRYPT_PASSWORD });
           isEncrypted = true;
         } catch {
-          return NextResponse.json({ 
-            error: '文件解密失败，请确认密码是否正确',
-          }, { status: 400 });
-        }
-      }
-
-      // 从 xlsx-populate workbook 提取数据
-      const sheet = workbook.sheet(0);
-      const usedRange = sheet.usedRange();
-      if (!usedRange) {
-        return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
-      }
-
-      const startRow = usedRange.startCell().rowNumber();
-      const endRow = usedRange.endCell().rowNumber();
-      const startCol = usedRange.startCell().columnNumber();
-      const endCol = usedRange.endCell().columnNumber();
-
-      for (let r = startRow; r <= endRow; r++) {
-        const row: (string | number)[] = [];
-        for (let c = startCol; c <= endCol; c++) {
-          const cell = sheet.cell(r, c);
-          const value = cell.value();
-          if (value instanceof Date) {
-            // 格式化日期
-            const year = value.getFullYear();
-            const month = String(value.getMonth() + 1).padStart(2, '0');
-            const day = String(value.getDate()).padStart(2, '0');
-            row.push(`${year}年${month}月${day}日`);
-          } else if (typeof value === 'object' && value !== null) {
-            // xlsx-populate rich text
-            if ('text' in value) {
-              row.push(String((value as { text: string }).text));
-            } else if ('result' in value) {
-              row.push(Number((value as { result: number }).result) || '');
-            } else {
-              row.push(String(value));
+          // xlsx 库解密失败，尝试用 xlsx-populate
+          try {
+            const XlsxPopulate = await import('xlsx-populate');
+            const populateWorkbook = await XlsxPopulate.fromDataAsync(buffer, { password: DECRYPT_PASSWORD });
+            isEncrypted = true;
+            
+            // 从 xlsx-populate workbook 提取数据
+            const sheet = populateWorkbook.sheet(0);
+            const usedRange = sheet.usedRange();
+            if (!usedRange) {
+              return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
             }
-          } else {
-            row.push(value === undefined || value === null ? '' : value);
+
+            const startRow = usedRange.startCell().rowNumber();
+            const endRow = usedRange.endCell().rowNumber();
+            const startCol = usedRange.startCell().columnNumber();
+            const endCol = usedRange.endCell().columnNumber();
+
+            for (let r = startRow; r <= endRow; r++) {
+              const row: (string | number)[] = [];
+              for (let c = startCol; c <= endCol; c++) {
+                const cell = sheet.cell(r, c);
+                const value = cell.value();
+                if (value instanceof Date) {
+                  // 格式化日期
+                  const year = value.getFullYear();
+                  const month = String(value.getMonth() + 1).padStart(2, '0');
+                  const day = String(value.getDate()).padStart(2, '0');
+                  row.push(`${year}年${month}月${day}日`);
+                } else if (typeof value === 'object' && value !== null) {
+                  // xlsx-populate rich text
+                  if ('text' in value) {
+                    row.push(String((value as { text: string }).text));
+                  } else if ('result' in value) {
+                    row.push(Number((value as { result: number }).result) || '');
+                  } else {
+                    row.push(String(value));
+                  }
+                } else {
+                  row.push(value === undefined || value === null ? '' : value);
+                }
+              }
+              rawData.push(row);
+            }
+          } catch (populateError) {
+            console.error('解密失败:', populateError);
+            return NextResponse.json({ 
+              error: '文件解密失败，请确认密码是否正确（密码：amazon246）',
+            }, { status: 400 });
           }
         }
-        rawData.push(row);
       }
-    } catch (populateError) {
-      // 方法2: 如果 xlsx-populate 失败，回退到 xlsx 库
-      console.log('xlsx-populate failed, trying xlsx library:', populateError);
-      try {
-        const XLSX = await import('xlsx');
-        let workbook;
-        try {
-          workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
-        } catch (e: unknown) {
-          const errorMsg = e instanceof Error ? e.message : String(e);
-          if (errorMsg.includes('password') || errorMsg.includes('Password') || errorMsg.includes('encrypt')) {
-            try {
-              workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false, password: DECRYPT_PASSWORD });
-              isEncrypted = true;
-            } catch {
-              return NextResponse.json({ 
-                error: '文件解密失败，请确认密码是否正确',
-              }, { status: 400 });
-            }
-          } else {
-            throw e;
-          }
-        }
 
+      if (!rawData.length && workbook) {
+        // xlsx 库读取成功
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-      } catch (xlsxError) {
-        console.error('Both xlsx-populate and xlsx failed:', xlsxError);
-        return NextResponse.json({ 
-          error: '文件读取失败，请确认文件格式正确',
-          detail: xlsxError instanceof Error ? xlsxError.message : '未知错误'
-        }, { status: 400 });
       }
+    } catch (xlsxError) {
+      console.error('文件读取失败:', xlsxError);
+      return NextResponse.json({ 
+        error: '文件读取失败，请确认文件格式正确',
+        detail: xlsxError instanceof Error ? xlsxError.message : '未知错误'
+      }, { status: 400 });
     }
 
     if (rawData.length < 2) {
