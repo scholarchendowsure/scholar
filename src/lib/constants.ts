@@ -22,6 +22,16 @@ export const CASE_STATUS_CONFIG = {
   },
 } as const;
 
+// 金额格式化函数
+export function formatCurrency(amount: number | string, currency: string = 'CNY'): string {
+  const num = typeof amount === 'string' ? parseFloat(amount.replace(/,/g, '')) : amount;
+  if (isNaN(num)) return '¥0.00';
+  return `${currency === 'USD' ? '$' : '¥'}${num.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 // 风险等级配置
 export const RISK_LEVEL_CONFIG = {
   low: { label: '低风险', color: 'bg-green-100 text-green-800 border-green-200' },
