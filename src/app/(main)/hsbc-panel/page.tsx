@@ -264,6 +264,8 @@ export default function HSBCPanelPage() {
   const [importBatchDate, setImportBatchDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedBatchDate, setSelectedBatchDate] = useState<string>('');
   const [availableBatchDates, setAvailableBatchDates] = useState<string[]>([]);
+  const [filePassword, setFilePassword] = useState<string>('');
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -383,7 +385,27 @@ export default function HSBCPanelPage() {
     reader.onload = (event) => {
       try {
         const data = event.target?.result;
-        const workbook = XLSX.read(data, { type: 'array' });
+        let workbook: XLSX.WorkBook;
+
+        // 先尝试不带密码读取
+        try {
+          workbook = XLSX.read(data, { type: 'array' });
+        } catch (readErr: unknown) {
+          const errMsg = readErr instanceof Error ? readErr.message : String(readErr);
+          // 如果是加密文件，使用密码解密
+          if (errMsg.includes('password-protected') || errMsg.includes('password')) {
+            try {
+              workbook = XLSX.read(data, { type: 'array', password: 'amazon246' });
+              toast.success('检测到加密文件，已自动解密');
+            } catch {
+              toast.error('文件解密失败，请确认密码是否正确');
+              return;
+            }
+          } else {
+            throw readErr;
+          }
+        }
+
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
 
