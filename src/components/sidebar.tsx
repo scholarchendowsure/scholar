@@ -11,14 +11,15 @@ import {
   Building2,
   PieChart,
   Trash2,
-  ChevronUp,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   LogOut,
   Upload,
   FileSpreadsheet,
   Database,
   CheckCircle,
-  Menu
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -73,15 +74,21 @@ const navItems = [
   }
 ];
 
-export function Sidebar({ onClose, onToggle, isExpanded }: { onClose?: () => void; onToggle?: () => void; isExpanded?: boolean }) {
+export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const [internalExpanded, setInternalExpanded] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['核心功能', '专项管理']);
   const [expandedItems, setExpandedItems] = useState<string[]>(['案件管理']);
 
-  const expanded = isExpanded ?? internalExpanded;
-  const toggleExpanded = onToggle ?? (() => setInternalExpanded(!expanded));
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => 
+      prev.includes(section) 
+        ? prev.filter(s => s !== section)
+        : [...prev, section]
+    );
+  };
 
   const toggleItem = (name: string) => {
     setExpandedItems(prev => 
@@ -102,47 +109,176 @@ export function Sidebar({ onClose, onToggle, isExpanded }: { onClose?: () => voi
   };
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 shadow-sm">
-      {/* 顶部导航栏 */}
-      <div className="h-14 px-4 flex items-center justify-between">
-        {/* 左侧 Logo 和展开按钮 */}
-        <div className="flex items-center gap-4">
+    <div className={cn(
+      "fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-gray-200 shadow-sm transition-all duration-300",
+      isCollapsed ? "w-16" : "w-64"
+    )}>
+      {/* Logo区域 */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+        {!isCollapsed ? (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md shadow-blue-200">
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-gray-800 text-lg tracking-tight">贷后管理系统</span>
           </div>
-          
-          <button
-            onClick={toggleExpanded}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-all duration-200 flex items-center gap-2"
-          >
-            <Menu className="w-4 h-4" />
-            {expanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </button>
-        </div>
+        ) : (
+          <div className="w-full flex justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-md shadow-blue-200">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        )}
+        
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-all duration-200"
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <ChevronLeft className="w-4 h-4" />
+          )}
+        </button>
+      </div>
 
-        {/* 用户区域 */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-400 text-white font-medium">
-                {user?.name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="hidden md:block">
-              <p className="text-sm font-semibold text-gray-800">
+      {/* 导航区域 */}
+      <div className="flex-1 overflow-y-auto py-4 px-2">
+        {navItems.map((section, sectionIdx) => (
+          <div key={sectionIdx} className="mb-4">
+            {/* 分组标题 */}
+            {!isCollapsed && (
+              <button
+                onClick={() => toggleSection(section.section)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
+              >
+                <span>{section.section}</span>
+                <ChevronDown 
+                  className={cn(
+                    "w-3 h-3 transition-transform duration-200",
+                    expandedSections.includes(section.section) && "rotate-180"
+                  )}
+                />
+              </button>
+            )}
+            
+            {/* 分组项目 */}
+            {expandedSections.includes(section.section) && (
+              <div className="mt-1 space-y-0.5">
+                {section.items.map((item, itemIdx) => {
+                  const isItemActive = isActive(item.href);
+                  
+                  return (
+                    <div key={itemIdx}>
+                      {item.subItems ? (
+                        <>
+                          {/* 有子菜单的项目 */}
+                          <button
+                            onClick={() => toggleItem(item.name)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group",
+                              isItemActive
+                                ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <item.icon className={cn(
+                                "w-5 h-5 transition-colors",
+                                isItemActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"
+                              )} />
+                              {!isCollapsed && <span>{item.name}</span>}
+                            </div>
+                            {!isCollapsed && (
+                              <ChevronDown 
+                                className={cn(
+                                  "w-4 h-4 transition-transform duration-200",
+                                  expandedItems.includes(item.name) && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </button>
+                          
+                          {/* 子菜单 */}
+                          {expandedItems.includes(item.name) && !isCollapsed && (
+                            <div className="ml-8 mt-1 space-y-0.5 border-l border-gray-100 pl-2">
+                              {item.subItems.map((subItem, subIdx) => {
+                                const isSubActive = pathname === subItem.href;
+                                return (
+                                  <Link
+                                    key={subIdx}
+                                    href={subItem.href}
+                                    className={cn(
+                                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200",
+                                      isSubActive
+                                        ? "bg-blue-600 text-white font-medium shadow-sm shadow-blue-200"
+                                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                    )}
+                                  >
+                                    {isSubActive ? (
+                                      <CheckCircle className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                    )}
+                                    <span>{subItem.name}</span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        // 无子菜单的项目
+                        <Link
+                          href={item.href}
+                          className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group",
+                            isItemActive
+                              ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "w-5 h-5 transition-colors",
+                            isItemActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"
+                          )} />
+                          {!isCollapsed && <span>{item.name}</span>}
+                          {isItemActive && !isCollapsed && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          )}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* 用户区域 */}
+      <div className="border-t border-gray-100 p-3 bg-gray-50/50">
+        <div className={cn(
+          "flex items-center gap-3",
+          isCollapsed ? "justify-center" : ""
+        )}>
+          <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-400 text-white font-medium">
+              {user?.name?.charAt(0) || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800 truncate">
                 {user?.name || '用户'}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 truncate">
                 {user?.role === 'admin' ? '管理员' : user?.role === 'manager' ? '经理' : '外访员'}
               </p>
             </div>
+          )}
+          {!isCollapsed && (
             <button
               onClick={handleLogout}
               className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
@@ -150,113 +286,9 @@ export function Sidebar({ onClose, onToggle, isExpanded }: { onClose?: () => voi
             >
               <LogOut className="w-4 h-4" />
             </button>
-          </div>
+          )}
         </div>
       </div>
-
-      {/* 展开的导航菜单 */}
-      {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50/50">
-          <div className="px-4 py-3">
-            <div className="flex flex-wrap gap-2">
-              {navItems.map((section, sectionIdx) => (
-                <div key={sectionIdx} className="mr-4">
-                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2">
-                    {section.section}
-                  </span>
-                  
-                  <div className="flex items-center gap-1">
-                    {section.items.map((item, itemIdx) => {
-                      const isItemActive = isActive(item.href);
-                      
-                      if (item.subItems) {
-                        return (
-                          <div key={itemIdx} className="relative group">
-                            <button
-                              onClick={() => toggleItem(item.name)}
-                              className={cn(
-                                "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
-                                isItemActive
-                                  ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
-                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                              )}
-                            >
-                              <div className="flex items-center gap-2">
-                                <item.icon className={cn(
-                                  "w-4 h-4 transition-colors",
-                                  isItemActive ? "text-blue-600" : "text-gray-400"
-                                )} />
-                                <span>{item.name}</span>
-                              </div>
-                              <ChevronDown 
-                                className={cn(
-                                  "w-4 h-4 transition-transform duration-200",
-                                  expandedItems.includes(item.name) && "rotate-180"
-                                )}
-                              />
-                            </button>
-                            
-                            {expandedItems.includes(item.name) && (
-                              <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                                {item.subItems.map((subItem, subIdx) => {
-                                  const isSubActive = pathname === subItem.href;
-                                  return (
-                                    <Link
-                                      key={subIdx}
-                                      href={subItem.href}
-                                      onClick={onClose}
-                                      className={cn(
-                                        "flex items-center gap-2 px-4 py-2 text-sm transition-all duration-200",
-                                        isSubActive
-                                          ? "bg-blue-600 text-white"
-                                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                      )}
-                                    >
-                                      {isSubActive ? (
-                                        <CheckCircle className="w-4 h-4" />
-                                      ) : (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                                      )}
-                                      <span>{subItem.name}</span>
-                                    </Link>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <Link
-                          key={itemIdx}
-                          href={item.href}
-                          onClick={onClose}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
-                            isItemActive
-                              ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
-                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                          )}
-                        >
-                          <item.icon className={cn(
-                            "w-4 h-4 transition-colors",
-                            isItemActive ? "text-blue-600" : "text-gray-400"
-                          )} />
-                          <span>{item.name}</span>
-                          {isItemActive && (
-                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
