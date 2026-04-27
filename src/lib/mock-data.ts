@@ -43,7 +43,7 @@ export function clearCache(pattern?: string): void {
 
 // Mock 用户数据
 export const MOCK_USERS = [
-  { id: '1', name: '管理员', username: 'admin', role: 'admin', status: 'active', email: 'admin@example.com' },
+  { id: '1', name: '管理员', username: 'days', role: 'admin', status: 'active', email: 'admin@example.com' },
   { id: '2', name: '张三', username: 'zhangsan', role: 'agent', status: 'active', email: 'zhangsan@example.com' },
   { id: '3', name: '李四', username: 'lisi', role: 'agent', status: 'active', email: 'lisi@example.com' },
   { id: '4', name: '王五', username: 'wangwu', role: 'manager', status: 'active', email: 'wangwu@example.com' },

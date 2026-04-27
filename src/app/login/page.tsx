@@ -37,7 +37,6 @@ export default function LoginPage() {
 
       if (json.success) {
         toast.success('登录成功');
-        // 保存 token
         localStorage.setItem('token', json.token);
         localStorage.setItem('user', JSON.stringify(json.user));
         router.push('/');
@@ -53,7 +52,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
-      {/* 背景装饰 */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
@@ -124,28 +122,9 @@ export default function LoginPage() {
                 '登 录'
               )}
             </Button>
-
-            <div className="pt-4 border-t border-slate-100">
-              <p className="text-xs text-slate-400 text-center mb-3">测试账号</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-slate-50 rounded-lg p-2 text-center">
-                  <p className="font-medium text-slate-700">admin</p>
-                  <p className="text-slate-400">管理员</p>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-2 text-center">
-                  <p className="font-medium text-slate-700">zhangsan</p>
-                  <p className="text-slate-400">外访员</p>
-                </div>
-              </div>
-              <p className="text-xs text-slate-400 text-center mt-2">密码: admin123</p>
-            </div>
           </form>
         </CardContent>
       </Card>
-
-      <p className="absolute bottom-4 text-xs text-slate-400">
-        © 2024 贷后案件管理系统
-      </p>
     </div>
   );
 }
