@@ -1,7 +1,5 @@
-'use client';
-
 import { Sidebar } from '@/components/sidebar';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function MainLayout({
   children,
@@ -9,12 +7,10 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-100">
       <Sidebar />
-      <main className="pl-[260px]">
-        <div className="max-w-[1400px] mx-auto p-6">
-          {children}
-        </div>
+      <main className="ml-56 transition-all duration-300">
+        {children}
       </main>
       <Toaster />
     </div>

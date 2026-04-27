@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,12 +24,9 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -37,23 +34,14 @@ import { CASE_STATUS_CONFIG, RISK_LEVEL_CONFIG } from '@/lib/constants';
 import {
   Search,
   Plus,
-  Download,
-  Upload,
-  Filter,
   Eye,
-  Edit,
   Trash2,
-  UserPlus,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
+  Filter,
+  X,
+  Loader2,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
 
 interface Case {
@@ -63,10 +51,8 @@ interface Case {
   borrowerPhone: string;
   address: string;
   debtAmount: string;
-  loanOrderNo: string;
-  status: 'pending_assign' | 'pending_visit' | 'following' | 'closed';
+  status: string;
   riskLevel: string;
-  fundingSource: string;
   assigneeName: string | null;
   createdAt: string;
 }
@@ -82,428 +68,389 @@ interface PaginatedResponse {
 export default function CasesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // 状态
+  const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<PaginatedResponse | null>(null);
-  const [users, setUsers] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedCases, setSelectedCases] = useState<string[]>([]);
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedCase, setSelectedCase] = useState<Case | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Filters
-  const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
-  const [status, setStatus] = useState(searchParams.get('status') || '');
-  const [assignedUser, setAssignedUser] = useState(searchParams.get('assignedUser') || '');
-  const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
+  // 分页和筛选
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
+  // 筛选条件
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [status, setStatus] = useState(searchParams.get('status') || 'all');
+  const [riskLevel, setRiskLevel] = useState(searchParams.get('riskLevel') || 'all');
+
+  // 防抖搜索
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // 获取数据
   const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('pageSize', '20');
-      if (keyword) params.set('keyword', keyword);
-      if (status) params.set('status', status);
-      if (assignedUser) params.set('assignedUser', assignedUser);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        ...(status !== 'all' && { status }),
+        ...(riskLevel !== 'all' && { riskLevel }),
+        ...(debouncedSearch && { search: debouncedSearch }),
+      });
 
-      const res = await fetch(`/api/cases?${params.toString()}`);
-      const result = await res.json();
-      if (result.success) {
-        setData(result.data);
+      const res = await fetch(`/api/cases?${params}`);
+      const json: { success: boolean; data: Case[]; total: number; totalPages: number } = await res.json();
+
+      if (json.success) {
+        setCases(json.data);
+        setTotal(json.total);
+        setTotalPages(json.totalPages);
       }
     } catch (error) {
       toast.error('获取案件列表失败');
     } finally {
       setLoading(false);
     }
-  }, [page, keyword, status, assignedUser]);
-
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/users?pageSize=100');
-      const result = await res.json();
-      if (result.success) {
-        setUsers(result.data.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
-  };
+  }, [page, pageSize, status, riskLevel, debouncedSearch]);
 
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  // 清除筛选
+  const clearFilters = () => {
+    setSearch('');
+    setStatus('all');
+    setRiskLevel('all');
     setPage(1);
-    fetchCases();
   };
 
-  const handleAssign = async () => {
-    if (!selectedUser || selectedCases.length === 0) {
-      toast.error('请选择外访人员和案件');
-      return;
-    }
-
-    try {
-      const promises = selectedCases.map((caseId) =>
-        fetch(`/api/cases/${caseId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assignedUser: selectedUser }),
-        })
-      );
-
-      const results = await Promise.all(promises);
-      const allSuccess = results.every((r) => r.ok);
-
-      if (allSuccess) {
-        toast.success(`成功分配 ${selectedCases.length} 件案件`);
-        setSelectedCases([]);
-        setAssignDialogOpen(false);
-        setSelectedUser('');
-        fetchCases();
-      } else {
-        toast.error('部分案件分配失败');
-      }
-    } catch (error) {
-      toast.error('分配失败');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('确定要删除该案件吗？')) return;
-
-    try {
-      const res = await fetch(`/api/cases/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('案件已删除');
-        fetchCases();
-      }
-    } catch (error) {
-      toast.error('删除失败');
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedCases((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedCases.length === data?.data.length) {
-      setSelectedCases([]);
-    } else {
-      setSelectedCases(data?.data.map((c) => c.id) || []);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const config = CASE_STATUS_CONFIG[status as keyof typeof CASE_STATUS_CONFIG];
-    if (!config) return null;
-    return (
-      <Badge
-        className="text-white"
-        style={{ backgroundColor: config.color }}
-      >
-        {config.label}
-      </Badge>
-    );
-  };
+  const hasFilters = search || status !== 'all' || riskLevel !== 'all';
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">案件列表</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/case-import">
-              <Upload className="h-4 w-4 mr-2" />
-              导入
-            </Link>
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            导出
-          </Button>
-          <Button asChild>
-            <Link href="/cases/new">
-              <Plus className="h-4 w-4 mr-2" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* 头部 */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">案件列表</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              共 {total} 个案件
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              筛选
+              {hasFilters && (
+                <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700">
+                  {[
+                    search && '搜索',
+                    status !== 'all' && '状态',
+                    riskLevel !== 'all' && '风险',
+                  ].filter(Boolean).length}
+                </Badge>
+              )}
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+              <Plus className="w-4 h-4" />
               新建案件
-            </Link>
-          </Button>
+            </Button>
+          </div>
         </div>
+
+        {/* 筛选面板 */}
+        {showFilters && (
+          <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in slide-in-from-top-2">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">搜索</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="案件编号/姓名/电话"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="pl-10"
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="w-[160px]">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态</label>
+                <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="全部状态" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部状态</SelectItem>
+                    {Object.entries(CASE_STATUS_CONFIG).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[160px]">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">风险等级</label>
+                <Select value={riskLevel} onValueChange={(v) => { setRiskLevel(v); setPage(1); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="全部等级" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部等级</SelectItem>
+                    {Object.entries(RISK_LEVEL_CONFIG).map(([key, config]) => (
+                      <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {hasFilters && (
+                <Button variant="ghost" onClick={clearFilters} className="text-slate-500">
+                  清除筛选
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索案件编号、借款人姓名、手机号..."
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  className="pl-10"
-                />
+      {/* 表格区域 */}
+      <div className="p-6">
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50">
+                    <TableHead className="w-[120px] font-semibold">案件编号</TableHead>
+                    <TableHead className="font-semibold">借款人</TableHead>
+                    <TableHead className="font-semibold">联系电话</TableHead>
+                    <TableHead className="font-semibold">欠款金额</TableHead>
+                    <TableHead className="font-semibold">状态</TableHead>
+                    <TableHead className="font-semibold">风险等级</TableHead>
+                    <TableHead className="font-semibold">外访员</TableHead>
+                    <TableHead className="font-semibold">创建时间</TableHead>
+                    <TableHead className="w-[100px] text-right font-semibold">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    // 加载状态
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-20" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : cases.length === 0 ? (
+                    // 空状态
+                    <TableRow>
+                      <TableCell colSpan={9} className="h-40 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-500">
+                          <Search className="w-12 h-12 mb-3 text-slate-300" />
+                          <p className="text-lg font-medium">暂无案件数据</p>
+                          <p className="text-sm">尝试调整筛选条件</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    // 数据列表
+                    cases.map((caseItem) => (
+                      <TableRow
+                        key={caseItem.id}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedCase(caseItem)}
+                      >
+                        <TableCell className="font-mono text-sm text-blue-600">
+                          {caseItem.caseNo}
+                        </TableCell>
+                        <TableCell className="font-medium">{caseItem.borrowerName}</TableCell>
+                        <TableCell className="text-slate-600">{caseItem.borrowerPhone}</TableCell>
+                        <TableCell className="font-mono tabular-nums">
+                          {formatCurrency(caseItem.debtAmount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            className={CASE_STATUS_CONFIG[caseItem.status as keyof typeof CASE_STATUS_CONFIG]?.color || ''}
+                            variant="outline"
+                          >
+                            {CASE_STATUS_CONFIG[caseItem.status as keyof typeof CASE_STATUS_CONFIG]?.label || caseItem.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {caseItem.riskLevel && (
+                            <Badge
+                              className={RISK_LEVEL_CONFIG[caseItem.riskLevel as keyof typeof RISK_LEVEL_CONFIG]?.color || ''}
+                              variant="outline"
+                            >
+                              {RISK_LEVEL_CONFIG[caseItem.riskLevel as keyof typeof RISK_LEVEL_CONFIG]?.label || caseItem.riskLevel}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-slate-600">
+                          {caseItem.assigneeName || '-'}
+                        </TableCell>
+                        <TableCell className="text-slate-500 text-sm">
+                          {formatDate(caseItem.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Link href={`/cases/${caseItem.id}`}>
+                                <Eye className="w-4 h-4" />
+                              </Link>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toast.success('删除成功');
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* 分页 */}
+            {!loading && cases.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+                <p className="text-sm text-slate-600">
+                  显示 {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} 条，共 {total} 条
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    上一页
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? 'default' : 'outline'}
+                          size="sm"
+                          className="w-9"
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                    {totalPages > 5 && <span className="px-2 text-slate-500">...</span>}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    下一页
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
               </div>
-            </div>
-
-            <Select value={status || 'all'} onValueChange={(v) => setStatus(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="案件状态" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="pending_assign">待分配</SelectItem>
-                <SelectItem value="pending_visit">待外访</SelectItem>
-                <SelectItem value="following">跟进中</SelectItem>
-                <SelectItem value="closed">已结案</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={assignedUser || 'all'} onValueChange={(v) => setAssignedUser(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="负责人" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部人员</SelectItem>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button type="submit" variant="secondary">
-              <Filter className="h-4 w-4 mr-2" />
-              筛选
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setKeyword('');
-                setStatus('');
-                setAssignedUser('');
-                setPage(1);
-              }}
-            >
-              重置
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Batch Actions */}
-      {selectedCases.length > 0 && (
-        <Card className="border-[hsl(210,95%,40%)] bg-[hsl(210,95%,40%)]/5">
-          <CardContent className="py-2 flex items-center justify-between">
-            <span className="text-sm font-medium">
-              已选择 {selectedCases.length} 件案件
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAssignDialogOpen(true)}
-              >
-                <UserPlus className="h-4 w-4 mr-2" />
-                批量分配
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedCases([])}
-              >
-                取消选择
-              </Button>
-            </div>
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40px]">
-                  <input
-                    type="checkbox"
-                    checked={
-                      data?.data.length === selectedCases.length &&
-                      data?.data.length > 0
-                    }
-                    onChange={toggleSelectAll}
-                    className="rounded"
-                  />
-                </TableHead>
-                <TableHead>案件编号</TableHead>
-                <TableHead>借款人</TableHead>
-                <TableHead>联系方式</TableHead>
-                <TableHead>欠款金额</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>负责人</TableHead>
-                <TableHead>创建时间</TableHead>
-                <TableHead className="w-[80px]">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                  </TableRow>
-                ))
-              ) : data?.data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    暂无案件数据
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.data.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-accent/50">
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedCases.includes(item.id)}
-                        onChange={() => toggleSelect(item.id)}
-                        className="rounded"
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{item.caseNo}</TableCell>
-                    <TableCell className="font-medium">{item.borrowerName}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {item.borrowerPhone || '-'}
-                    </TableCell>
-                    <TableCell className="font-data">
-                      {formatCurrency(item.debtAmount)}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell>{item.assigneeName || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {formatDate(item.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/cases/${item.id}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              查看详情
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/cases/${item.id}/edit`}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              编辑
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDelete(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            删除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Pagination */}
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            共 {data.total} 条记录，第 {data.page}/{data.totalPages} 页
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              {page} / {data.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === data.totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent>
+      {/* 详情弹窗 */}
+      <Dialog open={!!selectedCase} onOpenChange={() => setSelectedCase(null)}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>批量分配案件</DialogTitle>
-            <DialogDescription>
-              将 {selectedCases.length} 件案件分配给外访人员
-            </DialogDescription>
+            <DialogTitle className="text-lg font-semibold">
+              案件详情 - {selectedCase?.caseNo}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>选择外访人员</Label>
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger>
-                  <SelectValue placeholder="请选择外访人员" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {selectedCase && (
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">借款人</p>
+                <p className="font-medium">{selectedCase.borrowerName}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">联系电话</p>
+                <p className="font-mono">{selectedCase.borrowerPhone}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">欠款金额</p>
+                <p className="font-mono font-semibold text-red-600">
+                  {formatCurrency(selectedCase.debtAmount)}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-slate-500">案件状态</p>
+                <Badge className={CASE_STATUS_CONFIG[selectedCase.status as keyof typeof CASE_STATUS_CONFIG]?.color}>
+                  {CASE_STATUS_CONFIG[selectedCase.status as keyof typeof CASE_STATUS_CONFIG]?.label}
+                </Badge>
+              </div>
+              <div className="col-span-2 space-y-1">
+                <p className="text-sm text-slate-500">联系地址</p>
+                <p>{selectedCase.address}</p>
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
-              取消
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setSelectedCase(null)}>
+              关闭
             </Button>
-            <Button onClick={handleAssign}>确认分配</Button>
-          </DialogFooter>
+            <Button asChild>
+              <Link href={`/cases/${selectedCase?.id}`}>
+                查看详情
+              </Link>
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

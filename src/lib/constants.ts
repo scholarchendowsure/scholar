@@ -1,139 +1,82 @@
-// 案件状态枚举
-export const CASE_STATUS = {
-  PENDING_ASSIGN: 'pending_assign',
-  PENDING_VISIT: 'pending_visit',
-  FOLLOWING: 'following',
-  CLOSED: 'closed',
+// 案件状态配置
+export const CASE_STATUS_CONFIG = {
+  pending_assign: {
+    label: '待分配',
+    color: 'bg-amber-100 text-amber-800 border-amber-200',
+    bgColor: 'bg-amber-500',
+  },
+  pending_visit: {
+    label: '待外访',
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    bgColor: 'bg-blue-500',
+  },
+  following: {
+    label: '跟进中',
+    color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    bgColor: 'bg-indigo-500',
+  },
+  closed: {
+    label: '已结案',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    bgColor: 'bg-emerald-500',
+  },
 } as const;
 
-export type CaseStatus = typeof CASE_STATUS[keyof typeof CASE_STATUS];
-
-// 案件状态映射
-export const CASE_STATUS_CONFIG: Record<CaseStatus, { label: string; color: string; bgColor: string }> = {
-  [CASE_STATUS.PENDING_ASSIGN]: { label: '待分配', color: 'hsl(35 90% 45%)', bgColor: 'bg-[hsl(35_90%_45%)]' },
-  [CASE_STATUS.PENDING_VISIT]: { label: '待外访', color: 'hsl(210 70% 50%)', bgColor: 'bg-[hsl(210_70%_50%)]' },
-  [CASE_STATUS.FOLLOWING]: { label: '跟进中', color: 'hsl(210 95% 40%)', bgColor: 'bg-[hsl(210_95%_40%)]' },
-  [CASE_STATUS.CLOSED]: { label: '已结案', color: 'hsl(145 65% 38%)', bgColor: 'bg-[hsl(145_65%_38%)]' },
-};
-
-// 结案类型
-export const CLOSURE_TYPE = {
-  FULL_REPAYMENT: 'full_repayment',
-  PARTIAL_REPAYMENT: 'partial_repayment',
-  NO_REPAYMENT: 'no_repayment',
-  OTHER: 'other',
+// 风险等级配置
+export const RISK_LEVEL_CONFIG = {
+  low: { label: '低风险', color: 'bg-green-100 text-green-800 border-green-200' },
+  medium: { label: '中风险', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  high: { label: '高风险', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+  critical: { label: '严重风险', color: 'bg-red-100 text-red-800 border-red-200' },
+  extreme: { label: '极高风险', color: 'bg-rose-100 text-rose-800 border-rose-200' },
 } as const;
-
-export type ClosureType = typeof CLOSURE_TYPE[keyof typeof CLOSURE_TYPE];
-
-export const CLOSURE_TYPE_CONFIG: Record<ClosureType, { label: string }> = {
-  [CLOSURE_TYPE.FULL_REPAYMENT]: { label: '全额回款' },
-  [CLOSURE_TYPE.PARTIAL_REPAYMENT]: { label: '部分回款' },
-  [CLOSURE_TYPE.NO_REPAYMENT]: { label: '无回款' },
-  [CLOSURE_TYPE.OTHER]: { label: '其他' },
-};
-
-// 用户角色
-export const USER_ROLE = {
-  ADMIN: 'admin',
-  MANAGER: 'manager',
-  AGENT: 'agent',
-} as const;
-
-export type UserRole = typeof USER_ROLE[keyof typeof USER_ROLE];
-
-export const USER_ROLE_CONFIG: Record<UserRole, { label: string }> = {
-  [USER_ROLE.ADMIN]: { label: '管理员' },
-  [USER_ROLE.MANAGER]: { label: '经理' },
-  [USER_ROLE.AGENT]: { label: '外访员' },
-};
-
-// 用户状态
-export const USER_STATUS = {
-  ACTIVE: 'active',
-  INACTIVE: 'inactive',
-} as const;
-
-// 审核状态
-export const AUDIT_STATUS = {
-  PENDING: 'pending',
-  APPROVED: 'approved',
-  REJECTED: 'rejected',
-} as const;
-
-export type AuditStatus = typeof AUDIT_STATUS[keyof typeof AUDIT_STATUS];
-
-export const AUDIT_STATUS_CONFIG: Record<AuditStatus, { label: string; color: string }> = {
-  [AUDIT_STATUS.PENDING]: { label: '待审核', color: 'hsl(35 90% 45%)' },
-  [AUDIT_STATUS.APPROVED]: { label: '已通过', color: 'hsl(145 65% 38%)' },
-  [AUDIT_STATUS.REJECTED]: { label: '已拒绝', color: 'hsl(0 75% 50%)' },
-};
-
-// 风险等级
-export const RISK_LEVEL = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  VERY_HIGH: 'very_high',
-  EXTREME: 'extreme',
-} as const;
-
-export type RiskLevel = typeof RISK_LEVEL[keyof typeof RISK_LEVEL];
-
-export const RISK_LEVEL_CONFIG: Record<RiskLevel, { label: string; color: string }> = {
-  [RISK_LEVEL.LOW]: { label: '低风险', color: 'hsl(145 65% 38%)' },
-  [RISK_LEVEL.MEDIUM]: { label: '中风险', color: 'hsl(35 90% 45%)' },
-  [RISK_LEVEL.HIGH]: { label: '高风险', color: 'hsl(30 80% 50%)' },
-  [RISK_LEVEL.VERY_HIGH]: { label: '很高风险', color: 'hsl(0 75% 50%)' },
-  [RISK_LEVEL.EXTREME]: { label: '极高风险', color: 'hsl(0 60% 40%)' },
-};
-
-// 跟进类型
-export const FOLLOWUP_TYPE = {
-  PHONE: 'phone',
-  VISIT: 'visit',
-  DOCUMENT: 'document',
-  OTHER: 'other',
-} as const;
-
-export type FollowupType = typeof FOLLOWUP_TYPE[keyof typeof FOLLOWUP_TYPE];
-
-export const FOLLOWUP_TYPE_CONFIG: Record<FollowupType, { label: string }> = {
-  [FOLLOWUP_TYPE.PHONE]: { label: '电话跟进' },
-  [FOLLOWUP_TYPE.VISIT]: { label: '上门外访' },
-  [FOLLOWUP_TYPE.DOCUMENT]: { label: '文件跟进' },
-  [FOLLOWUP_TYPE.OTHER]: { label: '其他' },
-};
 
 // 汇丰风险标签
-export const HSBC_RISK_LABELS = {
-  LOW_RISK: '低风险(0-30天)',
-  MEDIUM_RISK: '中风险(31-60天)',
-  HIGH_RISK: '高风险(61-90天)',
-  VERY_HIGH_RISK: '严重风险(91-180天)',
-  EXTREME_RISK: '极高风险(181天+)',
+export const HSBC_RISK_LABELS = [
+  { label: '低风险(0-30天)', color: 'bg-green-100 text-green-800' },
+  { label: '中风险(31-60天)', color: 'bg-yellow-100 text-yellow-800' },
+  { label: '高风险(61-90天)', color: 'bg-orange-100 text-orange-800' },
+  { label: '严重风险(91-180天)', color: 'bg-red-100 text-red-800' },
+  { label: '极高风险(181天+)', color: 'bg-rose-100 text-rose-800' },
+] as const;
+
+// 结案类型配置
+export const CLOSURE_TYPE_CONFIG = {
+  full_repayment: { label: '全额回款', color: 'text-emerald-600' },
+  partial_repayment: { label: '部分回款', color: 'text-blue-600' },
+  no_repayment: { label: '无回款', color: 'text-gray-600' },
+  other: { label: '其他', color: 'text-gray-600' },
 } as const;
 
-// 货币类型
-export const CURRENCY = {
-  CNY: 'CNY',
-  USD: 'USD',
+// 审核状态配置
+export const AUDIT_STATUS_CONFIG = {
+  pending: { label: '待审核', color: 'bg-yellow-100 text-yellow-800' },
+  approved: { label: '已通过', color: 'bg-green-100 text-green-800' },
+  rejected: { label: '已拒绝', color: 'bg-red-100 text-red-800' },
 } as const;
 
-export const USD_TO_CNY_RATE = 7;
-
-// 颜色常量
-export const COLORS = {
-  PRIMARY: 'hsl(210 95% 40%)',
-  BACKGROUND: 'hsl(215 25% 97%)',
-  CARD: 'hsl(0 0% 100%)',
-  BORDER: 'hsl(220 20% 88%)',
-  SUCCESS: 'hsl(145 65% 38%)',
-  WARNING: 'hsl(35 90% 45%)',
-  DANGER: 'hsl(0 75% 50%)',
-  INFO: 'hsl(210 70% 50%)',
-};
-
-// 分页默认值
+// 分页配置
+export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 export const DEFAULT_PAGE_SIZE = 20;
-export const MAX_PAGE_SIZE = 100;
+
+// 导航菜单
+export const NAV_ITEMS = [
+  { label: '仪表盘', href: '/', icon: 'LayoutDashboard' },
+  { label: '案件列表', href: '/cases', icon: 'FileText' },
+  { label: '我的案件', href: '/my-cases', icon: 'User' },
+  { label: '汇丰管理', href: '/hsbc-panel', icon: 'Building2' },
+  { label: '还款记录', href: '/repayment-records', icon: 'Receipt' },
+  { label: '案件分配', href: '/assignment', icon: 'Users' },
+  { label: '数据导出', href: '/data-export', icon: 'Download' },
+  { label: '回收站', href: '/recycle-bin', icon: 'Trash2' },
+  { label: '贷后统计', href: '/post-loan-stats', icon: 'BarChart3' },
+  { label: '用户管理', href: '/users', icon: 'Settings' },
+  { label: 'MCP数据仓库', href: '/mcp-warehouse', icon: 'Database' },
+] as const;
+
+// 用户角色
+export const USER_ROLES = [
+  { value: 'admin', label: '管理员' },
+  { value: 'manager', label: '经理' },
+  { value: 'agent', label: '外访员' },
+] as const;

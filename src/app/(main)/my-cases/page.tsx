@@ -1,35 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { formatCurrency, formatDate, CASE_STATUS_CONFIG } from '@/lib/constants';
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-} from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { CASE_STATUS_CONFIG } from '@/lib/constants';
+import { Eye, ChevronLeft, ChevronRight, FileText, User } from 'lucide-react';
 import Link from 'next/link';
 
 interface Case {
@@ -37,237 +15,135 @@ interface Case {
   caseNo: string;
   borrowerName: string;
   borrowerPhone: string;
-  address: string;
   debtAmount: string;
   status: string;
-  overdueDays: number;
-  assignedUser: string;
+  assigneeName: string | null;
   createdAt: string;
 }
 
-interface PaginatedResponse {
-  data: Case[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
 export default function MyCasesPage() {
-  const router = useRouter();
+  const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<PaginatedResponse | null>(null);
-  const [keyword, setKeyword] = useState('');
-  const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('pageSize', '20');
-      if (keyword) params.set('keyword', keyword);
-      if (status) params.set('status', status);
-
-      const res = await fetch(`/api/cases/my-cases?${params.toString()}`);
-      const result = await res.json();
-      if (result.success) {
-        setData(result.data);
+      const res = await fetch(`/api/cases?page=${page}&pageSize=${pageSize}&myCases=true`);
+      const json = await res.json();
+      if (json.success) {
+        setCases(json.data);
+        setTotal(json.total);
       }
     } catch (error) {
-      toast.error('获取我的案件失败');
+      console.error('获取失败:', error);
     } finally {
       setLoading(false);
     }
-  }, [page, keyword, status]);
+  }, [page]);
 
   useEffect(() => {
     fetchCases();
   }, [fetchCases]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchCases();
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-2xl font-bold">我的案件</h1>
-        </div>
-        <Badge variant="outline">
-          共 {data?.total || 0} 个案件
-        </Badge>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索案件编号、借款人..."
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <Select value={status || 'all'} onValueChange={(v) => setStatus(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="案件状态" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="pending_assign">待分配</SelectItem>
-                <SelectItem value="pending_visit">待外访</SelectItem>
-                <SelectItem value="following">跟进中</SelectItem>
-                <SelectItem value="closed">已结案</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button type="submit" variant="secondary">
-              筛选
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setKeyword('');
-                setStatus('');
-                setPage(1);
-              }}
-            >
-              重置
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>案件编号</TableHead>
-                <TableHead>借款人</TableHead>
-                <TableHead>联系电话</TableHead>
-                <TableHead>地址</TableHead>
-                <TableHead className="text-right">欠款金额</TableHead>
-                <TableHead>逾期天数</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>创建时间</TableHead>
-                <TableHead className="text-center">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  </TableRow>
-                ))
-              ) : data?.data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    暂无案件数据
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.data.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-accent/50">
-                    <TableCell className="font-mono text-sm">{item.caseNo}</TableCell>
-                    <TableCell className="font-medium">{item.borrowerName}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.borrowerPhone || '-'}</TableCell>
-                    <TableCell className="text-sm max-w-[200px] truncate">
-                      {item.address || '-'}
-                    </TableCell>
-                    <TableCell className="text-right font-data">
-                      {formatCurrency(item.debtAmount)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={item.overdueDays > 60 ? 'destructive' : item.overdueDays > 30 ? 'warning' : 'outline'}
-                      >
-                        {item.overdueDays} 天
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        style={{
-                          backgroundColor: CASE_STATUS_CONFIG[item.status]?.color || 'hsl(220,20%,88%)',
-                          color: 'white',
-                        }}
-                      >
-                        {CASE_STATUS_CONFIG[item.status]?.label || item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {formatDate(item.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/cases/${item.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Pagination */}
-      {data && data.totalPages > 1 && (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            共 {data.total} 条记录，第 {data.page}/{data.totalPages} 页
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              {page} / {data.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === data.totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <User className="w-6 h-6 text-blue-600" />
+              我的案件
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">共 {total} 个案件</p>
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="p-6">
+        <Card className="border-slate-200 shadow-sm">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-700">案件编号</th>
+                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-700">借款人</th>
+                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-700">电话</th>
+                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-700">欠款金额</th>
+                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-700">状态</th>
+                    <th className="text-left px-6 py-3 text-sm font-semibold text-slate-700">创建时间</th>
+                    <th className="text-right px-6 py-3 text-sm font-semibold text-slate-700">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        {Array.from({ length: 7 }).map((_, j) => (
+                          <td key={j} className="px-6 py-4">
+                            <Skeleton className="h-5 w-20" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : cases.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center">
+                        <FileText className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                        <p className="text-slate-500">暂无案件数据</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    cases.map((c) => (
+                      <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 font-mono text-sm text-blue-600">{c.caseNo}</td>
+                        <td className="px-6 py-4 font-medium">{c.borrowerName}</td>
+                        <td className="px-6 py-4 text-slate-600">{c.borrowerPhone}</td>
+                        <td className="px-6 py-4 font-mono tabular-nums">{formatCurrency(c.debtAmount)}</td>
+                        <td className="px-6 py-4">
+                          <Badge className={CASE_STATUS_CONFIG[c.status as keyof typeof CASE_STATUS_CONFIG]?.color}>
+                            {CASE_STATUS_CONFIG[c.status as keyof typeof CASE_STATUS_CONFIG]?.label}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 text-sm">{formatDate(c.createdAt)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/cases/${c.id}`}>
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {!loading && cases.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+                <p className="text-sm text-slate-600">
+                  显示 {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} 条
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    上一页
+                  </Button>
+                  <span className="text-sm text-slate-600">第 {page} 页</span>
+                  <Button variant="outline" size="sm" disabled={cases.length < pageSize} onClick={() => setPage(p => p + 1)}>
+                    下一页
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -1,168 +1,151 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Building2, Lock, User } from 'lucide-react';
+import { Lock, User, Loader2, Shield } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: '',
+  });
 
-  useEffect(() => {
-    setMounted(true);
-    // 检查是否已登录
-    const checkLogin = async () => {
-      try {
-        const res = await fetch('/api/auth');
-        if (res.ok) {
-          router.push('/');
-        }
-      } catch {
-        // 未登录
-      }
-    };
-    checkLogin();
-  }, [router]);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    
+    if (!credentials.username || !credentials.password) {
+      toast.error('请输入用户名和密码');
+      return;
+    }
+
     setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    const username = formData.get('username') as string;
-    const password = formData.get('password') as string;
-
     try {
-      const res = await fetch('/api/auth', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(credentials),
       });
 
-      const data = await res.json();
+      const json = await res.json();
 
-      if (data.success) {
+      if (json.success) {
         toast.success('登录成功');
+        // 保存 token
+        localStorage.setItem('token', json.token);
+        localStorage.setItem('user', JSON.stringify(json.user));
         router.push('/');
       } else {
-        toast.error(data.error || '登录失败');
+        toast.error(json.error || '登录失败');
       }
-    } catch {
-      toast.error('网络错误，请重试');
+    } catch (error) {
+      toast.error('登录失败，请稍后重试');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[hsl(210,95%,40%)] via-[hsl(210,95%,35%)] to-[hsl(210,95%,30%)] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
       {/* 背景装饰 */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-[hsl(210,95%,25%)] rounded-full opacity-20 blur-3xl" />
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-[hsl(210,95%,20%)] rounded-full opacity-20 blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
       </div>
 
-      <Card className="w-full max-w-md relative z-10 border-0 shadow-2xl">
+      <Card className="w-full max-w-md relative z-10 border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
         <CardHeader className="space-y-4 text-center pb-8">
-          <div className="mx-auto w-16 h-16 bg-[hsl(210,95%,40%)] rounded flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-white" />
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <Shield className="w-8 h-8 text-white" />
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-[hsl(210,95%,40%)]">
-              贷后案件管理系统
-            </CardTitle>
-            <CardDescription className="mt-2">
-              金融贷后外访案件全生命周期管理平台
-            </CardDescription>
-          </div>
+          <CardTitle className="text-2xl font-bold text-slate-900">
+            贷后案件管理系统
+          </CardTitle>
+          <p className="text-slate-500 text-sm">
+            请登录您的账户以继续
+          </p>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
+              <Label htmlFor="username" className="text-slate-700 font-medium">
                 用户名
               </Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <Input
                   id="username"
-                  name="username"
                   type="text"
                   placeholder="请输入用户名"
-                  className="pl-10 h-11"
-                  required
+                  value={credentials.username}
+                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                  className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                  autoComplete="username"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
+              <Label htmlFor="password" className="text-slate-700 font-medium">
                 密码
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <Input
                   id="password"
-                  name="password"
                   type="password"
                   placeholder="请输入密码"
-                  className="pl-10 h-11"
-                  required
+                  value={credentials.password}
+                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                  className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                  autoComplete="current-password"
                 />
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 bg-[hsl(210,95%,40%)] hover:bg-[hsl(210,95%,35%)] text-white font-medium"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 transition-all"
               disabled={loading}
             >
               {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   登录中...
-                </span>
+                </>
               ) : (
                 '登 录'
               )}
             </Button>
-          </form>
 
-          <div className="mt-6 pt-6 border-t text-center text-sm text-muted-foreground">
-            <p>演示账号: admin / admin</p>
-          </div>
+            <div className="pt-4 border-t border-slate-100">
+              <p className="text-xs text-slate-400 text-center mb-3">测试账号</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-slate-50 rounded-lg p-2 text-center">
+                  <p className="font-medium text-slate-700">admin</p>
+                  <p className="text-slate-400">管理员</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-2 text-center">
+                  <p className="font-medium text-slate-700">zhangsan</p>
+                  <p className="text-slate-400">外访员</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 text-center mt-2">密码: admin123</p>
+            </div>
+          </form>
         </CardContent>
       </Card>
+
+      <p className="absolute bottom-4 text-xs text-slate-400">
+        © 2024 贷后案件管理系统
+      </p>
     </div>
   );
 }

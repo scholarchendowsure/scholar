@@ -5,410 +5,353 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
+import { HSBC_RISK_LABELS } from '@/lib/constants';
 import {
   Building2,
-  DollarSign,
   TrendingUp,
   AlertTriangle,
+  DollarSign,
   Download,
   RefreshCw,
-  ChevronDown,
-  ChevronRight,
-  Info,
+  CreditCard,
+  Clock,
+  Shield,
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   Legend,
 } from 'recharts';
+
+interface CurrencyBreakdown {
+  currency: string;
+  loanCount: number;
+  totalLoanAmount: number;
+  totalBalance: number;
+  totalPastdue: number;
+  overdueMerchantCount: number;
+}
+
+interface ApproachingMaturity {
+  currency: string;
+  in7DaysCount: number;
+  in7DaysAmount: number;
+  in7DaysMerchants: number;
+  in15DaysCount: number;
+  in15DaysAmount: number;
+  in15DaysMerchants: number;
+  in30DaysCount: number;
+  in30DaysAmount: number;
+  in30DaysMerchants: number;
+  in45DaysCount: number;
+  in45DaysAmount: number;
+  in45DaysMerchants: number;
+}
+
+interface RiskStat {
+  riskLabel: string;
+  merchantCount: number;
+  totalOverdue: number;
+  loanCount: number;
+}
+
+interface OverdueTrend {
+  batchDate: string;
+  overdueAmount: number;
+  balance: number;
+  overdueRate: number;
+}
 
 interface HSBCStats {
   totalLoans: number;
   activeMerchants: number;
-  totalLoanCNY: string;
-  totalBalanceCNY: string;
-  totalPastdueCNY: string;
+  totalLoanCNY: number;
+  totalBalanceCNY: number;
+  totalPastdueCNY: number;
   overdueRate: string;
   overdueMerchants: number;
   overdueMerchantRate: string;
-  currencyBreakdown: Array<{
-    currency: string;
-    loanCount: number;
-    totalLoanAmount: string;
-    totalBalance: string;
-    totalPastdue: string;
-    overdueMerchantCount: string;
-  }>;
-  approachingMaturity: Array<{
-    currency: string;
-    in7DaysCount: string;
-    in7DaysAmount: string;
-    in7DaysMerchants: string;
-    in15DaysCount: string;
-    in15DaysAmount: string;
-    in15DaysMerchants: string;
-    in30DaysCount: string;
-    in30DaysAmount: string;
-    in30DaysMerchants: string;
-    in45DaysCount: string;
-    in45DaysAmount: string;
-    in45DaysMerchants: string;
-  }>;
-  riskStats: Array<{
-    riskLabel: string;
-    merchantCount: number;
-    totalOverdue: string;
-    loanCount: string;
-  }>;
+  currencyBreakdown: CurrencyBreakdown[];
+  approachingMaturity: ApproachingMaturity[];
+  riskStats: RiskStat[];
   extensionMerchants: number;
+  overdueTrend: OverdueTrend[];
 }
+
+const RISK_COLORS: Record<string, string> = {
+  '低风险(0-30天)': '#10b981',
+  '中风险(31-60天)': '#f59e0b',
+  '高风险(61-90天)': '#f97316',
+  '严重风险(91-180天)': '#ef4444',
+  '极高风险(181天+)': '#dc2626',
+};
 
 export default function HSBCDashboardPage() {
   const [stats, setStats] = useState<HSBCStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedBatch, setSelectedBatch] = useState<string>('');
-  const [batchDates, setBatchDates] = useState<Array<{ batchDate: string; count: number }>>([]);
+  const [batchDate, setBatchDate] = useState<string>('all');
 
   useEffect(() => {
-    fetchBatchDates();
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [selectedBatch]);
-
-  const fetchBatchDates = async () => {
-    try {
-      const res = await fetch('/api/hsbc/batch-dates');
-      const data = await res.json();
-      if (data.success) {
-        setBatchDates(data.data || []);
-        if (data.data.length > 0) {
-          setSelectedBatch(data.data[0].batchDate);
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ ...(batchDate !== 'all' && { batchDate }) });
+        const res = await fetch(`/api/hsbc/stats?${params}`);
+        const json = await res.json();
+        if (json.success) {
+          setStats(json.data);
         }
+      } catch (error) {
+        console.error('获取汇丰统计失败:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch batch dates:', error);
-    }
-  };
+    };
 
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      const params = selectedBatch ? `?batchDate=${selectedBatch}` : '';
-      const res = await fetch(`/api/hsbc/stats${params}`);
-      const data = await res.json();
-      if (data.success) {
-        setStats(data.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch HSBC stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const riskLabelConfig: Record<string, { label: string; color: string }> = {
-    '低风险(0-30天)': { label: '低风险', color: 'hsl(145 65% 38%)' },
-    '中风险(31-60天)': { label: '中风险', color: 'hsl(35 90% 45%)' },
-    '高风险(61-90天)': { label: '高风险', color: 'hsl(30 80% 50%)' },
-    '严重风险(91-180天)': { label: '严重风险', color: 'hsl(0 75% 50%)' },
-    '极高风险(181天+)': { label: '极高风险', color: 'hsl(0 60% 40%)' },
-  };
+    fetchStats();
+  }, [batchDate]);
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-10 w-60" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-20 mb-2" />
-                <Skeleton className="h-4 w-32" />
-              </CardContent>
-            </Card>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="p-4"><Skeleton className="h-20" /></CardContent></Card>
           ))}
         </div>
       </div>
     );
   }
 
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
+        <p className="text-slate-500">加载失败</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">汇丰贷款仪表盘</h1>
-          <Badge variant="outline" className="text-sm">
-            批次: {selectedBatch || '全部'}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedBatch}
-            onChange={(e) => setSelectedBatch(e.target.value)}
-            className="h-10 px-3 border rounded bg-background text-sm"
-          >
-            <option value="">全部批次</option>
-            {batchDates.map((bd) => (
-              <option key={bd.batchDate} value={bd.batchDate}>
-                {bd.batchDate} ({bd.count})
-              </option>
-            ))}
-          </select>
-          <Button variant="outline" onClick={fetchStats}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            刷新
-          </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            导出
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* 头部 */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">汇丰贷款管理</h1>
+            <p className="text-slate-500 mt-1">数据仪表盘</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Select value={batchDate} onValueChange={setBatchDate}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="选择批次日期" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部批次</SelectItem>
+                <SelectItem value="2024-01">2024年1月</SelectItem>
+                <SelectItem value="2024-02">2024年2月</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              刷新
+            </Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700 gap-2">
+              <Download className="w-4 h-4" />
+              导出Excel
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Core Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="card-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              总贷款笔数
-            </CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-data">{stats?.totalLoans?.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              在贷商户 {stats?.activeMerchants?.toLocaleString()} 家
-            </p>
-          </CardContent>
-        </Card>
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* 核心指标 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-blue-600">贷款笔数</CardTitle>
+              <CreditCard className="w-5 h-5 text-blue-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-mono">{stats.totalLoans}</div>
+              <p className="text-xs text-slate-500 mt-1">活跃商户 {stats.activeMerchants}</p>
+            </CardContent>
+          </Card>
 
-        <Card className="card-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              在贷余额
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-[hsl(210,95%,40%)]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-data text-[hsl(210,95%,40%)]">
-              {formatCurrency(stats?.totalBalanceCNY)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              累计放款 {formatCurrency(stats?.totalLoanCNY)}
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-600">在贷余额</CardTitle>
+              <DollarSign className="w-5 h-5 text-emerald-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono">{formatCurrency(stats.totalBalanceCNY)}</div>
+              <p className="text-xs text-slate-500 mt-1">累计放款 {formatCurrency(stats.totalLoanCNY)}</p>
+            </CardContent>
+          </Card>
 
-        <Card className="card-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              逾期总额
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-[hsl(0,75%,50%)]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-data text-[hsl(0,75%,50%)]">
-              {formatCurrency(stats?.totalPastdueCNY)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              逾期率 {stats?.overdueRate} | 商户占比 {stats?.overdueMerchantRate}
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-red-200 bg-gradient-to-br from-red-50 to-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-red-600">逾期总额</CardTitle>
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-mono text-red-600">{formatCurrency(stats.totalPastdueCNY)}</div>
+              <p className="text-xs text-slate-500 mt-1">逾期率 {stats.overdueRate}%</p>
+            </CardContent>
+          </Card>
 
-        <Card className="card-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              逾期商户
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-[hsl(35,90%,45%)]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.overdueMerchants?.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              共 {stats?.activeMerchants?.toLocaleString()} 家在贷商户
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-amber-600">逾期商户</CardTitle>
+              <Building2 className="w-5 h-5 text-amber-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{stats.overdueMerchants}</div>
+              <p className="text-xs text-slate-500 mt-1">占比 {stats.overdueMerchantRate}%</p>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Currency Breakdown */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <CardTitle className="text-lg">币种细分</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium">币种</th>
-                  <th className="text-right py-3 px-4 font-medium">贷款笔数</th>
-                  <th className="text-right py-3 px-4 font-medium">贷款金额</th>
-                  <th className="text-right py-3 px-4 font-medium">余额</th>
-                  <th className="text-right py-3 px-4 font-medium">逾期金额</th>
-                  <th className="text-right py-3 px-4 font-medium">逾期商户数</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats?.currencyBreakdown?.map((item) => (
-                  <tr key={item.currency} className="border-b last:border-0">
-                    <td className="py-3 px-4">
-                      <Badge variant={item.currency === 'CNY' ? 'default' : 'secondary'}>
-                        {item.currency}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-right font-data">{item.loanCount}</td>
-                    <td className="py-3 px-4 text-right font-data">
-                      {item.currency === 'CNY' 
-                        ? formatCurrency(item.totalLoanAmount)
-                        : `$${parseFloat(item.totalLoanAmount).toLocaleString()}`
-                      }
-                    </td>
-                    <td className="py-3 px-4 text-right font-data">
-                      {item.currency === 'CNY' 
-                        ? formatCurrency(item.totalBalance)
-                        : `$${parseFloat(item.totalBalance).toLocaleString()}`
-                      }
-                    </td>
-                    <td className="py-3 px-4 text-right font-data text-[hsl(0,75%,50%)]">
-                      {item.currency === 'CNY' 
-                        ? formatCurrency(item.totalPastdue)
-                        : `$${parseFloat(item.totalPastdue).toLocaleString()}`
-                      }
-                    </td>
-                    <td className="py-3 px-4 text-right font-data">{item.overdueMerchantCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Approaching Maturity */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <CardTitle className="text-lg">临近到期提醒</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { days: '7天', key: 'in7Days', color: 'hsl(0,75%,50%)' },
-              { days: '15天', key: 'in15Days', color: 'hsl(35,90%,45%)' },
-              { days: '30天', key: 'in30Days', color: 'hsl(35,90%,45%)' },
-              { days: '45天', key: 'in45Days', color: 'hsl(210,70%,50%)' },
-            ].map((item) => (
-              <div key={item.days} className="p-4 border rounded">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{item.days}内到期</span>
-                  <Info className="h-4 w-4 text-muted-foreground" />
+        {/* 币种细分 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {stats.currencyBreakdown.map((item) => (
+            <Card key={item.currency} className="border-slate-200 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    item.currency === 'CNY' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {item.currency}
+                  </span>
+                  贷款明细
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="text-center p-3 bg-slate-50 rounded-lg">
+                    <p className="text-xs text-slate-500">笔数</p>
+                    <p className="text-xl font-bold font-mono">{item.loanCount}</p>
+                  </div>
+                  <div className="text-center p-3 bg-slate-50 rounded-lg">
+                    <p className="text-xs text-slate-500">贷款金额</p>
+                    <p className="text-xl font-bold font-mono">{formatCurrency(item.totalLoanAmount, false)}</p>
+                  </div>
+                  <div className="text-center p-3 bg-slate-50 rounded-lg">
+                    <p className="text-xs text-slate-500">余额</p>
+                    <p className="text-xl font-bold font-mono">{formatCurrency(item.totalBalance, false)}</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 rounded-lg">
+                    <p className="text-xs text-red-500">逾期金额</p>
+                    <p className="text-xl font-bold font-mono text-red-600">{formatCurrency(item.totalPastdue, false)}</p>
+                  </div>
+                  <div className="text-center p-3 bg-red-50 rounded-lg">
+                    <p className="text-xs text-red-500">逾期商户</p>
+                    <p className="text-xl font-bold font-mono text-red-600">{item.overdueMerchantCount}</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  {stats?.approachingMaturity?.map((ap) => (
-                    <div key={ap.currency} className="flex items-center justify-between text-sm">
-                      <Badge variant="outline">{ap.currency}</Badge>
-                      <span className="font-data">
-                        {ap[`${item.key}Count` as keyof typeof ap]}笔 /{' '}
-                        {ap.currency === 'CNY' 
-                          ? formatCurrency(ap[`${item.key}Amount` as keyof typeof ap] as string)
-                          : `$${parseFloat(ap[`${item.key}Amount` as keyof typeof ap] as string).toLocaleString()}`
-                        }
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-      {/* Risk Assessment */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <CardTitle className="text-lg">风险评定统计</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={stats?.riskStats?.map((r) => ({
-                  ...r,
-                  label: riskLabelConfig[r.riskLabel]?.label || r.riskLabel,
-                  color: riskLabelConfig[r.riskLabel]?.color || 'hsl(220,20%,88%)',
-                })) || []}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,20%,88%)" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(0,0%,100%)',
-                    border: '1px solid hsl(220,20%,88%)',
-                    borderRadius: '2px',
-                  }}
-                  formatter={(value: number) => [formatCurrency(value.toString()), '逾期金额']}
-                />
-                <Bar
-                  dataKey="totalOverdue"
-                  name="逾期金额"
-                  radius={[2, 2, 0, 0]}
+        {/* 逾期趋势图 */}
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-slate-400" />
+              逾期趋势
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.overdueTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="batchDate" tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      name === 'overdueAmount' ? formatCurrency(value) : `${value}%`,
+                      name === 'overdueAmount' ? '逾期金额' : '逾期率'
+                    ]}
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="overdueAmount" name="逾期金额" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} />
+                  <Line yAxisId="right" type="monotone" dataKey="overdueRate" name="逾期率" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 风险评定 */}
+        <Card className="border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Shield className="w-5 h-5 text-slate-400" />
+              风险评定统计
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.riskStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="riskLabel" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      formatCurrency(value),
+                      name === 'totalOverdue' ? '逾期金额' : name === 'merchantCount' ? '商户数' : '笔数'
+                    ]}
+                    contentStyle={{
+                      backgroundColor: 'white',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="totalOverdue" name="逾期金额" radius={[4, 4, 0, 0]}>
+                    {stats.riskStats.map((entry) => (
+                      <rect key={entry.riskLabel} fill={RISK_COLORS[entry.riskLabel] || '#94a3b8'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              {stats.riskStats.map((item) => (
+                <Badge
+                  key={item.riskLabel}
+                  className="px-3 py-1"
+                  style={{ backgroundColor: RISK_COLORS[item.riskLabel] + '20', color: RISK_COLORS[item.riskLabel] }}
                 >
-                  {stats?.riskStats?.map((entry, index) => (
-                    <rect key={index} fill={riskLabelConfig[entry.riskLabel]?.color || 'hsl(220,20%,88%)'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-4">
-            {stats?.riskStats?.map((item) => (
-              <div key={item.riskLabel} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded"
-                  style={{ backgroundColor: riskLabelConfig[item.riskLabel]?.color }}
-                />
-                <span className="text-sm">{riskLabelConfig[item.riskLabel]?.label}:</span>
-                <span className="text-sm font-medium">{item.merchantCount} 商户</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Extension Merchants */}
-      <Card className="card-shadow">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">展期商户</CardTitle>
-            <Badge variant="outline">{stats?.extensionMerchants || 0} 家</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            展期商户不计入逾期统计，请至「汇丰案件列表」进行管理。
-          </p>
-        </CardContent>
-      </Card>
+                  {item.riskLabel}: {item.merchantCount}商户 / {formatCurrency(item.totalOverdue, false)}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
