@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { cookies } from 'next/headers';
 
 interface User {
   id: string;
@@ -79,10 +78,10 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth', { method: 'DELETE' });
-      window.location.href = '/login';
-    } catch {
-      window.location.href = '/login';
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
     }
   };
 
