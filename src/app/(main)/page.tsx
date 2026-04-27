@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -21,7 +22,13 @@ import {
   AlertCircle,
   Plus,
   RefreshCw,
-  Filter
+  Filter,
+  Upload,
+  FileSpreadsheet,
+  Database,
+  Building2,
+  PieChart,
+  Trash2
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -126,6 +133,149 @@ export default function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {/* 菜单导航栏卡片 */}
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-semibold text-slate-800">快速导航</CardTitle>
+          <CardDescription>点击下方卡片快速访问各功能模块</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <Link href="/">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+                    <LayoutDashboard className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">仪表盘</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/cases">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">案件管理</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/my-cases">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-400 flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">我的案件</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/assignment">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-400 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">案件分配</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/repayment-records">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">还款记录</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/case-import">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-blue-400 flex items-center justify-center">
+                    <Upload className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">案件导入</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/hsbc-panel">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-400 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">汇丰管理</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/post-loan-stats">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-400 flex items-center justify-center">
+                    <PieChart className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">贷后统计</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/users">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-400 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">用户管理</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/recycle-bin">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-500 to-gray-400 flex items-center justify-center">
+                    <Trash2 className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">回收站</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/data-export">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-sky-400 flex items-center justify-center">
+                    <Database className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">数据导出</span>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/followup-import">
+              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
+                <CardContent className="p-4 flex flex-col items-center gap-2">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-400 flex items-center justify-center">
+                    <FileSpreadsheet className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">跟进导入</span>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 核心统计卡片 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
