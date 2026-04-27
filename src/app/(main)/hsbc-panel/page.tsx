@@ -61,7 +61,6 @@ import {
   BarChart3,
   PieChart,
 } from 'lucide-react';
-import { NavMenuCard } from '@/components/nav-menu-card';
 
 // ============ 类型定义 ============
 interface HSBCLoan {
@@ -404,9 +403,6 @@ export default function HSBCPanelPage() {
           刷新数据
         </Button>
       </div>
-
-      {/* 快速导航卡片 */}
-      <NavMenuCard />
 
       {/* ============ 汇丰仪表盘 ============ */}
       <Collapsible open={expandedSections.dashboard} onOpenChange={() => toggleSection('dashboard')}>

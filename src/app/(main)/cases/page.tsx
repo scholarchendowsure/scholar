@@ -43,7 +43,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { NavMenuCard } from '@/components/nav-menu-card';
 
 interface Case {
   id: string;
@@ -173,11 +172,6 @@ export default function CasesPage() {
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* 快速导航卡片 */}
-      <div className="px-6 pt-4">
-        <NavMenuCard />
       </div>
 
       {/* 筛选面板 */}
