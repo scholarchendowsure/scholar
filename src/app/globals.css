@@ -3,6 +3,43 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* 金融系统专业配色 */
+:root {
+  --primary: hsl(210 95% 40%);
+  --primary-foreground: hsl(0 0% 100%);
+  --background: hsl(215 25% 97%);
+  --foreground: hsl(222 47% 11%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 47% 11%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 47% 11%);
+  --secondary: hsl(220 20% 96%);
+  --secondary-foreground: hsl(222 47% 11%);
+  --muted: hsl(220 14% 96%);
+  --muted-foreground: hsl(220 9% 46%);
+  --accent: hsl(220 14% 96%);
+  --accent-foreground: hsl(222 47% 11%);
+  --destructive: hsl(0 75% 50%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(220 20% 88%);
+  --input: hsl(220 20% 88%);
+  --ring: hsl(210 95% 40%);
+  --radius: 2px;
+  
+  /* 语义色 */
+  --success: hsl(145 65% 38%);
+  --warning: hsl(35 90% 45%);
+  --info: hsl(210 70% 50%);
+  --danger: hsl(0 75% 50%);
+  
+  /* 图表色 */
+  --chart-1: hsl(210 95% 40%);
+  --chart-2: hsl(145 65% 38%);
+  --chart-3: hsl(35 90% 45%);
+  --chart-4: hsl(210 70% 50%);
+  --chart-5: hsl(0 75% 50%);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -42,96 +79,125 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  --font-sans:
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif,
-    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
-  --font-serif:
-    'Noto Serif SC', 'Songti SC', 'SimSun', ui-serif, Georgia, Cambria,
-    'Times New Roman', Times, serif;
-}
-
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --font-sans: 'Inter', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', 'SF Mono', 'Consolas', ui-monospace, monospace;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
+  
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* 专业金融系统字体 */
+  h1 {
+    @apply text-2xl font-bold;
+  }
+  
+  h2 {
+    @apply text-xl font-semibold;
+  }
+  
+  h3 {
+    @apply text-lg font-semibold;
+  }
+  
+  /* 等宽字体用于数据展示 */
+  .font-data {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* 金额格式化 */
+  .amount {
+    @apply font-data;
+    font-variant-numeric: tabular-nums;
+  }
+  
+  /* 状态标签 */
+  .status-pending-assign {
+    @apply bg-[hsl(35,90%,45%)] text-white;
+  }
+  
+  .status-pending-visit {
+    @apply bg-[hsl(210,70%,50%)] text-white;
+  }
+  
+  .status-following {
+    @apply bg-[hsl(210,95%,40%)] text-white;
+  }
+  
+  .status-closed {
+    @apply bg-[hsl(145,65%,38%)] text-white;
   }
 }
 
-body {
-  @apply font-sans;
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(220 14% 96%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(220 20% 88%);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(220 20% 78%);
+}
+
+/* 表格样式优化 */
+table {
+  @apply w-full;
+}
+
+th {
+  @apply text-left font-semibold text-muted-foreground text-sm;
+}
+
+td {
+  @apply py-3;
+}
+
+/* 卡片阴影 */
+.card-shadow {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+}
+
+/* 禁用大圆角 */
+button, .rounded {
+  border-radius: var(--radius) !important;
+}
+
+.rounded-md {
+  border-radius: calc(var(--radius) + 1px) !important;
+}
+
+.rounded-lg {
+  border-radius: calc(var(--radius) + 2px) !important;
+}
+
+/* 动画优化 */
+.animate-in {
+  animation: animate-in 0.2s ease-out;
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
