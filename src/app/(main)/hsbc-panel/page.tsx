@@ -714,7 +714,7 @@ export default function HSBCPanelPage() {
                     临近到期分布
                   </h3>
                   <div className="space-y-2">
-                    {stats?.maturityDistribution.map((item) => (
+                    {(stats?.maturityDistribution || []).map((item) => (
                       <div key={item.range} className="flex items-center gap-3">
                         <span className="w-16 text-sm text-slate-600">{item.range}</span>
                         <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
@@ -1146,7 +1146,7 @@ export default function HSBCPanelPage() {
                 <div>
                   <h3 className="font-semibold text-slate-700 mb-3">还款计划</h3>
                   <div className="space-y-2">
-                    {selectedLoan.repaymentSchedule.map((item, idx) => (
+                    {(selectedLoan.repaymentSchedule || []).map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                         <span className="flex items-center gap-2">
                           <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
