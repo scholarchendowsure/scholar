@@ -41,6 +41,34 @@ export const HSBC_RISK_LABELS = [
 ] as const;
 
 // 结案类型配置
+// 用户角色配置
+export const USER_ROLE_CONFIG = {
+  admin: {
+    label: '管理员',
+    color: 'bg-purple-100 text-purple-800 border-purple-200',
+  },
+  manager: {
+    label: '经理',
+    color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  },
+  visitor: {
+    label: '外访员',
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+  },
+} as const;
+
+// 用户状态配置
+export const USER_STATUS_CONFIG = {
+  active: {
+    label: '正常',
+    color: 'bg-green-100 text-green-800 border-green-200',
+  },
+  inactive: {
+    label: '停用',
+    color: 'bg-gray-100 text-gray-800 border-gray-200',
+  },
+} as const;
+
 export const CLOSURE_TYPE_CONFIG = {
   full_repayment: { label: '全额回款', color: 'text-emerald-600' },
   partial_repayment: { label: '部分回款', color: 'text-blue-600' },
