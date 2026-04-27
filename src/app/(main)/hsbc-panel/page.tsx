@@ -277,7 +277,7 @@ export default function HSBCPanelPage() {
       if (datesRes.ok) {
         const datesData = await datesRes.json();
         dates = datesData.data || [];
-        setBatchDates(dates);
+        setAvailableBatchDates(dates);
       }
 
       // 如果有批次日期，加载最新日期的数据；否则加载所有数据
@@ -569,7 +569,7 @@ export default function HSBCPanelPage() {
               className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">全部日期</option>
-              {availableBatchDates.map((date: string) => (
+              {(availableBatchDates || []).map((date: string) => (
                 <option key={date} value={date}>{date}</option>
               ))}
             </select>
@@ -652,7 +652,7 @@ export default function HSBCPanelPage() {
                   币种细分
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {stats?.currencyBreakdown.map((item) => (
+                  {(stats?.currencyBreakdown || []).map((item) => (
                     <div key={item.currency} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <Badge variant="outline" className="text-lg px-3">
@@ -689,7 +689,7 @@ export default function HSBCPanelPage() {
                     风险评估分布
                   </h3>
                   <div className="space-y-2">
-                    {stats?.riskDistribution.map((item, idx) => {
+                    {(stats?.riskDistribution || []).map((item, idx) => {
                       const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
                       const percentages = [40, 30, 20, 10];
                       return (
@@ -1019,7 +1019,7 @@ export default function HSBCPanelPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {importPreview.map((loan) => (
+                  {(importPreview || []).map((loan) => (
                     <TableRow key={loan.id}>
                       <TableCell className="font-mono">{loan.loanReference}</TableCell>
                       <TableCell className="font-mono">{loan.merchantId}</TableCell>
