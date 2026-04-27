@@ -19,7 +19,8 @@ import {
   Database,
   CheckCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Menu
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -75,13 +76,28 @@ const navItems = [
   }
 ];
 
-export function Sidebar() {
+interface SidebarContentProps {
+  isCollapsed: boolean;
+  setIsCollapsed: (collapsed: boolean) => void;
+  expandedSections: string[];
+  setExpandedSections: (sections: string[]) => void;
+  expandedItems: string[];
+  setExpandedItems: (items: string[]) => void;
+  onClose?: () => void;
+}
+
+const SidebarContent: React.FC<SidebarContentProps> = ({
+  isCollapsed,
+  setIsCollapsed,
+  expandedSections,
+  setExpandedSections,
+  expandedItems,
+  setExpandedItems,
+  onClose
+}) => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['核心功能', '专项管理']);
-  const [expandedItems, setExpandedItems] = useState<string[]>(['案件管理']);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -109,7 +125,7 @@ export function Sidebar() {
     return pathname.startsWith(href);
   };
 
-  const SidebarContent = () => (
+  return (
     <div className={cn(
       "h-full flex flex-col bg-white border-r border-gray-200 shadow-sm transition-all duration-300",
       isCollapsed ? "w-16" : "w-64"
@@ -203,12 +219,13 @@ export function Sidebar() {
                           {/* 子菜单 */}
                           {expandedItems.includes(item.name) && !isCollapsed && (
                             <div className="ml-8 mt-1 space-y-0.5 border-l border-gray-100 pl-2">
-                              {item.subItems.map((subItem, subIdx) => {
+                              {item.subItems?.map((subItem, subIdx) => {
                                 const isSubActive = pathname === subItem.href;
                                 return (
                                   <Link
                                     key={subIdx}
                                     href={subItem.href}
+                                    onClick={onClose}
                                     className={cn(
                                       "flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200",
                                       isSubActive
@@ -232,6 +249,7 @@ export function Sidebar() {
                         // 无子菜单的项目
                         <Link
                           href={item.href}
+                          onClick={onClose}
                           className={cn(
                             "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group",
                             isItemActive
@@ -292,18 +310,24 @@ export function Sidebar() {
       </div>
     </div>
   );
+};
+
+export function Sidebar({ onClose }: { onClose?: () => void }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['核心功能', '专项管理']);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['案件管理']);
 
   return (
-    <>
-      {/* 桌面端侧边栏 */}
-      <div className="hidden md:flex h-full">
-        <SidebarContent />
-      </div>
-      
-      {/* 移动端侧边栏 */}
-      <div className="md:hidden fixed inset-y-0 left-0 z-50">
-        <SidebarContent />
-      </div>
-    </>
+    <div className="h-full">
+      <SidebarContent
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        expandedSections={expandedSections}
+        setExpandedSections={setExpandedSections}
+        expandedItems={expandedItems}
+        setExpandedItems={setExpandedItems}
+        onClose={onClose}
+      />
+    </div>
   );
 }

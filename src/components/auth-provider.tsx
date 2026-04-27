@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -11,22 +11,29 @@ interface User {
   department?: string;
 }
 
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  logout: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkAuth = () => {
       try {
-        const res = await fetch('/api/auth');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setUser(data.data);
-          } else {
-            router.push('/login');
-          }
+        // 先检查localStorage
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        
+        if (token && userStr) {
+          const parsedUser = JSON.parse(userStr);
+          setUser(parsedUser);
         } else {
           router.push('/login');
         }
@@ -40,6 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [router]);
 
+  const logout = async () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -51,39 +69,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <AuthContext.Provider value={{ user, loading, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await fetch('/api/auth');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setUser(data.data);
-          }
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
-  return { user, loading, logout };
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

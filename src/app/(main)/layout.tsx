@@ -14,7 +14,9 @@ import {
   User,
   Home,
   RefreshCw,
-  Maximize2
+  Maximize2,
+  Menu,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +42,7 @@ export default function MainLayout({
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -75,10 +78,38 @@ export default function MainLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/30 via-white to-indigo-50/30">
-      <Sidebar />
+      {/* 移动端侧边栏切换按钮 */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <Button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="bg-white shadow-lg border border-slate-200"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+      </div>
+
+      {/* 侧边栏 */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-40 transition-transform duration-300",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        "lg:translate-x-0"
+      )}>
+        <Sidebar onClose={() => setSidebarOpen(false)} />
+      </div>
+      
+      {/* 遮罩层 */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       
       {/* 主内容区域 */}
-      <main className="lg:pl-0 transition-all duration-300">
+      <main className={cn(
+        "transition-all duration-300 min-h-screen",
+        sidebarOpen ? "lg:ml-64" : "lg:ml-0"
+      )}>
         {/* 顶部导航栏 */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
           <div className="h-16 px-4 lg:px-6 flex items-center justify-between">
@@ -118,121 +149,136 @@ export default function MainLayout({
 
               {/* 时间显示 - 客户端安全渲染 */}
               <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-600 font-mono" suppressHydrationWarning>
-                  {currentTime ? `${currentTime.toLocaleDateString('zh-CN')} ${currentTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                <Calendar className="w-4 h-4 text-slate-500" />
+                <span suppressHydrationWarning className="text-sm text-slate-600 font-mono">
+                  {currentTime && (
+                    <>
+                      {currentTime.toLocaleDateString('zh-CN')}
+                      <span className="mx-2 text-slate-300">|</span>
+                      {currentTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                    </>
+                  )}
                 </span>
               </div>
 
-              {/* 快捷操作按钮 */}
-              <div className="flex items-center gap-1">
-                {/* 刷新按钮 */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-9 w-9 hover:bg-slate-100"
+              {/* 操作按钮 */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleRefresh}
                   disabled={isLoading}
+                  className="h-9 px-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                 >
-                  <RefreshCw className={cn("w-4 h-4 text-slate-500", isLoading && "animate-spin")} />
+                  <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
                 </Button>
 
-                {/* 全屏按钮 */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-9 w-9 hover:bg-slate-100 hidden sm:flex"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                 >
-                  <Maximize2 className="w-4 h-4 text-slate-500" />
+                  <Maximize2 className="w-4 h-4" />
                 </Button>
+              </div>
 
-                {/* 通知按钮 */}
+              {/* 通知中心 */}
+              <div className="flex items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-9 w-9 hover:bg-slate-100 relative"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 px-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 relative"
                     >
-                      <Bell className="w-4 h-4 text-slate-500" />
-                      <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-xs">3</Badge>
+                      <Bell className="w-4 h-4" />
+                      <Badge className="absolute -top-1 -right-1 h-4 min-w-4 px-1 bg-red-500 text-white text-xs flex items-center justify-center">
+                        3
+                      </Badge>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel>通知中心</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-semibold text-slate-800">通知中心</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <div className="max-h-80 overflow-y-auto">
-                      <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-default">
-                        <div className="flex items-center gap-2 w-full">
-                          <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full" />
-                          <span className="font-medium text-sm">新案件提醒</span>
-                          <span className="text-xs text-slate-400 ml-auto">5分钟前</span>
-                        </div>
-                        <p className="text-xs text-slate-500">收到 3 笔新案件待分配</p>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-default">
-                        <div className="flex items-center gap-2 w-full">
-                          <Badge variant="default" className="h-2 w-2 p-0 rounded-full bg-blue-500" />
-                          <span className="font-medium text-sm">跟进提醒</span>
-                          <span className="text-xs text-slate-400 ml-auto">30分钟前</span>
-                        </div>
-                        <p className="text-xs text-slate-500">张三要跟进的案件 CASE2024001 即将逾期</p>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-default">
-                        <div className="flex items-center gap-2 w-full">
-                          <Badge variant="default" className="h-2 w-2 p-0 rounded-full bg-green-500" />
-                          <span className="font-medium text-sm">还款到账</span>
-                          <span className="text-xs text-slate-400 ml-auto">1小时前</span>
-                        </div>
-                        <p className="text-xs text-slate-500">案件 CASE2024002 还款 ¥50,000</p>
-                      </DropdownMenuItem>
+                    <div className="max-h-80 overflow-auto">
+                      {[
+                        { type: 'new_case', title: '新案件分配', desc: '您有 5 个新案件待处理', time: '2分钟前' },
+                        { type: 'followup', title: '跟进提醒', desc: '案件 LAEHK1000001 即将到期', time: '15分钟前' },
+                        { type: 'repayment', title: '还款到账', desc: '案件 LAEHK1000003 已回款 50,000 元', time: '1小时前' },
+                      ].map((item, i) => (
+                        <DropdownMenuItem key={i} className="p-3 cursor-pointer hover:bg-slate-50">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-slate-800">{item.title}</span>
+                            </div>
+                            <p className="text-xs text-slate-500">{item.desc}</p>
+                            <p className="text-xs text-slate-400">{item.time}</p>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
                     </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="justify-center text-blue-600 font-medium cursor-pointer">
-                      查看全部通知
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* 用户菜单 */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-9 gap-2 hover:bg-slate-100">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
-                        {user?.name?.charAt(0) || 'U'}
-                      </div>
-                      <span className="hidden sm:block text-sm font-medium text-slate-700">
-                        {user?.name || '用户'}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{user?.name}</span>
-                        <span className="text-xs text-slate-500">{user?.role === 'admin' ? '管理员' : user?.role === 'manager' ? '经理' : '外访员'}</span>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer">
-                      <User className="w-4 h-4 mr-2" />
-                      个人设置
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer">
-                      <Settings className="w-4 h-4 mr-2" />
-                      系统设置
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer">
-                      <HelpCircle className="w-4 h-4 mr-2" />
-                      帮助中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="cursor-pointer text-red-600" onClick={logout}>
-                      退出登录
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                >
+                  <Settings className="w-4 h-4" />
+                </Button>
               </div>
+
+              {/* 用户信息 */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 hover:bg-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="hidden md:flex flex-col items-start">
+                        <span className="text-sm font-medium text-slate-800">
+                          {user?.name || '用户'}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {user?.department || '贷后部'}
+                        </span>
+                      </div>
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="font-semibold text-slate-800">
+                    {user?.name || '用户'}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer">
+                    <User className="w-4 h-4 mr-2" />
+                    个人中心
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    设置
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="cursor-pointer text-red-600 hover:text-red-700 focus:text-red-700"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    退出登录
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
@@ -242,6 +288,7 @@ export default function MainLayout({
           {children}
         </div>
       </main>
+      
       <Toaster />
     </div>
   );

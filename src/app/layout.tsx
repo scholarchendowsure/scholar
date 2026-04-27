@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inspector } from 'react-dev-inspector';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/components/auth-provider';
 
 export const metadata: Metadata = {
   title: {
@@ -28,8 +29,10 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className={`antialiased`}>
         {isDev && <Inspector />}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
-        {children}
       </body>
     </html>
   );
