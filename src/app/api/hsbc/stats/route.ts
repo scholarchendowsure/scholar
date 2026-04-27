@@ -39,18 +39,68 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const batchDate = searchParams.get('batchDate');
 
+    // 转换为前端期望的数组格式
+    const currencyBreakdown = Object.entries(mockHsbcStats.currencyBreakdown).map(([currency, data]) => ({
+      currency,
+      loanCount: data.loans,
+      totalLoanAmount: data.amount.toString(),
+      totalBalance: data.balance.toString(),
+      totalPastdue: data.overdue.toString(),
+      overdueMerchantCount: data.overdueMerchants.toString(),
+    }));
+
+    const approachingMaturity = [
+      {
+        currency: 'CNY',
+        in7DaysCount: '1', in7DaysAmount: '1500000', in7DaysMerchants: '2',
+        in15DaysCount: '2', in15DaysAmount: '2000000', in15DaysMerchants: '3',
+        in30DaysCount: '3', in30DaysAmount: '3500000', in30DaysMerchants: '4',
+        in45DaysCount: '4', in45DaysAmount: '5000000', in45DaysMerchants: '5',
+      },
+      {
+        currency: 'USD',
+        in7DaysCount: '0', in7DaysAmount: '1000000', in7DaysMerchants: '1',
+        in15DaysCount: '1', in15DaysAmount: '1000000', in15DaysMerchants: '2',
+        in30DaysCount: '1', in30DaysAmount: '1500000', in30DaysMerchants: '2',
+        in45DaysCount: '2', in45DaysAmount: '2000000', in45DaysMerchants: '3',
+      },
+    ];
+
+    const riskStats = [
+      { riskLabel: '低风险(0-30天)', merchantCount: 1, totalOverdue: '200000', loanCount: '1' },
+      { riskLabel: '中风险(31-60天)', merchantCount: 2, totalOverdue: '250000', loanCount: '2' },
+      { riskLabel: '高风险(61-90天)', merchantCount: 1, totalOverdue: '50000', loanCount: '1' },
+      { riskLabel: '严重风险(91-180天)', merchantCount: 0, totalOverdue: '0', loanCount: '0' },
+      { riskLabel: '极高风险(181天+)', merchantCount: 0, totalOverdue: '0', loanCount: '0' },
+    ];
+
+    const responseData = {
+      totalLoans: mockHsbcStats.totalLoans,
+      activeMerchants: mockHsbcStats.activeMerchants,
+      totalLoanCNY: formatCurrency(mockHsbcStats.totalLoanAmount),
+      totalBalanceCNY: formatCurrency(mockHsbcStats.totalBalance),
+      totalPastdueCNY: formatCurrency(mockHsbcStats.totalOverdueAmount),
+      overdueRate: `${mockHsbcStats.overdueRate}%`,
+      overdueMerchants: mockHsbcStats.overdueMerchants,
+      overdueMerchantRate: `${mockHsbcStats.overdueMerchantRate}%`,
+      currencyBreakdown,
+      approachingMaturity,
+      riskStats,
+      extensionMerchants: 3,
+    };
+
     if (batchDate) {
-      // 按批次日期筛选
       const filteredTrend = mockHsbcStats.overdueTrend.filter(t => t.batchDate === batchDate);
-      return NextResponse.json(successResponse({
-        ...mockHsbcStats,
-        overdueTrend: filteredTrend,
-      }));
+      return NextResponse.json(successResponse({ ...responseData, overdueTrend: filteredTrend }));
     }
 
-    return NextResponse.json(successResponse(mockHsbcStats));
+    return NextResponse.json(successResponse({ ...responseData, overdueTrend: mockHsbcStats.overdueTrend }));
   } catch (error) {
     console.error('Get HSBC stats error:', error);
     return NextResponse.json(errorResponse('获取汇丰统计数据失败'), { status: 500 });
   }
+}
+
+function formatCurrency(amount: number): string {
+  return `¥${amount.toLocaleString()}`;
 }
