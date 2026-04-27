@@ -7,6 +7,7 @@ import {
   LayoutDashboard, 
   FileText, 
   Users, 
+  User,
   DollarSign, 
   TrendingUp, 
   TrendingDown,
