@@ -43,6 +43,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { NavMenuCard } from '@/components/nav-menu-card';
 
 interface Case {
   id: string;
@@ -172,8 +173,14 @@ export default function CasesPage() {
             </Button>
           </div>
         </div>
+      </div>
 
-        {/* 筛选面板 */}
+      {/* 快速导航卡片 */}
+      <div className="px-6 pt-4">
+        <NavMenuCard />
+      </div>
+
+      {/* 筛选面板 */}
         {showFilters && (
           <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in slide-in-from-top-2">
             <div className="flex flex-wrap items-end gap-4">
