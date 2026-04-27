@@ -37,11 +37,12 @@ export default function MainLayout({
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
@@ -58,12 +59,15 @@ export default function MainLayout({
     '/': '仪表盘',
     '/cases': '案件管理',
     '/my-cases': '我的案件',
+    '/cases/closed': '结清案件',
     '/assignment': '案件分配',
     '/repayment-records': '还款记录',
     '/case-import': '案件导入',
     '/followup-import': '跟进导入',
     '/data-export': '数据导出',
     '/hsbc-panel': '汇丰管理',
+    '/hsbc-panel/upload': '汇丰导入',
+    '/hsbc-panel/loans': '汇丰案件',
     '/post-loan-stats': '贷后统计',
     '/users': '用户管理',
     '/recycle-bin': '回收站',
@@ -112,11 +116,11 @@ export default function MainLayout({
                 </div>
               </div>
 
-              {/* 时间显示 */}
+              {/* 时间显示 - 客户端安全渲染 */}
               <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-600 font-mono">
-                  {currentTime.toLocaleDateString('zh-CN')} {currentTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                <span className="text-sm text-slate-600 font-mono" suppressHydrationWarning>
+                  {currentTime ? `${currentTime.toLocaleDateString('zh-CN')} ${currentTime.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''}
                 </span>
               </div>
 
@@ -151,52 +155,40 @@ export default function MainLayout({
                       className="h-9 w-9 hover:bg-slate-100 relative"
                     >
                       <Bell className="w-4 h-4 text-slate-500" />
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                      <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 flex items-center justify-center bg-red-500 text-xs">3</Badge>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80">
                     <DropdownMenuLabel>通知中心</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <div className="max-h-80 overflow-auto">
-                      <div className="p-3 hover:bg-slate-50 cursor-pointer">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <Bell className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900">新案件分配</p>
-                            <p className="text-xs text-slate-500 mt-0.5">您有3个新案件待处理</p>
-                            <p className="text-xs text-slate-400 mt-1">2分钟前</p>
-                          </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-default">
+                        <div className="flex items-center gap-2 w-full">
+                          <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full" />
+                          <span className="font-medium text-sm">新案件提醒</span>
+                          <span className="text-xs text-slate-400 ml-auto">5分钟前</span>
                         </div>
-                      </div>
-                      <div className="p-3 hover:bg-slate-50 cursor-pointer">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                            <User className="w-4 h-4 text-green-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900">案件跟进提醒</p>
-                            <p className="text-xs text-slate-500 mt-0.5">案件 TPJHK1079195 需要跟进</p>
-                            <p className="text-xs text-slate-400 mt-1">15分钟前</p>
-                          </div>
+                        <p className="text-xs text-slate-500">收到 3 笔新案件待分配</p>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-default">
+                        <div className="flex items-center gap-2 w-full">
+                          <Badge variant="default" className="h-2 w-2 p-0 rounded-full bg-blue-500" />
+                          <span className="font-medium text-sm">跟进提醒</span>
+                          <span className="text-xs text-slate-400 ml-auto">30分钟前</span>
                         </div>
-                      </div>
-                      <div className="p-3 hover:bg-slate-50 cursor-pointer">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                            <User className="w-4 h-4 text-amber-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900">还款到账提醒</p>
-                            <p className="text-xs text-slate-500 mt-0.5">MAXUP HOLDINGS 还款 ¥180,000</p>
-                            <p className="text-xs text-slate-400 mt-1">1小时前</p>
-                          </div>
+                        <p className="text-xs text-slate-500">张三要跟进的案件 CASE2024001 即将逾期</p>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="flex flex-col items-start gap-1 py-3 cursor-default">
+                        <div className="flex items-center gap-2 w-full">
+                          <Badge variant="default" className="h-2 w-2 p-0 rounded-full bg-green-500" />
+                          <span className="font-medium text-sm">还款到账</span>
+                          <span className="text-xs text-slate-400 ml-auto">1小时前</span>
                         </div>
-                      </div>
+                        <p className="text-xs text-slate-500">案件 CASE2024002 还款 ¥50,000</p>
+                      </DropdownMenuItem>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="justify-center text-blue-600 cursor-pointer">
+                    <DropdownMenuItem className="justify-center text-blue-600 font-medium cursor-pointer">
                       查看全部通知
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -205,44 +197,37 @@ export default function MainLayout({
                 {/* 用户菜单 */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-9 gap-2 px-3 hover:bg-slate-100">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">
-                          {user?.name?.charAt(0) || 'U'}
-                        </span>
+                    <Button variant="ghost" className="h-9 gap-2 hover:bg-slate-100">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
+                        {user?.name?.charAt(0) || 'U'}
                       </div>
-                      <div className="hidden sm:flex flex-col items-start">
-                        <span className="text-sm font-medium text-slate-700">
-                          {user?.name || '用户'}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {user?.role === 'admin' ? '系统管理员' : 
-                           user?.role === 'manager' ? '客户经理' : '外访员'}
-                        </span>
-                      </div>
+                      <span className="hidden sm:block text-sm font-medium text-slate-700">
+                        {user?.name || '用户'}
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>我的账户</DropdownMenuLabel>
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{user?.name}</span>
+                        <span className="text-xs text-slate-500">{user?.role === 'admin' ? '管理员' : user?.role === 'manager' ? '经理' : '外访员'}</span>
+                      </div>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="gap-2 cursor-pointer">
-                      <User className="w-4 h-4" />
-                      个人资料
+                    <DropdownMenuItem className="cursor-pointer">
+                      <User className="w-4 h-4 mr-2" />
+                      个人设置
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 cursor-pointer">
-                      <Settings className="w-4 h-4" />
-                      账户设置
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      系统设置
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="gap-2 cursor-pointer">
-                      <HelpCircle className="w-4 h-4" />
+                    <DropdownMenuItem className="cursor-pointer">
+                      <HelpCircle className="w-4 h-4 mr-2" />
                       帮助中心
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      className="gap-2 text-red-600 cursor-pointer"
-                      onClick={() => { logout(); router.push('/login'); }}
-                    >
-                      <User className="w-4 h-4" />
+                    <DropdownMenuItem className="cursor-pointer text-red-600" onClick={logout}>
                       退出登录
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -253,11 +238,10 @@ export default function MainLayout({
         </header>
 
         {/* 页面内容 */}
-        <div className="p-4 lg:p-6 fade-in">
+        <div className="p-4 lg:p-6">
           {children}
         </div>
       </main>
-
       <Toaster />
     </div>
   );
