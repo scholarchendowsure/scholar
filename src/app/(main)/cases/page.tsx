@@ -181,6 +181,7 @@ export default function CasesPage() {
       </div>
 
       {/* 筛选面板 */}
+      <div className="px-6">
         {showFilters && (
           <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in slide-in-from-top-2">
             <div className="flex flex-wrap items-end gap-4">
