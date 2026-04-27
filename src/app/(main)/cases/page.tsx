@@ -257,12 +257,12 @@ export default function CasesPage() {
               </div>
             </div>
 
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status || 'all'} onValueChange={(v) => setStatus(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="案件状态" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="all">全部状态</SelectItem>
                 <SelectItem value="pending_assign">待分配</SelectItem>
                 <SelectItem value="pending_visit">待外访</SelectItem>
                 <SelectItem value="following">跟进中</SelectItem>
@@ -270,12 +270,12 @@ export default function CasesPage() {
               </SelectContent>
             </Select>
 
-            <Select value={assignedUser} onValueChange={setAssignedUser}>
+            <Select value={assignedUser || 'all'} onValueChange={(v) => setAssignedUser(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="负责人" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部人员</SelectItem>
+                <SelectItem value="all">全部人员</SelectItem>
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
                     {user.name}

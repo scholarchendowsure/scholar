@@ -158,12 +158,12 @@ export default function RepaymentRecordsPage() {
               </div>
             </div>
 
-            <Select value={auditStatus} onValueChange={setAuditStatus}>
+            <Select value={auditStatus || 'all'} onValueChange={(v) => setAuditStatus(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="审核状态" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="all">全部状态</SelectItem>
                 <SelectItem value="pending">待审核</SelectItem>
                 <SelectItem value="approved">已通过</SelectItem>
                 <SelectItem value="rejected">已拒绝</SelectItem>

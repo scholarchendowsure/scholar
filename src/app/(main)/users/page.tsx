@@ -259,24 +259,24 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <Select value={role} onValueChange={setRole}>
+            <Select value={role || 'all'} onValueChange={(v) => setRole(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="角色" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部角色</SelectItem>
+                <SelectItem value="all">全部角色</SelectItem>
                 <SelectItem value="admin">管理员</SelectItem>
                 <SelectItem value="manager">经理</SelectItem>
                 <SelectItem value="agent">外访员</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={status} onValueChange={setStatus}>
+            <Select value={status || 'all'} onValueChange={(v) => setStatus(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
+                <SelectItem value="all">全部状态</SelectItem>
                 <SelectItem value="active">正常</SelectItem>
                 <SelectItem value="inactive">禁用</SelectItem>
               </SelectContent>

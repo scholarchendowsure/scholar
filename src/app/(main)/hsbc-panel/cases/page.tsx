@@ -151,23 +151,23 @@ export default function HSBCCasesPage() {
               </div>
             </div>
 
-            <Select value={currency} onValueChange={setCurrency}>
+            <Select value={currency || 'all'} onValueChange={(v) => setCurrency(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="币种" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部币种</SelectItem>
+                <SelectItem value="all">全部币种</SelectItem>
                 <SelectItem value="CNY">CNY</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={batchDate} onValueChange={setBatchDate}>
+            <Select value={batchDate || 'all'} onValueChange={(v) => setBatchDate(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="批次日期" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">全部批次</SelectItem>
+                <SelectItem value="all">全部批次</SelectItem>
                 {batchDates.map((bd) => (
                   <SelectItem key={bd.batchDate} value={bd.batchDate}>
                     {bd.batchDate}
