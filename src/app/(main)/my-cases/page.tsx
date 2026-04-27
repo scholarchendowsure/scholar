@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { CASE_STATUS_CONFIG } from '@/lib/constants';
 import { Eye, ChevronLeft, ChevronRight, FileText, User } from 'lucide-react';
 import Link from 'next/link';
+import { NavMenuCard } from '@/components/nav-menu-card';
 
 interface Case {
   id: string;
@@ -59,6 +60,11 @@ export default function MyCasesPage() {
             </h1>
             <p className="text-sm text-slate-500 mt-1">共 {total} 个案件</p>
           </div>
+        </div>
+
+        {/* 菜单导航卡片 */}
+        <div className="px-6 pb-4">
+          <NavMenuCard />
         </div>
       </div>
 
