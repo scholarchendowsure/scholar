@@ -1,4 +1,7 @@
-// 汇丰贷款数据管理模块
+// 汇丰贷款数据管理模块 - 文件持久化版本
+
+import fs from 'fs';
+import path from 'path';
 
 export interface RepaymentRecord {
   date: string;
@@ -28,7 +31,7 @@ export interface HSBCLoan {
   dowsureFreezeConfirm?: string;
   dowsureForceDebitConfirm?: string;
   remarks?: string;
-  [key: string]: unknown; // 动态还款计划列等
+  [key: string]: unknown;
 }
 
 export interface RiskAssessmentItem {
@@ -85,51 +88,82 @@ export interface HSBCDashboardStats {
   riskAssessment: RiskAssessmentItem[];
 }
 
-// 原始Excel行数据类型
-export interface HSBCLoanRawRow {
-  loanReference: string;
-  merchantId: string;
-  borrowerName: string;
-  loanStartDate: string;
-  loanCurrency: string;
-  loanAmount: string;
-  loanInterest: string;
-  totalInterestRate: string;
-  loanTenor: string;
-  maturityDate: string;
-  balance: string;
-  pastdueAmount: string;
-  [key: string]: string;
-}
-
 // 汇率 (USD -> CNY)
 const USD_TO_CNY_RATE = 7;
 
-// 按 batchDate 存储的数据
-const loansByBatchDate: Map<string, HSBCLoan[]> = new Map();
+// 数据文件路径
+const DATA_DIR = '/tmp/hsbc-data';
+const DATA_FILE = path.join(DATA_DIR, 'loans.json');
+
+// 内存缓存
+let loansByBatchDate: Map<string, HSBCLoan[]> = new Map();
+let dataLoaded = false;
+
+// 确保数据目录存在
+function ensureDataDir(): void {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+// 从文件加载数据到内存
+function loadDataFromFile(): void {
+  if (dataLoaded) return;
+  try {
+    ensureDataDir();
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      const data = JSON.parse(raw) as Record<string, HSBCLoan[]>;
+      loansByBatchDate = new Map(Object.entries(data));
+    }
+  } catch (err) {
+    console.error('加载汇丰数据失败:', err);
+    loansByBatchDate = new Map();
+  }
+  dataLoaded = true;
+}
+
+// 保存内存数据到文件
+function saveDataToFile(): void {
+  try {
+    ensureDataDir();
+    const data: Record<string, HSBCLoan[]> = {};
+    loansByBatchDate.forEach((loans, date) => {
+      data[date] = loans;
+    });
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data), 'utf-8');
+  } catch (err) {
+    console.error('保存汇丰数据失败:', err);
+  }
+}
 
 // 获取所有批次日期
 export function getBatchDates(): string[] {
+  loadDataFromFile();
   return Array.from(loansByBatchDate.keys()).sort().reverse();
 }
 
 // 获取指定批次日期的贷款数据
 export function getLoansByBatchDate(batchDate: string): HSBCLoan[] {
+  loadDataFromFile();
   return loansByBatchDate.get(batchDate) || [];
 }
 
-// 获取所有贷款数据（合并所有批次）
+// 获取所有贷款数据（默认返回最新批次）
 export function getAllLoans(): HSBCLoan[] {
-  const allLoans: HSBCLoan[] = [];
-  loansByBatchDate.forEach((loans) => {
-    allLoans.push(...loans);
-  });
-  return allLoans;
+  loadDataFromFile();
+  const latestDate = getLatestBatchDate();
+  if (latestDate) {
+    return getLoansByBatchDate(latestDate);
+  }
+  return [];
 }
 
 // 保存指定批次日期的贷款数据
 export function setLoansByBatchDate(batchDate: string, loans: HSBCLoan[]): void {
+  loadDataFromFile();
   loansByBatchDate.set(batchDate, loans);
+  saveDataToFile();
 }
 
 // 获取最新批次日期
@@ -140,16 +174,22 @@ export function getLatestBatchDate(): string | null {
 
 // 删除指定批次日期的数据
 export function deleteBatchDate(batchDate: string): boolean {
-  return loansByBatchDate.delete(batchDate);
+  loadDataFromFile();
+  const result = loansByBatchDate.delete(batchDate);
+  if (result) saveDataToFile();
+  return result;
 }
 
 // 清空所有数据
 export function clearAllLoans(): void {
+  loadDataFromFile();
   loansByBatchDate.clear();
+  saveDataToFile();
 }
 
 // 获取统计信息（按批次日期筛选）
 export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
+  loadDataFromFile();
   const loans = batchDate ? getLoansByBatchDate(batchDate) : getAllLoans();
 
   if (loans.length === 0) {
@@ -170,14 +210,12 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
     };
   }
 
-  // 计算统计数据
   const totalLoans = loans.length;
   const uniqueMerchants = [...new Set(loans.map(l => l.merchantId))];
   const activeMerchants = uniqueMerchants.filter(m =>
     loans.some(l => l.merchantId === m && l.balance > 1)
   ).length;
 
-  // 按币种分组
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
   const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
 
@@ -188,12 +226,10 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
   const totalPastdueAmount = cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0)
     + usdLoans.reduce((sum, l) => sum + l.pastdueAmount * USD_TO_CNY_RATE, 0);
 
-  // 逾期商户
   const overdueMerchants = uniqueMerchants.filter(m =>
     loans.some(l => l.merchantId === m && l.pastdueAmount >= 0.5)
   );
 
-  // 计算风险评估
   const riskAssessment: RiskAssessmentItem[] = [
     { riskLevel: '低风险', daysMin: 0, daysMax: 30, overdueAmount: totalPastdueAmount * 0.4, merchantCount: Math.floor(overdueMerchants.length * 0.4), loanCount: Math.floor(totalLoans * 0.3) },
     { riskLevel: '中风险', daysMin: 31, daysMax: 60, overdueAmount: totalPastdueAmount * 0.3, merchantCount: Math.floor(overdueMerchants.length * 0.3), loanCount: Math.floor(totalLoans * 0.2) },
@@ -202,7 +238,6 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
     { riskLevel: '极高风险', daysMin: 181, daysMax: 999, overdueAmount: totalPastdueAmount * 0.02, merchantCount: Math.floor(overdueMerchants.length * 0.02), loanCount: Math.floor(totalLoans * 0.05) },
   ];
 
-  // 生成逾期趋势（按批次日期）
   const batchDates = getBatchDates();
   const overdueTrend: OverdueTrendItem[] = [];
   batchDates.forEach((date) => {
@@ -269,7 +304,6 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
 }
 
 // ============ 兼容旧接口 ============
-
 let cachedLoans: HSBCLoan[] | null = null;
 
 export function getMockHSBCLoans(): HSBCLoan[] {

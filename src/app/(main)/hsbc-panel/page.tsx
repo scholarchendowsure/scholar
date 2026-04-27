@@ -487,19 +487,14 @@ export default function HSBCPanelPage() {
       const result = await response.json();
 
       // 更新前端状态
-      if (uploadMode === 'replace') {
-        setLoans(importPreview);
-        setStats(generateMockStats(importPreview));
-      } else {
-        setLoans([...loans, ...importPreview]);
-        setStats(generateMockStats([...loans, ...importPreview]));
-      }
+      // 重新从后端加载数据，确保持久化
+      await loadData();
 
       // 自动选择当前导入的批次日期
       setSelectedBatchDate(importBatchDate);
 
       // 刷新批次日期列表
-      fetchBatchDates();
+      await fetchBatchDates();
 
       setShowImportConfirm(false);
       setImportPreview([]);
@@ -1005,9 +1000,20 @@ export default function HSBCPanelPage() {
             <DialogTitle>确认导入数据</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
-            <p className="text-sm text-slate-600 mb-4">
+          <div className="flex items-center gap-4 mb-4">
+            <p className="text-sm text-slate-600">
               共 {importPreview.length} 条数据，确认导入？
             </p>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">批次日期：</label>
+              <input
+                type="date"
+                value={importBatchDate}
+                onChange={(e) => setImportBatchDate(e.target.value)}
+                className="border rounded-md px-3 py-1.5 text-sm"
+              />
+            </div>
+          </div>
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
