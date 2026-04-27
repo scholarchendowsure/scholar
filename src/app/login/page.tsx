@@ -27,7 +27,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
@@ -37,8 +37,8 @@ export default function LoginPage() {
 
       if (json.success) {
         toast.success('登录成功');
-        localStorage.setItem('token', json.token);
-        localStorage.setItem('user', JSON.stringify(json.user));
+        localStorage.setItem('token', json.data.token);
+        localStorage.setItem('user', JSON.stringify(json.data.user));
         router.push('/');
       } else {
         toast.error(json.error || '登录失败');
