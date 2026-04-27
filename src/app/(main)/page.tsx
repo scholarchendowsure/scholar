@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -28,12 +28,16 @@ import {
   Database,
   Building2,
   PieChart as PieChartIcon,
-  Trash2
+  Trash2,
+  AlertTriangle,
+  BarChart3,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
+import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 
 // 月度趋势数据
 const monthlyTrend = [
@@ -79,9 +83,31 @@ const pendingTasks = [
   { id: 4, title: 'LAEAM1017707 地址验证', priority: 'low', due: '3天后', user: '赵六' },
 ];
 
+interface PostLoanStats {
+  totalOverdue: string;
+  totalRepayment: string;
+  repaymentRate: string;
+  dailyTrend: Array<{
+    date: string;
+    overdue: number;
+    repayment: number;
+  }>;
+  userPerformance: Array<{
+    userId: string;
+    userName: string;
+    totalCases: number;
+    closedCases: number;
+    closedRate: string;
+    totalRepayment: string;
+  }>;
+}
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [postLoanLoading, setPostLoanLoading] = useState(true);
+  const [postLoanStats, setPostLoanStats] = useState<PostLoanStats | null>(null);
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
 
   useEffect(() => {
     // 模拟加载数据
@@ -100,6 +126,25 @@ export default function DashboardPage() {
       setLoading(false);
     }, 1000);
   }, []);
+
+  const fetchPostLoanStats = useCallback(async () => {
+    setPostLoanLoading(true);
+    try {
+      const res = await fetch(`/api/cases/statistics/post-loan-dashboard?range=${dateRange}`);
+      const result = await res.json();
+      if (result.success) {
+        setPostLoanStats(result.data);
+      }
+    } catch (error) {
+      toast.error('获取贷后统计数据失败');
+    } finally {
+      setPostLoanLoading(false);
+    }
+  }, [dateRange]);
+
+  useEffect(() => {
+    fetchPostLoanStats();
+  }, [fetchPostLoanStats]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('zh-CN', {
@@ -215,17 +260,6 @@ export default function DashboardPage() {
                     <Building2 className="w-5 h-5 text-white" />
                   </div>
                   <span className="text-sm font-medium text-slate-700">汇丰管理</span>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link href="/post-loan-stats">
-              <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
-                <CardContent className="p-4 flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-400 flex items-center justify-center">
-                    <PieChartIcon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">贷后统计</span>
                 </CardContent>
               </Card>
             </Link>
@@ -584,6 +618,233 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 贷后统计区域 */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800">贷后统计</h3>
+            <p className="text-slate-500 mt-1">逾期与还款统计面板</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value as '7d' | '30d' | '90d')}
+              className="h-10 px-3 border rounded bg-background text-sm"
+            >
+              <option value="7d">最近7天</option>
+              <option value="30d">最近30天</option>
+              <option value="90d">最近90天</option>
+            </select>
+            <Button variant="outline" onClick={fetchPostLoanStats} disabled={postLoanLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${postLoanLoading ? 'animate-spin' : ''}`} />
+              刷新
+            </Button>
+          </div>
+        </div>
+
+        {/* 贷后核心指标 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="card-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                总逾期余额
+              </CardTitle>
+              <AlertTriangle className="h-4 w-4 text-[hsl(0,75%,50%)]" />
+            </CardHeader>
+            <CardContent>
+              {postLoanLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold font-data text-[hsl(0,75%,50%)]">
+                  {formatCurrency(postLoanStats?.totalOverdue || '0')}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">当前总逾期未还款金额</p>
+            </CardContent>
+          </Card>
+
+          <Card className="card-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                本期催回金额
+              </CardTitle>
+              <DollarSign className="h-4 w-4 text-[hsl(145,65%,38%)]" />
+            </CardHeader>
+            <CardContent>
+              {postLoanLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold font-data text-[hsl(145,65%,38%)]">
+                  {formatCurrency(postLoanStats?.totalRepayment || '0')}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                催回率 {postLoanStats?.repaymentRate || '0%'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="card-shadow">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                催回率
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-[hsl(210,95%,40%)]" />
+            </CardHeader>
+            <CardContent>
+              {postLoanLoading ? (
+                <Skeleton className="h-8 w-32" />
+              ) : (
+                <div className="text-2xl font-bold">
+                  {postLoanStats?.repaymentRate || '0%'}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">催回金额 / 逾期金额</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 每日趋势图表 */}
+        <Card className="card-shadow">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-[hsl(210,95%,40%)]" />
+              每日逾期与还款趋势
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              {postLoanLoading ? (
+                <Skeleton className="h-full w-full" />
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={postLoanStats?.dailyTrend || []}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,20%,88%)" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        return `${date.getMonth() + 1}/${date.getDate()}`;
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(0,0%,100%)',
+                        border: '1px solid hsl(220,20%,88%)',
+                        borderRadius: '2px',
+                      }}
+                      formatter={(value: number) => [formatCurrency(value.toString()), '']}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="overdue"
+                      stroke="hsl(0,75%,50%)"
+                      fill="hsl(0,75%,50%)"
+                      fillOpacity={0.1}
+                      name="逾期金额"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="repayment"
+                      stroke="hsl(145,65%,38%)"
+                      fill="hsl(145,65%,38%)"
+                      fillOpacity={0.1}
+                      name="催回金额"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 用户绩效排名 */}
+        <Card className="card-shadow">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[hsl(210,95%,40%)]" />
+              贷后人员绩效排名
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">排名</th>
+                    <th className="text-left py-3 px-4 font-medium">姓名</th>
+                    <th className="text-right py-3 px-4 font-medium">案件总数</th>
+                    <th className="text-right py-3 px-4 font-medium">结案数</th>
+                    <th className="text-right py-3 px-4 font-medium">结案率</th>
+                    <th className="text-right py-3 px-4 font-medium">催回金额</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {postLoanLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className="border-b">
+                        <td className="py-3 px-4"><Skeleton className="h-4 w-8" /></td>
+                        <td className="py-3 px-4"><Skeleton className="h-4 w-20" /></td>
+                        <td className="py-3 px-4"><Skeleton className="h-4 w-12" /></td>
+                        <td className="py-3 px-4"><Skeleton className="h-4 w-12" /></td>
+                        <td className="py-3 px-4"><Skeleton className="h-4 w-16" /></td>
+                        <td className="py-3 px-4"><Skeleton className="h-4 w-20" /></td>
+                      </tr>
+                    ))
+                  ) : postLoanStats?.userPerformance?.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                        暂无数据
+                      </td>
+                    </tr>
+                  ) : (
+                    postLoanStats?.userPerformance?.map((user, index) => (
+                      <tr key={user.userId} className="border-b hover:bg-accent/50">
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant={index === 0 ? 'default' : 'outline'}
+                            className={index === 0 ? 'bg-[hsl(210,95%,40%)] text-white' : ''}
+                          >
+                            {index + 1}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 font-medium">{user.userName}</td>
+                        <td className="py-3 px-4 text-right font-data">{user.totalCases}</td>
+                        <td className="py-3 px-4 text-right font-data">{user.closedCases}</td>
+                        <td className="py-3 px-4 text-right">
+                          <Badge
+                            variant={parseFloat(user.closedRate) >= 80 ? 'default' : 'outline'}
+                            className={
+                              parseFloat(user.closedRate) >= 80
+                                ? 'bg-[hsl(145,65%,38%)] text-white'
+                                : ''
+                            }
+                          >
+                            {user.closedRate}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right font-data text-[hsl(145,65%,38%)]">
+                          {formatCurrency(user.totalRepayment)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>

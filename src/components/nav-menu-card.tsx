@@ -32,7 +32,6 @@ const navItems: NavItem[] = [
   { href: '/assignment', label: '案件分配', icon: Users, gradient: 'from-pink-500 to-rose-400' },
   { href: '/cases/closed', label: '结清案件', icon: Calendar, gradient: 'from-cyan-500 to-sky-400' },
   { href: '/repayment-records', label: '还款记录', icon: CreditCard, gradient: 'from-violet-500 to-purple-400' },
-  { href: '/post-loan-stats', label: '贷后统计', icon: PieChartIcon, gradient: 'from-indigo-500 to-blue-400' },
   { href: '/data-export', label: '数据导出', icon: Download, gradient: 'from-green-500 to-emerald-400' },
   { href: '/case-import', label: '案件导入', icon: Upload, gradient: 'from-yellow-500 to-amber-400' },
   { href: '/users', label: '用户管理', icon: Users, gradient: 'from-purple-500 to-violet-400' },
