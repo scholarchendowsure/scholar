@@ -112,9 +112,9 @@
     font-variant-numeric: tabular-nums;
   }
   
-  /* 金额格式化 */
+  /* 金额格式化 - 直接使用 CSS 变量 */
   .amount {
-    @apply font-data;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
   
