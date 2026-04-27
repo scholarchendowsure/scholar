@@ -667,7 +667,7 @@ export default function HSBCPanelPage() {
               className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">全部日期</option>
-              {batchDates.map((date: string) => (
+              {availableBatchDates.map((date: string) => (
                 <option key={date} value={date}>{date}</option>
               ))}
             </select>
