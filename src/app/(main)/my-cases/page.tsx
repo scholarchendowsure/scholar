@@ -60,6 +60,7 @@ export default function MyCasesPage() {
             <p className="text-sm text-slate-500 mt-1">共 {total} 个案件</p>
           </div>
         </div>
+      </div>
 
       <div className="p-6">
         <Card className="border-slate-200 shadow-sm">
