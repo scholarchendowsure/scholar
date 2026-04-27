@@ -310,8 +310,8 @@ export default function HSBCPanelPage() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        // 模拟解析 Excel
-        const previewLoans = generateMockLoans().slice(0, 5);
+        // 模拟解析 Excel - 读取全部记录
+        const previewLoans = generateMockLoans();
         setImportPreview(previewLoans);
         setShowImportConfirm(true);
         toast.success(`已解析 ${previewLoans.length} 条数据，请确认导入`);
