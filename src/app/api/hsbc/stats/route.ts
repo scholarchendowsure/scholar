@@ -1,19 +1,24 @@
-import { NextResponse } from 'next/server';
-import { getMockHSBCStats } from '@/lib/hsbc-data';
+import { NextRequest, NextResponse } from 'next/server';
+import { getHSBCStats, getLatestBatchDate } from '@/lib/hsbc-data';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const batchDate = searchParams.get('batchDate');
+    let batchDate = searchParams.get('batchDate') || '';
 
-    // 获取统计数据（batchDate参数可用于筛选）
-    const stats = getMockHSBCStats();
+    // 如果没有指定批次日期，使用最新批次
+    if (!batchDate) {
+      batchDate = getLatestBatchDate() || '';
+    }
 
-    // 如果指定了批次日期，可以在这里过滤数据
-    // 目前返回全部数据
-    return NextResponse.json(stats);
+    const stats = getHSBCStats(batchDate || undefined);
+
+    return NextResponse.json({
+      data: stats,
+      batchDate,
+    });
   } catch (error) {
-    console.error('Error fetching HSBC stats:', error);
+    console.error('获取汇丰统计数据失败:', error);
     return NextResponse.json({ error: '获取统计数据失败' }, { status: 500 });
   }
 }

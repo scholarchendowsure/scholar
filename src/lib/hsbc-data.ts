@@ -1,101 +1,92 @@
-// 汇丰贷款数据模型 - 适配 Excel 解密文件格式
+// 汇丰贷款数据管理模块
+
+export interface RepaymentRecord {
+  date: string;
+  amount: number;
+  repaid?: boolean;
+}
 
 export interface HSBCLoan {
   id: string;
-  loanReference: string;      // Loan Reference
-  merchantId: string;         // Merchant ID
-  borrowerName: string;      // Borrower Name
-  loanStartDate: string;      // Loan Start Date
-  loanCurrency: 'CNY' | 'USD'; // Loan Currency
-  loanAmount: number;         // Loan Amount
-  loanInterest: string;       // Loan Interest (e.g., "HIBOR 3.32848% + 2.75%")
-  totalInterestRate: number;  // Total Interest Rate (%)
-  loanTenor: string;         // Loan Tenor (e.g., "90D", "120D")
-  maturityDate: string;       // Maturity Date
-  repaymentSchedule: RepaymentRecord[]; // 还款计划
-  balance: number;            // Balance (余额)
-  pastdueAmount: number;      // Pastdue amount (逾期金额)
-  freezeAccountRequested?: string;      // 冻结账户请求日期
-  forceDebitRequested?: string;        // 强制扣款请求日期
-  approvalFromRM?: string;             // RM审批日期
-  confirmationFreezeAccount?: string;   // Dowsure冻结账户确认
-  confirmationForceDebit?: string;      // Dowsure强制扣款确认
-  remarks: string;                      // 备注
-  // 批次日期 (从文件名或导入日期获取)
-  batchDate?: string;
-}
-
-export interface RepaymentRecord {
-  date: string;      // 还款日期
-  amount: number;    // 还款金额
-  repaid?: boolean;  // 是否已还
-}
-
-// 汇丰统计仪表盘数据结构
-export interface HSBCDashboardStats {
-  totalLoans: number;            // 总贷款笔数
-  activeMerchants: number;        // 在贷商户数量
-  totalLoanAmount: number;        // 累计放款 (CNY)
-  totalBalance: number;           // 在贷余额 (CNY)
-  totalPastdueAmount: number;     // 逾期总额 (CNY)
-  overdueRate: number;           // 逾期率
-  overdueMerchantRate: number;    // 逾期商户占比
-  warningAmount: number;          // 预警金额
-  approachingMaturityAmount: number; // 临期金额 (3天内)
-  
-  // 币种细分
-  currencyBreakdown: CurrencyBreakdown[];
-  
-  // 临近到期统计
-  approachingMaturity: ApproachingMaturity[];
-  
-  // 逾期趋势 (按批次日期)
-  overdueTrend: OverdueTrendItem[];
-  
-  // 风险评定
-  riskAssessment: RiskAssessmentItem[];
-}
-
-export interface CurrencyBreakdown {
-  currency: string;              // CNY / USD
-  loanCount: number;             // 贷款笔数
-  totalAmount: number;           // 总金额
-  totalAmountUSD: number;        // 总金额(USD)
-  overdueAmount: number;         // 逾期金额
-  overdueAmountUSD: number;      // 逾期金额(USD)
-  balance: number;              // 余额
-  balanceUSD: number;            // 余额(USD)
-  overdueMerchantCount: number;  // 逾期商户数
-  overdueLoanCount: number;     // 逾期笔数
-}
-
-export interface ApproachingMaturity {
-  daysRange: string;             // e.g., "7天内", "15天内"
-  days: number;                  // 天数
-  cnyAmount: number;             // CNY金额
-  cnyMerchants: number;          // CNY商户数
-  usdAmount: number;            // USD金额
-  usdMerchants: number;          // USD商户数
-}
-
-export interface OverdueTrendItem {
-  batchDate: string;             // 批次日期
-  overdueAmount: number;        // 逾期总额
-  balance: number;              // 在贷余额
-  overdueRate: number;          // 逾期率
+  loanReference: string;
+  merchantId: string;
+  borrowerName: string;
+  loanStartDate: string;
+  loanCurrency: 'CNY' | 'USD';
+  loanAmount: number;
+  loanInterest: string;
+  totalInterestRate: number;
+  loanTenor: string;
+  maturityDate: string;
+  repaymentSchedule: RepaymentRecord[];
+  balance: number;
+  pastdueAmount: number;
+  batchDate: string;
+  freezeAccountRequested?: string;
+  forceDebitRequested?: string;
+  rmApproval?: string;
+  dowsureFreezeConfirm?: string;
+  dowsureForceDebitConfirm?: string;
+  remarks?: string;
+  [key: string]: unknown; // 动态还款计划列等
 }
 
 export interface RiskAssessmentItem {
-  riskLevel: string;            // 低/中/高/严重/极高
-  daysMin: number;              // 逾期天数最小值
-  daysMax: number;              // 逾期天数最大值
-  overdueAmount: number;        // 逾期金额
-  merchantCount: number;        // 商户数
-  loanCount: number;           // 笔数
+  riskLevel: string;
+  daysMin: number;
+  daysMax: number;
+  overdueAmount: number;
+  merchantCount: number;
+  loanCount: number;
 }
 
-// Excel导入数据 (原始行数据)
-export interface HSBCImportRow {
+export interface OverdueTrendItem {
+  batchDate: string;
+  overdueAmount: number;
+  balance: number;
+  overdueRate: number;
+}
+
+export interface CurrencyBreakdown {
+  currency: string;
+  loanCount: number;
+  totalAmount: number;
+  totalAmountUSD: number;
+  overdueAmount: number;
+  overdueAmountUSD: number;
+  balance: number;
+  balanceUSD: number;
+  overdueMerchantCount: number;
+  overdueLoanCount: number;
+}
+
+export interface ApproachingMaturityItem {
+  daysRange: string;
+  days: number;
+  cnyAmount: number;
+  cnyMerchants: number;
+  usdAmount: number;
+  usdMerchants: number;
+}
+
+export interface HSBCDashboardStats {
+  totalLoans: number;
+  activeMerchants: number;
+  totalLoanAmount: number;
+  totalBalance: number;
+  totalPastdueAmount: number;
+  overdueRate: number;
+  overdueMerchantRate: number;
+  warningAmount: number;
+  approachingMaturityAmount: number;
+  currencyBreakdown: CurrencyBreakdown[];
+  approachingMaturity: ApproachingMaturityItem[];
+  overdueTrend: OverdueTrendItem[];
+  riskAssessment: RiskAssessmentItem[];
+}
+
+// 原始Excel行数据类型
+export interface HSBCLoanRawRow {
   loanReference: string;
   merchantId: string;
   borrowerName: string;
@@ -108,146 +99,100 @@ export interface HSBCImportRow {
   maturityDate: string;
   balance: string;
   pastdueAmount: string;
-  [key: string]: string; // 动态还款计划列等
-}
-
-// Mock 数据生成
-function generateMockLoans(): HSBCLoan[] {
-  const borrowers = [
-    { merchantId: '68537', name: 'RONDAFUL (HK) INTERNATIONAL LIMITED', currency: 'CNY' as const, baseAmount: 1971109.85 },
-    { merchantId: '63257', name: 'ZHONGBO INTL TRADE CO LIMITED', currency: 'USD' as const, baseAmount: 250000 },
-    { merchantId: '70643', name: 'HK GRATEFULNESS GROUP CO LIMITED', currency: 'CNY' as const, baseAmount: 638712 },
-    { merchantId: '69717', name: 'MAXUP HOLDINGS LIMITED', currency: 'USD' as const, baseAmount: 400000 },
-    { merchantId: '69248', name: 'HK LA LA LA TECH CO LTD', currency: 'USD' as const, baseAmount: 110000 },
-    { merchantId: '69300', name: 'HK HENGYU INTERNATIONAL LIMITED', currency: 'USD' as const, baseAmount: 100000 },
-    { merchantId: '71490', name: 'XIAOYOUZI TECH CO LTD', currency: 'USD' as const, baseAmount: 50000 },
-    { merchantId: '71880', name: 'HONGKONG ZHENGDASHENG PACKING CO LIMITED', currency: 'USD' as const, baseAmount: 300000 },
-    { merchantId: '71753', name: 'KOWCOMMS TECH (HK) CO LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '71830', name: 'SECUTEK TECH LTD', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '68718', name: 'ZHILE HOLDINGS GROUP (HK) LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '71228', name: 'HK HONGYI HUI INTL TECHNOLOGY LTD', currency: 'USD' as const, baseAmount: 100000 },
-    { merchantId: '62312', name: 'SMART DO INTERNATIONAL LIMITED', currency: 'USD' as const, baseAmount: 400000 },
-    { merchantId: '70536', name: 'HK INAMORI TRADING LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '61382', name: 'GAMEGEEK LIMITED', currency: 'USD' as const, baseAmount: 1000000 },
-    { merchantId: '72311', name: 'LH TECHNOLOGY (HK) CO LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '72640', name: 'HK YUANHAO HOLDING GROUP LTD', currency: 'USD' as const, baseAmount: 100 },
-    { merchantId: '71543', name: 'CHUANGXIN INTL TRADE CO LIMITED', currency: 'USD' as const, baseAmount: 85000 },
-    { merchantId: '72248', name: 'HK XINJINHUI TECHNOLOGY CO LIMITED', currency: 'USD' as const, baseAmount: 350000 },
-    { merchantId: '68665', name: 'FUTURE LIGHT HOLDINGS LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '62596', name: 'HYTOP INOVATION (HK) TECHNOLOGY LTD', currency: 'USD' as const, baseAmount: 485000 },
-    { merchantId: '72851', name: 'HONGKONG FEILING TRADING LIMITED', currency: 'USD' as const, baseAmount: 300000 },
-    { merchantId: '65366', name: 'KARY (HONG KONG) SUPPLY CHAIN MGT C', currency: 'USD' as const, baseAmount: 1000 },
-    { merchantId: '67348', name: 'BEST CHOICE ARTS PRODUCTS CO LTD', currency: 'USD' as const, baseAmount: 240000 },
-  ];
-
-  const prefixes = ['LAEAM', 'WCTHK', 'TPJHK', 'LAEHK'];
-  const loans: HSBCLoan[] = [];
-  
-  borrowers.forEach((borrower, idx) => {
-    const loanCount = Math.floor(Math.random() * 3) + 1;
-    for (let i = 0; i < loanCount; i++) {
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      const loanRef = `${prefix}${1000000 + idx * 100 + i}`;
-      const loanAmount = borrower.baseAmount * (0.1 + Math.random() * 0.9);
-      const interestRate = 3 + Math.random() * 6;
-      const tenor = ['90D', '120D', '91D', '101D', '122D'][Math.floor(Math.random() * 5)];
-      const startDate = new Date(2024, Math.floor(Math.random() * 6), Math.floor(Math.random() * 28) + 1);
-      const maturityDate = new Date(startDate);
-      maturityDate.setDate(maturityDate.getDate() + parseInt(tenor));
-      
-      const hasOverdue = Math.random() > 0.7;
-      const pastdueAmount = hasOverdue ? loanAmount * (0.05 + Math.random() * 0.15) : 0;
-      
-      loans.push({
-        id: loanRef,
-        loanReference: loanRef,
-        merchantId: borrower.merchantId,
-        borrowerName: borrower.name,
-        loanStartDate: formatDate(startDate),
-        loanCurrency: borrower.currency,
-        loanAmount: Math.round(loanAmount * 100) / 100,
-        loanInterest: borrower.currency === 'USD' 
-          ? '120D SOFR TERM + 3%' 
-          : '90D CNY HBR + 2.25%',
-        totalInterestRate: Math.round(interestRate * 100) / 100,
-        loanTenor: tenor,
-        maturityDate: formatDate(maturityDate),
-        repaymentSchedule: generateRepaymentSchedule(loanAmount, maturityDate),
-        balance: Math.round(loanAmount * (0.3 + Math.random() * 0.7) * 100) / 100,
-        pastdueAmount: Math.round(pastdueAmount * 100) / 100,
-        freezeAccountRequested: hasOverdue && Math.random() > 0.5 ? formatDate(new Date()) : undefined,
-        forceDebitRequested: hasOverdue && Math.random() > 0.7 ? formatDate(new Date()) : undefined,
-        remarks: hasOverdue ? '逾期跟进中' : '',
-        batchDate: '2024-07-01',
-      });
-    }
-  });
-  
-  return loans;
-}
-
-function generateRepaymentSchedule(amount: number, maturityDate: Date): RepaymentRecord[] {
-  const records: RepaymentRecord[] = [];
-  const repaymentDate = new Date(maturityDate);
-  repaymentDate.setDate(repaymentDate.getDate() - 3);
-  
-  records.push({
-    date: formatDate(repaymentDate),
-    amount: Math.round(amount * 100) / 100,
-    repaid: Math.random() > 0.2,
-  });
-  
-  return records;
-}
-
-function formatDate(date: Date): string {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${date.getDate().toString().padStart(2, '0')}-${months[date.getMonth()]}-${date.getFullYear()}`;
+  [key: string]: string;
 }
 
 // 汇率 (USD -> CNY)
 const USD_TO_CNY_RATE = 7;
 
-// 缓存的Mock数据
-let cachedLoans: HSBCLoan[] | null = null;
+// 按 batchDate 存储的数据
+const loansByBatchDate: Map<string, HSBCLoan[]> = new Map();
 
-export function getMockHSBCLoans(): HSBCLoan[] {
-  if (!cachedLoans) {
-    cachedLoans = generateMockLoans();
+// 获取所有批次日期
+export function getBatchDates(): string[] {
+  return Array.from(loansByBatchDate.keys()).sort().reverse();
+}
+
+// 获取指定批次日期的贷款数据
+export function getLoansByBatchDate(batchDate: string): HSBCLoan[] {
+  return loansByBatchDate.get(batchDate) || [];
+}
+
+// 获取所有贷款数据（合并所有批次）
+export function getAllLoans(): HSBCLoan[] {
+  const allLoans: HSBCLoan[] = [];
+  loansByBatchDate.forEach((loans) => {
+    allLoans.push(...loans);
+  });
+  return allLoans;
+}
+
+// 保存指定批次日期的贷款数据
+export function setLoansByBatchDate(batchDate: string, loans: HSBCLoan[]): void {
+  loansByBatchDate.set(batchDate, loans);
+}
+
+// 获取最新批次日期
+export function getLatestBatchDate(): string | null {
+  const dates = getBatchDates();
+  return dates.length > 0 ? dates[0] : null;
+}
+
+// 删除指定批次日期的数据
+export function deleteBatchDate(batchDate: string): boolean {
+  return loansByBatchDate.delete(batchDate);
+}
+
+// 清空所有数据
+export function clearAllLoans(): void {
+  loansByBatchDate.clear();
+}
+
+// 获取统计信息（按批次日期筛选）
+export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
+  const loans = batchDate ? getLoansByBatchDate(batchDate) : getAllLoans();
+
+  if (loans.length === 0) {
+    return {
+      totalLoans: 0,
+      activeMerchants: 0,
+      totalLoanAmount: 0,
+      totalBalance: 0,
+      totalPastdueAmount: 0,
+      overdueRate: 0,
+      overdueMerchantRate: 0,
+      warningAmount: 0,
+      approachingMaturityAmount: 0,
+      currencyBreakdown: [],
+      approachingMaturity: [],
+      overdueTrend: [],
+      riskAssessment: [],
+    };
   }
-  return cachedLoans;
-}
 
-export function setMockHSBCLoans(loans: HSBCLoan[]): void {
-  cachedLoans = loans;
-}
-
-export function getMockHSBCStats(): HSBCDashboardStats {
-  const loans = getMockHSBCLoans();
-  
   // 计算统计数据
   const totalLoans = loans.length;
   const uniqueMerchants = [...new Set(loans.map(l => l.merchantId))];
-  const activeMerchants = uniqueMerchants.filter(m => 
+  const activeMerchants = uniqueMerchants.filter(m =>
     loans.some(l => l.merchantId === m && l.balance > 1)
   ).length;
-  
+
   // 按币种分组
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
   const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
-  
-  const totalLoanAmount = cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0) 
+
+  const totalLoanAmount = cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0)
     + usdLoans.reduce((sum, l) => sum + l.loanAmount * USD_TO_CNY_RATE, 0);
-  const totalBalance = cnyLoans.reduce((sum, l) => sum + l.balance, 0) 
+  const totalBalance = cnyLoans.reduce((sum, l) => sum + l.balance, 0)
     + usdLoans.reduce((sum, l) => sum + l.balance * USD_TO_CNY_RATE, 0);
-  const totalPastdueAmount = cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0) 
+  const totalPastdueAmount = cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0)
     + usdLoans.reduce((sum, l) => sum + l.pastdueAmount * USD_TO_CNY_RATE, 0);
-  
+
   // 逾期商户
-  const overdueMerchants = uniqueMerchants.filter(m => 
+  const overdueMerchants = uniqueMerchants.filter(m =>
     loans.some(l => l.merchantId === m && l.pastdueAmount >= 0.5)
   );
-  
+
   // 计算风险评估
   const riskAssessment: RiskAssessmentItem[] = [
     { riskLevel: '低风险', daysMin: 0, daysMax: 30, overdueAmount: totalPastdueAmount * 0.4, merchantCount: Math.floor(overdueMerchants.length * 0.4), loanCount: Math.floor(totalLoans * 0.3) },
@@ -256,20 +201,26 @@ export function getMockHSBCStats(): HSBCDashboardStats {
     { riskLevel: '严重风险', daysMin: 91, daysMax: 180, overdueAmount: totalPastdueAmount * 0.08, merchantCount: Math.floor(overdueMerchants.length * 0.08), loanCount: Math.floor(totalLoans * 0.1) },
     { riskLevel: '极高风险', daysMin: 181, daysMax: 999, overdueAmount: totalPastdueAmount * 0.02, merchantCount: Math.floor(overdueMerchants.length * 0.02), loanCount: Math.floor(totalLoans * 0.05) },
   ];
-  
-  // 生成逾期趋势
+
+  // 生成逾期趋势（按批次日期）
+  const batchDates = getBatchDates();
   const overdueTrend: OverdueTrendItem[] = [];
-  const batchDates = ['2024-01', '2024-02', '2024-03', '2024-04', '2024-05', '2024-06', '2024-07'];
-  batchDates.forEach((date, idx) => {
-    const progress = (idx + 1) / batchDates.length;
+  batchDates.forEach((date) => {
+    const dateLoans = getLoansByBatchDate(date);
+    const dateCnyLoans = dateLoans.filter(l => l.loanCurrency === 'CNY');
+    const dateUsdLoans = dateLoans.filter(l => l.loanCurrency === 'USD');
+    const dateBalance = dateCnyLoans.reduce((sum, l) => sum + l.balance, 0)
+      + dateUsdLoans.reduce((sum, l) => sum + l.balance * USD_TO_CNY_RATE, 0);
+    const dateOverdue = dateCnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0)
+      + dateUsdLoans.reduce((sum, l) => sum + l.pastdueAmount * USD_TO_CNY_RATE, 0);
     overdueTrend.push({
       batchDate: date,
-      overdueAmount: Math.round(totalPastdueAmount * progress * (0.8 + Math.random() * 0.4)),
-      balance: Math.round(totalBalance * progress),
-      overdueRate: Math.round(progress * 8 * 100) / 100,
+      overdueAmount: Math.round(dateOverdue),
+      balance: Math.round(dateBalance),
+      overdueRate: dateBalance > 0 ? Math.round((dateOverdue / dateBalance) * 10000) / 100 : 0,
     });
   });
-  
+
   return {
     totalLoans,
     activeMerchants,
@@ -315,4 +266,24 @@ export function getMockHSBCStats(): HSBCDashboardStats {
     overdueTrend,
     riskAssessment,
   };
+}
+
+// ============ 兼容旧接口 ============
+
+let cachedLoans: HSBCLoan[] | null = null;
+
+export function getMockHSBCLoans(): HSBCLoan[] {
+  return getAllLoans();
+}
+
+export function setMockHSBCLoans(loans: HSBCLoan[]): void {
+  const batchDate = loans.length > 0 && loans[0].batchDate
+    ? loans[0].batchDate
+    : new Date().toISOString().split('T')[0];
+  setLoansByBatchDate(batchDate, loans);
+  cachedLoans = loans;
+}
+
+export function getMockHSBCStats(): HSBCDashboardStats {
+  return getHSBCStats();
 }

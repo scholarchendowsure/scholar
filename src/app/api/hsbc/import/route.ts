@@ -1,294 +1,175 @@
-import { NextResponse } from 'next/server';
-import { getMockHSBCLoans, setMockHSBCLoans, HSBCLoan, RepaymentRecord } from '@/lib/hsbc-data';
+import { NextRequest, NextResponse } from 'next/server';
+import { setLoansByBatchDate, getLoansByBatchDate } from '@/lib/hsbc-data';
 
-// 解析中文日期格式 (如"2024年1月29日" -> "2024-01-29")
-const parseChineseDate = (dateStr: string): string => {
-  if (!dateStr || dateStr.trim() === '') return '';
-  
-  // 清理日期字符串，去除引号等特殊字符
-  const cleaned = dateStr.replace(/[""]/g, '').trim();
-  
-  // 匹配中文日期格式：年、月、日
-  const match = cleaned.match(/(\d+)\s*年\s*(\d+)\s*月\s*(\d+)\s*日/);
+// 解析中文日期格式 "2024年1月29日"
+function parseChineseDate(dateStr: string): string {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const cleaned = dateStr.replace(/["\u200b]/g, '').trim();
+  const match = cleaned.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
   if (match) {
-    const year = match[1].padStart(4, '0');
-    const month = match[2].padStart(2, '0');
-    const day = match[3].padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const [, year, month, day] = match;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
-  
-  // 尝试匹配 DD-MM-YY 格式 (如 08-Apr-24)
-  const ddmmyyMatch = cleaned.match(/(\d+)-([A-Za-z]+)-(\d+)/);
-  if (ddmmyyMatch) {
-    const day = ddmmyyMatch[1].padStart(2, '0');
-    const monthMap: Record<string, string> = {
-      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-      'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-      'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
-    };
-    const month = monthMap[ddmmyyMatch[2]] || '01';
-    const year = '20' + ddmmyyMatch[3].slice(-2);
-    return `${year}-${month}-${day}`;
-  }
-  
   return cleaned;
-};
-
-// 解析金额格式 (去除逗号)
-const parseAmount = (amountStr: string): number => {
-  if (!amountStr || amountStr.trim() === '') return 0;
-  const cleaned = amountStr.replace(/[,]/g, '').trim();
-  return parseFloat(cleaned) || 0;
-};
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { loans, action } = body;
-
-    if (action === 'import') {
-      // 导入新数据
-      if (!loans || !Array.isArray(loans)) {
-        return NextResponse.json({ error: '无效的数据格式' }, { status: 400 });
-      }
-
-      // 验证并转换数据
-      const validLoans: HSBCLoan[] = loans.map((row: Record<string, any>, index: number) => {
-        // 解析还款记录（处理多个Repayment Date和Repay amount列）
-        const repaymentSchedule: RepaymentRecord[] = [];
-        
-        // 查找所有还款日期和金额列
-        for (let i = 1; i <= 20; i++) {
-          const dateKey = i === 1 ? 'Repayment Date' : `Repayment Date ${i}`;
-          const amountKey = i === 1 ? 'Repay amount' : `Repay amount ${i}`;
-          
-          // 也尝试处理有换行的列名
-          const dateKeys = [dateKey, `Repayment\nDate`, `Repayment\nDate ${i}`];
-          const amountKeys = [amountKey, `Repay\namount`, `Repay\namount ${i}`];
-          
-          let dateValue = '';
-          let amountValue = '';
-          
-          for (const key of dateKeys) {
-            if (row[key]) {
-              dateValue = String(row[key]);
-              break;
-            }
-          }
-          
-          for (const key of amountKeys) {
-            if (row[key]) {
-              amountValue = String(row[key]);
-              break;
-            }
-          }
-          
-          if (dateValue && dateValue.trim() !== '') {
-            const parsedDate = parseChineseDate(dateValue);
-            const parsedAmount = parseAmount(amountValue);
-            
-            if (parsedDate && parsedAmount > 0) {
-              repaymentSchedule.push({
-                date: parsedDate,
-                amount: parsedAmount,
-                repaid: true
-              });
-            }
-          }
-        }
-
-        const loanAmount = parseAmount(
-          String(row.loanAmount || row['Loan Amount'] || row[' Loan Amount '] || '0')
-        );
-        const balance = parseAmount(
-          String(row.balance || row.Balance || '0')
-        );
-        const pastdueAmount = parseAmount(
-          String(row.pastdueAmount || row['Pastdue amount'] || '0')
-        );
-        
-        return {
-          id: String(row.loanReference || row['Loan Reference'] || `LOAN_${index}`),
-          loanReference: String(row.loanReference || row['Loan Reference'] || `LOAN_${index}`),
-          merchantId: String(row.merchantId || row['Merchant ID'] || ''),
-          borrowerName: String(row.borrowerName || row['Borrower Name'] || '').trim(),
-          loanStartDate: parseChineseDate(
-            String(row.loanStartDate || row['Loan Start Date'] || row[' Loan Start Date '] || '')
-          ),
-          loanCurrency: (String(row.loanCurrency || row['Loan Currency'] || 'USD').trim() as 'CNY' | 'USD') || 'USD',
-          loanAmount: loanAmount,
-          loanInterest: String(row.loanInterest || row['Loan Interest'] || ''),
-          totalInterestRate: parseFloat(String(row.totalInterestRate || row['Total Interest Rate'] || '0')) || 0,
-          loanTenor: String(row.loanTenor || row['Loan Tenor'] || row[' Loan \nTenor '] || ''),
-          maturityDate: parseChineseDate(
-            String(row.maturityDate || row['Maturity Date'] || '')
-          ),
-          repaymentSchedule: repaymentSchedule,
-          balance: balance,
-          pastdueAmount: pastdueAmount,
-          freezeAccountRequested: 
-            row.freezeAccountRequested || row['Freeze Account Requested? (DDMMYY)'] || undefined,
-          forceDebitRequested: 
-            row.forceDebitRequested || row['Force Debit Requested? (DDMMYY)'] || undefined,
-          approvalFromRM: 
-            row.approvalFromRM || row['Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)'] || undefined,
-          confirmationFreezeAccount: 
-            row.confirmationFreezeAccount || row['Confirmation from Dowsure with action taken on Freeze Account? (DDMMYY)'] || undefined,
-          confirmationForceDebit: 
-            row.confirmationForceDebit || row['Confirmation from Dowsure with action taken on Force Debit? (DDMMYY)'] || undefined,
-          remarks: String(row.remarks || row['Remarks'] || row['Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)'] || ''),
-          batchDate: new Date().toISOString().split('T')[0],
-        };
-      }).filter(loan => loan.merchantId && loan.loanReference);
-
-      // 更新缓存
-      setMockHSBCLoans(validLoans);
-
-      return NextResponse.json({
-        success: true,
-        message: `成功导入 ${validLoans.length} 条贷款记录`,
-        count: validLoans.length,
-      });
-    }
-
-    if (action === 'merge') {
-      // 合并数据
-      if (!loans || !Array.isArray(loans)) {
-        return NextResponse.json({ error: '无效的数据格式' }, { status: 400 });
-      }
-
-      const existingLoans = getMockHSBCLoans();
-      const existingRefs = new Set(existingLoans.map(l => l.loanReference));
-
-      const newLoans = loans
-        .filter((row: Record<string, any>) => {
-          const ref = String(row.loanReference || row['Loan Reference'] || '');
-          return !existingRefs.has(ref);
-        })
-        .map((row: Record<string, any>, index: number) => {
-          // 解析还款记录
-          const repaymentSchedule: RepaymentRecord[] = [];
-          
-          for (let i = 1; i <= 20; i++) {
-            const dateKey = i === 1 ? 'Repayment Date' : `Repayment Date ${i}`;
-            const amountKey = i === 1 ? 'Repay amount' : `Repay amount ${i}`;
-            
-            const dateKeys = [dateKey, `Repayment\nDate`, `Repayment\nDate ${i}`];
-            const amountKeys = [amountKey, `Repay\namount`, `Repay\namount ${i}`];
-            
-            let dateValue = '';
-            let amountValue = '';
-            
-            for (const key of dateKeys) {
-              if (row[key]) {
-                dateValue = String(row[key]);
-                break;
-              }
-            }
-            
-            for (const key of amountKeys) {
-              if (row[key]) {
-                amountValue = String(row[key]);
-                break;
-              }
-            }
-            
-            if (dateValue && dateValue.trim() !== '') {
-              const parsedDate = parseChineseDate(dateValue);
-              const parsedAmount = parseAmount(amountValue);
-              
-              if (parsedDate && parsedAmount > 0) {
-                repaymentSchedule.push({
-                  date: parsedDate,
-                  amount: parsedAmount,
-                  repaid: true
-                });
-              }
-            }
-          }
-
-          const loanAmount = parseAmount(
-            String(row.loanAmount || row['Loan Amount'] || row[' Loan Amount '] || '0')
-          );
-          const balance = parseAmount(
-            String(row.balance || row.Balance || '0')
-          );
-          const pastdueAmount = parseAmount(
-            String(row.pastdueAmount || row['Pastdue amount'] || '0')
-          );
-          
-          return {
-            id: String(row.loanReference || row['Loan Reference'] || `LOAN_${index}`),
-            loanReference: String(row.loanReference || row['Loan Reference'] || `LOAN_${index}`),
-            merchantId: String(row.merchantId || row['Merchant ID'] || ''),
-            borrowerName: String(row.borrowerName || row['Borrower Name'] || '').trim(),
-            loanStartDate: parseChineseDate(
-              String(row.loanStartDate || row['Loan Start Date'] || row[' Loan Start Date '] || '')
-            ),
-            loanCurrency: (String(row.loanCurrency || row['Loan Currency'] || 'USD').trim() as 'CNY' | 'USD') || 'USD',
-            loanAmount: loanAmount,
-            loanInterest: String(row.loanInterest || row['Loan Interest'] || ''),
-            totalInterestRate: parseFloat(String(row.totalInterestRate || row['Total Interest Rate'] || '0')) || 0,
-            loanTenor: String(row.loanTenor || row['Loan Tenor'] || row[' Loan \nTenor '] || ''),
-            maturityDate: parseChineseDate(
-              String(row.maturityDate || row['Maturity Date'] || '')
-            ),
-            repaymentSchedule: repaymentSchedule,
-            balance: balance,
-            pastdueAmount: pastdueAmount,
-            freezeAccountRequested: 
-              row.freezeAccountRequested || row['Freeze Account Requested? (DDMMYY)'] || undefined,
-            forceDebitRequested: 
-              row.forceDebitRequested || row['Force Debit Requested? (DDMMYY)'] || undefined,
-            approvalFromRM: 
-              row.approvalFromRM || row['Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)'] || undefined,
-            confirmationFreezeAccount: 
-              row.confirmationFreezeAccount || row['Confirmation from Dowsure with action taken on Freeze Account? (DDMMYY)'] || undefined,
-            confirmationForceDebit: 
-              row.confirmationForceDebit || row['Confirmation from Dowsure with action taken on Force Debit? (DDMMYY)'] || undefined,
-            remarks: String(row.remarks || row['Remarks'] || row['Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)'] || ''),
-            batchDate: new Date().toISOString().split('T')[0],
-          };
-        });
-
-      // 合并
-      setMockHSBCLoans([...existingLoans, ...newLoans]);
-
-      return NextResponse.json({
-        success: true,
-        message: `合并成功，新增 ${newLoans.length} 条记录`,
-        count: newLoans.length,
-        total: existingLoans.length + newLoans.length,
-      });
-    }
-
-    return NextResponse.json({ error: '未知操作' }, { status: 400 });
-  } catch (error) {
-    console.error('Error importing HSBC data:', error);
-    return NextResponse.json({ error: '导入失败' }, { status: 500 });
-  }
 }
 
-// 获取导入模板
-export async function GET() {
-  const template = [
-    {
-      'Loan Reference': 'TPJHK1079195',
-      'Merchant ID': '68537',
-      'Borrower Name': 'RONDAFUL (HK) INTERNATIONAL LIMITED',
-      'Loan Start Date': '2024年1月29日',
-      'Loan Currency': 'CNY',
-      'Loan Amount': '1.00',
-      'Loan Interest': 'HIBOR 3.32848% + 2.75%',
-      'Total Interest Rate': '6.07848',
-      'Loan Tenor': '10D',
-      'Maturity Date': '2024年2月8日',
-      'Repayment Date': '2024年1月30日',
-      'Repay amount': '1.00',
-      'Balance': '0',
-      'Pastdue amount': '0',
-    },
-  ];
+// 解析DD-MMM-YY格式日期 (如 "08-Apr-24")
+function parseDDMMMYY(dateStr: string): string {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const cleaned = dateStr.replace(/["\u200b]/g, '').trim();
+  const months: Record<string, string> = {
+    'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+    'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+    'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
+  };
+  const match = cleaned.match(/(\d{1,2})-(\w{3})-(\d{2,4})/i);
+  if (match) {
+    const [, day, monthStr, yearStr] = match;
+    const month = months[monthStr.toLowerCase()];
+    if (month) {
+      const year = yearStr.length === 2 ? `20${yearStr}` : yearStr;
+      return `${year}-${month}-${day.padStart(2, '0')}`;
+    }
+  }
+  return '';
+}
 
-  return NextResponse.json({ template, fields: Object.keys(template[0]) });
+// 解析日期（支持多种格式）
+function parseDate(dateStr: string): string {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  // 尝试中文日期
+  const chinese = parseChineseDate(dateStr);
+  if (chinese && chinese.includes('-') && chinese !== dateStr.replace(/["\u200b]/g, '').trim()) return chinese;
+  // 尝试DD-MMM-YY
+  const ddmmmmyy = parseDDMMMYY(dateStr);
+  if (ddmmmmyy) return ddmmmmyy;
+  // 尝试YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return dateStr.trim();
+  // 尝试Excel序列号日期
+  const num = parseFloat(dateStr);
+  if (!isNaN(num) && num > 40000 && num < 60000) {
+    const excelDate = new Date((num - 25569) * 86400 * 1000);
+    return excelDate.toISOString().split('T')[0];
+  }
+  return dateStr;
+}
+
+// 解析金额
+function parseAmount(amountStr: string | number): number {
+  if (typeof amountStr === 'number') return amountStr;
+  if (!amountStr || typeof amountStr !== 'string') return 0;
+  const cleaned = amountStr.replace(/[,，\s]/g, '').replace(/["\u200b]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+// 规范化列名
+function normalizeKey(key: string): string {
+  return key.replace(/[\n\r]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { loans, batchDate, mode = 'replace' } = body;
+
+    if (!Array.isArray(loans) || loans.length === 0) {
+      return NextResponse.json({ error: '没有可导入的数据' }, { status: 400 });
+    }
+
+    // 确定 batchDate
+    const importDate = batchDate || new Date().toISOString().split('T')[0];
+
+    // 解析贷款数据
+    const parsedLoans = loans.map((row: Record<string, string>, index: number) => {
+      // 找到还款计划
+      const repaymentSchedule: { date: string; amount: number }[] = [];
+      const keys = Object.keys(row);
+
+      // 收集所有还款日期和金额的列索引
+      let repaymentDateIndices: number[] = [];
+      let repaymentAmountIndices: number[] = [];
+
+      keys.forEach((key, idx) => {
+        const nk = normalizeKey(key);
+        if (nk === 'repayment date' || nk.includes('repayment') && nk.includes('date')) {
+          repaymentDateIndices.push(idx);
+        }
+        if (nk === 'repay amount' || nk.includes('repay') && nk.includes('amount')) {
+          repaymentAmountIndices.push(idx);
+        }
+      });
+
+      // 配对还款日期和金额
+      const pairCount = Math.min(repaymentDateIndices.length, repaymentAmountIndices.length);
+      for (let i = 0; i < pairCount; i++) {
+        const dateVal = row[keys[repaymentDateIndices[i]]];
+        const amountVal = row[keys[repaymentAmountIndices[i]]];
+        if (dateVal && amountVal && parseAmount(amountVal) > 0) {
+          repaymentSchedule.push({
+            date: parseDate(dateVal),
+            amount: parseAmount(amountVal),
+          });
+        }
+      }
+
+      // 提取各字段值（兼容不同列名）
+      const getValue = (...possibleKeys: string[]): string => {
+        for (const key of possibleKeys) {
+          const nk = normalizeKey(key);
+          for (const k of keys) {
+            if (normalizeKey(k) === nk) return row[k] || '';
+          }
+        }
+        return '';
+      };
+
+      const loanCurrency = (getValue('Loan Currency', 'loanCurrency') || 'CNY').toUpperCase() as 'CNY' | 'USD';
+
+      return {
+        id: `hsbc-${importDate}-${index}`,
+        loanReference: getValue('Loan Reference', 'loanReference'),
+        merchantId: getValue('Merchant ID', 'merchantId'),
+        borrowerName: getValue('Borrower Name', 'borrowerName'),
+        loanStartDate: parseDate(getValue('Loan Start Date', 'loanStartDate')),
+        loanCurrency,
+        loanAmount: parseAmount(getValue('Loan Amount', 'loanAmount')),
+        loanInterest: getValue('Loan Interest', 'loanInterest'),
+        totalInterestRate: parseAmount(getValue('Total Interest Rate', 'totalInterestRate')),
+        loanTenor: getValue('Loan Tenor', 'loanTenor'),
+        maturityDate: parseDate(getValue('Maturity Date', 'maturityDate')),
+        repaymentSchedule,
+        balance: parseAmount(getValue('Balance', 'balance')),
+        pastdueAmount: parseAmount(getValue('Pastdue amount', 'pastdueAmount', 'Pastdue Amount')),
+        batchDate: importDate,
+        freezeAccountRequested: getValue('Freeze Account Requested? (DDMMYY)'),
+        forceDebitRequested: getValue('Force Debit Requested? (DDMMYY)'),
+        rmApproval: getValue('Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)'),
+        dowsureFreezeConfirm: getValue('Confirmation from Dowsure with action taken on Freeze Account? (DDMMYY)'),
+        dowsureForceDebitConfirm: getValue('Confirmation from Dowsure with action taken on Force Debit? (DDMMYY)'),
+        remarks: getValue('Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)'),
+      };
+    });
+
+    // 根据导入模式处理
+    if (mode === 'append') {
+      const existingLoans = getLoansByBatchDate(importDate);
+      setLoansByBatchDate(importDate, [...existingLoans, ...parsedLoans]);
+    } else {
+      setLoansByBatchDate(importDate, parsedLoans);
+    }
+
+    const currentLoans = getLoansByBatchDate(importDate);
+
+    return NextResponse.json({
+      success: true,
+      message: `成功导入 ${parsedLoans.length} 条记录，批次日期：${importDate}`,
+      importedCount: parsedLoans.length,
+      totalCount: currentLoans.length,
+      batchDate: importDate,
+    });
+  } catch (error) {
+    console.error('汇丰数据导入失败:', error);
+    return NextResponse.json({ error: '导入失败：' + (error instanceof Error ? error.message : '未知错误') }, { status: 500 });
+  }
 }

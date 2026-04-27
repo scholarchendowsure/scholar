@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server';
-import { successResponse } from '@/lib/auth';
+import { getBatchDates } from '@/lib/hsbc-data';
 
-// Mock批次日期数据
-const mockBatchDates = ['2024-01-15', '2024-01-20', '2024-01-25'];
-
-// 获取批次日期列表
 export async function GET() {
   try {
-    return NextResponse.json(successResponse(mockBatchDates));
+    const dates = getBatchDates();
+    return NextResponse.json({ data: dates });
   } catch (error) {
-    console.error('Get batch dates error:', error);
-    return NextResponse.json({ success: false, message: '获取批次日期失败' }, { status: 500 });
+    console.error('获取批次日期失败:', error);
+    return NextResponse.json({ error: '获取批次日期失败' }, { status: 500 });
   }
 }

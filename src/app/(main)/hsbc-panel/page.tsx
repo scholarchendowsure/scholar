@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { formatCurrency } from '@/lib/constants';
 import {
   Card,
@@ -261,21 +261,92 @@ export default function HSBCPanelPage() {
   const [importPreview, setImportPreview] = useState<HSBCLoan[]>([]);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [importBatchDate, setImportBatchDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [selectedBatchDate, setSelectedBatchDate] = useState<string>('');
+  const [availableBatchDates, setAvailableBatchDates] = useState<string[]>([]);
 
   // 加载数据
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    setTimeout(() => {
-      const mockLoans = generateMockLoans();
-      setLoans(mockLoans);
-      setStats(generateMockStats(mockLoans));
+    try {
+      // 加载批次日期列表
+      const datesRes = await fetch('/api/hsbc/batch-dates');
+      let dates: string[] = [];
+      if (datesRes.ok) {
+        const datesData = await datesRes.json();
+        dates = datesData.data || [];
+        setBatchDates(dates);
+      }
+
+      // 如果有批次日期，加载最新日期的数据；否则加载所有数据
+      if (dates.length > 0) {
+        const latestDate = dates[0]; // 最新日期排在第一个
+        setSelectedBatchDate(latestDate);
+        const loansRes = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(latestDate)}`);
+        if (loansRes.ok) {
+          const loansData = await loansRes.json();
+          setLoans(loansData.data || []);
+        }
+        const statsRes = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(latestDate)}`);
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData);
+        }
+      } else {
+        // 没有批次日期时，加载所有数据
+        const loansRes = await fetch('/api/hsbc/loans');
+        if (loansRes.ok) {
+          const loansData = await loansRes.json();
+          setLoans(loansData.data || []);
+          setStats(generateMockStats(loansData.data || []));
+        }
+      }
+    } catch (err) {
+      console.error('加载数据失败:', err);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // 加载批次日期列表
+  useEffect(() => {
+    fetchBatchDates();
+  }, []);
+
+  // 根据选择的批次日期重新加载数据（跳过初始加载，因为 loadData 已经处理了）
+  const initialLoadRef = useRef(true);
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+    if (selectedBatchDate) {
+      loadLoansByBatchDate(selectedBatchDate);
+    }
+  }, [selectedBatchDate]);
+
+  // 根据批次日期加载贷款数据
+  const loadLoansByBatchDate = async (batchDate: string) => {
+    try {
+      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLoans(data.data || []);
+        // 同时获取对应日期的统计数据
+        const statsResponse = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(batchDate)}`);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData);
+        }
+      }
+    } catch (err) {
+      console.error('按日期加载数据失败:', err);
+    }
+  };
 
   // 切换展开/闭合
   const toggleSection = (section: string) => {
@@ -285,7 +356,7 @@ export default function HSBCPanelPage() {
     }));
   };
 
-  // 筛选后的贷款
+  // 筛选后的贷款（如果选择了批次日期，数据已经是该日期的数据）
   const filteredLoans = loans.filter(loan => {
     const matchSearch = !searchTerm ||
       loan.loanReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -446,7 +517,7 @@ export default function HSBCPanelPage() {
             balance,
             pastdueAmount,
             status: pastdueAmount > 0 ? 'overdue' as const : 'normal' as const,
-            batchDate: new Date().toISOString().slice(0, 7),
+            batchDate: importBatchDate,
             repaymentSchedule,
             operationLogs: [],
           });
@@ -495,17 +566,59 @@ export default function HSBCPanelPage() {
   };
 
   // 确认导入
-  const confirmImport = () => {
-    if (uploadMode === 'replace') {
-      setLoans(importPreview);
-      setStats(generateMockStats(importPreview));
-    } else {
-      setLoans([...loans, ...importPreview]);
-      setStats(generateMockStats([...loans, ...importPreview]));
+  const confirmImport = async () => {
+    try {
+      const response = await fetch('/api/hsbc/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loans: importPreview,
+          batchDate: importBatchDate,
+          mode: uploadMode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('导入失败');
+      }
+
+      const result = await response.json();
+
+      // 更新前端状态
+      if (uploadMode === 'replace') {
+        setLoans(importPreview);
+        setStats(generateMockStats(importPreview));
+      } else {
+        setLoans([...loans, ...importPreview]);
+        setStats(generateMockStats([...loans, ...importPreview]));
+      }
+
+      // 自动选择当前导入的批次日期
+      setSelectedBatchDate(importBatchDate);
+
+      // 刷新批次日期列表
+      fetchBatchDates();
+
+      setShowImportConfirm(false);
+      setImportPreview([]);
+      toast.success(`成功导入 ${importPreview.length} 条数据（批次日期: ${importBatchDate}）`);
+    } catch (err) {
+      console.error('导入错误:', err);
+      toast.error('导入失败，请重试');
     }
-    setShowImportConfirm(false);
-    setImportPreview([]);
-    toast.success(`成功导入 ${importPreview.length} 条数据`);
+  };
+
+  // 获取批次日期列表
+  const fetchBatchDates = async () => {
+    try {
+      const response = await fetch('/api/hsbc/batch-dates');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableBatchDates(data.dates || []);
+      }
+    } catch (err) {
+      console.error('获取批次日期失败:', err);
+    }
   };
 
   // 下载模板
@@ -544,10 +657,26 @@ export default function HSBCPanelPage() {
           <h1 className="text-2xl font-bold text-slate-800">汇丰贷款管理</h1>
           <p className="text-slate-500 text-sm mt-1">管理汇丰银行贷后案件全流程</p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadData}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          刷新数据
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* 批次日期选择 */}
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-500" />
+            <select
+              value={selectedBatchDate}
+              onChange={(e) => setSelectedBatchDate(e.target.value)}
+              className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">全部日期</option>
+              {batchDates.map((date: string) => (
+                <option key={date} value={date}>{date}</option>
+              ))}
+            </select>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadData}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            刷新数据
+          </Button>
+        </div>
       </div>
 
       {/* ============ 汇丰仪表盘 ============ */}
