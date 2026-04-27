@@ -27,7 +27,7 @@ import {
   FileSpreadsheet,
   Database,
   Building2,
-  PieChart,
+  PieChart as PieChartIcon,
   Trash2
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -223,7 +223,7 @@ export default function DashboardPage() {
               <Card className="cursor-pointer hover:bg-slate-50 transition-all duration-200 border-slate-200 hover:border-blue-300">
                 <CardContent className="p-4 flex flex-col items-center gap-2">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-400 flex items-center justify-center">
-                    <PieChart className="w-5 h-5 text-white" />
+                    <PieChartIcon className="w-5 h-5 text-white" />
                   </div>
                   <span className="text-sm font-medium text-slate-700">贷后统计</span>
                 </CardContent>
