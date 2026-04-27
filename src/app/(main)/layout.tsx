@@ -13,7 +13,10 @@ import {
   HelpCircle,
   Home,
   RefreshCw,
-  Maximize2
+  Maximize2,
+  Menu,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +42,7 @@ export default function MainLayout({
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -76,7 +79,11 @@ export default function MainLayout({
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/30 via-white to-indigo-50/30">
       {/* 顶部侧边栏 */}
-      <Sidebar onClose={() => setSidebarExpanded(false)} />
+      <Sidebar 
+        onClose={() => setSidebarExpanded(false)} 
+        isExpanded={sidebarExpanded}
+        onToggle={() => setSidebarExpanded(!sidebarExpanded)}
+      />
       
       {/* 主内容区域 */}
       <main className="min-h-screen">
@@ -101,6 +108,22 @@ export default function MainLayout({
 
             {/* 右侧 - 操作区 */}
             <div className="flex items-center gap-3">
+              {/* 导航栏显示/隐藏按钮 - 在筛选视图旁边 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarExpanded(!sidebarExpanded)}
+                className="h-9 px-3 text-slate-600 hover:text-slate-700 hover:bg-slate-100 flex items-center gap-2 border border-slate-200"
+              >
+                <Menu className="w-4 h-4" />
+                <span className="hidden sm:inline">导航</span>
+                {sidebarExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+
               {/* 搜索框 */}
               <div className="hidden md:flex items-center">
                 <div className="relative">

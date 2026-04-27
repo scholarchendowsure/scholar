@@ -73,133 +73,21 @@ const navItems = [
   }
 ];
 
-interface NavItemProps {
-  item: any;
-  isActive: boolean;
-  expandedItems: string[];
-  setExpandedItems: (items: string[]) => void;
-  onClose?: () => void;
-}
+export function Sidebar({ onClose, onToggle, isExpanded }: { onClose?: () => void; onToggle?: () => void; isExpanded?: boolean }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<string[]>(['案件管理']);
 
-const NavItem: React.FC<NavItemProps> = ({ item, isActive, expandedItems, setExpandedItems, onClose }) => {
+  const expanded = isExpanded ?? internalExpanded;
+  const toggleExpanded = onToggle ?? (() => setInternalExpanded(!expanded));
+
   const toggleItem = (name: string) => {
     setExpandedItems(prev => 
       prev.includes(name) 
         ? prev.filter(n => n !== name)
         : [...prev, name]
-    );
-  };
-
-  if (item.subItems) {
-    return (
-      <div className="relative group">
-        <button
-          onClick={() => toggleItem(item.name)}
-          className={cn(
-            "flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
-            isActive
-              ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
-              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <item.icon className={cn(
-              "w-4 h-4 transition-colors",
-              isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"
-            )} />
-            <span>{item.name}</span>
-          </div>
-          <ChevronDown 
-            className={cn(
-              "w-4 h-4 transition-transform duration-200",
-              expandedItems.includes(item.name) && "rotate-180"
-            )}
-          />
-        </button>
-        
-        {/* 下拉子菜单 */}
-        {expandedItems.includes(item.name) && (
-          <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-            {item.subItems.map((subItem: any, subIdx: number) => {
-              const isSubActive = usePathname() === subItem.href;
-              return (
-                <Link
-                  key={subIdx}
-                  href={subItem.href}
-                  onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 text-sm transition-all duration-200",
-                    isSubActive
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                >
-                  {isSubActive ? (
-                    <CheckCircle className="w-4 h-4" />
-                  ) : (
-                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                  )}
-                  <span>{subItem.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      href={item.href}
-      onClick={onClose}
-      className={cn(
-        "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
-        isActive
-          ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-      )}
-    >
-      <item.icon className={cn(
-        "w-4 h-4 transition-colors",
-        isActive ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
-      )} />
-      <span>{item.name}</span>
-      {isActive && (
-        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />
-      )}
-    </Link>
-  );
-};
-
-interface SidebarContentProps {
-  isExpanded: boolean;
-  setIsExpanded: (expanded: boolean) => void;
-  expandedSections: string[];
-  setExpandedSections: (sections: string[]) => void;
-  expandedItems: string[];
-  setExpandedItems: (items: string[]) => void;
-  onClose?: () => void;
-}
-
-const SidebarContent: React.FC<SidebarContentProps> = ({
-  isExpanded,
-  setIsExpanded,
-  expandedSections,
-  setExpandedSections,
-  expandedItems,
-  setExpandedItems,
-  onClose
-}) => {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, logout } = useAuth();
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => 
-      prev.includes(section) 
-        ? prev.filter(s => s !== section)
-        : [...prev, section]
     );
   };
 
@@ -227,11 +115,11 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
           </div>
           
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={toggleExpanded}
             className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-all duration-200 flex items-center gap-2"
           >
             <Menu className="w-4 h-4" />
-            {isExpanded ? (
+            {expanded ? (
               <ChevronUp className="w-4 h-4" />
             ) : (
               <ChevronDown className="w-4 h-4" />
@@ -267,41 +155,102 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       </div>
 
       {/* 展开的导航菜单 */}
-      {isExpanded && (
+      {expanded && (
         <div className="border-t border-gray-100 bg-gray-50/50">
           <div className="px-4 py-3">
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-2">
               {navItems.map((section, sectionIdx) => (
-                <div key={sectionIdx} className="flex items-center gap-1 mr-4">
-                  {/* 分组标题 */}
-                  <button
-                    onClick={() => toggleSection(section.section)}
-                    className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
-                  >
-                    <span>{section.section}</span>
-                    <ChevronDown 
-                      className={cn(
-                        "w-3 h-3 transition-transform duration-200",
-                        expandedSections.includes(section.section) && "rotate-180"
-                      )}
-                    />
-                  </button>
+                <div key={sectionIdx} className="mr-4">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2">
+                    {section.section}
+                  </span>
                   
-                  {/* 分组项目 */}
-                  {expandedSections.includes(section.section) && (
-                    <div className="flex items-center gap-1">
-                      {section.items.map((item, itemIdx) => (
-                        <NavItem
+                  <div className="flex items-center gap-1">
+                    {section.items.map((item, itemIdx) => {
+                      const isItemActive = isActive(item.href);
+                      
+                      if (item.subItems) {
+                        return (
+                          <div key={itemIdx} className="relative group">
+                            <button
+                              onClick={() => toggleItem(item.name)}
+                              className={cn(
+                                "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
+                                isItemActive
+                                  ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
+                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <item.icon className={cn(
+                                  "w-4 h-4 transition-colors",
+                                  isItemActive ? "text-blue-600" : "text-gray-400"
+                                )} />
+                                <span>{item.name}</span>
+                              </div>
+                              <ChevronDown 
+                                className={cn(
+                                  "w-4 h-4 transition-transform duration-200",
+                                  expandedItems.includes(item.name) && "rotate-180"
+                                )}
+                              />
+                            </button>
+                            
+                            {expandedItems.includes(item.name) && (
+                              <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                                {item.subItems.map((subItem, subIdx) => {
+                                  const isSubActive = pathname === subItem.href;
+                                  return (
+                                    <Link
+                                      key={subIdx}
+                                      href={subItem.href}
+                                      onClick={onClose}
+                                      className={cn(
+                                        "flex items-center gap-2 px-4 py-2 text-sm transition-all duration-200",
+                                        isSubActive
+                                          ? "bg-blue-600 text-white"
+                                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                      )}
+                                    >
+                                      {isSubActive ? (
+                                        <CheckCircle className="w-4 h-4" />
+                                      ) : (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                      )}
+                                      <span>{subItem.name}</span>
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Link
                           key={itemIdx}
-                          item={item}
-                          isActive={isActive(item.href)}
-                          expandedItems={expandedItems}
-                          setExpandedItems={setExpandedItems}
-                          onClose={onClose}
-                        />
-                      ))}
-                    </div>
-                  )}
+                          href={item.href}
+                          onClick={onClose}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap",
+                            isItemActive
+                              ? "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "w-4 h-4 transition-colors",
+                            isItemActive ? "text-blue-600" : "text-gray-400"
+                          )} />
+                          <span>{item.name}</span>
+                          {isItemActive && (
+                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -309,23 +258,5 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         </div>
       )}
     </div>
-  );
-};
-
-export function Sidebar({ onClose }: { onClose?: () => void }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['核心功能', '专项管理']);
-  const [expandedItems, setExpandedItems] = useState<string[]>(['案件管理']);
-
-  return (
-    <SidebarContent
-      isExpanded={isExpanded}
-      setIsExpanded={setIsExpanded}
-      expandedSections={expandedSections}
-      setExpandedSections={setExpandedSections}
-      expandedItems={expandedItems}
-      setExpandedItems={setExpandedItems}
-      onClose={onClose}
-    />
   );
 }
