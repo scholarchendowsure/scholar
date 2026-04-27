@@ -103,7 +103,7 @@ export default function AssignmentPage() {
   }, [fetchCases, fetchUsers]);
 
   const handleSelectAll = () => {
-    if (!cases) return;
+    if (!cases || !cases.data) return;
     if (selectedCases.size === cases.data.length) {
       setSelectedCases(new Set());
     } else {
@@ -219,8 +219,9 @@ export default function AssignmentPage() {
                   <input
                     type="checkbox"
                     checked={
-                      cases?.data.length !== 0 &&
-                      selectedCases.size === cases?.data.length
+                      cases?.data &&
+                      cases.data.length !== 0 &&
+                      selectedCases.size === cases.data.length
                     }
                     onChange={handleSelectAll}
                     className="rounded"
@@ -247,14 +248,14 @@ export default function AssignmentPage() {
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                   </TableRow>
                 ))
-              ) : cases?.data.length === 0 ? (
+              ) : !cases?.data || cases.data.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     暂无待分配案件
                   </TableCell>
                 </TableRow>
               ) : (
-                cases?.data.map((item) => (
+                cases.data.map((item) => (
                   <TableRow key={item.id} className="hover:bg-accent/50">
                     <TableCell>
                       <input
