@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Upload,
 } from 'lucide-react';
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { label: '案件列表', href: '/cases', icon: FileText },
   { label: '我的案件', href: '/my-cases', icon: User },
   { label: '汇丰管理', href: '/hsbc-panel', icon: Building2 },
+  { label: '汇丰导入', href: '/hsbc-panel/import', icon: Upload },
   { label: '还款记录', href: '/repayment-records', icon: Receipt },
   { label: '案件分配', href: '/assignment', icon: Users },
   { label: '数据导出', href: '/data-export', icon: Download },

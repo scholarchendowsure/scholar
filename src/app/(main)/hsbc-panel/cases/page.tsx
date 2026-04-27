@@ -2,39 +2,24 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { formatCurrency, formatDate } from '@/lib/utils';
 import {
-  Search,
-  Download,
-  Upload,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  DollarSign,
-  Calendar,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
+} from '@/components/ui/dialog';
+import {
+  Search, Filter, Download, ChevronDown, ChevronUp,
+  Building2, Banknote, AlertTriangle, Calendar, RefreshCw, Eye
 } from 'lucide-react';
-import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface HSBCLoan {
   id: string;
@@ -42,117 +27,175 @@ interface HSBCLoan {
   merchantId: string;
   borrowerName: string;
   loanStartDate: string;
-  loanCurrency: string;
-  loanAmount: string;
-  loanTenor: number;
+  loanCurrency: 'CNY' | 'USD';
+  loanAmount: number;
+  loanInterest: string;
+  totalInterestRate: number;
+  loanTenor: string;
   maturityDate: string;
-  balance: string;
-  pastdueAmount: string;
-  batchDate: string;
+  balance: number;
+  pastdueAmount: number;
+  freezeAccountRequested?: string;
+  forceDebitRequested?: string;
+  remarks: string;
+  batchDate?: string;
+  repaymentSchedule?: Array<{ date: string; amount: number; repaid?: boolean }>;
 }
 
-interface PaginatedResponse {
-  data: HSBCLoan[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
+interface MerchantGroup {
+  merchantId: string;
+  borrowerName: string;
+  loanCount: number;
+  totalAmount: number;
+  totalBalance: number;
+  totalPastdueAmount: number;
+  currency: string;
+  loans: HSBCLoan[];
+}
+
+function formatCurrency(amount: number, currency: string = 'CNY'): string {
+  if (currency === 'USD') {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return `¥${amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatNumber(num: number): string {
+  return num.toLocaleString('zh-CN');
 }
 
 export default function HSBCCasesPage() {
+  const [loans, setLoans] = useState<HSBCLoan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<PaginatedResponse | null>(null);
-  const [keyword, setKeyword] = useState('');
-  const [currency, setCurrency] = useState('');
-  const [batchDate, setBatchDate] = useState('');
-  const [page, setPage] = useState(1);
-  const [batchDates, setBatchDates] = useState<Array<{ batchDate: string; count: number }>>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currencyFilter, setCurrencyFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<HSBCLoan | null>(null);
+  const [merchants, setMerchants] = useState<MerchantGroup[]>([]);
 
   const fetchLoans = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set('page', page.toString());
-      params.set('pageSize', '20');
-      if (keyword) params.set('keyword', keyword);
-      if (currency) params.set('currency', currency);
-      if (batchDate) params.set('batchDate', batchDate);
-
-      const res = await fetch(`/api/hsbc?${params.toString()}`);
-      const result = await res.json();
-      if (result.success) {
-        setData(result.data);
-      }
+      const res = await fetch('/api/hsbc');
+      const data = await res.json();
+      setLoans(data.loans || []);
     } catch (error) {
-      toast.error('获取汇丰贷款列表失败');
+      console.error('Failed to fetch loans:', error);
+      toast.error('获取贷款数据失败');
     } finally {
       setLoading(false);
     }
-  }, [page, keyword, currency, batchDate]);
-
-  const fetchBatchDates = async () => {
-    try {
-      const res = await fetch('/api/hsbc/batch-dates');
-      const result = await res.json();
-      if (result.success) {
-        setBatchDates(result.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch batch dates:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchBatchDates();
   }, []);
 
   useEffect(() => {
     fetchLoans();
   }, [fetchLoans]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-    fetchLoans();
+  // 按商户聚合
+  useEffect(() => {
+    const filtered = loans.filter(loan => {
+      const matchSearch = searchTerm === '' || 
+        loan.loanReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loan.merchantId.includes(searchTerm) ||
+        loan.borrowerName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCurrency = currencyFilter === 'all' || loan.loanCurrency === currencyFilter;
+      const matchStatus = statusFilter === 'all' || 
+        (statusFilter === 'overdue' && loan.pastdueAmount >= 0.5) ||
+        (statusFilter === 'normal' && loan.pastdueAmount < 0.5);
+      return matchSearch && matchCurrency && matchStatus;
+    });
+
+    const grouped = filtered.reduce((acc, loan) => {
+      const key = loan.merchantId;
+      if (!acc[key]) {
+        acc[key] = {
+          merchantId: loan.merchantId,
+          borrowerName: loan.borrowerName,
+          loanCount: 0,
+          totalAmount: 0,
+          totalBalance: 0,
+          totalPastdueAmount: 0,
+          currency: loan.loanCurrency,
+          loans: [],
+        };
+      }
+      acc[key].loanCount++;
+      acc[key].totalAmount += loan.loanAmount;
+      acc[key].totalBalance += loan.balance;
+      acc[key].totalPastdueAmount += loan.pastdueAmount;
+      acc[key].loans.push(loan);
+      return acc;
+    }, {} as Record<string, MerchantGroup>);
+
+    setMerchants(Object.values(grouped).sort((a, b) => b.totalBalance - a.totalBalance));
+  }, [loans, searchTerm, currencyFilter, statusFilter]);
+
+  const getStatusBadge = (pastdueAmount: number) => {
+    if (pastdueAmount >= 0.5) {
+      return <Badge className="bg-red-100 text-red-700 border-red-200">逾期</Badge>;
+    }
+    return <Badge className="bg-green-100 text-green-700 border-green-200">正常</Badge>;
   };
 
+  const handleExport = () => {
+    toast.success('导出功能开发中');
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-800">汇丰贷款列表</h1>
+        </div>
+        <Card className="bg-white border-slate-200">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
+    <div className="space-y-6">
+      {/* 页面标题 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">汇丰贷款列表</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/hsbc-panel/risk-assessment">
-              <Upload className="h-4 w-4 mr-2" />
-              风险评定导入
-            </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">汇丰贷款列表</h1>
+          <p className="text-sm text-slate-500 mt-1">共 {merchants.length} 家商户，{loans.length} 笔贷款</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={fetchLoans} className="gap-2">
+            <RefreshCw className="w-4 h-4" />
+            刷新
           </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
+          <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Download className="w-4 h-4" />
             导出
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-4">
-          <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="搜索贷款编号、商户ID、借款人..."
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+      {/* 筛选器 */}
+      <Card className="bg-white border-slate-200">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="搜索贷款编号/商户ID/名称..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-slate-50 border-slate-200"
+              />
             </div>
-
-            <Select value={currency || 'all'} onValueChange={(v) => setCurrency(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[120px]">
+            <Select value={currencyFilter} onValueChange={setCurrencyFilter}>
+              <SelectTrigger className="w-[140px] bg-slate-50 border-slate-200">
                 <SelectValue placeholder="币种" />
               </SelectTrigger>
               <SelectContent>
@@ -161,150 +204,207 @@ export default function HSBCCasesPage() {
                 <SelectItem value="USD">USD</SelectItem>
               </SelectContent>
             </Select>
-
-            <Select value={batchDate || 'all'} onValueChange={(v) => setBatchDate(v === 'all' ? '' : v)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="批次日期" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] bg-slate-50 border-slate-200">
+                <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">全部批次</SelectItem>
-                {batchDates.map((bd) => (
-                  <SelectItem key={bd.batchDate} value={bd.batchDate}>
-                    {bd.batchDate}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="normal">正常</SelectItem>
+                <SelectItem value="overdue">逾期</SelectItem>
               </SelectContent>
             </Select>
-
-            <Button type="submit" variant="secondary">
-              筛选
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setKeyword('');
-                setCurrency('');
-                setBatchDate('');
-                setPage(1);
-              }}
-            >
-              重置
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>贷款编号</TableHead>
-                <TableHead>商户ID</TableHead>
-                <TableHead>借款人</TableHead>
-                <TableHead>币种</TableHead>
-                <TableHead className="text-right">贷款金额</TableHead>
-                <TableHead className="text-right">余额</TableHead>
-                <TableHead className="text-right">逾期金额</TableHead>
-                <TableHead>到期日期</TableHead>
-                <TableHead>批次</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-10" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                  </TableRow>
-                ))
-              ) : data?.data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    暂无数据
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data?.data.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-accent/50">
-                    <TableCell className="font-mono text-sm">{item.loanReference || '-'}</TableCell>
-                    <TableCell className="font-mono text-sm">{item.merchantId || '-'}</TableCell>
-                    <TableCell className="font-medium">{item.borrowerName || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant={item.loanCurrency === 'CNY' ? 'default' : 'secondary'}>
-                        {item.loanCurrency}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-data">
-                      {item.loanCurrency === 'CNY' 
-                        ? formatCurrency(item.loanAmount)
-                        : `$${parseFloat(item.loanAmount).toLocaleString()}`
-                      }
-                    </TableCell>
-                    <TableCell className="text-right font-data">
-                      {item.loanCurrency === 'CNY' 
-                        ? formatCurrency(item.balance)
-                        : `$${parseFloat(item.balance).toLocaleString()}`
-                      }
-                    </TableCell>
-                    <TableCell className={`text-right font-data ${parseFloat(item.pastdueAmount) >= 0.5 ? 'text-[hsl(0,75%,50%)]' : ''}`}>
-                      {item.loanCurrency === 'CNY' 
-                        ? formatCurrency(item.pastdueAmount)
-                        : `$${parseFloat(item.pastdueAmount).toLocaleString()}`
-                      }
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {item.maturityDate ? formatDate(item.maturityDate) : '-'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {item.batchDate || '-'}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Pagination */}
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            共 {data.total} 条记录，第 {data.page}/{data.totalPages} 页
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              {page} / {data.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === data.totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
           </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
+
+      {/* 商户列表 */}
+      <div className="space-y-4">
+        {merchants.length === 0 ? (
+          <Card className="bg-white border-slate-200">
+            <CardContent className="p-12 text-center">
+              <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+              <p className="text-slate-500">暂无数据</p>
+            </CardContent>
+          </Card>
+        ) : (
+          merchants.map((merchant) => (
+            <Card key={merchant.merchantId} className="bg-white border-slate-200 overflow-hidden">
+              {/* 商户头部 */}
+              <div 
+                className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                onClick={() => setExpandedMerchant(expandedMerchant === merchant.merchantId ? null : merchant.merchantId)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Building2 className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-slate-800">{merchant.borrowerName}</h3>
+                      <Badge variant="outline" className="text-xs">{merchant.merchantId}</Badge>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {merchant.loanCount} 笔贷款 · 
+                      余额 {formatCurrency(merchant.totalBalance, merchant.currency)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <p className="text-sm text-slate-500">累计放款</p>
+                    <p className="font-semibold text-slate-700 font-mono">
+                      {formatCurrency(merchant.totalAmount, merchant.currency)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-slate-500">逾期金额</p>
+                    <p className={`font-semibold font-mono ${merchant.totalPastdueAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatCurrency(merchant.totalPastdueAmount, merchant.currency)}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={merchant.currency === 'CNY' ? 'text-blue-600 border-blue-300' : 'text-amber-600 border-amber-300'}>
+                    {merchant.currency}
+                  </Badge>
+                  {expandedMerchant === merchant.merchantId ? (
+                    <ChevronUp className="w-5 h-5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-400" />
+                  )}
+                </div>
+              </div>
+
+              {/* 贷款明细 */}
+              {expandedMerchant === merchant.merchantId && (
+                <div className="border-t border-slate-200">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50">
+                        <TableHead className="w-[160px]">贷款编号</TableHead>
+                        <TableHead>贷款日期</TableHead>
+                        <TableHead>期限</TableHead>
+                        <TableHead>到期日</TableHead>
+                        <TableHead className="text-right">贷款金额</TableHead>
+                        <TableHead className="text-right">余额</TableHead>
+                        <TableHead className="text-right">逾期金额</TableHead>
+                        <TableHead>利率</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead className="w-[100px]">操作</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {merchant.loans.map((loan) => (
+                        <TableRow key={loan.id} className="hover:bg-slate-50">
+                          <TableCell className="font-mono text-sm">
+                            <div className="flex items-center gap-2">
+                              <Banknote className="w-4 h-4 text-slate-400" />
+                              {loan.loanReference}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{loan.loanStartDate}</TableCell>
+                          <TableCell className="text-sm">{loan.loanTenor}</TableCell>
+                          <TableCell className="text-sm">{loan.maturityDate}</TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {formatCurrency(loan.loanAmount, loan.loanCurrency)}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {formatCurrency(loan.balance, loan.loanCurrency)}
+                          </TableCell>
+                          <TableCell className={`text-right font-mono text-sm ${loan.pastdueAmount > 0 ? 'text-red-600 font-medium' : 'text-green-600'}`}>
+                            {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">{loan.totalInterestRate}%</TableCell>
+                          <TableCell>{getStatusBadge(loan.pastdueAmount)}</TableCell>
+                          <TableCell>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedLoan(loan)}>
+                                  <Eye className="w-4 h-4" />
+                                  详情
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <Banknote className="w-5 h-5" />
+                                    贷款详情 - {loan.loanReference}
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="grid grid-cols-2 gap-4 py-4">
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">商户ID</p>
+                                    <p className="font-medium">{loan.merchantId}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">商户名称</p>
+                                    <p className="font-medium">{loan.borrowerName}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">币种</p>
+                                    <Badge variant="outline">{loan.loanCurrency}</Badge>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">贷款金额</p>
+                                    <p className="font-mono font-medium">{formatCurrency(loan.loanAmount, loan.loanCurrency)}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">贷款期限</p>
+                                    <p className="font-medium">{loan.loanTenor}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">利率</p>
+                                    <p className="font-medium">{loan.loanInterest} ({loan.totalInterestRate}%)</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">贷款开始日</p>
+                                    <p className="font-medium">{loan.loanStartDate}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">到期日</p>
+                                    <p className="font-medium">{loan.maturityDate}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">当前余额</p>
+                                    <p className="font-mono font-medium">{formatCurrency(loan.balance, loan.loanCurrency)}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">逾期金额</p>
+                                    <p className={`font-mono font-medium ${loan.pastdueAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                      {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
+                                    </p>
+                                  </div>
+                                  {loan.freezeAccountRequested && (
+                                    <div className="space-y-1">
+                                      <p className="text-sm text-slate-500">冻结账户请求</p>
+                                      <p className="font-medium">{loan.freezeAccountRequested}</p>
+                                    </div>
+                                  )}
+                                  {loan.forceDebitRequested && (
+                                    <div className="space-y-1">
+                                      <p className="text-sm text-slate-500">强制扣款请求</p>
+                                      <p className="font-medium">{loan.forceDebitRequested}</p>
+                                    </div>
+                                  )}
+                                  {loan.remarks && (
+                                    <div className="col-span-2 space-y-1">
+                                      <p className="text-sm text-slate-500">备注</p>
+                                      <p className="font-medium">{loan.remarks}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }
