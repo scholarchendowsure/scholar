@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import { getMockHSBCLoans, getMockHSBCStats } from '@/lib/hsbc-data';
+import { NextRequest, NextResponse } from 'next/server';
+import { getLoansByBatchDate, getAllLoans, getLatestBatchDate, getBatchDates, getMockHSBCLoans } from '@/lib/hsbc-data';
 
 // 汇丰贷款列表
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -10,8 +10,16 @@ export async function GET(request: Request) {
     const currency = searchParams.get('currency');
     const merchantId = searchParams.get('merchantId');
     const search = searchParams.get('search');
+    const batchDate = searchParams.get('batchDate');
 
-    let loans = getMockHSBCLoans();
+    // 根据 batchDate 获取数据
+    let loans;
+    if (batchDate) {
+      loans = getLoansByBatchDate(batchDate);
+    } else {
+      const latestDate = getLatestBatchDate();
+      loans = latestDate ? getLoansByBatchDate(latestDate) : getAllLoans();
+    }
 
     // 应用筛选
     if (currency) {

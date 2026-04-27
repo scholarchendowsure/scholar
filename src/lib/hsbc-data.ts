@@ -137,6 +137,12 @@ function saveDataToFile(): void {
   }
 }
 
+// 重置内存缓存（强制下次重新从文件加载）
+export function resetCache(): void {
+  loansByBatchDate = new Map();
+  dataLoaded = false;
+}
+
 // 获取所有批次日期
 export function getBatchDates(): string[] {
   loadDataFromFile();

@@ -87,7 +87,7 @@ export default function HSBCDashboardPage() {
     try {
       const res = await fetch('/api/hsbc/batch-dates');
       const data = await res.json();
-      setBatchDates(data.dates || []);
+      setBatchDates(data.data || []);
     } catch (error) {
       console.error('Failed to fetch batch dates:', error);
     }
@@ -101,7 +101,7 @@ export default function HSBCDashboardPage() {
         : `/api/hsbc/stats?batchDate=${batchDate}`;
       const res = await fetch(url);
       const data = await res.json();
-      setStats(data);
+      setStats(data.data || null);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
       toast.error('获取统计数据失败');

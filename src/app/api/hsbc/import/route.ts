@@ -152,9 +152,12 @@ export async function POST(request: NextRequest) {
     });
 
     // 根据导入模式处理
-    if (mode === 'append') {
+    if (mode === 'append' || mode === 'merge') {
       const existingLoans = getLoansByBatchDate(importDate);
-      setLoansByBatchDate(importDate, [...existingLoans, ...parsedLoans]);
+      // 增量模式：去重追加
+      const existingRefs = new Set(existingLoans.map(l => l.loanReference));
+      const newLoans = parsedLoans.filter(l => !existingRefs.has(l.loanReference));
+      setLoansByBatchDate(importDate, [...existingLoans, ...newLoans]);
     } else {
       setLoansByBatchDate(importDate, parsedLoans);
     }

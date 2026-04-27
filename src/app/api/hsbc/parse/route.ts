@@ -68,70 +68,71 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    
+
     if (!file) {
       return NextResponse.json({ error: '请上传文件' }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    
+
     let rawData: (string | number)[][] = [];
     let isEncrypted = false;
 
-    // 首先尝试用 xlsx 库读取，看看是否需要解密
+    // 使用 xlsx 库解析（支持密码解密）
+    const XLSX = await import('xlsx');
+
+    // 尝试1: 直接读取（非加密文件）
     try {
-      const XLSX = await import('xlsx');
-      let workbook;
-      let needsPassword = false;
-      
+      const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    } catch (directError: unknown) {
+      const errorMsg = directError instanceof Error ? directError.message : String(directError);
+      console.log('直接读取失败，尝试密码解密:', errorMsg.substring(0, 100));
+
+      // 尝试2: 使用密码读取（加密文件）
       try {
-        workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
-      } catch (e: unknown) {
-        const errorMsg = e instanceof Error ? e.message : String(e);
-        if (errorMsg.includes('password') || errorMsg.includes('Password') || errorMsg.includes('encrypt')) {
-          needsPassword = true;
-        } else {
-          throw e;
-        }
-      }
+        const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false, password: DECRYPT_PASSWORD });
+        isEncrypted = true;
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        console.log('使用密码解密成功');
+      } catch (passwordError: unknown) {
+        const pwdErrorMsg = passwordError instanceof Error ? passwordError.message : String(passwordError);
+        console.log('密码解密失败，尝试xlsx-populate:', pwdErrorMsg.substring(0, 100));
 
-      if (needsPassword) {
-        // 需要密码，尝试用密码解密
+        // 尝试3: 使用 xlsx-populate 解密
         try {
-          workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false, password: DECRYPT_PASSWORD });
+          const XlsxPopulate = require('xlsx-populate');
+          const populateWorkbook = await XlsxPopulate.fromDataAsync(buffer, { password: DECRYPT_PASSWORD });
           isEncrypted = true;
-        } catch {
-          // xlsx 库解密失败，尝试用 xlsx-populate
-          try {
-            const XlsxPopulate = await import('xlsx-populate');
-            const populateWorkbook = await XlsxPopulate.fromDataAsync(buffer, { password: DECRYPT_PASSWORD });
-            isEncrypted = true;
-            
-            // 从 xlsx-populate workbook 提取数据
-            const sheet = populateWorkbook.sheet(0);
-            const usedRange = sheet.usedRange();
-            if (!usedRange) {
-              return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
-            }
 
-            const startRow = usedRange.startCell().rowNumber();
-            const endRow = usedRange.endCell().rowNumber();
-            const startCol = usedRange.startCell().columnNumber();
-            const endCol = usedRange.endCell().columnNumber();
+          // 从 xlsx-populate workbook 提取数据
+          const sheet = populateWorkbook.sheet(0);
+          const usedRange = sheet.usedRange();
+          if (!usedRange) {
+            return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
+          }
 
-            for (let r = startRow; r <= endRow; r++) {
-              const row: (string | number)[] = [];
-              for (let c = startCol; c <= endCol; c++) {
+          const startRow = usedRange.startCell().rowNumber();
+          const endRow = usedRange.endCell().rowNumber();
+          const startCol = usedRange.startCell().columnNumber();
+          const endCol = usedRange.endCell().columnNumber();
+
+          for (let r = startRow; r <= endRow; r++) {
+            const row: (string | number)[] = [];
+            for (let c = startCol; c <= endCol; c++) {
+              try {
                 const cell = sheet.cell(r, c);
                 const value = cell.value();
                 if (value instanceof Date) {
-                  // 格式化日期
                   const year = value.getFullYear();
                   const month = String(value.getMonth() + 1).padStart(2, '0');
                   const day = String(value.getDate()).padStart(2, '0');
                   row.push(`${year}年${month}月${day}日`);
                 } else if (typeof value === 'object' && value !== null) {
-                  // xlsx-populate rich text
                   if ('text' in value) {
                     row.push(String((value as { text: string }).text));
                   } else if ('result' in value) {
@@ -142,39 +143,31 @@ export async function POST(request: NextRequest) {
                 } else {
                   row.push(value === undefined || value === null ? '' : value);
                 }
+              } catch {
+                row.push('');
               }
-              rawData.push(row);
             }
-          } catch (populateError) {
-            console.error('解密失败:', populateError);
-            return NextResponse.json({ 
-              error: '文件解密失败，请确认密码是否正确（密码：amazon246）',
-            }, { status: 400 });
+            rawData.push(row);
           }
+          console.log('xlsx-populate 解密成功，行数:', rawData.length);
+        } catch (populateError: unknown) {
+          const popErrorMsg = populateError instanceof Error ? populateError.message : String(populateError);
+          console.error('所有解密方式均失败:', popErrorMsg);
+          return NextResponse.json({
+            error: '文件解密失败，请确认文件是否加密或密码是否正确',
+            detail: popErrorMsg.substring(0, 200),
+          }, { status: 400 });
         }
       }
-
-      if (!rawData.length && workbook) {
-        // xlsx 库读取成功
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-      }
-    } catch (xlsxError) {
-      console.error('文件读取失败:', xlsxError);
-      return NextResponse.json({ 
-        error: '文件读取失败，请确认文件格式正确',
-        detail: xlsxError instanceof Error ? xlsxError.message : '未知错误'
-      }, { status: 400 });
     }
 
     if (rawData.length < 2) {
-      return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
+      return NextResponse.json({ error: '文件没有数据（至少需要表头行和一行数据）' }, { status: 400 });
     }
 
     // 获取表头行
     const headerRow = rawData[0].map((h: string | number) => String(h || '').replace(/[\n\r]/g, ' ').trim());
-    
+
     // 找到各列的索引
     const findColumnIndex = (keywords: string[]): number => {
       for (let i = 0; i < headerRow.length; i++) {
@@ -230,7 +223,7 @@ export async function POST(request: NextRequest) {
     const loans: Record<string, string | number>[] = [];
     for (let rowIdx = 1; rowIdx < rawData.length; rowIdx++) {
       const row = rawData[rowIdx];
-      
+
       // 跳过完全空的行
       const hasData = (row as (string | number)[]).some((cell, idx) => {
         if (idx === 0) return false;
@@ -299,8 +292,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Excel文件解析失败:', error);
-    return NextResponse.json({ 
-      error: '文件解析失败：' + (error instanceof Error ? error.message : '未知错误') 
+    return NextResponse.json({
+      error: '文件解析失败：' + (error instanceof Error ? error.message : '未知错误')
     }, { status: 500 });
   }
 }

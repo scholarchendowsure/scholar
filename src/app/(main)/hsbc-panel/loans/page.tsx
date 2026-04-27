@@ -43,7 +43,7 @@ export default function HSBCLoansPage() {
 
       const res = await fetch(`/api/hsbc/loans?${params.toString()}`);
       const data = await res.json();
-      setLoans(data.loans || []);
+      setLoans(data.data || []);
       setMerchants(data.merchants || []);
       setPagination(data.pagination || { page: 1, pageSize: 50, total: 0, totalPages: 0 });
     } catch (error) {

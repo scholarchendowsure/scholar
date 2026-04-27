@@ -94,27 +94,36 @@ interface HSBCLoan {
 
 interface HSBCStats {
   totalLoans: number;
-  totalAmount: number;
+  activeMerchants: number;
+  totalLoanAmount: number;
   totalBalance: number;
-  totalPastdue: number;
-  overdueLoans: number;
+  totalPastdueAmount: number;
   overdueRate: number;
+  overdueMerchantRate: number;
+  warningAmount: number;
+  approachingMaturityAmount: number;
   currencyBreakdown: Array<{
     currency: string;
-    count: number;
-    amount: number;
+    loanCount: number;
+    totalAmount: number;
+    overdueAmount: number;
     balance: number;
-    pastdue: number;
+    overdueMerchantCount: number;
+    overdueLoanCount: number;
   }>;
-  riskDistribution: Array<{
-    level: string;
-    count: number;
-    amount: number;
+  riskAssessment: Array<{
+    riskLevel: string;
+    overdueAmount: number;
+    merchantCount: number;
+    loanCount: number;
   }>;
-  maturityDistribution: Array<{
-    range: string;
-    count: number;
-    amount: number;
+  approachingMaturity: Array<{
+    daysRange: string;
+    days: number;
+    cnyAmount: number;
+    cnyMerchants: number;
+    usdAmount: number;
+    usdMerchants: number;
   }>;
 }
 
@@ -191,7 +200,8 @@ const generateMockLoans = (): HSBCLoan[] => {
   return loans;
 };
 
-const generateMockStats = (loans: HSBCLoan[]): HSBCStats => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const generateMockStats = (loans: HSBCLoan[]): any => {
   const totalAmount = loans.reduce((sum, l) => sum + l.loanAmount, 0);
   const totalBalance = loans.reduce((sum, l) => sum + l.balance, 0);
   const totalPastdue = loans.reduce((sum, l) => sum + l.pastdueAmount, 0);
@@ -210,17 +220,21 @@ const generateMockStats = (loans: HSBCLoan[]): HSBCStats => {
     currencyBreakdown: [
       {
         currency: 'CNY',
-        count: cnyLoans.length,
-        amount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
+        loanCount: cnyLoans.length,
+        totalAmount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
         balance: cnyLoans.reduce((sum, l) => sum + l.balance, 0),
-        pastdue: cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
+        overdueAmount: cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
+        overdueMerchantCount: [...new Set(cnyLoans.filter(l => l.pastdueAmount >= 0.5).map(l => l.merchantId))].length,
+        overdueLoanCount: cnyLoans.filter(l => l.pastdueAmount >= 0.5).length,
       },
       {
         currency: 'USD',
-        count: usdLoans.length,
-        amount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
+        loanCount: usdLoans.length,
+        totalAmount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
         balance: usdLoans.reduce((sum, l) => sum + l.balance, 0),
-        pastdue: usdLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
+        overdueAmount: usdLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
+        overdueMerchantCount: [...new Set(usdLoans.filter(l => l.pastdueAmount >= 0.5).map(l => l.merchantId))].length,
+        overdueLoanCount: usdLoans.filter(l => l.pastdueAmount >= 0.5).length,
       },
     ],
     riskDistribution: [
@@ -284,7 +298,7 @@ export default function HSBCPanelPage() {
       if (dates.length > 0) {
         const latestDate = dates[0]; // 最新日期排在第一个
         setSelectedBatchDate(latestDate);
-        const loansRes = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(latestDate)}`);
+        const loansRes = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(latestDate)}&pageSize=1000`);
         if (loansRes.ok) {
           const loansData = await loansRes.json();
           setLoans(loansData.data || []);
@@ -292,16 +306,16 @@ export default function HSBCPanelPage() {
         const statsRes = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(latestDate)}`);
         if (statsRes.ok) {
           const statsData = await statsRes.json();
-          setStats(statsData);
+          setStats(statsData.data || null);
         }
       } else {
         // 没有批次日期时，加载所有数据
-        const loansRes = await fetch('/api/hsbc/loans');
+        const loansRes = await fetch('/api/hsbc/loans?pageSize=1000');
         if (loansRes.ok) {
           const loansData = await loansRes.json();
           setLoans(loansData.data || []);
-          setStats(generateMockStats(loansData.data || []));
         }
+        setStats(null);
       }
     } catch (err) {
       console.error('加载数据失败:', err);
@@ -334,7 +348,7 @@ export default function HSBCPanelPage() {
   // 根据批次日期加载贷款数据
   const loadLoansByBatchDate = async (batchDate: string) => {
     try {
-      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}`);
+      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}&pageSize=1000`);
       if (response.ok) {
         const data = await response.json();
         setLoans(data.data || []);
@@ -342,7 +356,7 @@ export default function HSBCPanelPage() {
         const statsResponse = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(batchDate)}`);
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
-          setStats(statsData);
+          setStats(statsData.data || null);
         }
       }
     } catch (err) {
@@ -606,14 +620,14 @@ export default function HSBCPanelPage() {
                     <FileSpreadsheet className="w-4 h-4 opacity-80" />
                     <span className="text-sm opacity-80">总贷款笔数</span>
                   </div>
-                  <div className="text-2xl font-bold">{stats?.totalLoans}</div>
+                  <div className="text-2xl font-bold">{stats?.totalLoans || 0}</div>
                 </div>
                 <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-4 h-4 opacity-80" />
                     <span className="text-sm opacity-80">累计放款</span>
                   </div>
-                  <div className="text-xl font-bold">{formatCurrency(stats?.totalAmount || 0)}</div>
+                  <div className="text-xl font-bold">{formatCurrency(stats?.totalLoanAmount || 0)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
                   <div className="flex items-center gap-2 mb-2">
@@ -627,7 +641,7 @@ export default function HSBCPanelPage() {
                     <AlertTriangle className="w-4 h-4 opacity-80" />
                     <span className="text-sm opacity-80">逾期总额</span>
                   </div>
-                  <div className="text-xl font-bold">{formatCurrency(stats?.totalPastdue || 0)}</div>
+                  <div className="text-xl font-bold">{formatCurrency(stats?.totalPastdueAmount || 0)}</div>
                 </div>
                 <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white">
                   <div className="flex items-center gap-2 mb-2">
@@ -635,7 +649,7 @@ export default function HSBCPanelPage() {
                     <span className="text-sm opacity-80">逾期率</span>
                   </div>
                   <div className="text-2xl font-bold">
-                    {((stats?.overdueRate || 0) * 100).toFixed(1)}%
+                    {(stats?.overdueRate || 0).toFixed(1)}%
                   </div>
                 </div>
               </div>
@@ -654,13 +668,13 @@ export default function HSBCPanelPage() {
                           {item.currency}
                         </Badge>
                         <span className="text-2xl font-bold text-slate-800">
-                          {item.count} 笔
+                          {item.loanCount} 笔
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-slate-500">贷款金额：</span>
-                          <span className="font-mono font-medium">{formatCurrency(item.amount, item.currency)}</span>
+                          <span className="font-mono font-medium">{formatCurrency(item.totalAmount, item.currency)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">在贷余额：</span>
@@ -668,7 +682,7 @@ export default function HSBCPanelPage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">逾期金额：</span>
-                          <span className="font-mono font-medium text-red-600">{formatCurrency(item.pastdue, item.currency)}</span>
+                          <span className="font-mono font-medium text-red-600">{formatCurrency(item.overdueAmount, item.currency)}</span>
                         </div>
                       </div>
                     </div>
@@ -684,18 +698,19 @@ export default function HSBCPanelPage() {
                     风险评估分布
                   </h3>
                   <div className="space-y-2">
-                    {(stats?.riskDistribution || []).map((item, idx) => {
-                      const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500'];
-                      const percentages = [40, 30, 20, 10];
+                    {(stats?.riskAssessment || []).map((item, idx) => {
+                      const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500', 'bg-red-700'];
+                      const maxAmount = stats?.totalPastdueAmount || 1;
+                      const pct = Math.max(5, (item.overdueAmount / maxAmount) * 100);
                       return (
-                        <div key={item.level} className="flex items-center gap-3">
-                          <span className="w-16 text-sm text-slate-600">{item.level}</span>
+                        <div key={item.riskLevel} className="flex items-center gap-3">
+                          <span className="w-16 text-sm text-slate-600">{item.riskLevel}</span>
                           <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
                             <div
-                              className={`${colors[idx]} h-full rounded-full flex items-center justify-end pr-2 transition-all`}
-                              style={{ width: `${percentages[idx]}%` }}
+                              className={`${colors[idx] || 'bg-slate-400'} h-full rounded-full flex items-center justify-end pr-2 transition-all`}
+                              style={{ width: `${pct}%` }}
                             >
-                              <span className="text-xs text-white font-medium">{item.count}笔</span>
+                              <span className="text-xs text-white font-medium">{item.loanCount}笔</span>
                             </div>
                           </div>
                         </div>
@@ -709,21 +724,25 @@ export default function HSBCPanelPage() {
                     临近到期分布
                   </h3>
                   <div className="space-y-2">
-                    {(stats?.maturityDistribution || []).map((item) => (
-                      <div key={item.range} className="flex items-center gap-3">
-                        <span className="w-16 text-sm text-slate-600">{item.range}</span>
+                    {(stats?.approachingMaturity || []).map((item) => {
+                      const totalAmt = item.cnyAmount + item.usdAmount;
+                      const maxAmt = stats?.approachingMaturityAmount || 1;
+                      return (
+                      <div key={item.daysRange} className="flex items-center gap-3">
+                        <span className="w-16 text-sm text-slate-600">{item.daysRange}</span>
                         <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full flex items-center justify-end pr-2"
-                            style={{ width: `${(item.amount / 4000000) * 100}%` }}
+                            style={{ width: `${Math.max(5, (totalAmt / maxAmt) * 100)}%` }}
                           >
                             <span className="text-xs text-white font-medium">
-                              {item.count}笔 · {formatCurrency(item.amount)}
+                              {formatCurrency(totalAmt)}
                             </span>
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
               </div>

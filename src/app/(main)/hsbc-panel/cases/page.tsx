@@ -73,11 +73,30 @@ export default function HSBCCasesPage() {
   const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<HSBCLoan | null>(null);
   const [merchants, setMerchants] = useState<MerchantGroup[]>([]);
+  const [batchDates, setBatchDates] = useState<string[]>([]);
+  const [selectedBatchDate, setSelectedBatchDate] = useState<string>('');
+
+  const fetchBatchDates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/hsbc/batch-dates');
+      if (res.ok) {
+        const data = await res.json();
+        const dates = data.data || [];
+        setBatchDates(dates);
+        if (dates.length > 0 && !selectedBatchDate) {
+          setSelectedBatchDate(dates[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch batch dates:', error);
+    }
+  }, [selectedBatchDate]);
 
   const fetchLoans = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/hsbc');
+      const dateParam = selectedBatchDate ? `&batchDate=${encodeURIComponent(selectedBatchDate)}` : '';
+      const res = await fetch(`/api/hsbc?pageSize=1000${dateParam}`);
       const data = await res.json();
       setLoans(data.loans || []);
     } catch (error) {
@@ -86,11 +105,17 @@ export default function HSBCCasesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedBatchDate]);
 
   useEffect(() => {
-    fetchLoans();
-  }, [fetchLoans]);
+    fetchBatchDates();
+  }, [fetchBatchDates]);
+
+  useEffect(() => {
+    if (selectedBatchDate) {
+      fetchLoans();
+    }
+  }, [selectedBatchDate, fetchLoans]);
 
   // 按商户聚合
   useEffect(() => {
@@ -170,6 +195,19 @@ export default function HSBCCasesPage() {
           <p className="text-sm text-slate-500 mt-1">共 {merchants.length} 家商户，{loans.length} 笔贷款</p>
         </div>
         <div className="flex items-center gap-3">
+          {batchDates.length > 0 && (
+            <Select value={selectedBatchDate} onValueChange={setSelectedBatchDate}>
+              <SelectTrigger className="w-[160px] bg-white border-slate-200">
+                <Calendar className="w-4 h-4 mr-2 text-slate-400" />
+                <SelectValue placeholder="选择批次" />
+              </SelectTrigger>
+              <SelectContent>
+                {batchDates.map((date) => (
+                  <SelectItem key={date} value={date}>{date}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="outline" onClick={fetchLoans} className="gap-2">
             <RefreshCw className="w-4 h-4" />
             刷新
