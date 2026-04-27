@@ -376,189 +376,69 @@ export default function HSBCPanelPage() {
   const totalPages = Math.ceil(filteredLoans.length / pageSize);
   const paginatedLoans = filteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // 处理文件上传
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 处理文件上传 - 上传到后端解析（支持加密文件）
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = event.target?.result;
-        let workbook: XLSX.WorkBook;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('password', 'amazon246');
 
-        // 先尝试不带密码读取
-        try {
-          workbook = XLSX.read(data, { type: 'array' });
-        } catch (readErr: unknown) {
-          const errMsg = readErr instanceof Error ? readErr.message : String(readErr);
-          // 如果是加密文件，使用密码解密
-          if (errMsg.includes('password-protected') || errMsg.includes('password')) {
-            try {
-              workbook = XLSX.read(data, { type: 'array', password: 'amazon246' });
-              toast.success('检测到加密文件，已自动解密');
-            } catch {
-              toast.error('文件解密失败，请确认密码是否正确');
-              return;
-            }
-          } else {
-            throw readErr;
-          }
-        }
+      const response = await fetch('/api/hsbc/parse', {
+        method: 'POST',
+        body: formData,
+      });
 
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
+      const result = await response.json();
 
-        // 使用 header:1 模式获取二维数组，避免重复列名覆盖问题
-        const rawData: (string | number | undefined)[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-
-        if (rawData.length < 2) {
-          toast.error('文件为空或没有数据行');
-          return;
-        }
-
-        // 第一行是表头
-        const headers = rawData[0].map(h => String(h || '').replace(/[\n\r]/g, ' ').trim().toLowerCase());
-
-        // 识别关键列的索引
-        const findColIdx = (keywords: string[]): number => {
-          for (const kw of keywords) {
-            const kwLower = kw.toLowerCase();
-            const idx = headers.findIndex(h => h === kwLower || h.includes(kwLower) || kwLower.includes(h));
-            if (idx !== -1) return idx;
-          }
-          return -1;
-        };
-
-        const loanRefIdx = findColIdx(['Loan Reference', 'loanReference']);
-        const merchantIdIdx = findColIdx(['Merchant ID', 'merchantId']);
-        const borrowerIdx = findColIdx(['Borrower Name', 'borrowerName']);
-        const startDateIdx = findColIdx(['Loan Start Date', 'loanStartDate']);
-        const currencyIdx = findColIdx(['Loan Currency', 'loanCurrency']);
-        const amountIdx = findColIdx(['Loan Amount', 'loanAmount']);
-        const interestIdx = findColIdx(['Loan Interest', 'loanInterest']);
-        const rateIdx = findColIdx(['Total Interest Rate', 'totalInterestRate']);
-        const tenorIdx = findColIdx(['Loan Tenor', 'Loan Tenor', 'loanTenor']);
-        const maturityIdx = findColIdx(['Maturity Date', 'maturityDate']);
-        const balanceIdx = findColIdx(['Balance', 'balance']);
-        const pastdueIdx = findColIdx(['Pastdue amount', 'pastdueAmount', 'Pastdue Amount']);
-
-        // 找出所有还款日期列和还款金额列的索引
-        const repaymentDateIdxs: number[] = [];
-        const repaymentAmountIdxs: number[] = [];
-        headers.forEach((h, idx) => {
-          if (h.includes('repayment date') || h.includes('repay date')) repaymentDateIdxs.push(idx);
-          if (h.includes('repay amount') || h.includes('repayment amount')) repaymentAmountIdxs.push(idx);
-        });
-
-        // 解析日期
-        const parseDate = (val: string | number | undefined): string => {
-          if (!val && val !== 0) return '';
-          const str = String(val).trim();
-          if (!str) return '';
-
-          // 中文日期格式：2024"年"1"月"29"日" 或 2024年1月29日
-          const cnMatch = str.match(/(\d{4})["\u201d]?[\u5e74]["\u201d]?(\d{1,2})["\u201d]?[\u6708]["\u201d]?(\d{1,2})["\u201d]?[\u65e5]?/);
-          if (cnMatch) {
-            const y = cnMatch[1], m = cnMatch[2].padStart(2, '0'), d = cnMatch[3].padStart(2, '0');
-            return `${y}-${m}-${d}`;
-          }
-
-          // DD-MMM-YY 格式：08-Apr-24
-          const mmmMatch = str.match(/^(\d{1,2})-(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-(\d{2,4})$/i);
-          if (mmmMatch) {
-            const months: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
-            const d = mmmMatch[1].padStart(2, '0');
-            const m = months[mmmMatch[2].toLowerCase()] || '01';
-            let y = mmmMatch[3];
-            if (y.length === 2) y = '20' + y;
-            return `${y}-${m}-${d}`;
-          }
-
-          // Excel 序列号日期
-          if (typeof val === 'number' && val > 30000 && val < 60000) {
-            const date = XLSX.SSF.parse_date_code(val);
-            if (date) {
-              return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
-            }
-          }
-
-          // ISO 格式
-          const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-          if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
-
-          return str;
-        };
-
-        // 解析金额
-        const parseAmount = (val: string | number | undefined): number => {
-          if (val === undefined || val === null || val === '') return 0;
-          const num = typeof val === 'number' ? val : parseFloat(String(val).replace(/,/g, '').replace(/[^\d.\-]/g, ''));
-          return isNaN(num) ? 0 : num;
-        };
-
-        // 解析数据行（跳过表头）
-        const parsedLoans: HSBCLoan[] = [];
-        for (let i = 1; i < rawData.length; i++) {
-          const row = rawData[i];
-          if (!row || row.length === 0) continue;
-
-          const loanRef = loanRefIdx !== -1 ? String(row[loanRefIdx] || '').trim() : '';
-          // 跳过没有贷款编号的空行
-          if (!loanRef) continue;
-
-          const merchantId = merchantIdIdx !== -1 ? String(row[merchantIdIdx] || '').trim() : '';
-          const borrowerName = borrowerIdx !== -1 ? String(row[borrowerIdx] || '').trim() : '';
-          const loanCurrency = currencyIdx !== -1 ? String(row[currencyIdx] || 'CNY').trim() : 'CNY';
-          const loanAmount = amountIdx !== -1 ? parseAmount(row[amountIdx]) : 0;
-          const balance = balanceIdx !== -1 ? parseAmount(row[balanceIdx]) : 0;
-          const pastdueAmount = pastdueIdx !== -1 ? parseAmount(row[pastdueIdx]) : 0;
-
-          // 提取还款计划
-          const repaymentSchedule: Array<{ date: string; amount: number }> = [];
-          for (let j = 0; j < Math.min(repaymentDateIdxs.length, repaymentAmountIdxs.length); j++) {
-            const dateVal = parseDate(row[repaymentDateIdxs[j]]);
-            const amountVal = parseAmount(row[repaymentAmountIdxs[j]]);
-            if (dateVal && amountVal > 0) {
-              repaymentSchedule.push({ date: dateVal, amount: amountVal });
-            }
-          }
-
-          parsedLoans.push({
-            id: `imported-${i}-${Date.now()}`,
-            loanReference: loanRef,
-            merchantId,
-            borrowerName,
-            loanStartDate: parseDate(startDateIdx !== -1 ? row[startDateIdx] : ''),
-            loanCurrency,
-            loanAmount,
-            loanInterest: interestIdx !== -1 ? String(row[interestIdx] || '') : '',
-            totalInterestRate: rateIdx !== -1 ? parseAmount(row[rateIdx]) : 0,
-            loanTenor: tenorIdx !== -1 ? String(row[tenorIdx] || '') : '',
-            maturityDate: parseDate(maturityIdx !== -1 ? row[maturityIdx] : ''),
-            balance,
-            pastdueAmount,
-            status: pastdueAmount > 0 ? 'overdue' as const : 'normal' as const,
-            batchDate: importBatchDate,
-            repaymentSchedule,
-            operationLogs: [],
-          });
-        }
-
-        if (parsedLoans.length === 0) {
-          toast.error('未能从文件中解析到有效数据，请检查文件格式');
-          return;
-        }
-
-        setImportPreview(parsedLoans);
-        setShowImportConfirm(true);
-        toast.success(`已解析 ${parsedLoans.length} 条数据，请确认导入`);
-      } catch (err) {
-        console.error('文件解析错误:', err);
-        toast.error('文件解析失败，请确认文件格式正确');
+      if (!response.ok || !result.success) {
+        toast.error(result.error || '文件解析失败');
+        return;
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      const parsedLoans: HSBCLoan[] = (result.loans || []).map((loan: Record<string, string | number>) => ({
+        id: String(loan.loanReference || Math.random().toString(36).slice(2)),
+        loanReference: String(loan.loanReference || ''),
+        merchantId: String(loan.merchantId || ''),
+        borrowerName: String(loan.borrowerName || ''),
+        loanStartDate: String(loan.loanStartDate || ''),
+        loanCurrency: (String(loan.loanCurrency || 'CNY')).toUpperCase() as 'CNY' | 'USD',
+        loanAmount: Number(loan.loanAmount) || 0,
+        loanInterest: String(loan.loanInterest || ''),
+        totalInterestRate: Number(loan.totalInterestRate) || 0,
+        loanTenor: String(loan.loanTenor || ''),
+        maturityDate: String(loan.maturityDate || ''),
+        repaymentSchedule: typeof loan.repaymentSchedule === 'string' 
+          ? JSON.parse(loan.repaymentSchedule || '[]') 
+          : (loan.repaymentSchedule || []),
+        balance: Number(loan.balance) || 0,
+        pastdueAmount: Number(loan.pastdueAmount) || 0,
+        batchDate: String(loan.batchDate || ''),
+        freezeAccountRequested: String(loan.freezeAccountRequested || ''),
+        forceDebitRequested: String(loan.forceDebitRequested || ''),
+        rmApproval: String(loan.rmApproval || ''),
+        dowsureFreezeConfirm: String(loan.dowsureFreezeConfirm || ''),
+        dowsureForceDebitConfirm: String(loan.dowsureForceDebitConfirm || ''),
+        remarks: String(loan.remarks || ''),
+      }));
+      if (parsedLoans.length === 0) {
+        toast.error('未能从文件中解析到有效数据，请检查文件格式');
+        return;
+      }
+
+      if (result.isEncrypted) {
+        toast.success('检测到加密文件，已自动解密');
+      }
+
+      setImportPreview(parsedLoans);
+      setShowImportConfirm(true);
+      toast.success(`已解析 ${parsedLoans.length} 条数据，请确认导入`);
+    } catch (err) {
+      console.error('文件上传错误:', err);
+      toast.error('文件上传失败，请重试');
+    }
   };
 
   // 处理拖拽上传
