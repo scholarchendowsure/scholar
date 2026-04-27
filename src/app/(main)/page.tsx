@@ -1,302 +1,557 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/utils';
-import { CASE_STATUS_CONFIG } from '@/lib/constants';
-import {
-  FileText,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  TrendingUp,
-  Users,
-  DollarSign,
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Users, 
+  DollarSign, 
+  TrendingUp, 
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownRight,
   Activity,
+  Calendar,
+  Target,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Plus,
+  RefreshCw,
+  Filter
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
-interface DashboardStats {
-  totalCases: number;
-  statusBreakdown: Array<{
-    status: string;
-    label: string;
-    count: number;
-    color: string;
-  }>;
-  closureRate: number;
-  totalOverdue: number;
-  monthlyTrend: Array<{
-    month: string;
-    cases: number;
-    closed: number;
-  }>;
-  userPerformance: Array<{
-    name: string;
-    cases: number;
-    closed: number;
-    rate: number;
-  }>;
-}
+// 月度趋势数据
+const monthlyTrend = [
+  { month: '1月', cases: 45, amount: 1200000, overdue: 80000 },
+  { month: '2月', cases: 52, amount: 1500000, overdue: 120000 },
+  { month: '3月', cases: 48, amount: 1350000, overdue: 95000 },
+  { month: '4月', cases: 62, amount: 1800000, overdue: 140000 },
+  { month: '5月', cases: 58, amount: 1650000, overdue: 110000 },
+  { month: '6月', cases: 65, amount: 1950000, overdue: 130000 },
+];
 
-const CHART_COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#10b981'];
+// 案件状态分布
+const caseStatusData = [
+  { name: '待分配', value: 15, color: 'hsl(38 92% 50%)' },
+  { name: '待外访', value: 28, color: 'hsl(210 100% 55%)' },
+  { name: '跟进中', value: 42, color: 'hsl(210 100% 45%)' },
+  { name: '已结案', value: 65, color: 'hsl(142 71% 45%)' },
+];
+
+// 用户绩效数据
+const userPerformance = [
+  { name: '张三', cases: 28, amount: 840000, closed: 25 },
+  { name: '李四', cases: 25, amount: 720000, closed: 22 },
+  { name: '王五', cases: 32, amount: 960000, closed: 28 },
+  { name: '赵六', cases: 22, amount: 660000, closed: 19 },
+  { name: '钱七', cases: 30, amount: 900000, closed: 26 },
+];
+
+// 最近活动数据
+const recentActivities = [
+  { id: 1, type: 'create', user: '张三', action: '创建案件', target: 'TPJHK1079195', time: '2分钟前' },
+  { id: 2, type: 'update', user: '李四', action: '更新跟进', target: 'WCTHK1081926', time: '5分钟前' },
+  { id: 3, type: 'close', user: '王五', action: '完成结案', target: 'LAEAM1017710', time: '15分钟前' },
+  { id: 4, type: 'assign', user: '管理员', action: '分配案件', target: 'LAEAM1017707', time: '23分钟前' },
+  { id: 5, type: 'payment', user: '系统', action: '还款到账', target: 'MAXUP HOLDINGS', time: '1小时前', amount: '¥180,000' },
+];
+
+// 待处理任务
+const pendingTasks = [
+  { id: 1, title: 'TPJHK1079195 外访跟进', priority: 'high', due: '今天', user: '张三' },
+  { id: 2, title: 'WCTHK1081926 风险评定', priority: 'medium', due: '明天', user: '李四' },
+  { id: 3, title: 'LAEAM1017710 还款审核', priority: 'high', due: '今天', user: '王五' },
+  { id: 4, title: 'LAEAM1017707 地址验证', priority: 'low', due: '3天后', user: '赵六' },
+];
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/cases/statistics/dashboard');
-        const json = await res.json();
-        if (json.success) {
-          setStats(json.data);
-        }
-      } catch (error) {
-        console.error('获取统计失败:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+    // 模拟加载数据
+    setTimeout(() => {
+      setStats({
+        totalCases: 150,
+        pendingAssign: 15,
+        pendingVisit: 28,
+        following: 42,
+        closed: 65,
+        closureRate: 76.5,
+        totalOverdue: 675000,
+        monthlyClosed: 32,
+        avgClosureDays: 8.5,
+      });
+      setLoading(false);
+    }, 1000);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-20" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card><CardContent className="p-6"><Skeleton className="h-64" /></CardContent></Card>
-          <Card><CardContent className="p-6"><Skeleton className="h-64" /></CardContent></Card>
-        </div>
-      </div>
-    );
-  }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: 'CNY',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
-  if (!stats) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
-        <p className="text-slate-500">加载失败</p>
-      </div>
-    );
+  if (loading) {
+    return <DashboardSkeleton />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* 头部 */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold text-slate-900">仪表盘</h1>
-          <p className="text-slate-500 mt-1">贷后案件管理数据概览</p>
+    <div className="space-y-6">
+      {/* 顶部快捷操作 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">欢迎回来！</h2>
+          <p className="text-slate-500 mt-1">这是您的贷后案件管理概览</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Filter className="w-4 h-4" />
+            筛选视图
+          </Button>
+          <Button size="sm" className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+            <Plus className="w-4 h-4" />
+            新建案件
+          </Button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-blue-600">总案件数</CardTitle>
-              <FileText className="w-5 h-5 text-blue-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{stats.totalCases}</div>
-              <p className="text-xs text-slate-500 mt-1">较上月 +12%</p>
-            </CardContent>
-          </Card>
+      {/* 核心统计卡片 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="总案件数"
+          value={stats.totalCases}
+          icon={<FileText className="w-5 h-5" />}
+          trend="+12%"
+          trendUp={true}
+          color="primary"
+        />
+        <StatCard
+          title="待外访"
+          value={stats.pendingVisit}
+          icon={<Clock className="w-5 h-5" />}
+          trend="3个超期"
+          trendUp={false}
+          color="warning"
+        />
+        <StatCard
+          title="本月结案"
+          value={stats.monthlyClosed}
+          icon={<CheckCircle2 className="w-5 h-5" />}
+          trend="+8%"
+          trendUp={true}
+          color="success"
+        />
+        <StatCard
+          title="逾期总额"
+          value={formatCurrency(stats.totalOverdue)}
+          icon={<AlertCircle className="w-5 h-5" />}
+          trend="-5%"
+          trendUp={true}
+          color="danger"
+        />
+      </div>
 
-          <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-emerald-600">结案率</CardTitle>
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{stats.closureRate}%</div>
-              <p className="text-xs text-slate-500 mt-1">已完成 {stats.statusBreakdown.find(s => s.status === 'closed')?.count || 0} 件</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-white shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-amber-600">待处理</CardTitle>
-              <Clock className="w-5 h-5 text-amber-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">
-                {(stats.statusBreakdown.find(s => s.status === 'pending_assign')?.count || 0) +
-                 (stats.statusBreakdown.find(s => s.status === 'pending_visit')?.count || 0)}
+      {/* 第二行统计 */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">结案率</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <Target className="w-4 h-4 text-green-600" />
               </div>
-              <p className="text-xs text-slate-500 mt-1">待分配 + 待外访</p>
-            </CardContent>
-          </Card>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-slate-800 mb-2">
+              {stats.closureRate}%
+            </div>
+            <Progress value={stats.closureRate} className="h-2" />
+            <p className="text-sm text-slate-500 mt-2">目标: 80%</p>
+          </CardContent>
+        </Card>
 
-          <Card className="border-red-200 bg-gradient-to-br from-red-50 to-white shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-red-600">逾期总额</CardTitle>
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900 font-mono tabular-nums">
-                {formatCurrency(stats.totalOverdue)}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">平均结案天数</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-blue-600" />
               </div>
-              <p className="text-xs text-slate-500 mt-1">需重点关注</p>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-slate-800 mb-2">
+              {stats.avgClosureDays} <span className="text-lg font-normal text-slate-500">天</span>
+            </div>
+            <div className="flex items-center gap-1 text-sm">
+              <ArrowDownRight className="w-4 h-4 text-green-500" />
+              <span className="text-green-600 font-medium">-1.2天</span>
+              <span className="text-slate-500">vs 上月</span>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* 图表区域 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 案件状态分布 */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">案件状态分布</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">案件状态分布</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-20">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={stats.statusBreakdown}
-                      dataKey="count"
-                      nameKey="label"
+                      data={caseStatusData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={4}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      innerRadius={20}
+                      outerRadius={35}
+                      paddingAngle={5}
+                      dataKey="value"
                     >
-                      {stats.statusBreakdown.map((entry, index) => (
-                        <Cell key={entry.status} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      {caseStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      formatter={(value: number) => [value, '案件数']}
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                      }}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-4 flex flex-wrap gap-3 justify-center">
-                {stats.statusBreakdown.map((item, index) => (
-                  <div key={item.status} className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-                    />
-                    <span className="text-sm text-slate-600">{item.label}</span>
-                    <Badge variant="secondary" className="font-mono">{item.count}</Badge>
+              <div className="flex-1 space-y-1">
+                {caseStatusData.slice(0, 3).map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-slate-600">{item.name}</span>
+                    </div>
+                    <span className="font-semibold text-slate-700">{item.value}</span>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-          {/* 月度趋势 */}
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">月度趋势</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.monthlyTrend}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="cases" name="新增案件" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="closed" name="结案数" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+      {/* 图表区域 */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* 月度趋势图 */}
+        <Card className="card-hover border-slate-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-800">月度趋势</CardTitle>
+                <CardDescription className="text-slate-500">案件数量与逾期金额</CardDescription>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">案件数</Badge>
+                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">逾期金额</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyTrend}>
+                  <defs>
+                    <linearGradient id="colorCases" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(210 100% 45%)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(210 100% 45%)" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorOverdue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220 14% 91%)" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215 16% 47%)', fontSize: 12 }} />
+                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215 16% 47%)', fontSize: 12 }} />
+                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215 16% 47%)', fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'white', border: '1px solid hsl(220 14% 91%)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Area yAxisId="left" type="monotone" dataKey="cases" stroke="hsl(210 100% 45%)" strokeWidth={3} fillOpacity={1} fill="url(#colorCases)" />
+                  <Area yAxisId="right" type="monotone" dataKey="overdue" stroke="hsl(0 84% 60%)" strokeWidth={3} fillOpacity={1} fill="url(#colorOverdue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* 用户绩效 */}
-          <Card className="border-slate-200 shadow-sm lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">外访员绩效排名</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={stats.userPerformance}
-                    layout="vertical"
-                    barSize={20}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis type="number" tick={{ fontSize: 12 }} />
-                    <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} width={60} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="cases" name="负责案件" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="closed" name="已完成" fill="#10b981" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+        {/* 用户绩效排名 */}
+        <Card className="card-hover border-slate-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-800">外访员绩效</CardTitle>
+                <CardDescription className="text-slate-500">本月结案数量排名</CardDescription>
               </div>
-              <div className="mt-4 flex flex-wrap gap-4 justify-center">
-                {stats.userPerformance.map((user) => (
-                  <div
-                    key={user.name}
-                    className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg"
-                  >
-                    <Users className="w-4 h-4 text-slate-400" />
-                    <span className="font-medium">{user.name}</span>
-                    <Badge variant="outline" className="font-mono">
-                      {user.rate}% 完成率
+              <Button variant="ghost" size="sm" className="text-sm">
+                查看全部
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {userPerformance.map((user, index) => (
+                <div key={user.name} className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm",
+                    index === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-white" :
+                    index === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-white" :
+                    index === 2 ? "bg-gradient-to-br from-amber-600 to-amber-700 text-white" :
+                    "bg-slate-100 text-slate-600"
+                  )}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-slate-700">{user.name}</span>
+                      <span className="text-sm font-semibold text-slate-800">{user.closed} 件</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
+                          style={{ width: `${(user.closed / 32) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-500">{formatCurrency(user.amount)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 底部区域 - 活动和任务 */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* 最近活动 */}
+        <Card className="card-hover border-slate-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-800">最近活动</CardTitle>
+                <CardDescription className="text-slate-500">团队操作记录</CardDescription>
+              </div>
+              <Activity className="w-5 h-5 text-slate-400" />
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="space-y-4">
+              {recentActivities.map((activity, index) => (
+                <div key={activity.id} className="flex items-start gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center mt-0.5",
+                    activity.type === 'create' && "bg-blue-50 text-blue-600",
+                    activity.type === 'update' && "bg-purple-50 text-purple-600",
+                    activity.type === 'close' && "bg-green-50 text-green-600",
+                    activity.type === 'assign' && "bg-amber-50 text-amber-600",
+                    activity.type === 'payment' && "bg-emerald-50 text-emerald-600",
+                  )}>
+                    {activity.type === 'create' && <FileText className="w-4 h-4" />}
+                    {activity.type === 'update' && <Activity className="w-4 h-4" />}
+                    {activity.type === 'close' && <CheckCircle2 className="w-4 h-4" />}
+                    {activity.type === 'assign' && <Users className="w-4 h-4" />}
+                    {activity.type === 'payment' && <DollarSign className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="font-medium text-slate-700">{activity.user}</span>
+                        <span className="text-slate-500 mx-1">{activity.action}</span>
+                        <span className="font-mono text-slate-700">{activity.target}</span>
+                        {activity.amount && (
+                          <span className="ml-2 text-emerald-600 font-semibold">{activity.amount}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400">{activity.time}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 待处理任务 */}
+        <Card className="card-hover border-slate-200">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-slate-800">待处理任务</CardTitle>
+                <CardDescription className="text-slate-500">需要您关注的事项</CardDescription>
+              </div>
+              <Badge variant="secondary" className="bg-amber-50 text-amber-700">
+                {pendingTasks.length} 项
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-2">
+            <div className="space-y-3">
+              {pendingTasks.map((task) => (
+                <div key={task.id} className="p-3 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <span className="font-medium text-slate-700">{task.title}</span>
+                    <Badge className={cn(
+                      task.priority === 'high' ? "bg-red-100 text-red-700" :
+                      task.priority === 'medium' ? "bg-amber-100 text-amber-700" :
+                      "bg-slate-100 text-slate-700"
+                    )}>
+                      {task.priority === 'high' ? '紧急' : task.priority === 'medium' ? '重要' : '普通'}
                     </Badge>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <User className="w-4 h-4" />
+                      <span>{task.user}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <span className={task.due === '今天' ? 'text-red-600 font-medium' : 'text-slate-600'}>
+                        {task.due}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
+}
+
+function StatCard({ 
+  title, 
+  value, 
+  icon, 
+  trend, 
+  trendUp, 
+  color 
+}: { 
+  title: string; 
+  value: string | number; 
+  icon: React.ReactNode; 
+  trend: string; 
+  trendUp: boolean; 
+  color: 'primary' | 'success' | 'warning' | 'danger';
+}) {
+  const colorClasses = {
+    primary: 'from-blue-500 to-indigo-600',
+    success: 'from-green-500 to-emerald-600',
+    warning: 'from-amber-500 to-yellow-600',
+    danger: 'from-red-500 to-rose-600',
+  };
+
+  const bgClasses = {
+    primary: 'bg-blue-50 text-blue-600',
+    success: 'bg-green-50 text-green-600',
+    warning: 'bg-amber-50 text-amber-600',
+    danger: 'bg-red-50 text-red-600',
+  };
+
+  return (
+    <Card className="card-hover overflow-hidden border-slate-200 group">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg shadow-slate-200/50 group-hover:shadow-xl transition-shadow", colorClasses[color])}>
+            <div className="text-white">
+              {icon}
+            </div>
+          </div>
+          <div className={cn(
+            "flex items-center gap-1 text-sm font-medium",
+            trendUp ? "text-emerald-600" : "text-red-600"
+          )}>
+            {trendUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            {trend}
+          </div>
+        </div>
+        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
+        <p className="text-3xl font-bold text-slate-800 tracking-tight">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="border-slate-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <Skeleton className="h-12 w-12 rounded-2xl" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+              <Skeleton className="h-4 w-24 mb-2" />
+              <Skeleton className="h-8 w-32" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="border-slate-200">
+            <CardHeader>
+              <Skeleton className="h-5 w-32" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-2 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {[1, 2].map((i) => (
+          <Card key={i} className="border-slate-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full rounded-lg" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function cn(...classes: any[]) {
+  return classes.filter(Boolean).join(' ');
 }
