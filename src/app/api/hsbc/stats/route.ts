@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
       data: stats,
       batchDate,
     });
-  } catch (error) {
-    console.error('获取汇丰统计数据失败:', error);
-    return NextResponse.json({ error: '获取统计数据失败' }, { status: 500 });
+  } catch (error: any) {
+    console.error('获取汇丰统计数据失败:', error?.message, error?.stack);
+    return NextResponse.json({ error: '获取统计数据失败', message: error?.message }, { status: 500 });
   }
 }

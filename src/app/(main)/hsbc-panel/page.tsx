@@ -101,13 +101,16 @@ interface HSBCStats {
   totalLoans: number;
   activeMerchants: number;
   totalLoanAmount: number;
-  totalBalance: number;
+  totalBalance: number; // 折CNY
+  totalBalanceUSD: number; // 折USD
   totalBalanceLoanCount: number;
   totalBalanceMerchantCount: number;
-  totalPastdueAmount: number;
+  totalPastdueAmount: number; // 折CNY
+  totalPastdueAmountUSD: number; // 折USD
   overdueRate: number;
   overdueMerchantRate: number;
-  warningAmount: number;
+  warningAmount: number; // 折CNY
+  warningAmountUSD: number; // 折USD
   approachingMaturityAmount: number;
   // 逾期天数分级数据
   overdueByDays: {
