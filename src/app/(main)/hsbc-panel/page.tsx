@@ -845,6 +845,10 @@ export default function HSBCPanelPage() {
           aValue = calcTotalRepaid(a);
           bValue = calcTotalRepaid(b);
           break;
+        case 'overdueDays':
+          aValue = calcOverdueDays(a);
+          bValue = calcOverdueDays(b);
+          break;
         case 'status':
           aValue = calcPastdueAmount(a) > 0 ? '逾期' : '正常';
           bValue = calcPastdueAmount(b) > 0 ? '逾期' : '正常';
@@ -1571,8 +1575,8 @@ export default function HSBCPanelPage() {
                           </TableCell>
                         )}
                         {visibleColumns.includes('overdueDays') && (
-                          <TableCell className={`text-right font-mono tabular-nums ${calcOverdueDays(loan) > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                            {calcOverdueDays(loan) > 0 ? `${calcOverdueDays(loan)}天` : '-'}
+                          <TableCell className={`text-right font-mono tabular-nums ${calcOverdueDays(loan) >= 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {calcOverdueDays(loan) >= 0 ? `${calcOverdueDays(loan)}天` : '正常'}
                           </TableCell>
                         )}
                         {visibleColumns.includes('totalRepaid') && (

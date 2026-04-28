@@ -119,6 +119,11 @@ export function calcPastdueAmount(loan: HSBCLoan): number {
 
 // 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）
 export function calcOverdueDays(loan: HSBCLoan): number {
+  const balance = calcBalance(loan);
+  // 如果余额 <= 0.9，则不算逾期，返回 -1 表示不逾期
+  if (balance <= 0.9) {
+    return -1;
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maturityDate = new Date(loan.maturityDate);
