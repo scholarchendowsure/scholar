@@ -930,9 +930,9 @@ export default function HSBCPanelPage() {
                 {/* 1. 在贷总额 */}
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
                   <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
-                  <div className="text-xl font-bold">¥{(stats?.totalBalance / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xl font-bold">¥{((stats?.totalBalance || 0) / 10000).toFixed(2)}万</div>
                   <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>折USD: ${(stats?.totalBalance / 7 / 100000000).toFixed(2)}亿</div>
+                    <div>折USD: ${((stats?.totalBalance || 0) / 7 / 10000).toFixed(2)}万</div>
                     <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
                     <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
                   </div>
@@ -944,9 +944,9 @@ export default function HSBCPanelPage() {
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
                   </div>
-                  <div className="text-xl font-bold">¥{(stats?.overdueByDays?.over0Days?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over0Days?.amount || 0) / 10000).toFixed(2)}万</div>
                   <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>逾期率: {(stats?.overdueByDays?.over0Days?.rate * 100 || 0).toFixed(2)}%</div>
+                    <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
                     <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
                     <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
                   </div>
@@ -958,9 +958,9 @@ export default function HSBCPanelPage() {
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
                   </div>
-                  <div className="text-xl font-bold">¥{(stats?.overdueByDays?.over30Days?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over30Days?.amount || 0) / 10000).toFixed(2)}万</div>
                   <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>逾期率: {(stats?.overdueByDays?.over30Days?.rate * 100 || 0).toFixed(2)}%</div>
+                    <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
                     <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
                     <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
                   </div>
@@ -972,9 +972,9 @@ export default function HSBCPanelPage() {
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
                   </div>
-                  <div className="text-xl font-bold">¥{(stats?.overdueByDays?.over90Days?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over90Days?.amount || 0) / 10000).toFixed(2)}万</div>
                   <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>逾期率: {(stats?.overdueByDays?.over90Days?.rate * 100 || 0).toFixed(2)}%</div>
+                    <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
                     <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
                     <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
                   </div>
@@ -986,9 +986,9 @@ export default function HSBCPanelPage() {
                     预警金额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
                   </div>
-                  <div className="text-xl font-bold">¥{(stats?.warningInfo?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xl font-bold">¥{((stats?.warningInfo?.amount || 0) / 10000).toFixed(2)}万</div>
                   <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>折USD: ${(stats?.warningInfo?.amountUSD / 100000000).toFixed(2)}亿</div>
+                    <div>折USD: ${((stats?.warningInfo?.amountUSD || 0) / 10000).toFixed(2)}万</div>
                     <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
                     <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
                   </div>
@@ -1005,11 +1005,11 @@ export default function HSBCPanelPage() {
                   <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white">
                     <div className="text-sm opacity-80 mb-1">3天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
-                      ¥{(stats?.repaymentDue?.[3]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万
                     </div>
                     <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[3]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="opacity-70">USD: ${(stats?.repaymentDue?.[3]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
+                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[3]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
                       <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
                       <div className="opacity-80">商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
                     </div>
@@ -1019,11 +1019,11 @@ export default function HSBCPanelPage() {
                   <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
                     <div className="text-sm opacity-80 mb-1">7天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
-                      ¥{(stats?.repaymentDue?.[7]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万
                     </div>
                     <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[7]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="opacity-70">USD: ${(stats?.repaymentDue?.[7]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
+                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[7]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
                       <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
                       <div className="opacity-80">商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
                     </div>
@@ -1033,11 +1033,11 @@ export default function HSBCPanelPage() {
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
                     <div className="text-sm opacity-80 mb-1">15天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
-                      ¥{(stats?.repaymentDue?.[15]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万
                     </div>
                     <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[15]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="opacity-70">USD: ${(stats?.repaymentDue?.[15]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
+                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[15]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
                       <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
                       <div className="opacity-80">商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
                     </div>
@@ -1047,11 +1047,11 @@ export default function HSBCPanelPage() {
                   <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
                     <div className="text-sm opacity-80 mb-1">30天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
-                      ¥{(stats?.repaymentDue?.[30]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万
                     </div>
                     <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[30]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="opacity-70">USD: ${(stats?.repaymentDue?.[30]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
+                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[30]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
                       <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
                       <div className="opacity-80">商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
                     </div>
@@ -1061,11 +1061,11 @@ export default function HSBCPanelPage() {
                   <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white">
                     <div className="text-sm opacity-80 mb-1">45天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
-                      ¥{(stats?.repaymentDue?.[45]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万
                     </div>
                     <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[45]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div className="opacity-70">USD: ${(stats?.repaymentDue?.[45]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
+                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[45]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
                       <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
                       <div className="opacity-80">商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
                     </div>
