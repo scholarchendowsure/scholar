@@ -323,6 +323,53 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
 
   const totalPastdueCNY = overdueByDays.over0Days.amount;
   
+  // 计算还款期限金额
+  const repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number }> = {
+    3: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    7: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    15: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    30: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    45: { cnyAmount: 0, usdAmount: 0, count: 0 },
+  };
+  
+  loans.forEach(loan => {
+    // 只计算未逾期的贷款
+    if (calcPastdueAmount(loan) === 0) {
+      const maturityDate = new Date(loan.maturityDate);
+      const daysUntilDue = Math.floor((maturityDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const balance = calcBalance(loan);
+      const amountCNY = loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+      const amountUSD = loan.loanCurrency === 'USD' ? balance : balance / USD_TO_CNY_RATE;
+      
+      // 累计各期限的金额
+      if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+        repaymentDue[3].cnyAmount += amountCNY;
+        repaymentDue[3].usdAmount += amountUSD;
+        repaymentDue[3].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 7) {
+        repaymentDue[7].cnyAmount += amountCNY;
+        repaymentDue[7].usdAmount += amountUSD;
+        repaymentDue[7].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 15) {
+        repaymentDue[15].cnyAmount += amountCNY;
+        repaymentDue[15].usdAmount += amountUSD;
+        repaymentDue[15].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 30) {
+        repaymentDue[30].cnyAmount += amountCNY;
+        repaymentDue[30].usdAmount += amountUSD;
+        repaymentDue[30].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 45) {
+        repaymentDue[45].cnyAmount += amountCNY;
+        repaymentDue[45].usdAmount += amountUSD;
+        repaymentDue[45].count++;
+      }
+    }
+  });
+  
   return {
     totalLoans: loans.length,
     totalLoanAmount: cnyTotalAmount + usdTotalAmount * USD_TO_CNY_RATE,
@@ -335,6 +382,7 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
       amountUSD: warningAmountCNY / USD_TO_CNY_RATE,
       merchantCount: overdueMerchants.length,
     },
+    repaymentDue,
     currencyBreakdown: [
       {
         currency: 'CNY',
@@ -971,6 +1019,58 @@ export default function HSBCPanelPage() {
                   </div>
                 </div>
 
+                {/* 还款期限金额卡片 */}
+                <div className="mt-6">
+                  <div className="text-sm text-slate-500 mb-3">
+                    <span className="font-semibold">还款期限分布</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    {/* 3天内 */}
+                    <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-80 mb-1">3天内需还款(CNY)</div>
+                      <div className="text-xl font-bold">¥{(stats?.repaymentDue?.[3]?.cnyAmount / 10000 || 0).toFixed(2)}万</div>
+                      <div className="text-xs opacity-70 mt-1">
+                        {stats?.repaymentDue?.[3]?.count || 0}笔 / ${(stats?.repaymentDue?.[3]?.usdAmount / 10000 || 0).toFixed(2)}万
+                      </div>
+                    </div>
+
+                    {/* 7天内 */}
+                    <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-80 mb-1">7天内需还款(CNY)</div>
+                      <div className="text-xl font-bold">¥{(stats?.repaymentDue?.[7]?.cnyAmount / 10000 || 0).toFixed(2)}万</div>
+                      <div className="text-xs opacity-70 mt-1">
+                        {stats?.repaymentDue?.[7]?.count || 0}笔 / ${(stats?.repaymentDue?.[7]?.usdAmount / 10000 || 0).toFixed(2)}万
+                      </div>
+                    </div>
+
+                    {/* 15天内 */}
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-80 mb-1">15天内需还款(CNY)</div>
+                      <div className="text-xl font-bold">¥{(stats?.repaymentDue?.[15]?.cnyAmount / 10000 || 0).toFixed(2)}万</div>
+                      <div className="text-xs opacity-70 mt-1">
+                        {stats?.repaymentDue?.[15]?.count || 0}笔 / ${(stats?.repaymentDue?.[15]?.usdAmount / 10000 || 0).toFixed(2)}万
+                      </div>
+                    </div>
+
+                    {/* 30天内 */}
+                    <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-80 mb-1">30天内需还款(CNY)</div>
+                      <div className="text-xl font-bold">¥{(stats?.repaymentDue?.[30]?.cnyAmount / 10000 || 0).toFixed(2)}万</div>
+                      <div className="text-xs opacity-70 mt-1">
+                        {stats?.repaymentDue?.[30]?.count || 0}笔 / ${(stats?.repaymentDue?.[30]?.usdAmount / 10000 || 0).toFixed(2)}万
+                      </div>
+                    </div>
+
+                    {/* 45天内 */}
+                    <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-80 mb-1">45天内需还款(CNY)</div>
+                      <div className="text-xl font-bold">¥{(stats?.repaymentDue?.[45]?.cnyAmount / 10000 || 0).toFixed(2)}万</div>
+                      <div className="text-xs opacity-70 mt-1">
+                        {stats?.repaymentDue?.[45]?.count || 0}笔 / ${(stats?.repaymentDue?.[45]?.usdAmount / 10000 || 0).toFixed(2)}万
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
 
