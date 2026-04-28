@@ -73,16 +73,46 @@ export interface ApproachingMaturityItem {
   usdMerchants: number;
 }
 
+export interface OverdueDaysStats {
+  amount: number;
+  rate: number;
+  amountUSD: number;
+  loanCount: number;
+  merchantCount: number;
+}
+
+export interface WarningInfoStats {
+  amount: number;
+  amountUSD: number;
+  loanCount: number;
+  merchantCount: number;
+}
+
+export interface RepaymentDueStats {
+  cnyAmount: number;
+  usdAmount: number;
+  count: number;
+}
+
 export interface HSBCDashboardStats {
   totalLoans: number;
   activeMerchants: number;
   totalLoanAmount: number;
   totalBalance: number;
+  totalBalanceLoanCount: number;
+  totalBalanceMerchantCount: number;
   totalPastdueAmount: number;
   overdueRate: number;
   overdueMerchantRate: number;
   warningAmount: number;
   approachingMaturityAmount: number;
+  overdueByDays: {
+    over0Days: OverdueDaysStats;
+    over30Days: OverdueDaysStats;
+    over90Days: OverdueDaysStats;
+  };
+  warningInfo: WarningInfoStats;
+  repaymentDue: Record<number, RepaymentDueStats>;
   currencyBreakdown: CurrencyBreakdown[];
   approachingMaturity: ApproachingMaturityItem[];
   overdueTrend: OverdueTrendItem[];
@@ -205,11 +235,20 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
       activeMerchants: 0,
       totalLoanAmount: 0,
       totalBalance: 0,
+      totalBalanceLoanCount: 0,
+      totalBalanceMerchantCount: 0,
       totalPastdueAmount: 0,
       overdueRate: 0,
       overdueMerchantRate: 0,
       warningAmount: 0,
       approachingMaturityAmount: 0,
+      overdueByDays: {
+        over0Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+        over30Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+        over90Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+      },
+      warningInfo: { amount: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+      repaymentDue: {},
       currencyBreakdown: [],
       approachingMaturity: [],
       overdueTrend: [],
@@ -219,12 +258,18 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
 
   const totalLoans = loans.length;
   const uniqueMerchants = [...new Set(loans.map(l => l.merchantId))];
+  
+  const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
+  const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
+
+  // 计算在贷余额（余额>0的贷款）
+  const activeLoans = loans.filter(l => calcBalance(l) > 0);
+  const totalBalanceLoanCount = activeLoans.length;
+  const totalBalanceMerchantCount = [...new Set(activeLoans.map(l => l.merchantId))].length;
+  
   const activeMerchants = uniqueMerchants.filter(m =>
     loans.some(l => l.merchantId === m && calcBalance(l) > 1)
   ).length;
-
-  const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
-  const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
 
   const totalLoanAmount = cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0)
     + usdLoans.reduce((sum, l) => sum + l.loanAmount * USD_TO_CNY_RATE, 0);
@@ -236,6 +281,125 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
   const overdueMerchants = uniqueMerchants.filter(m =>
     loans.some(l => l.merchantId === m && calcPastdueAmount(l) > 0)
   );
+
+  // 计算逾期天数分级
+  const today = new Date();
+  const overdueByDays = {
+    over0Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+    over30Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+    over90Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+  };
+  
+  const over0Merchants = new Set<string>();
+  const over30Merchants = new Set<string>();
+  const over90Merchants = new Set<string>();
+  
+  loans.forEach(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    const balance = calcBalance(loan);
+    if (today > maturityDate && balance > 0) {
+      const overdueDays = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+      const overdueAmount = calcPastdueAmount(loan);
+      const overdueAmountUSD = overdueAmount / USD_TO_CNY_RATE;
+      const overdueAmountCNY = loan.loanCurrency === 'CNY' ? overdueAmount : overdueAmount;
+      
+      // 逾期>0天
+      overdueByDays.over0Days.amount += overdueAmountCNY;
+      overdueByDays.over0Days.amountUSD += overdueAmountUSD;
+      overdueByDays.over0Days.loanCount++;
+      over0Merchants.add(loan.merchantId);
+      
+      // 逾期>30天
+      if (overdueDays > 30) {
+        overdueByDays.over30Days.amount += overdueAmountCNY;
+        overdueByDays.over30Days.amountUSD += overdueAmountUSD;
+        overdueByDays.over30Days.loanCount++;
+        over30Merchants.add(loan.merchantId);
+      }
+      
+      // 逾期>90天
+      if (overdueDays > 90) {
+        overdueByDays.over90Days.amount += overdueAmountCNY;
+        overdueByDays.over90Days.amountUSD += overdueAmountUSD;
+        overdueByDays.over90Days.loanCount++;
+        over90Merchants.add(loan.merchantId);
+      }
+    }
+  });
+  
+  overdueByDays.over0Days.merchantCount = over0Merchants.size;
+  overdueByDays.over30Days.merchantCount = over30Merchants.size;
+  overdueByDays.over90Days.merchantCount = over90Merchants.size;
+  
+  // 计算逾期率
+  overdueByDays.over0Days.rate = totalBalance > 0 ? overdueByDays.over0Days.amount / totalBalance : 0;
+  overdueByDays.over30Days.rate = totalBalance > 0 ? overdueByDays.over30Days.amount / totalBalance : 0;
+  overdueByDays.over90Days.rate = totalBalance > 0 ? overdueByDays.over90Days.amount / totalBalance : 0;
+
+  // 预警金额：逾期商户未到期的余额
+  const warningMerchants = new Set<string>();
+  let warningAmountCNY = 0;
+  let warningLoanCount = 0;
+  overdueMerchants.forEach(merchantId => {
+    const merchantLoans = loans.filter(l => l.merchantId === merchantId);
+    merchantLoans.forEach(loan => {
+      const maturityDate = new Date(loan.maturityDate);
+      const balance = calcBalance(loan);
+      // 未到期但逾期的余额
+      if (today <= maturityDate && balance > 0) {
+        warningAmountCNY += loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+        warningLoanCount++;
+        warningMerchants.add(loan.merchantId);
+      }
+    });
+  });
+
+  // 计算还款期限金额
+  const repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number }> = {
+    3: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    7: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    15: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    30: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    45: { cnyAmount: 0, usdAmount: 0, count: 0 },
+  };
+  
+  loans.forEach(loan => {
+    // 只计算未逾期的贷款
+    if (calcPastdueAmount(loan) === 0) {
+      const maturityDate = new Date(loan.maturityDate);
+      const daysUntilDue = Math.floor((maturityDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const balance = calcBalance(loan);
+      const amountCNY = loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+      const amountUSD = loan.loanCurrency === 'USD' ? balance : balance / USD_TO_CNY_RATE;
+      
+      // 累计各期限的金额
+      if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+        repaymentDue[3].cnyAmount += amountCNY;
+        repaymentDue[3].usdAmount += amountUSD;
+        repaymentDue[3].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 7) {
+        repaymentDue[7].cnyAmount += amountCNY;
+        repaymentDue[7].usdAmount += amountUSD;
+        repaymentDue[7].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 15) {
+        repaymentDue[15].cnyAmount += amountCNY;
+        repaymentDue[15].usdAmount += amountUSD;
+        repaymentDue[15].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 30) {
+        repaymentDue[30].cnyAmount += amountCNY;
+        repaymentDue[30].usdAmount += amountUSD;
+        repaymentDue[30].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 45) {
+        repaymentDue[45].cnyAmount += amountCNY;
+        repaymentDue[45].usdAmount += amountUSD;
+        repaymentDue[45].count++;
+      }
+    }
+  });
 
   const riskAssessment: RiskAssessmentItem[] = [
     { riskLevel: '低风险', daysMin: 0, daysMax: 30, overdueAmount: totalPastdueAmount * 0.4, merchantCount: Math.floor(overdueMerchants.length * 0.4), loanCount: Math.floor(totalLoans * 0.3) },
@@ -268,11 +432,21 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
     activeMerchants,
     totalLoanAmount: Math.round(totalLoanAmount),
     totalBalance: Math.round(totalBalance),
+    totalBalanceLoanCount,
+    totalBalanceMerchantCount,
     totalPastdueAmount: Math.round(totalPastdueAmount),
     overdueRate: totalBalance > 0 ? Math.round((totalPastdueAmount / totalBalance) * 10000) / 100 : 0,
     overdueMerchantRate: activeMerchants > 0 ? Math.round((overdueMerchants.length / activeMerchants) * 10000) / 100 : 0,
     warningAmount: Math.round(totalPastdueAmount * 1.2),
     approachingMaturityAmount: Math.round(totalBalance * 0.15),
+    overdueByDays,
+    warningInfo: {
+      amount: Math.round(warningAmountCNY),
+      amountUSD: Math.round(warningAmountCNY / USD_TO_CNY_RATE),
+      loanCount: warningLoanCount,
+      merchantCount: warningMerchants.size,
+    },
+    repaymentDue,
     currencyBreakdown: [
       {
         currency: 'CNY',

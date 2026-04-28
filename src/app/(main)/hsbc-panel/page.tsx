@@ -99,6 +99,8 @@ interface HSBCStats {
   activeMerchants: number;
   totalLoanAmount: number;
   totalBalance: number;
+  totalBalanceLoanCount: number;
+  totalBalanceMerchantCount: number;
   totalPastdueAmount: number;
   overdueRate: number;
   overdueMerchantRate: number;
@@ -106,16 +108,19 @@ interface HSBCStats {
   approachingMaturityAmount: number;
   // 逾期天数分级数据
   overdueByDays: {
-    over0Days: { amount: number; rate: number; amountUSD: number };
-    over30Days: { amount: number; rate: number; amountUSD: number };
-    over90Days: { amount: number; rate: number; amountUSD: number };
+    over0Days: { amount: number; rate: number; amountUSD: number; loanCount: number; merchantCount: number };
+    over30Days: { amount: number; rate: number; amountUSD: number; loanCount: number; merchantCount: number };
+    over90Days: { amount: number; rate: number; amountUSD: number; loanCount: number; merchantCount: number };
   };
   // 预警金额相关
   warningInfo: {
     amount: number;
     amountUSD: number;
+    loanCount: number;
     merchantCount: number;
   };
+  // 还款期限分布
+  repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number }>;
   currencyBreakdown: Array<{
     currency: string;
     loanCount: number;
