@@ -1082,42 +1082,6 @@ export default function HSBCPanelPage() {
                 </div>
               </div>
 
-              {/* 币种细分 */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  币种细分
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(stats?.currencyBreakdown || []).map((item) => (
-                    <div key={item.currency} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <Badge variant="outline" className="text-lg px-3">
-                          {item.currency}
-                        </Badge>
-                        <span className="text-2xl font-bold text-slate-800">
-                          {item.loanCount} 笔
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">贷款金额：</span>
-                          <span className="font-mono font-medium">{formatCurrency(item.totalAmount, item.currency)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">在贷余额：</span>
-                          <span className="font-mono font-medium">{formatCurrency(item.balance, item.currency)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">逾期金额：</span>
-                          <span className="font-mono font-medium text-red-600">{formatCurrency(item.overdueAmount, item.currency)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* 风险评估 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
