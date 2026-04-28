@@ -509,6 +509,7 @@ export default function HSBCPanelPage() {
     { key: 'loanAmount', label: '贷款金额' },
     { key: 'balance', label: '余额' },
     { key: 'pastdueAmount', label: '逾期金额' },
+    { key: 'overdueDays', label: '逾期天数' },
     { key: 'totalRepaid', label: '已还款总额' },
     { key: 'status', label: '状态' },
   ];
@@ -1504,6 +1505,14 @@ export default function HSBCPanelPage() {
                           </div>
                         </TableHead>
                       )}
+                      {visibleColumns.includes('overdueDays') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('overdueDays')}>
+                          <div className="flex items-center justify-end gap-1">
+                            逾期天数
+                            {sortField === 'overdueDays' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
                       {visibleColumns.includes('totalRepaid') && (
                         <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('totalRepaid')}>
                           <div className="flex items-center justify-end gap-1">
@@ -1559,6 +1568,11 @@ export default function HSBCPanelPage() {
                         {visibleColumns.includes('pastdueAmount') && (
                           <TableCell className={`text-right font-mono tabular-nums ${calcPastdueAmount(loan) > 0 ? 'text-red-600 font-semibold' : ''}`}>
                             {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('overdueDays') && (
+                          <TableCell className={`text-right font-mono tabular-nums ${calcOverdueDays(loan) > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {calcOverdueDays(loan) > 0 ? `${calcOverdueDays(loan)}天` : '-'}
                           </TableCell>
                         )}
                         {visibleColumns.includes('totalRepaid') && (
