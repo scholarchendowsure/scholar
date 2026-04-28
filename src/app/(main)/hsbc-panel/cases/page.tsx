@@ -96,7 +96,7 @@ export default function HSBCCasesPage() {
     setLoading(true);
     try {
       const dateParam = selectedBatchDate ? `&batchDate=${encodeURIComponent(selectedBatchDate)}` : '';
-      const res = await fetch(`/api/hsbc?pageSize=1000${dateParam}`);
+      const res = await fetch(`/api/hsbc?pageSize=99999${dateParam}`);
       const data = await res.json();
       setLoans(data.loans || []);
     } catch (error) {

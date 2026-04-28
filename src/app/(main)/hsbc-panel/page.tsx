@@ -298,7 +298,7 @@ export default function HSBCPanelPage() {
       if (dates.length > 0) {
         const latestDate = dates[0]; // 最新日期排在第一个
         setSelectedBatchDate(latestDate);
-        const loansRes = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(latestDate)}&pageSize=1000`);
+        const loansRes = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(latestDate)}&pageSize=99999`);
         if (loansRes.ok) {
           const loansData = await loansRes.json();
           setLoans(loansData.data || []);
@@ -310,7 +310,7 @@ export default function HSBCPanelPage() {
         }
       } else {
         // 没有批次日期时，加载所有数据
-        const loansRes = await fetch('/api/hsbc/loans?pageSize=1000');
+        const loansRes = await fetch('/api/hsbc/loans?pageSize=99999');
         if (loansRes.ok) {
           const loansData = await loansRes.json();
           setLoans(loansData.data || []);
@@ -348,7 +348,7 @@ export default function HSBCPanelPage() {
   // 根据批次日期加载贷款数据
   const loadLoansByBatchDate = async (batchDate: string) => {
     try {
-      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}&pageSize=1000`);
+      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}&pageSize=99999`);
       if (response.ok) {
         const data = await response.json();
         setLoans(data.data || []);
