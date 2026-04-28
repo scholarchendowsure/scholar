@@ -374,10 +374,14 @@ export default function HSBCPanelPage() {
 
   // 筛选后的贷款（如果选择了批次日期，数据已经是该日期的数据）
   const filteredLoans = loans.filter(loan => {
-    const matchSearch = !searchTerm ||
-      loan.loanReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      loan.merchantId.includes(searchTerm) ||
-      loan.borrowerName.toLowerCase().includes(searchTerm.toLowerCase());
+    // 支持多商户ID搜索（用空格分隔）
+    const searchTerms = searchTerm.trim().split(/\s+/).filter(t => t.length > 0);
+    const matchSearch = searchTerms.length === 0 ||
+      searchTerms.some(term =>
+        loan.loanReference.toLowerCase().includes(term.toLowerCase()) ||
+        loan.merchantId.toLowerCase().includes(term.toLowerCase()) ||
+        loan.borrowerName.toLowerCase().includes(term.toLowerCase())
+      );
     const matchCurrency = currencyFilter === 'all' || loan.loanCurrency === currencyFilter;
     const matchStatus = statusFilter === 'all' ||
       (statusFilter === 'overdue' && loan.pastdueAmount > 0) ||

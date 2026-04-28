@@ -120,10 +120,16 @@ export default function HSBCCasesPage() {
   // 按商户聚合
   useEffect(() => {
     const filtered = loans.filter(loan => {
-      const matchSearch = searchTerm === '' || 
-        loan.loanReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.merchantId.includes(searchTerm) ||
-        loan.borrowerName.toLowerCase().includes(searchTerm.toLowerCase());
+      // 支持多商户ID搜索（用空格分隔）
+      const searchTerms = searchTerm.trim().split(/\s+/).filter(t => t.length > 0);
+      const matchSearch = searchTerms.length === 0 ||
+        searchTerms.some(term =>
+          loan.loanReference.toLowerCase().includes(term.toLowerCase()) ||
+          loan.merchantId.toLowerCase().includes(term.toLowerCase()) ||
+          loan.borrowerName.toLowerCase().includes(term.toLowerCase())
+        ) ||
+        // 特殊支持：纯数字或短字符串作为商户ID精确匹配
+        (searchTerms.length === 1 && loan.merchantId.toLowerCase().includes(searchTerms[0].toLowerCase()));
       const matchCurrency = currencyFilter === 'all' || loan.loanCurrency === currencyFilter;
       const matchStatus = statusFilter === 'all' || 
         (statusFilter === 'overdue' && loan.pastdueAmount >= 0.5) ||
@@ -226,7 +232,7 @@ export default function HSBCCasesPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="搜索贷款编号/商户ID/名称..."
+                placeholder="搜索商户ID(支持多个,空格分隔)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-slate-50 border-slate-200"
