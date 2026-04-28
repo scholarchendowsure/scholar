@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from 'react';
 import { formatCurrency } from '@/lib/constants';
 import { calcPastdueAmount, calcBalance } from '@/lib/hsbc-loan';
 import {
@@ -315,7 +315,14 @@ export default function HSBCPanelPage() {
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [importBatchDate, setImportBatchDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [selectedBatchDate, setSelectedBatchDate] = useState<string>('');
+  const [selectedBatchDate, setSelectedBatchDate] = useState<string>(() => {
+    // 从 localStorage 获取保存的日期，默认使用最新日期
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hsbc_selected_batch_date');
+      return saved || '';
+    }
+    return '';
+  });
   const [availableBatchDates, setAvailableBatchDates] = useState<string[]>([]);
   const [filePassword, setFilePassword] = useState<string>('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -446,28 +453,67 @@ export default function HSBCPanelPage() {
   // 去重商户ID后的贷款数据
   const deduplicatedLoans = useMemo(() => {
     if (!deduplicateMerchant) return loans;
-    const map = new Map<string, HSBCLoan>();
+    const map = new Map<string, {
+      loan: HSBCLoan;
+      allRepaymentSchedules: HSBCLoan['repaymentSchedule'];
+      earliestMaturityDate: string;
+    }>();
+    
     loans.forEach(loan => {
       if (!map.has(loan.merchantId)) {
-        map.set(loan.merchantId, { ...loan });
-      } else {
-        // 合并金额 - 使用calcBalance和calcPastdueAmount计算
-        const existing = map.get(loan.merchantId)!;
-        const existingBalance = calcBalance(existing);
-        const loanBalance = calcBalance(loan);
-        const existingPastdue = calcPastdueAmount(existing);
-        const loanPastdue = calcPastdueAmount(loan);
-        
         map.set(loan.merchantId, {
-          ...existing,
-          loanAmount: existing.loanAmount + loan.loanAmount,
-          balance: existingBalance + loanBalance,
-          pastdueAmount: existingPastdue + loanPastdue,
-          repaymentSchedule: [...(existing.repaymentSchedule || []), ...(loan.repaymentSchedule || [])],
+          loan: { ...loan },
+          allRepaymentSchedules: [...(loan.repaymentSchedule || [])],
+          earliestMaturityDate: loan.maturityDate,
         });
+      } else {
+        const existing = map.get(loan.merchantId)!;
+        // 合并还款计划
+        existing.allRepaymentSchedules = [
+          ...existing.allRepaymentSchedules,
+          ...(loan.repaymentSchedule || [])
+        ];
+        // 保留最早到期的日期（更容易显示逾期）
+        if (loan.maturityDate < existing.earliestMaturityDate) {
+          existing.earliestMaturityDate = loan.maturityDate;
+        }
       }
     });
-    return Array.from(map.values());
+    
+    // 构建去重后的贷款数据
+    return Array.from(map.values()).map(item => {
+      const mergedLoan = {
+        ...item.loan,
+        loanAmount: item.loan.loanAmount, // 第一笔贷款的金额
+        balance: item.loan.balance, // 第一笔贷款的余额
+        pastdueAmount: item.loan.pastdueAmount, // 第一笔贷款的逾期
+        maturityDate: item.earliestMaturityDate, // 保留最早到期的日期
+        repaymentSchedule: item.allRepaymentSchedules, // 合并所有还款计划
+      };
+      
+      // 重新计算合并后的余额和逾期金额
+      const totalLoanAmount = loans
+        .filter(l => l.merchantId === item.loan.merchantId)
+        .reduce((sum, l) => sum + l.loanAmount, 0);
+      
+      const totalRepaid = mergedLoan.repaymentSchedule
+        .filter(r => r.repaid)
+        .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
+      
+      mergedLoan.loanAmount = totalLoanAmount;
+      mergedLoan.balance = Math.max(0, totalLoanAmount - totalRepaid);
+      
+      // 计算逾期：基于最早到期的日期
+      const today = new Date();
+      const maturityDate = new Date(mergedLoan.maturityDate);
+      if (today > maturityDate && mergedLoan.balance > 0) {
+        mergedLoan.pastdueAmount = mergedLoan.balance;
+      } else {
+        mergedLoan.pastdueAmount = 0;
+      }
+      
+      return mergedLoan;
+    });
   }, [loans, deduplicateMerchant]);
 
   // 筛选后的贷款（如果选择了批次日期，数据已经是该日期的数据）
@@ -577,7 +623,7 @@ export default function HSBCPanelPage() {
       const dt = new DataTransfer();
       dt.items.add(file);
       input.files = dt.files;
-      handleFileUpload({ target: input } as any);
+      handleFileUpload({ target: input } as unknown as ChangeEvent<HTMLInputElement>);
     } else {
       toast.error('请上传 Excel 或 CSV 文件');
     }
