@@ -267,13 +267,23 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
   // 转换USD到CNY计算总在贷
   const totalBalanceCNY = cnyBalance + usdBalance * USD_TO_CNY_RATE;
   
+  // 计算在贷笔数（余额>0）和在贷商户数
+  const activeLoans = loans.filter(l => calcBalance(l) > 0);
+  const activeLoanCount = activeLoans.length;
+  const activeMerchantCount = [...new Set(activeLoans.map(l => l.merchantId))].length;
+  
   // 逾期天数分级计算
   const today = new Date();
   const overdueByDays = {
-    over0Days: { amount: 0, rate: 0, amountUSD: 0 },
-    over30Days: { amount: 0, rate: 0, amountUSD: 0 },
-    over90Days: { amount: 0, rate: 0, amountUSD: 0 },
+    over0Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+    over30Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+    over90Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
   };
+  
+  // 用于去重的逾期商户
+  const over0Merchants = new Set<string>();
+  const over30Merchants = new Set<string>();
+  const over90Merchants = new Set<string>();
   
   loans.forEach(loan => {
     const maturityDate = new Date(loan.maturityDate);
@@ -286,20 +296,30 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
       // 逾期>0天
       overdueByDays.over0Days.amount += overdueAmount;
       overdueByDays.over0Days.amountUSD += overdueAmountUSD;
+      overdueByDays.over0Days.loanCount++;
+      over0Merchants.add(loan.merchantId);
       
       // 逾期>30天
       if (overdueDays > 30) {
         overdueByDays.over30Days.amount += overdueAmount;
         overdueByDays.over30Days.amountUSD += overdueAmountUSD;
+        overdueByDays.over30Days.loanCount++;
+        over30Merchants.add(loan.merchantId);
       }
       
       // 逾期>90天
       if (overdueDays > 90) {
         overdueByDays.over90Days.amount += overdueAmount;
         overdueByDays.over90Days.amountUSD += overdueAmountUSD;
+        overdueByDays.over90Days.loanCount++;
+        over90Merchants.add(loan.merchantId);
       }
     }
   });
+  
+  overdueByDays.over0Days.merchantCount = over0Merchants.size;
+  overdueByDays.over30Days.merchantCount = over30Merchants.size;
+  overdueByDays.over90Days.merchantCount = over90Merchants.size;
   
   // 计算逾期率
   overdueByDays.over0Days.rate = totalBalanceCNY > 0 ? overdueByDays.over0Days.amount / totalBalanceCNY : 0;
@@ -309,6 +329,8 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
   // 预警金额：逾期商户未到期的余额总和
   const overdueMerchants = [...new Set(loans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))];
   let warningAmountCNY = 0;
+  let warningLoanCount = 0;
+  const warningMerchants = new Set<string>();
   overdueMerchants.forEach(merchantId => {
     const merchantLoans = loans.filter(l => l.merchantId === merchantId);
     merchantLoans.forEach(loan => {
@@ -317,6 +339,8 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
       // 未到期但逾期的余额
       if (today <= maturityDate && balance > 0) {
         warningAmountCNY += loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+        warningLoanCount++;
+        warningMerchants.add(loan.merchantId);
       }
     });
   });
@@ -374,13 +398,16 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
     totalLoans: loans.length,
     totalLoanAmount: cnyTotalAmount + usdTotalAmount * USD_TO_CNY_RATE,
     totalBalance: totalBalanceCNY,
+    totalBalanceLoanCount: activeLoanCount,
+    totalBalanceMerchantCount: activeMerchantCount,
     totalPastdueAmount: totalPastdueCNY,
     overdueRate: totalBalanceCNY > 0 ? totalPastdueCNY / totalBalanceCNY : 0,
     overdueByDays,
     warningInfo: {
       amount: warningAmountCNY,
       amountUSD: warningAmountCNY / USD_TO_CNY_RATE,
-      merchantCount: overdueMerchants.length,
+      merchantCount: warningMerchants.size,
+      loanCount: warningLoanCount,
     },
     repaymentDue,
     currencyBreakdown: [
@@ -898,9 +925,11 @@ export default function HSBCPanelPage() {
                 {/* 1. 在贷总额 */}
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
                   <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
-                  <div className="text-xl font-bold">{(stats?.totalLoanAmount / 100000000).toFixed(2)}亿元</div>
-                  <div className="text-xs opacity-70 mt-1">
-                    (折USD)${(stats?.totalLoanAmount / 7 / 100000000).toFixed(2)}亿
+                  <div className="text-xl font-bold">¥{(stats?.totalBalance / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div>折USD: ${(stats?.totalBalance / 7 / 100000000).toFixed(2)}亿</div>
+                    <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
+                    <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
                   </div>
                 </div>
 
@@ -910,9 +939,11 @@ export default function HSBCPanelPage() {
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
                   </div>
-                  <div className="text-xl font-bold">{(stats?.overdueByDays?.over0Days?.amount / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-1">
-                    逾期率：{(stats?.overdueByDays?.over0Days?.rate * 100 || 0).toFixed(2)}%
+                  <div className="text-xl font-bold">¥{(stats?.overdueByDays?.over0Days?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div>逾期率: {(stats?.overdueByDays?.over0Days?.rate * 100 || 0).toFixed(2)}%</div>
+                    <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
+                    <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
                   </div>
                 </div>
 
@@ -922,9 +953,11 @@ export default function HSBCPanelPage() {
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
                   </div>
-                  <div className="text-xl font-bold">{(stats?.overdueByDays?.over30Days?.amount / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-1">
-                    逾期率：{(stats?.overdueByDays?.over30Days?.rate * 100 || 0).toFixed(2)}%
+                  <div className="text-xl font-bold">¥{(stats?.overdueByDays?.over30Days?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div>逾期率: {(stats?.overdueByDays?.over30Days?.rate * 100 || 0).toFixed(2)}%</div>
+                    <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
+                    <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
                   </div>
                 </div>
 
@@ -934,9 +967,11 @@ export default function HSBCPanelPage() {
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
                   </div>
-                  <div className="text-xl font-bold">{(stats?.overdueByDays?.over90Days?.amount / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-1">
-                    逾期率：{(stats?.overdueByDays?.over90Days?.rate * 100 || 0).toFixed(2)}%
+                  <div className="text-xl font-bold">¥{(stats?.overdueByDays?.over90Days?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div>逾期率: {(stats?.overdueByDays?.over90Days?.rate * 100 || 0).toFixed(2)}%</div>
+                    <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
+                    <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
                   </div>
                 </div>
 
@@ -946,9 +981,11 @@ export default function HSBCPanelPage() {
                     预警金额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
                   </div>
-                  <div className="text-xl font-bold">{formatCurrency(stats?.warningInfo?.amount || 0)}</div>
-                  <div className="text-xs opacity-70 mt-1">
-                    {stats?.warningInfo?.merchantCount || 0}个逾期商户
+                  <div className="text-xl font-bold">¥{(stats?.warningInfo?.amount / 100000000).toFixed(2)}亿</div>
+                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div>折USD: ${(stats?.warningInfo?.amountUSD / 100000000).toFixed(2)}亿</div>
+                    <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
+                    <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
                   </div>
                 </div>
               </div>
