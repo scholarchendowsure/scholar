@@ -117,6 +117,28 @@ export function calcPastdueAmount(loan: HSBCLoan): number {
   }
 }
 
+// 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）
+export function calcOverdueDays(loan: HSBCLoan): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const maturityDate = new Date(loan.maturityDate);
+  maturityDate.setHours(0, 0, 0, 0);
+  const diffTime = today.getTime() - maturityDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
+// 计算距离到期的天数（负数表示已到期）
+export function calcDaysToMaturity(loan: HSBCLoan): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const maturityDate = new Date(loan.maturityDate);
+  maturityDate.setHours(0, 0, 0, 0);
+  const diffTime = maturityDate.getTime() - today.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
 // 获取状态：基于余额和逾期金额判断
 export function calcStatus(loan: HSBCLoan): 'active' | 'settled' | 'overdue' | 'settling' {
   const balance = calcBalance(loan);

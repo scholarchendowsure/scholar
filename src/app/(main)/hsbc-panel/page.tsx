@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from 'react';
 import { formatCurrency } from '@/lib/constants';
-import { calcPastdueAmount, calcBalance } from '@/lib/hsbc-loan';
+import { calcPastdueAmount, calcBalance, calcOverdueDays, calcDaysToMaturity } from '@/lib/hsbc-loan';
 import {
   Card,
   CardContent,
@@ -517,6 +517,8 @@ export default function HSBCPanelPage() {
 
   // 去重商户ID相关状态
   const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
+  const [activeCardFilter, setActiveCardFilter] = useState<string | null>(null);
+  const casesListRef = useRef<HTMLDivElement>(null);
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -609,6 +611,37 @@ export default function HSBCPanelPage() {
     }));
   };
 
+  // 获取过滤条件标签
+  const getFilterLabel = (filter: string): string => {
+    const labels: Record<string, string> = {
+      'totalBalance': '在贷总额',
+      'overdue0': '逾期>0天',
+      'overdue30': '逾期>30天',
+      'overdue90': '逾期>90天',
+      'warning': '预警金额',
+      'due3': '3天内到期',
+      'due7': '7天内到期',
+      'due15': '15天内到期',
+      'due30': '30天内到期',
+      'due45': '45天内到期',
+    };
+    return labels[filter] || filter;
+  };
+
+  // 处理卡片点击 - 过滤案件列表
+  const handleCardClick = (filterType: string) => {
+    if (activeCardFilter === filterType) {
+      setActiveCardFilter(null); // 再次点击同一卡片，取消过滤
+    } else {
+      setActiveCardFilter(filterType);
+    }
+    // 滚动到案件列表
+    setTimeout(() => {
+      casesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    setCurrentPage(1); // 重置分页
+  };
+
   // 去重商户ID后的贷款数据
   const deduplicatedLoans = useMemo(() => {
     if (!deduplicateMerchant) return loans;
@@ -689,7 +722,60 @@ export default function HSBCPanelPage() {
     const matchStatus = statusFilter === 'all' ||
       (statusFilter === 'overdue' && calcPastdueAmount(loan) > 0) ||
       (statusFilter === 'normal' && calcPastdueAmount(loan) === 0);
-    return matchSearch && matchCurrency && matchStatus;
+    
+    // 卡片点击过滤
+    let matchCardFilter = true;
+    const today = new Date().toISOString().slice(0, 10);
+    const maturityDate = loan.maturityDate;
+    const balance = calcBalance(loan);
+    const pastdueAmount = calcPastdueAmount(loan);
+    
+    if (activeCardFilter) {
+      switch (activeCardFilter) {
+        case 'totalBalance': // 在贷总额 - 余额>0的贷款
+          matchCardFilter = balance > 0;
+          break;
+        case 'overdue0': // 逾期>0天 - 逾期金额>0
+          matchCardFilter = pastdueAmount > 0;
+          break;
+        case 'overdue30': // 逾期>30天 - 逾期天数>=30
+          const overdueDays0 = calcOverdueDays(loan);
+          matchCardFilter = overdueDays0 >= 30 && pastdueAmount > 0;
+          break;
+        case 'overdue90': // 逾期>90天 - 逾期天数>=90
+          const overdueDays30 = calcOverdueDays(loan);
+          matchCardFilter = overdueDays30 >= 90 && pastdueAmount > 0;
+          break;
+        case 'warning': // 预警金额 - 逾期但未到期
+          const daysToMaturity = calcDaysToMaturity(loan);
+          matchCardFilter = pastdueAmount > 0 && daysToMaturity > 0;
+          break;
+        case 'due3': // 3天内到期
+          const days3 = calcDaysToMaturity(loan);
+          matchCardFilter = days3 >= 0 && days3 <= 3;
+          break;
+        case 'due7': // 7天内到期
+          const days7 = calcDaysToMaturity(loan);
+          matchCardFilter = days7 >= 0 && days7 <= 7;
+          break;
+        case 'due15': // 15天内到期
+          const days15 = calcDaysToMaturity(loan);
+          matchCardFilter = days15 >= 0 && days15 <= 15;
+          break;
+        case 'due30': // 30天内到期
+          const days30 = calcDaysToMaturity(loan);
+          matchCardFilter = days30 >= 0 && days30 <= 30;
+          break;
+        case 'due45': // 45天内到期
+          const days45 = calcDaysToMaturity(loan);
+          matchCardFilter = days45 >= 0 && days45 <= 45;
+          break;
+        default:
+          matchCardFilter = true;
+      }
+    }
+    
+    return matchSearch && matchCurrency && matchStatus && matchCardFilter;
   });
 
   // 分页
@@ -928,7 +1014,10 @@ export default function HSBCPanelPage() {
               {/* 核心指标 - 5个数据卡片 */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 {/* 1. 在贷总额 */}
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+                <div 
+                  className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'totalBalance' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  onClick={() => handleCardClick('totalBalance')}
+                >
                   <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
                   <div className="text-xl font-bold">¥{((stats?.totalBalance || 0) / 10000).toFixed(2)}万</div>
                   <div className="text-xs opacity-70 mt-2 space-y-0.5">
@@ -939,7 +1028,10 @@ export default function HSBCPanelPage() {
                 </div>
 
                 {/* 2. 逾期总额(逾期>0天) */}
-                <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white">
+                <div 
+                  className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  onClick={() => handleCardClick('overdue0')}
+                >
                   <div className="text-sm opacity-80 mb-1">
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
@@ -953,7 +1045,10 @@ export default function HSBCPanelPage() {
                 </div>
 
                 {/* 3. 逾期总额(逾期>30天) */}
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
+                <div 
+                  className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  onClick={() => handleCardClick('overdue30')}
+                >
                   <div className="text-sm opacity-80 mb-1">
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
@@ -967,7 +1062,10 @@ export default function HSBCPanelPage() {
                 </div>
 
                 {/* 4. 逾期总额(逾期>90天) */}
-                <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white">
+                <div 
+                  className={`bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  onClick={() => handleCardClick('overdue90')}
+                >
                   <div className="text-sm opacity-80 mb-1">
                     逾期总额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
@@ -981,7 +1079,10 @@ export default function HSBCPanelPage() {
                 </div>
 
                 {/* 5. 预警金额 */}
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+                <div 
+                  className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warning' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  onClick={() => handleCardClick('warning')}
+                >
                   <div className="text-sm opacity-80 mb-1">
                     预警金额(CNY)
                     <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
@@ -1002,7 +1103,10 @@ export default function HSBCPanelPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {/* 3天内 */}
-                  <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white">
+                  <div 
+                    className={`bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due3' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('due3')}
+                  >
                     <div className="text-sm opacity-80 mb-1">3天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万
@@ -1016,7 +1120,10 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 7天内 */}
-                  <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
+                  <div 
+                    className={`bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due7' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('due7')}
+                  >
                     <div className="text-sm opacity-80 mb-1">7天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万
@@ -1030,7 +1137,10 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 15天内 */}
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+                  <div 
+                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due15' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('due15')}
+                  >
                     <div className="text-sm opacity-80 mb-1">15天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万
@@ -1044,7 +1154,10 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 30天内 */}
-                  <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
+                  <div 
+                    className={`bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('due30')}
+                  >
                     <div className="text-sm opacity-80 mb-1">30天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万
@@ -1058,7 +1171,10 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 45天内 */}
-                  <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white">
+                  <div 
+                    className={`bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due45' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('due45')}
+                  >
                     <div className="text-sm opacity-80 mb-1">45天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万
@@ -1080,26 +1196,32 @@ export default function HSBCPanelPage() {
       </Collapsible>
 
       {/* ============ 汇丰案件列表 ============ */}
-      <Collapsible open={expandedSections.loans} onOpenChange={() => toggleSection('loans')}>
-        <Card className="border-l-4 border-l-emerald-500">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
-                汇丰案件列表
-                <Badge variant="secondary" className="ml-2">
-                  {filteredLoans.length} 条记录
-                </Badge>
-              </CardTitle>
-              <Button variant="ghost" size="sm">
-                {expandedSections.loans ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </Button>
-            </CardHeader>
-          </CollapsibleTrigger>
+      <div ref={casesListRef}>
+        <Collapsible open={expandedSections.loans} onOpenChange={() => toggleSection('loans')}>
+          <Card className="border-l-4 border-l-emerald-500">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+                  汇丰案件列表
+                  <Badge variant="secondary" className="ml-2">
+                    {filteredLoans.length} 条记录
+                  </Badge>
+                  {activeCardFilter && (
+                    <Badge variant="outline" className="ml-2 bg-yellow-50 border-yellow-400 text-yellow-700">
+                      已筛选: {getFilterLabel(activeCardFilter)}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <Button variant="ghost" size="sm">
+                  {expandedSections.loans ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </Button>
+              </CardHeader>
+            </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
               {/* 筛选工具栏 */}
@@ -1132,6 +1254,18 @@ export default function HSBCPanelPage() {
                   <option value="normal">正常</option>
                   <option value="overdue">逾期</option>
                 </select>
+                {/* 清除卡片筛选按钮 */}
+                {activeCardFilter && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setActiveCardFilter(null)}
+                    className="gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    清除筛选
+                  </Button>
+                )}
                 {/* 去重商户ID按钮 */}
                 <Button
                   variant={deduplicateMerchant ? "default" : "outline"}
@@ -1302,6 +1436,7 @@ export default function HSBCPanelPage() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+      </div>
 
       {/* ============ 汇丰数据导入 ============ */}
       <Collapsible open={expandedSections.upload} onOpenChange={() => toggleSection('upload')}>
