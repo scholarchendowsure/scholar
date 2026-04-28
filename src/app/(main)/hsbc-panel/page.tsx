@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { formatCurrency } from '@/lib/constants';
-import { calcPastdueAmount } from '@/lib/hsbc-loan';
+import { calcPastdueAmount, calcBalance } from '@/lib/hsbc-loan';
 import {
   Card,
   CardContent,
@@ -312,10 +312,6 @@ export default function HSBCPanelPage() {
     }
   };
 
-  const calcTotalRepaid = (loan: HSBCLoan): number => {
-    return loan.loanAmount - loan.balance;
-  };
-
   // 去重商户ID相关状态
   const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
 
@@ -423,7 +419,7 @@ export default function HSBCPanelPage() {
         map.set(loan.merchantId, {
           ...existing,
           loanAmount: existing.loanAmount + loan.loanAmount,
-          balance: existing.balance + loan.balance,
+          balance: calcBalance(existing) + calcBalance(loan),
           pastdueAmount: existing.pastdueAmount + loan.pastdueAmount,
         });
       }
@@ -953,7 +949,7 @@ export default function HSBCPanelPage() {
                         )}
                         {visibleColumns.includes('balance') && (
                           <TableCell className="text-right font-mono tabular-nums">
-                            {formatCurrency(loan.balance, loan.loanCurrency)}
+                            {formatCurrency(calcBalance(loan), loan.loanCurrency)}
                           </TableCell>
                         )}
                         {visibleColumns.includes('pastdueAmount') && (

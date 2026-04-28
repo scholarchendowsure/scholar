@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { HSBCLoan, HSBCLoanFilter, calcPastdueAmount } from '@/lib/hsbc-loan';
+import { HSBCLoan, HSBCLoanFilter, calcPastdueAmount, calcBalance } from '@/lib/hsbc-loan';
 
 interface MerchantData {
   merchantId: string;
@@ -262,7 +262,7 @@ export default function HSBCLoansPage() {
                           </TableCell>
                           <TableCell>{loan.loanTenor}</TableCell>
                           <TableCell>{loan.maturityDate}</TableCell>
-                          <TableCell className="font-mono">{formatCurrency(loan.balance, loan.loanCurrency)}</TableCell>
+                          <TableCell className="font-mono">{formatCurrency(calcBalance(loan), loan.loanCurrency)}</TableCell>
                           <TableCell className={`font-mono ${calcPastdueAmount(loan) > 0 ? 'text-red-600' : ''}`}>
                             {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
                           </TableCell>
@@ -407,7 +407,7 @@ export default function HSBCLoansPage() {
                     </div>
                     <div>
                       <span className="text-slate-500">余额:</span>
-                      <span className="ml-2 font-mono">{formatCurrency(selectedLoan.balance, selectedLoan.loanCurrency)}</span>
+                      <span className="ml-2 font-mono">{formatCurrency(calcBalance(selectedLoan), selectedLoan.loanCurrency)}</span>
                     </div>
                     <div>
                       <span className="text-slate-500">逾期金额:</span>
