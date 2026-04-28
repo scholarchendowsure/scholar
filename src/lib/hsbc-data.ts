@@ -184,7 +184,20 @@ export function getBatchDates(): string[] {
 // 获取指定批次日期的贷款数据
 export function getLoansByBatchDate(batchDate: string): HSBCLoan[] {
   loadDataFromFile();
-  return loansByBatchDate.get(batchDate) || [];
+  const loans = loansByBatchDate.get(batchDate) || [];
+  // 为每个贷款计算逾期天数
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return loans.map(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    maturityDate.setHours(0, 0, 0, 0);
+    const balance = calcBalance(loan);
+    let overdueDays = 0;
+    if (today > maturityDate && balance > 0.9) {
+      overdueDays = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    return { ...loan, overdueDays };
+  });
 }
 
 // 获取所有贷款数据（默认返回最新批次）
