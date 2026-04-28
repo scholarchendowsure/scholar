@@ -998,7 +998,7 @@ export default function HSBCPanelPage() {
               {/* 还款期限分布 - 5个卡片 */}
               <div className="mt-6">
                 <div className="text-sm text-slate-500 mb-4">
-                  <span className="font-semibold">还款期限分布</span>
+
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {/* 3天内 */}
