@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { HSBCLoan, HSBCLoanFilter } from '@/lib/hsbc-loan';
+import { HSBCLoan, HSBCLoanFilter, calcPastdueAmount } from '@/lib/hsbc-loan';
 
 interface MerchantData {
   merchantId: string;
@@ -263,12 +263,12 @@ export default function HSBCLoansPage() {
                           <TableCell>{loan.loanTenor}</TableCell>
                           <TableCell>{loan.maturityDate}</TableCell>
                           <TableCell className="font-mono">{formatCurrency(loan.balance, loan.loanCurrency)}</TableCell>
-                          <TableCell className={`font-mono ${loan.pastdueAmount > 0 ? 'text-red-600' : ''}`}>
-                            {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
+                          <TableCell className={`font-mono ${calcPastdueAmount(loan) > 0 ? 'text-red-600' : ''}`}>
+                            {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={loan.pastdueAmount > 0 ? 'destructive' : 'secondary'}>
-                              {loan.pastdueAmount > 0 ? '逾期' : '正常'}
+                            <Badge variant={calcPastdueAmount(loan) > 0 ? 'destructive' : 'secondary'}>
+                              {calcPastdueAmount(loan) > 0 ? '逾期' : '正常'}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -370,8 +370,8 @@ export default function HSBCLoansPage() {
                     </div>
                     <div>
                       <span className="text-slate-500">状态:</span>
-                      <Badge variant={selectedLoan.pastdueAmount > 0 ? 'destructive' : 'secondary'} className="ml-2">
-                        {selectedLoan.pastdueAmount > 0 ? '逾期' : '正常'}
+                      <Badge variant={calcPastdueAmount(selectedLoan) > 0 ? 'destructive' : 'secondary'} className="ml-2">
+                        {calcPastdueAmount(selectedLoan) > 0 ? '逾期' : '正常'}
                       </Badge>
                     </div>
                   </div>
@@ -411,7 +411,7 @@ export default function HSBCLoansPage() {
                     </div>
                     <div>
                       <span className="text-slate-500">逾期金额:</span>
-                      <span className="ml-2 font-mono text-red-600">{formatCurrency(selectedLoan.pastdueAmount, selectedLoan.loanCurrency)}</span>
+                      <span className="ml-2 font-mono text-red-600">{formatCurrency(calcPastdueAmount(selectedLoan), selectedLoan.loanCurrency)}</span>
                     </div>
                   </div>
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { formatCurrency } from '@/lib/constants';
+import { calcPastdueAmount } from '@/lib/hsbc-loan';
 import {
   Card,
   CardContent,
@@ -442,8 +443,8 @@ export default function HSBCPanelPage() {
       );
     const matchCurrency = currencyFilter === 'all' || loan.loanCurrency === currencyFilter;
     const matchStatus = statusFilter === 'all' ||
-      (statusFilter === 'overdue' && loan.pastdueAmount > 0) ||
-      (statusFilter === 'normal' && loan.pastdueAmount === 0);
+      (statusFilter === 'overdue' && calcPastdueAmount(loan) > 0) ||
+      (statusFilter === 'normal' && calcPastdueAmount(loan) === 0);
     return matchSearch && matchCurrency && matchStatus;
   });
 
@@ -956,8 +957,8 @@ export default function HSBCPanelPage() {
                           </TableCell>
                         )}
                         {visibleColumns.includes('pastdueAmount') && (
-                          <TableCell className={`text-right font-mono tabular-nums ${loan.pastdueAmount > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                            {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
+                          <TableCell className={`text-right font-mono tabular-nums ${calcPastdueAmount(loan) > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
                           </TableCell>
                         )}
                         {visibleColumns.includes('totalRepaid') && (
@@ -967,7 +968,7 @@ export default function HSBCPanelPage() {
                         )}
                         {visibleColumns.includes('status') && (
                           <TableCell className="text-center">
-                            {loan.pastdueAmount > 0 ? (
+                            {calcPastdueAmount(loan) > 0 ? (
                               <Badge className="bg-red-100 text-red-700 border-red-200">
                                 <AlertTriangle className="w-3 h-3 mr-1" />
                                 逾期

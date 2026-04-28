@@ -51,6 +51,34 @@ export interface RepaymentRecord {
   actualAmount?: number;  // 实际还款金额
 }
 
+// 计算已还款总额（从还款计划中累加已还款金额）
+export function calcTotalRepaid(loan: HSBCLoan): number {
+  if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) {
+    return 0;
+  }
+  // 如果还款计划存在，检查是否有repaid标记
+  // 如果有repaid字段，只计算repaid=true的金额
+  // 如果没有repaid字段（Excel导入的还款计划），则所有金额都视为已还
+  const hasRepaidField = loan.repaymentSchedule.some(r => r.repaid !== undefined);
+  
+  if (hasRepaidField) {
+    return loan.repaymentSchedule
+      .filter(r => r.repaid)
+      .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
+  } else {
+    // Excel导入的还款计划，所有金额都视为已还
+    return loan.repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
+  }
+}
+
+// 计算逾期金额：贷款金额 - 已还款总额
+export function calcPastdueAmount(loan: HSBCLoan): number {
+  const totalRepaid = calcTotalRepaid(loan);
+  const pastdue = loan.loanAmount - totalRepaid;
+  // 逾期金额不能为负数
+  return Math.max(0, pastdue);
+}
+
 // Excel 导入行数据
 export interface HSBCImportRow {
   'Loan Reference'?: string;
@@ -233,7 +261,14 @@ export function parseImportRow(row: HSBCImportRow): HSBCLoan | null {
       maturityDate: row['Maturity Date']?.trim() || '',
       repaymentSchedule,
       balance: parseAmount(row['Balance']),
-      pastdueAmount: parseAmount(row['Pastdue amount']),
+      // 逾期金额改为计算得出：贷款金额 - 已还款金额之和
+      // 注意：还款计划中的金额都是应该还的，累计已还金额 = sum(repaymentSchedule)
+      // 逾期金额 = 贷款金额 - 已还款金额（如果repaid为true）
+      // 但如果Excel没有标记repaid状态，则按所有还款计划金额计算已还
+      pastdueAmount: (() => {
+        const totalRepaid = repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
+        return Math.max(0, parseAmount(row['Loan Amount']) - totalRepaid);
+      })(),
       freezeAccountRequested: row['Freeze Account Requested? (DDMMYY)']?.trim() || undefined,
       forceDebitRequested: row['Force Debit Requested? (DDMMYY)']?.trim() || undefined,
       approvalFromRM: row['Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)']?.trim() || undefined,
@@ -241,7 +276,12 @@ export function parseImportRow(row: HSBCImportRow): HSBCLoan | null {
       confirmationForceDebit: row['Confirmation from Dowsure with action taken on Force Debit?']?.trim() || undefined,
       remarks: row['Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)']?.trim() || 
                row['备注（任何后续行动，如在第8天冻结PSP账户，或在行动日期没有回应时跟进Dowsure）']?.trim() || '',
-      status: parseAmount(row['Pastdue amount']) > 0 ? 'overdue' : 'active',
+      // 状态判断：基于计算的逾期金额
+      status: (() => {
+        const totalRepaid = repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
+        const pastdue = Math.max(0, parseAmount(row['Loan Amount']) - totalRepaid);
+        return pastdue > 0 ? 'overdue' : 'active';
+      })(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -455,6 +495,16 @@ export function generateSampleLoans(): HSBCLoan[] {
         loanTenor: `${tenorDays}D`,
         maturityDate: maturityDate.toISOString().split('T')[0],
         balance: Math.round(balance * 100) / 100,
+        // 逾期金额由calcPastdueAmount函数计算，这里设置初始值
+        // 对于mock数据，假设有部分还款记录（模拟）
+        repaymentSchedule: pastdueAmount > 0 ? [
+          { date: startDate.toISOString().split('T')[0], amount: loanAmount - pastdueAmount, repaid: true },
+          { date: maturityDate.toISOString().split('T')[0], amount: pastdueAmount, repaid: false },
+        ] : [
+          { date: startDate.toISOString().split('T')[0], amount: loanAmount, repaid: true },
+        ],
+        // pastdueAmount不再直接存储，由calcPastdueAmount计算得出
+        // 为保持兼容性，这里仍存储计算后的值
         pastdueAmount: Math.round(pastdueAmount * 100) / 100,
         status: pastdueAmount > 0 ? 'overdue' : (balance > 0 ? 'active' : 'settled'),
         batchDate: startDate.toISOString().split('T')[0].substring(0, 7),
