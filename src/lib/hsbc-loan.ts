@@ -53,12 +53,18 @@ export interface RepaymentRecord {
 
 // 计算已还款总额（从还款计划中累加已还款金额）
 export function calcTotalRepaid(loan: HSBCLoan): number {
+  // 如果API返回了balance字段，优先使用
+  // 已还金额 = 贷款金额 - 余额
+  if (loan.balance !== undefined) {
+    return Math.max(0, loan.loanAmount - loan.balance);
+  }
+  
   if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) {
     return 0;
   }
   // 如果还款计划存在，检查是否有repaid标记
   // 如果有repaid字段，只计算repaid=true的金额
-  // 如果没有repaid字段（Excel导入的还款计划），则所有金额都视为已还
+  // 如果没有repaid字段（Excel导入的还款计划），使用贷款金额减去所有计划还款金额
   const hasRepaidField = loan.repaymentSchedule.some(r => r.repaid !== undefined);
   
   if (hasRepaidField) {
@@ -66,8 +72,10 @@ export function calcTotalRepaid(loan: HSBCLoan): number {
       .filter(r => r.repaid)
       .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
   } else {
-    // Excel导入的还款计划，所有金额都视为已还
-    return loan.repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
+    // Excel导入的还款计划，已还金额 = 贷款金额 - 余额
+    // 但如果balance未定义，则使用贷款金额减去所有计划还款金额
+    const scheduledTotal = loan.repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
+    return Math.max(0, loan.loanAmount - scheduledTotal);
   }
 }
 
@@ -82,17 +90,13 @@ export function calcBalance(loan: HSBCLoan): number {
 // 计算逾期金额：到期日期之后仍未还款的金额
 // 逻辑：遍历还款计划，到期日之后的未还金额才算逾期
 export function calcPastdueAmount(loan: HSBCLoan): number {
-  if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) {
-    // 如果没有还款计划，检查是否超过到期日
-    const today = new Date();
-    const maturityDate = new Date(loan.maturityDate);
-    if (today > maturityDate) {
-      // 超过到期日，逾期金额 = 余额
-      return calcBalance(loan);
-    }
+  const balance = calcBalance(loan);
+  
+  // 如果余额 <= 0.9，则不算逾期
+  if (balance <= 0.9) {
     return 0;
   }
-
+  
   const today = new Date();
   const maturityDate = new Date(loan.maturityDate);
   
@@ -101,20 +105,8 @@ export function calcPastdueAmount(loan: HSBCLoan): number {
     return 0;
   }
   
-  // 如果有repaid字段，只计算未还的部分
-  const hasRepaidField = loan.repaymentSchedule.some(r => r.repaid !== undefined);
-  
-  if (hasRepaidField) {
-    // 计算已还款总额
-    const totalRepaid = calcTotalRepaid(loan);
-    // 逾期金额 = 贷款金额 - 已还款总额（但不超过到期日之后的未还金额）
-    const pastdue = loan.loanAmount - totalRepaid;
-    return Math.max(0, pastdue);
-  } else {
-    // Excel导入的还款计划，所有金额都视为已还
-    // 逾期金额 = 贷款金额 - 已还款总额 = 0
-    return 0;
-  }
+  // 超过到期日且余额 > 0.9，逾期金额 = 余额
+  return balance;
 }
 
 // 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）
