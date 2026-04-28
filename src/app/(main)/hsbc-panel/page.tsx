@@ -466,6 +466,7 @@ export default function HSBCPanelPage() {
   const [currencyFilter, setCurrencyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [selectedLoan, setSelectedLoan] = useState<HSBCLoan | null>(null);
 
   // 导入状态
@@ -779,7 +780,6 @@ export default function HSBCPanelPage() {
   });
 
   // 分页
-  const pageSize = 10;
   const totalPages = Math.ceil(filteredLoans.length / pageSize);
   const paginatedLoans = filteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
@@ -1407,31 +1407,45 @@ export default function HSBCPanelPage() {
               </div>
 
               {/* 分页 */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-500">
-                    共 {filteredLoans.length} 条，第 {currentPage} / {totalPages} 页
+                    共 {filteredLoans.length} 条，第 {currentPage} / {totalPages || 1} 页
                   </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(p => p - 1)}
-                    >
-                      上一页
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(p => p + 1)}
-                    >
-                      下一页
-                    </Button>
-                  </div>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm bg-background"
+                  >
+                    <option value={20}>20条/页</option>
+                    <option value={50}>50条/页</option>
+                    <option value={100}>100条/页</option>
+                    <option value={500}>500条/页</option>
+                    <option value={1000}>1000条/页</option>
+                  </select>
                 </div>
-              )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    上一页
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
