@@ -89,6 +89,8 @@ Desktop.ini
 *.gz
 *.zip
 *.tar
+*.xlsx
+*.xls
 
 # TypeScript
 *.tsbuildinfo
