@@ -108,7 +108,7 @@ function ensureDataDir(): void {
 
 // 从文件加载数据到内存
 function loadDataFromFile(): void {
-  if (dataLoaded) return;
+  // Always try to reload from file to get latest data
   try {
     ensureDataDir();
     if (fs.existsSync(DATA_FILE)) {

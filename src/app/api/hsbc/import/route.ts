@@ -80,49 +80,65 @@ export async function POST(request: NextRequest) {
     // 确定 batchDate
     const importDate = batchDate || new Date().toISOString().split('T')[0];
 
-    // 解析贷款数据
-    const parsedLoans = loans.map((row: Record<string, string>, index: number) => {
-      // 找到还款计划
-      const repaymentSchedule: { date: string; amount: number }[] = [];
-      const keys = Object.keys(row);
-
-      // 收集所有还款日期和金额的列索引
-      let repaymentDateIndices: number[] = [];
-      let repaymentAmountIndices: number[] = [];
-
-      keys.forEach((key, idx) => {
-        const nk = normalizeKey(key);
-        if (nk === 'repayment date' || nk.includes('repayment') && nk.includes('date')) {
-          repaymentDateIndices.push(idx);
+    // 解析还款计划（支持已解析的数组或需要重新解析的列数据）
+    function parseRepaymentSchedule(row: Record<string, unknown>): { date: string; amount: number }[] {
+      // 如果已经有 repaymentSchedule 字段（来自 parse API）
+      if (row.repaymentSchedule) {
+        if (Array.isArray(row.repaymentSchedule)) {
+          return row.repaymentSchedule as { date: string; amount: number }[];
         }
-        if (nk === 'repay amount' || nk.includes('repay') && nk.includes('amount')) {
-          repaymentAmountIndices.push(idx);
-        }
-      });
-
-      // 配对还款日期和金额
-      const pairCount = Math.min(repaymentDateIndices.length, repaymentAmountIndices.length);
-      for (let i = 0; i < pairCount; i++) {
-        const dateVal = row[keys[repaymentDateIndices[i]]];
-        const amountVal = row[keys[repaymentAmountIndices[i]]];
-        if (dateVal && amountVal && parseAmount(amountVal) > 0) {
-          repaymentSchedule.push({
-            date: parseDate(dateVal),
-            amount: parseAmount(amountVal),
-          });
+        if (typeof row.repaymentSchedule === 'string') {
+          try {
+            return JSON.parse(row.repaymentSchedule);
+          } catch {
+            return [];
+          }
         }
       }
+      return [];
+    }
 
-      // 提取各字段值（兼容不同列名）
+    // 解析贷款数据
+    const parsedLoans = loans.map((row: Record<string, unknown>, index: number) => {
+      const keys = Object.keys(row);
+      const repaymentSchedule = parseRepaymentSchedule(row);
       const getValue = (...possibleKeys: string[]): string => {
         for (const key of possibleKeys) {
           const nk = normalizeKey(key);
           for (const k of keys) {
-            if (normalizeKey(k) === nk) return row[k] || '';
+            if (normalizeKey(k) === nk) return String(row[k] || '');
           }
         }
         return '';
       };
+
+      // 如果需要从列数据解析还款计划
+      if (repaymentSchedule.length === 0) {
+        const repaymentDateIndices: number[] = [];
+        const repaymentAmountIndices: number[] = [];
+
+        keys.forEach((key, idx) => {
+          const nk = normalizeKey(key);
+          if (nk === 'repayment date' || (nk.includes('repayment') && nk.includes('date'))) {
+            repaymentDateIndices.push(idx);
+          }
+          if (nk === 'repay amount' || (nk.includes('repay') && nk.includes('amount'))) {
+            repaymentAmountIndices.push(idx);
+          }
+        });
+
+        const pairCount = Math.min(repaymentDateIndices.length, repaymentAmountIndices.length);
+        for (let i = 0; i < pairCount; i++) {
+          const dateVal = row[keys[repaymentDateIndices[i]]];
+          const amountVal = row[keys[repaymentAmountIndices[i]]];
+          if (dateVal && amountVal && parseAmount(String(amountVal)) > 0) {
+            repaymentSchedule.push({
+              date: parseDate(String(dateVal)),
+              amount: parseAmount(String(amountVal)),
+            });
+          }
+        }
+      }
 
       const loanCurrency = (getValue('Loan Currency', 'loanCurrency') || 'CNY').toUpperCase() as 'CNY' | 'USD';
 
@@ -151,7 +167,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // 根据导入模式处理
+// 根据导入模式处理
     if (mode === 'append' || mode === 'merge') {
       const existingLoans = getLoansByBatchDate(importDate);
       // 增量模式：去重追加

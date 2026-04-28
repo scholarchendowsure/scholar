@@ -35,9 +35,21 @@ function parseDDMMMYY(dateStr: string): string {
   return '';
 }
 
-// 解析日期（支持多种格式）
-function parseDate(dateStr: string): string {
-  if (!dateStr || typeof dateStr !== 'string') return '';
+// 解析日期（支持多种格式，包括Excel序列号）
+function parseDate(dateValue: string | number | undefined | null): string {
+  if (!dateValue || dateValue === '') return '';
+  
+  // 如果是数字（Excel序列号日期）
+  if (typeof dateValue === 'number' && dateValue > 40000 && dateValue < 60000) {
+    const excelDate = new Date((dateValue - 25569) * 86400 * 1000);
+    const year = excelDate.getFullYear();
+    const month = String(excelDate.getMonth() + 1).padStart(2, '0');
+    const day = String(excelDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  
+  const dateStr = String(dateValue);
+  
   // 尝试中文日期
   const chinese = parseChineseDate(dateStr);
   if (chinese && chinese.includes('-') && chinese !== dateStr.replace(/["\u200b]/g, '').trim()) return chinese;
@@ -46,12 +58,6 @@ function parseDate(dateStr: string): string {
   if (ddmmmmyy) return ddmmmmyy;
   // 尝试YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return dateStr.trim();
-  // 尝试Excel序列号日期
-  const num = parseFloat(dateStr);
-  if (!isNaN(num) && num > 40000 && num < 60000) {
-    const excelDate = new Date((num - 25569) * 86400 * 1000);
-    return excelDate.toISOString().split('T')[0];
-  }
   return dateStr;
 }
 
@@ -231,11 +237,12 @@ export async function POST(request: NextRequest) {
       });
       if (!hasData) continue;
 
-      const getCellValue = (idx: number): string => {
+      // 获取单元格值，支持数字类型
+      const getCellValue = (idx: number): string | number => {
         if (idx < 0 || idx >= (row as (string | number)[]).length) return '';
         const val = (row as (string | number)[])[idx];
         if (val === null || val === undefined) return '';
-        return String(val);
+        return val;
       };
 
       const loanRef = getCellValue(loanRefIdx);
@@ -246,10 +253,12 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < Math.min(repaymentDateIndices.length, repaymentAmountIndices.length); i++) {
         const dateVal = getCellValue(repaymentDateIndices[i]);
         const amountVal = getCellValue(repaymentAmountIndices[i]);
-        if (dateVal && amountVal && parseAmount(amountVal) > 0) {
+        const parsedDate = parseDate(dateVal);
+        const parsedAmount = parseAmount(amountVal);
+        if (parsedDate && parsedAmount > 0) {
           repaymentSchedule.push({
-            date: parseDate(dateVal),
-            amount: parseAmount(amountVal),
+            date: parsedDate,
+            amount: parsedAmount,
           });
         }
       }
@@ -267,7 +276,7 @@ export async function POST(request: NextRequest) {
         totalInterestRate: parseAmount(getCellValue(rateIdx)),
         loanTenor: getCellValue(tenorIdx),
         maturityDate: parseDate(getCellValue(maturityIdx)),
-        repaymentSchedule: JSON.stringify(repaymentSchedule),
+        repaymentSchedule: repaymentSchedule,
         balance: parseAmount(getCellValue(balanceIdx)),
         pastdueAmount: parseAmount(getCellValue(pastdueIdx)),
         batchDate: '',
