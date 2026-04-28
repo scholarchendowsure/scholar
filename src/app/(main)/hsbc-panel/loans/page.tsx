@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreHorizontal, Upload, LayoutDashboard } from 'lucide-react';
+import { Search, Filter, ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreHorizontal, Upload, LayoutDashboard, Building2, Columns } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,10 +14,21 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { toast } from 'sonner';
 import { HSBCLoan, HSBCLoanFilter } from '@/lib/hsbc-loan';
 
+interface MerchantData {
+  merchantId: string;
+  merchantName: string;
+  totalAmount: number;
+  totalBalance: number;
+  overdueAmount: number;
+  loanCount: number;
+  overdueCount: number;
+  loans?: HSBCLoan[];
+}
+
 export default function HSBCLoansPage() {
   const router = useRouter();
   const [loans, setLoans] = useState<HSBCLoan[]>([]);
-  const [merchants, setMerchants] = useState<any[]>([]);
+  const [merchants, setMerchants] = useState<MerchantData[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
   const [selectedLoan, setSelectedLoan] = useState<HSBCLoan | null>(null);
@@ -28,6 +39,7 @@ export default function HSBCLoansPage() {
   });
   const [searchInput, setSearchInput] = useState('');
   const [pagination, setPagination] = useState({ page: 1, pageSize: 50, total: 0, totalPages: 0 });
+  const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -43,15 +55,35 @@ export default function HSBCLoansPage() {
 
       const res = await fetch(`/api/hsbc/loans?${params.toString()}`);
       const data = await res.json();
+      let merchantsData = data.merchants || [];
+      
+      // 去重商户ID功能：只保留一个商户ID，金额合计计算
+      if (deduplicateMerchant && merchantsData.length > 0) {
+        const merchantMap = new Map();
+        merchantsData.forEach((m: MerchantData) => {
+          if (!merchantMap.has(m.merchantId)) {
+            merchantMap.set(m.merchantId, { ...m });
+          } else {
+            const existing = merchantMap.get(m.merchantId);
+            existing.totalAmount += m.totalAmount;
+            existing.totalBalance += m.totalBalance;
+            existing.overdueAmount += m.overdueAmount;
+            existing.loanCount = (existing.loanCount || 1) + (m.loanCount || 1);
+            existing.overdueCount = (existing.overdueCount || 0) + (m.overdueCount || 0);
+          }
+        });
+        merchantsData = Array.from(merchantMap.values());
+      }
+      
       setLoans(data.data || []);
-      setMerchants(data.merchants || []);
+      setMerchants(merchantsData);
       setPagination(data.pagination || { page: 1, pageSize: 50, total: 0, totalPages: 0 });
     } catch (error) {
       toast.error('加载数据失败');
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, deduplicateMerchant]);
 
   useEffect(() => {
     loadData();
@@ -164,6 +196,18 @@ export default function HSBCLoansPage() {
         </Card>
 
         {/* 商户分组列表 */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-800">商户分组列表</h2>
+          <Button
+            variant={deduplicateMerchant ? "default" : "outline"}
+            size="sm"
+            onClick={() => setDeduplicateMerchant(!deduplicateMerchant)}
+            className="gap-2"
+          >
+            <Building2 className="w-4 h-4" />
+            {deduplicateMerchant ? "已去重" : "去重商户"}
+          </Button>
+        </div>
         <div className="space-y-4">
           {merchants.map((merchant) => (
             <Card key={merchant.merchantId}>

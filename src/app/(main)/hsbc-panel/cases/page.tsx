@@ -77,6 +77,7 @@ export default function HSBCCasesPage() {
   const [selectedBatchDate, setSelectedBatchDate] = useState<string>('');
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(['loanReference', 'loanStartDate', 'loanTenor', 'maturityDate', 'loanAmount', 'balance', 'pastdueAmount', 'status']);
+  const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
   
   const columnDefinitions = [
     { key: 'loanReference', label: '贷款编号' },
@@ -167,8 +168,10 @@ export default function HSBCCasesPage() {
       return matchSearch && matchCurrency && matchStatus;
     });
 
+    // 去重商户ID功能：只保留一个商户ID，金额合计计算
+    // 如果启用去重，则按merchantId去重，每个商户只保留一个条目
     const grouped = filtered.reduce((acc, loan) => {
-      const key = loan.merchantId;
+      const key = deduplicateMerchant ? loan.merchantId : `${loan.merchantId}_${loan.loanReference}`;
       if (!acc[key]) {
         acc[key] = {
           merchantId: loan.merchantId,
@@ -190,7 +193,7 @@ export default function HSBCCasesPage() {
     }, {} as Record<string, MerchantGroup>);
 
     setMerchants(Object.values(grouped).sort((a, b) => b.totalBalance - a.totalBalance));
-  }, [loans, searchTerm, currencyFilter, statusFilter]);
+  }, [loans, searchTerm, currencyFilter, statusFilter, deduplicateMerchant]);
 
   const getStatusBadge = (pastdueAmount: number) => {
     if (pastdueAmount >= 0.5) {
@@ -228,7 +231,18 @@ export default function HSBCCasesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">汇丰贷款列表</h1>
-          <p className="text-sm text-slate-500 mt-1">共 {merchants.length} 家商户，{loans.length} 笔贷款</p>
+          <div className="flex items-center gap-3">
+              <p className="text-sm text-slate-500">共 {merchants.length} 家商户，{loans.length} 笔贷款</p>
+              <Button
+                variant={deduplicateMerchant ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDeduplicateMerchant(!deduplicateMerchant)}
+                className="gap-2"
+              >
+                <Building2 className="w-4 h-4" />
+                {deduplicateMerchant ? "已去重" : "去重商户"}
+              </Button>
+            </div>
         </div>
         <div className="flex items-center gap-3">
           {batchDates.length > 0 && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { formatCurrency } from '@/lib/constants';
 import {
   Card,
@@ -61,6 +61,7 @@ import {
   FileText,
   BarChart3,
   PieChart,
+  Columns,
 } from 'lucide-react';
 
 // ============ 类型定义 ============
@@ -281,6 +282,42 @@ export default function HSBCPanelPage() {
   const [filePassword, setFilePassword] = useState<string>('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
+  // 列选择相关状态
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([
+    'loanReference', 'merchantId', 'borrowerName', 'loanCurrency', 
+    'loanStartDate', 'loanAmount', 'balance', 'pastdueAmount', 'status'
+  ]);
+  
+  const columnDefinitions = [
+    { key: 'loanReference', label: '贷款编号' },
+    { key: 'merchantId', label: '商户ID' },
+    { key: 'borrowerName', label: '借款人名称' },
+    { key: 'loanCurrency', label: '币种' },
+    { key: 'loanStartDate', label: '贷款日期' },
+    { key: 'maturityDate', label: '到期日' },
+    { key: 'loanAmount', label: '贷款金额' },
+    { key: 'balance', label: '余额' },
+    { key: 'pastdueAmount', label: '逾期金额' },
+    { key: 'totalRepaid', label: '已还款总额' },
+    { key: 'status', label: '状态' },
+  ];
+
+  const toggleColumn = (key: string) => {
+    if (visibleColumns.includes(key)) {
+      setVisibleColumns(visibleColumns.filter(k => k !== key));
+    } else {
+      setVisibleColumns([...visibleColumns, key]);
+    }
+  };
+
+  const calcTotalRepaid = (loan: HSBCLoan): number => {
+    return loan.loanAmount - loan.balance;
+  };
+
+  // 去重商户ID相关状态
+  const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
+
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -372,8 +409,29 @@ export default function HSBCPanelPage() {
     }));
   };
 
+  // 去重商户ID后的贷款数据
+  const deduplicatedLoans = useMemo(() => {
+    if (!deduplicateMerchant) return loans;
+    const map = new Map<string, HSBCLoan>();
+    loans.forEach(loan => {
+      if (!map.has(loan.merchantId)) {
+        map.set(loan.merchantId, loan);
+      } else {
+        // 合并金额
+        const existing = map.get(loan.merchantId)!;
+        map.set(loan.merchantId, {
+          ...existing,
+          loanAmount: existing.loanAmount + loan.loanAmount,
+          balance: existing.balance + loan.balance,
+          pastdueAmount: existing.pastdueAmount + loan.pastdueAmount,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [loans, deduplicateMerchant]);
+
   // 筛选后的贷款（如果选择了批次日期，数据已经是该日期的数据）
-  const filteredLoans = loans.filter(loan => {
+  const filteredLoans = deduplicatedLoans.filter((loan: HSBCLoan) => {
     // 支持多商户ID搜索（用空格分隔）
     const searchTerms = searchTerm.trim().split(/\s+/).filter(t => t.length > 0);
     const matchSearch = searchTerms.length === 0 ||
@@ -779,12 +837,12 @@ export default function HSBCPanelPage() {
           <CollapsibleContent>
             <CardContent className="pt-0">
               {/* 筛选工具栏 */}
-              <div className="flex flex-wrap gap-3 mb-4">
+              <div className="flex flex-wrap gap-3 mb-4 items-center">
                 <div className="relative flex-1 min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="搜索贷款编号/商户ID/名称..."
+                    placeholder="搜索贷款编号/商户ID/名称/日期..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -808,6 +866,41 @@ export default function HSBCPanelPage() {
                   <option value="normal">正常</option>
                   <option value="overdue">逾期</option>
                 </select>
+                {/* 去重商户ID按钮 */}
+                <Button
+                  variant={deduplicateMerchant ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDeduplicateMerchant(!deduplicateMerchant)}
+                  className="gap-2"
+                >
+                  <Building2 className="w-4 h-4" />
+                  {deduplicateMerchant ? "已去重" : "去重商户"}
+                </Button>
+                {/* 列选择按钮 */}
+                <div className="relative">
+                  <Button variant="outline" size="sm" onClick={() => setShowColumnPicker(!showColumnPicker)} className="gap-2">
+                    <Columns className="w-4 h-4" />
+                    列选择
+                  </Button>
+                  {showColumnPicker && (
+                    <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[200px]">
+                      <p className="text-sm font-medium text-slate-700 mb-2">选择显示的列</p>
+                      <div className="space-y-2">
+                        {columnDefinitions.map(col => (
+                          <label key={col.key} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                            <input
+                              type="checkbox"
+                              checked={visibleColumns.includes(col.key)}
+                              onChange={() => toggleColumn(col.key)}
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-slate-600">{col.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 表格 */}
@@ -815,48 +908,78 @@ export default function HSBCPanelPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      <TableHead className="w-[140px]">贷款编号</TableHead>
-                      <TableHead>商户ID</TableHead>
-                      <TableHead className="w-[250px]">借款人名称</TableHead>
-                      <TableHead className="text-center">币种</TableHead>
-                      <TableHead className="text-right">贷款金额</TableHead>
-                      <TableHead className="text-right">余额</TableHead>
-                      <TableHead className="text-right">逾期金额</TableHead>
-                      <TableHead className="text-center">状态</TableHead>
+                      {visibleColumns.includes('loanReference') && <TableHead className="w-[140px]">贷款编号</TableHead>}
+                      {visibleColumns.includes('merchantId') && <TableHead>商户ID</TableHead>}
+                      {visibleColumns.includes('borrowerName') && <TableHead className="w-[250px]">借款人名称</TableHead>}
+                      {visibleColumns.includes('loanCurrency') && <TableHead className="text-center">币种</TableHead>}
+                      {visibleColumns.includes('loanStartDate') && <TableHead className="text-center">贷款日期</TableHead>}
+                      {visibleColumns.includes('maturityDate') && <TableHead className="text-center">到期日</TableHead>}
+                      {visibleColumns.includes('loanAmount') && <TableHead className="text-right">贷款金额</TableHead>}
+                      {visibleColumns.includes('balance') && <TableHead className="text-right">余额</TableHead>}
+                      {visibleColumns.includes('pastdueAmount') && <TableHead className="text-right">逾期金额</TableHead>}
+                      {visibleColumns.includes('totalRepaid') && <TableHead className="text-right">已还款总额</TableHead>}
+                      {visibleColumns.includes('status') && <TableHead className="text-center">状态</TableHead>}
                       <TableHead className="text-center">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedLoans.map((loan) => (
                       <TableRow key={loan.id} className="hover:bg-slate-50">
-                        <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
-                        <TableCell className="font-mono">{loan.merchantId}</TableCell>
-                        <TableCell className="max-w-[250px] truncate">{loan.borrowerName}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{loan.loanCurrency}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {formatCurrency(loan.loanAmount, loan.loanCurrency)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {formatCurrency(loan.balance, loan.loanCurrency)}
-                        </TableCell>
-                        <TableCell className={`text-right font-mono tabular-nums ${loan.pastdueAmount > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                          {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {loan.pastdueAmount > 0 ? (
-                            <Badge className="bg-red-100 text-red-700 border-red-200">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              逾期
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              正常
-                            </Badge>
-                          )}
-                        </TableCell>
+                        {visibleColumns.includes('loanReference') && (
+                          <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
+                        )}
+                        {visibleColumns.includes('merchantId') && (
+                          <TableCell className="font-mono">{loan.merchantId}</TableCell>
+                        )}
+                        {visibleColumns.includes('borrowerName') && (
+                          <TableCell className="max-w-[250px] truncate">{loan.borrowerName}</TableCell>
+                        )}
+                        {visibleColumns.includes('loanCurrency') && (
+                          <TableCell className="text-center">
+                            <Badge variant="outline">{loan.loanCurrency}</Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('loanStartDate') && (
+                          <TableCell className="text-center text-sm">{loan.loanStartDate}</TableCell>
+                        )}
+                        {visibleColumns.includes('maturityDate') && (
+                          <TableCell className="text-center text-sm">{loan.maturityDate}</TableCell>
+                        )}
+                        {visibleColumns.includes('loanAmount') && (
+                          <TableCell className="text-right font-mono tabular-nums">
+                            {formatCurrency(loan.loanAmount, loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('balance') && (
+                          <TableCell className="text-right font-mono tabular-nums">
+                            {formatCurrency(loan.balance, loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('pastdueAmount') && (
+                          <TableCell className={`text-right font-mono tabular-nums ${loan.pastdueAmount > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('totalRepaid') && (
+                          <TableCell className="text-right font-mono tabular-nums text-blue-600">
+                            {formatCurrency(calcTotalRepaid(loan), loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('status') && (
+                          <TableCell className="text-center">
+                            {loan.pastdueAmount > 0 ? (
+                              <Badge className="bg-red-100 text-red-700 border-red-200">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                逾期
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                正常
+                              </Badge>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="text-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -874,7 +997,7 @@ export default function HSBCPanelPage() {
                     ))}
                     {paginatedLoans.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-slate-500">
+                        <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500">
                           暂无数据
                         </TableCell>
                       </TableRow>
