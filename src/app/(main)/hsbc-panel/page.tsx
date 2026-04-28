@@ -63,6 +63,9 @@ import {
   BarChart3,
   PieChart,
   Columns,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 // ============ 类型定义 ============
@@ -467,6 +470,8 @@ export default function HSBCPanelPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedLoan, setSelectedLoan] = useState<HSBCLoan | null>(null);
 
   // 导入状态
@@ -643,6 +648,17 @@ export default function HSBCPanelPage() {
     setCurrentPage(1); // 重置分页
   };
 
+  // 处理排序
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1);
+  };
+
   // 去重商户ID后的贷款数据
   const deduplicatedLoans = useMemo(() => {
     if (!deduplicateMerchant) return loans;
@@ -779,9 +795,78 @@ export default function HSBCPanelPage() {
     return matchSearch && matchCurrency && matchStatus && matchCardFilter;
   });
 
+  // 排序后的数据
+  const sortedFilteredLoans = useMemo(() => {
+    if (!sortField) return filteredLoans;
+    
+    return [...filteredLoans].sort((a, b) => {
+      let aValue: string | number = 0;
+      let bValue: string | number = 0;
+      
+      switch (sortField) {
+        case 'loanReference':
+          aValue = a.loanReference;
+          bValue = b.loanReference;
+          break;
+        case 'merchantId':
+          aValue = a.merchantId;
+          bValue = b.merchantId;
+          break;
+        case 'borrowerName':
+          aValue = a.borrowerName;
+          bValue = b.borrowerName;
+          break;
+        case 'loanCurrency':
+          aValue = a.loanCurrency;
+          bValue = b.loanCurrency;
+          break;
+        case 'loanStartDate':
+          aValue = a.loanStartDate;
+          bValue = b.loanStartDate;
+          break;
+        case 'maturityDate':
+          aValue = a.maturityDate;
+          bValue = b.maturityDate;
+          break;
+        case 'loanAmount':
+          aValue = a.loanAmount;
+          bValue = b.loanAmount;
+          break;
+        case 'balance':
+          aValue = calcBalance(a);
+          bValue = calcBalance(b);
+          break;
+        case 'pastdueAmount':
+          aValue = calcPastdueAmount(a);
+          bValue = calcPastdueAmount(b);
+          break;
+        case 'totalRepaid':
+          aValue = calcTotalRepaid(a);
+          bValue = calcTotalRepaid(b);
+          break;
+        case 'status':
+          aValue = calcPastdueAmount(a) > 0 ? '逾期' : '正常';
+          bValue = calcPastdueAmount(b) > 0 ? '逾期' : '正常';
+          break;
+        default:
+          return 0;
+      }
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder === 'asc' 
+          ? aValue.localeCompare(bValue) 
+          : bValue.localeCompare(aValue);
+      }
+      
+      return sortOrder === 'asc' 
+        ? (aValue as number) - (bValue as number) 
+        : (bValue as number) - (aValue as number);
+    });
+  }, [filteredLoans, sortField, sortOrder]);
+
   // 分页
-  const totalPages = Math.ceil(filteredLoans.length / pageSize);
-  const paginatedLoans = filteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(sortedFilteredLoans.length / pageSize);
+  const paginatedLoans = sortedFilteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // 处理文件上传 - 上传到后端解析（支持加密文件）
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1308,17 +1393,94 @@ export default function HSBCPanelPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      {visibleColumns.includes('loanReference') && <TableHead className="w-[140px]">贷款编号</TableHead>}
-                      {visibleColumns.includes('merchantId') && <TableHead>商户ID</TableHead>}
-                      {visibleColumns.includes('borrowerName') && <TableHead className="w-[250px]">借款人名称</TableHead>}
-                      {visibleColumns.includes('loanCurrency') && <TableHead className="text-center">币种</TableHead>}
-                      {visibleColumns.includes('loanStartDate') && <TableHead className="text-center">贷款日期</TableHead>}
-                      {visibleColumns.includes('maturityDate') && <TableHead className="text-center">到期日</TableHead>}
-                      {visibleColumns.includes('loanAmount') && <TableHead className="text-right">贷款金额</TableHead>}
-                      {visibleColumns.includes('balance') && <TableHead className="text-right">余额</TableHead>}
-                      {visibleColumns.includes('pastdueAmount') && <TableHead className="text-right">逾期金额</TableHead>}
-                      {visibleColumns.includes('totalRepaid') && <TableHead className="text-right">已还款总额</TableHead>}
-                      {visibleColumns.includes('status') && <TableHead className="text-center">状态</TableHead>}
+                      {visibleColumns.includes('loanReference') && (
+                        <TableHead className="w-[140px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanReference')}>
+                          <div className="flex items-center gap-1">
+                            贷款编号
+                            {sortField === 'loanReference' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('merchantId') && (
+                        <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('merchantId')}>
+                          <div className="flex items-center gap-1">
+                            商户ID
+                            {sortField === 'merchantId' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('borrowerName') && (
+                        <TableHead className="w-[250px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('borrowerName')}>
+                          <div className="flex items-center gap-1">
+                            借款人名称
+                            {sortField === 'borrowerName' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('loanCurrency') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanCurrency')}>
+                          <div className="flex items-center justify-center gap-1">
+                            币种
+                            {sortField === 'loanCurrency' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('loanStartDate') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanStartDate')}>
+                          <div className="flex items-center justify-center gap-1">
+                            贷款日期
+                            {sortField === 'loanStartDate' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('maturityDate') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('maturityDate')}>
+                          <div className="flex items-center justify-center gap-1">
+                            到期日
+                            {sortField === 'maturityDate' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('loanAmount') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanAmount')}>
+                          <div className="flex items-center justify-end gap-1">
+                            贷款金额
+                            {sortField === 'loanAmount' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('balance') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('balance')}>
+                          <div className="flex items-center justify-end gap-1">
+                            余额
+                            {sortField === 'balance' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('pastdueAmount') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('pastdueAmount')}>
+                          <div className="flex items-center justify-end gap-1">
+                            逾期金额
+                            {sortField === 'pastdueAmount' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('totalRepaid') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('totalRepaid')}>
+                          <div className="flex items-center justify-end gap-1">
+                            已还款总额
+                            {sortField === 'totalRepaid' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('status') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
+                          <div className="flex items-center justify-center gap-1">
+                            状态
+                            {sortField === 'status' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
                       <TableHead className="text-center">操作</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1410,7 +1572,7 @@ export default function HSBCPanelPage() {
               <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-500">
-                    共 {filteredLoans.length} 条，第 {currentPage} / {totalPages || 1} 页
+                    共 {sortedFilteredLoans.length} 条，第 {currentPage} / {totalPages || 1} 页
                   </span>
                   <select
                     value={pageSize}
