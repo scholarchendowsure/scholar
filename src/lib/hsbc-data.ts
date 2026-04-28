@@ -92,6 +92,7 @@ export interface RepaymentDueStats {
   cnyAmount: number;
   usdAmount: number;
   count: number;
+  merchantCount: number;
 }
 
 export interface HSBCDashboardStats {
@@ -355,12 +356,21 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
   });
 
   // 计算还款期限金额
-  const repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number }> = {
-    3: { cnyAmount: 0, usdAmount: 0, count: 0 },
-    7: { cnyAmount: 0, usdAmount: 0, count: 0 },
-    15: { cnyAmount: 0, usdAmount: 0, count: 0 },
-    30: { cnyAmount: 0, usdAmount: 0, count: 0 },
-    45: { cnyAmount: 0, usdAmount: 0, count: 0 },
+  const repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number; merchantCount: number }> = {
+    3: { cnyAmount: 0, usdAmount: 0, count: 0, merchantCount: 0 },
+    7: { cnyAmount: 0, usdAmount: 0, count: 0, merchantCount: 0 },
+    15: { cnyAmount: 0, usdAmount: 0, count: 0, merchantCount: 0 },
+    30: { cnyAmount: 0, usdAmount: 0, count: 0, merchantCount: 0 },
+    45: { cnyAmount: 0, usdAmount: 0, count: 0, merchantCount: 0 },
+  };
+  
+  // 用于去重的商户集合
+  const merchantsByDays: Record<number, Set<string>> = {
+    3: new Set<string>(),
+    7: new Set<string>(),
+    15: new Set<string>(),
+    30: new Set<string>(),
+    45: new Set<string>(),
   };
   
   loans.forEach(loan => {
@@ -377,29 +387,41 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
         repaymentDue[3].cnyAmount += amountCNY;
         repaymentDue[3].usdAmount += amountUSD;
         repaymentDue[3].count++;
+        merchantsByDays[3].add(loan.merchantId);
       }
       if (daysUntilDue >= 0 && daysUntilDue <= 7) {
         repaymentDue[7].cnyAmount += amountCNY;
         repaymentDue[7].usdAmount += amountUSD;
         repaymentDue[7].count++;
+        merchantsByDays[7].add(loan.merchantId);
       }
       if (daysUntilDue >= 0 && daysUntilDue <= 15) {
         repaymentDue[15].cnyAmount += amountCNY;
         repaymentDue[15].usdAmount += amountUSD;
         repaymentDue[15].count++;
+        merchantsByDays[15].add(loan.merchantId);
       }
       if (daysUntilDue >= 0 && daysUntilDue <= 30) {
         repaymentDue[30].cnyAmount += amountCNY;
         repaymentDue[30].usdAmount += amountUSD;
         repaymentDue[30].count++;
+        merchantsByDays[30].add(loan.merchantId);
       }
       if (daysUntilDue >= 0 && daysUntilDue <= 45) {
         repaymentDue[45].cnyAmount += amountCNY;
         repaymentDue[45].usdAmount += amountUSD;
         repaymentDue[45].count++;
+        merchantsByDays[45].add(loan.merchantId);
       }
     }
   });
+  
+  // 设置商户数
+  repaymentDue[3].merchantCount = merchantsByDays[3].size;
+  repaymentDue[7].merchantCount = merchantsByDays[7].size;
+  repaymentDue[15].merchantCount = merchantsByDays[15].size;
+  repaymentDue[30].merchantCount = merchantsByDays[30].size;
+  repaymentDue[45].merchantCount = merchantsByDays[45].size;
 
   const riskAssessment: RiskAssessmentItem[] = [
     { riskLevel: '低风险', daysMin: 0, daysMax: 30, overdueAmount: totalPastdueAmount * 0.4, merchantCount: Math.floor(overdueMerchants.length * 0.4), loanCount: Math.floor(totalLoans * 0.3) },

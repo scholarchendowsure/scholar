@@ -120,7 +120,7 @@ interface HSBCStats {
     merchantCount: number;
   };
   // 还款期限分布
-  repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number }>;
+  repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number; merchantCount: number }>;
   currencyBreakdown: Array<{
     currency: string;
     loanCount: number;
@@ -1003,61 +1003,71 @@ export default function HSBCPanelPage() {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {/* 3天内 */}
                   <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white">
-                    <div className="text-sm opacity-80 mb-1">3天内需还款</div>
+                    <div className="text-sm opacity-80 mb-1">3天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{(stats?.repaymentDue?.[3]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs space-y-0.5">
                       <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[3]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="opacity-70">USD: ${(stats?.repaymentDue?.[3]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
+                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
                     </div>
                   </div>
 
                   {/* 7天内 */}
                   <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
-                    <div className="text-sm opacity-80 mb-1">7天内需还款</div>
+                    <div className="text-sm opacity-80 mb-1">7天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{(stats?.repaymentDue?.[7]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs space-y-0.5">
                       <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[7]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="opacity-70">USD: ${(stats?.repaymentDue?.[7]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
+                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
                     </div>
                   </div>
 
                   {/* 15天内 */}
                   <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
-                    <div className="text-sm opacity-80 mb-1">15天内需还款</div>
+                    <div className="text-sm opacity-80 mb-1">15天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{(stats?.repaymentDue?.[15]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs space-y-0.5">
                       <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[15]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="opacity-70">USD: ${(stats?.repaymentDue?.[15]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
+                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
                     </div>
                   </div>
 
                   {/* 30天内 */}
                   <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
-                    <div className="text-sm opacity-80 mb-1">30天内需还款</div>
+                    <div className="text-sm opacity-80 mb-1">30天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{(stats?.repaymentDue?.[30]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs space-y-0.5">
                       <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[30]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="opacity-70">USD: ${(stats?.repaymentDue?.[30]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
+                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
                     </div>
                   </div>
 
                   {/* 45天内 */}
                   <div className="bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white">
-                    <div className="text-sm opacity-80 mb-1">45天内需还款</div>
+                    <div className="text-sm opacity-80 mb-1">45天内需还款(折CNY)</div>
                     <div className="text-xl font-bold mb-2">
                       ¥{(stats?.repaymentDue?.[45]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div className="text-xs space-y-0.5">
                       <div className="opacity-90">CNY: ¥{(stats?.repaymentDue?.[45]?.cnyAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="opacity-70">USD: ${(stats?.repaymentDue?.[45]?.usdAmount || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
+                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
                     </div>
                   </div>
                 </div>
