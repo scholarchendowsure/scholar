@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from 'react';
 import { formatCurrency } from '@/lib/constants';
-import { calcPastdueAmount, calcBalance, calcOverdueDays, calcDaysToMaturity } from '@/lib/hsbc-loan';
+import { calcPastdueAmount, calcBalance, calcOverdueDays, calcDaysToMaturity, calcTotalRepaid } from '@/lib/hsbc-loan';
 import {
   Card,
   CardContent,
