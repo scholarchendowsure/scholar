@@ -168,11 +168,51 @@ const generateMockLoans = (): HSBCLoan[] => {
       const amount = currency === 'USD'
         ? Math.floor(Math.random() * 500000) + 50000
         : Math.floor(Math.random() * 2000000) + 100000;
-      const balance = Math.floor(amount * (Math.random() * 0.5 + 0.3));
-      const pastdue = Math.random() > 0.7 ? Math.floor(balance * (Math.random() * 0.3)) : 0;
+      
+      // 随机生成已还款比例（0-1之间）
+      const repaidRatio = Math.random();
+      // 计算已还款金额
+      const totalRepaid = Math.floor(amount * repaidRatio);
+      // 计算余额
+      const balance = amount - totalRepaid;
+      
+      // 随机决定是否逾期（约30%概率逾期）
+      const isOverdue = Math.random() > 0.7;
+      
+      // 贷款开始日期
       const startDate = new Date(2024, Math.floor(Math.random() * 6), Math.floor(Math.random() * 28) + 1);
+      // 到期日
       const maturityDate = new Date(startDate);
       maturityDate.setMonth(maturityDate.getMonth() + Math.floor(Math.random() * 3) + 1);
+      
+      // 如果需要逾期，将到期日设为过去的日期
+      if (isOverdue && balance > 0) {
+        maturityDate.setFullYear(2024); // 设为2024年（已过期）
+      }
+      
+      // 生成还款计划
+      const repaymentSchedule: Array<{date: string; amount: number; repaid: boolean}> = [];
+      if (repaidRatio > 0) {
+        repaymentSchedule.push({
+          date: startDate.toISOString().split('T')[0],
+          amount: totalRepaid,
+          repaid: true,
+        });
+      }
+      if (balance > 0) {
+        repaymentSchedule.push({
+          date: maturityDate.toISOString().split('T')[0],
+          amount: balance,
+          repaid: false,
+        });
+      }
+      
+      // 逾期金额计算：只有到期日已过且有余额才算逾期
+      let pastdue = 0;
+      const today = new Date();
+      if (today > maturityDate && balance > 0) {
+        pastdue = balance;
+      }
 
       loans.push({
         id: `LAE${idx.toString().padStart(4, '0')}${i}`,
@@ -188,12 +228,9 @@ const generateMockLoans = (): HSBCLoan[] => {
         maturityDate: maturityDate.toISOString().split('T')[0],
         balance,
         pastdueAmount: pastdue,
-        status: pastdue > 0 ? 'overdue' : 'normal',
+        status: pastdue > 0 ? 'overdue' : (balance === 0 ? 'settled' : 'active'),
         batchDate: '2024-07',
-        repaymentSchedule: [
-          { date: startDate.toISOString().split('T')[0], amount: Math.floor(amount * 0.3) },
-          { date: maturityDate.toISOString().split('T')[0], amount: Math.floor(amount * 0.7) },
-        ],
+        repaymentSchedule,
         operationLogs: [],
       });
     }
@@ -205,9 +242,9 @@ const generateMockLoans = (): HSBCLoan[] => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const generateMockStats = (loans: HSBCLoan[]): any => {
   const totalAmount = loans.reduce((sum, l) => sum + l.loanAmount, 0);
-  const totalBalance = loans.reduce((sum, l) => sum + l.balance, 0);
-  const totalPastdue = loans.reduce((sum, l) => sum + l.pastdueAmount, 0);
-  const overdueLoans = loans.filter(l => l.pastdueAmount > 0).length;
+  const totalBalance = loans.reduce((sum, l) => sum + calcBalance(l), 0);
+  const totalPastdue = loans.reduce((sum, l) => sum + calcPastdueAmount(l), 0);
+  const overdueLoans = loans.filter(l => calcPastdueAmount(l) > 0).length;
 
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
   const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
@@ -224,19 +261,19 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
         currency: 'CNY',
         loanCount: cnyLoans.length,
         totalAmount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-        balance: cnyLoans.reduce((sum, l) => sum + l.balance, 0),
-        overdueAmount: cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
-        overdueMerchantCount: [...new Set(cnyLoans.filter(l => l.pastdueAmount >= 0.5).map(l => l.merchantId))].length,
-        overdueLoanCount: cnyLoans.filter(l => l.pastdueAmount >= 0.5).length,
+        balance: cnyLoans.reduce((sum, l) => sum + calcBalance(l), 0),
+        overdueAmount: cnyLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0),
+        overdueMerchantCount: [...new Set(cnyLoans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))].length,
+        overdueLoanCount: cnyLoans.filter(l => calcPastdueAmount(l) > 0).length,
       },
       {
         currency: 'USD',
         loanCount: usdLoans.length,
         totalAmount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-        balance: usdLoans.reduce((sum, l) => sum + l.balance, 0),
-        overdueAmount: usdLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
-        overdueMerchantCount: [...new Set(usdLoans.filter(l => l.pastdueAmount >= 0.5).map(l => l.merchantId))].length,
-        overdueLoanCount: usdLoans.filter(l => l.pastdueAmount >= 0.5).length,
+        balance: usdLoans.reduce((sum, l) => sum + calcBalance(l), 0),
+        overdueAmount: usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0),
+        overdueMerchantCount: [...new Set(usdLoans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))].length,
+        overdueLoanCount: usdLoans.filter(l => calcPastdueAmount(l) > 0).length,
       },
     ],
     riskDistribution: [
@@ -412,15 +449,21 @@ export default function HSBCPanelPage() {
     const map = new Map<string, HSBCLoan>();
     loans.forEach(loan => {
       if (!map.has(loan.merchantId)) {
-        map.set(loan.merchantId, loan);
+        map.set(loan.merchantId, { ...loan });
       } else {
-        // 合并金额
+        // 合并金额 - 使用calcBalance和calcPastdueAmount计算
         const existing = map.get(loan.merchantId)!;
+        const existingBalance = calcBalance(existing);
+        const loanBalance = calcBalance(loan);
+        const existingPastdue = calcPastdueAmount(existing);
+        const loanPastdue = calcPastdueAmount(loan);
+        
         map.set(loan.merchantId, {
           ...existing,
           loanAmount: existing.loanAmount + loan.loanAmount,
-          balance: calcBalance(existing) + calcBalance(loan),
-          pastdueAmount: existing.pastdueAmount + loan.pastdueAmount,
+          balance: existingBalance + loanBalance,
+          pastdueAmount: existingPastdue + loanPastdue,
+          repaymentSchedule: [...(existing.repaymentSchedule || []), ...(loan.repaymentSchedule || [])],
         });
       }
     });

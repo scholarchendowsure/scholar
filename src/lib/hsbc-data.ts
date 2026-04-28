@@ -2,6 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { calcBalance, calcPastdueAmount } from './hsbc-loan';
 
 export interface RepaymentRecord {
   date: string;
@@ -219,7 +220,7 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
   const totalLoans = loans.length;
   const uniqueMerchants = [...new Set(loans.map(l => l.merchantId))];
   const activeMerchants = uniqueMerchants.filter(m =>
-    loans.some(l => l.merchantId === m && l.balance > 1)
+    loans.some(l => l.merchantId === m && calcBalance(l) > 1)
   ).length;
 
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
@@ -227,13 +228,13 @@ export function getHSBCStats(batchDate?: string): HSBCDashboardStats {
 
   const totalLoanAmount = cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0)
     + usdLoans.reduce((sum, l) => sum + l.loanAmount * USD_TO_CNY_RATE, 0);
-  const totalBalance = cnyLoans.reduce((sum, l) => sum + l.balance, 0)
-    + usdLoans.reduce((sum, l) => sum + l.balance * USD_TO_CNY_RATE, 0);
-  const totalPastdueAmount = cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0)
-    + usdLoans.reduce((sum, l) => sum + l.pastdueAmount * USD_TO_CNY_RATE, 0);
+  const totalBalance = cnyLoans.reduce((sum, l) => sum + calcBalance(l), 0)
+    + usdLoans.reduce((sum, l) => sum + calcBalance(l) * USD_TO_CNY_RATE, 0);
+  const totalPastdueAmount = cnyLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0)
+    + usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l) * USD_TO_CNY_RATE, 0);
 
   const overdueMerchants = uniqueMerchants.filter(m =>
-    loans.some(l => l.merchantId === m && l.pastdueAmount >= 0.5)
+    loans.some(l => l.merchantId === m && calcPastdueAmount(l) > 0)
   );
 
   const riskAssessment: RiskAssessmentItem[] = [
