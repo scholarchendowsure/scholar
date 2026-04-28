@@ -973,62 +973,7 @@ export default function HSBCPanelPage() {
 
               </div>
 
-              {/* 风险评估 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <PieChart className="w-4 h-4" />
-                    风险评估分布
-                  </h3>
-                  <div className="space-y-2">
-                    {(stats?.riskAssessment || []).map((item, idx) => {
-                      const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500', 'bg-red-700'];
-                      const maxAmount = stats?.totalPastdueAmount || 1;
-                      const pct = Math.max(5, (item.overdueAmount / maxAmount) * 100);
-                      return (
-                        <div key={item.riskLevel} className="flex items-center gap-3">
-                          <span className="w-16 text-sm text-slate-600">{item.riskLevel}</span>
-                          <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
-                            <div
-                              className={`${colors[idx] || 'bg-slate-400'} h-full rounded-full flex items-center justify-end pr-2 transition-all`}
-                              style={{ width: `${pct}%` }}
-                            >
-                              <span className="text-xs text-white font-medium">{item.loanCount}笔</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    临近到期分布
-                  </h3>
-                  <div className="space-y-2">
-                    {(stats?.approachingMaturity || []).map((item) => {
-                      const totalAmt = item.cnyAmount + item.usdAmount;
-                      const maxAmt = stats?.approachingMaturityAmount || 1;
-                      return (
-                      <div key={item.daysRange} className="flex items-center gap-3">
-                        <span className="w-16 text-sm text-slate-600">{item.daysRange}</span>
-                        <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full rounded-full flex items-center justify-end pr-2"
-                            style={{ width: `${Math.max(5, (totalAmt / maxAmt) * 100)}%` }}
-                          >
-                            <span className="text-xs text-white font-medium">
-                              {formatCurrency(totalAmt)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                    })}
-                  </div>
-                </div>
-              </div>
+
             </CardContent>
           </CollapsibleContent>
         </Card>
