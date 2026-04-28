@@ -104,6 +104,18 @@ interface HSBCStats {
   overdueMerchantRate: number;
   warningAmount: number;
   approachingMaturityAmount: number;
+  // 逾期天数分级数据
+  overdueByDays: {
+    over0Days: { amount: number; rate: number; amountUSD: number };
+    over30Days: { amount: number; rate: number; amountUSD: number };
+    over90Days: { amount: number; rate: number; amountUSD: number };
+  };
+  // 预警金额相关
+  warningInfo: {
+    amount: number;
+    amountUSD: number;
+    merchantCount: number;
+  };
   currencyBreakdown: Array<{
     currency: string;
     loanCount: number;
@@ -239,29 +251,96 @@ const generateMockLoans = (): HSBCLoan[] => {
   return loans;
 };
 
+// 汇率常量
+const USD_TO_CNY_RATE = 7;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const generateMockStats = (loans: HSBCLoan[]): any => {
-  const totalAmount = loans.reduce((sum, l) => sum + l.loanAmount, 0);
-  const totalBalance = loans.reduce((sum, l) => sum + calcBalance(l), 0);
-  const totalPastdue = loans.reduce((sum, l) => sum + calcPastdueAmount(l), 0);
-  const overdueLoans = loans.filter(l => calcPastdueAmount(l) > 0).length;
-
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
   const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
+  
+  const cnyTotalAmount = cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0);
+  const cnyBalance = cnyLoans.reduce((sum, l) => sum + calcBalance(l), 0);
+  const usdTotalAmount = usdLoans.reduce((sum, l) => sum + l.loanAmount, 0);
+  const usdBalance = usdLoans.reduce((sum, l) => sum + calcBalance(l), 0);
+  
+  // 转换USD到CNY计算总在贷
+  const totalBalanceCNY = cnyBalance + usdBalance * USD_TO_CNY_RATE;
+  
+  // 逾期天数分级计算
+  const today = new Date();
+  const overdueByDays = {
+    over0Days: { amount: 0, rate: 0, amountUSD: 0 },
+    over30Days: { amount: 0, rate: 0, amountUSD: 0 },
+    over90Days: { amount: 0, rate: 0, amountUSD: 0 },
+  };
+  
+  loans.forEach(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    const balance = calcBalance(loan);
+    if (today > maturityDate && balance > 0) {
+      const overdueDays = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+      const overdueAmount = calcPastdueAmount(loan);
+      const overdueAmountUSD = overdueAmount / USD_TO_CNY_RATE;
+      
+      // 逾期>0天
+      overdueByDays.over0Days.amount += overdueAmount;
+      overdueByDays.over0Days.amountUSD += overdueAmountUSD;
+      
+      // 逾期>30天
+      if (overdueDays > 30) {
+        overdueByDays.over30Days.amount += overdueAmount;
+        overdueByDays.over30Days.amountUSD += overdueAmountUSD;
+      }
+      
+      // 逾期>90天
+      if (overdueDays > 90) {
+        overdueByDays.over90Days.amount += overdueAmount;
+        overdueByDays.over90Days.amountUSD += overdueAmountUSD;
+      }
+    }
+  });
+  
+  // 计算逾期率
+  overdueByDays.over0Days.rate = totalBalanceCNY > 0 ? overdueByDays.over0Days.amount / totalBalanceCNY : 0;
+  overdueByDays.over30Days.rate = totalBalanceCNY > 0 ? overdueByDays.over30Days.amount / totalBalanceCNY : 0;
+  overdueByDays.over90Days.rate = totalBalanceCNY > 0 ? overdueByDays.over90Days.amount / totalBalanceCNY : 0;
+  
+  // 预警金额：逾期商户未到期的余额总和
+  const overdueMerchants = [...new Set(loans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))];
+  let warningAmountCNY = 0;
+  overdueMerchants.forEach(merchantId => {
+    const merchantLoans = loans.filter(l => l.merchantId === merchantId);
+    merchantLoans.forEach(loan => {
+      const maturityDate = new Date(loan.maturityDate);
+      const balance = calcBalance(loan);
+      // 未到期但逾期的余额
+      if (today <= maturityDate && balance > 0) {
+        warningAmountCNY += loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+      }
+    });
+  });
 
+  const totalPastdueCNY = overdueByDays.over0Days.amount;
+  
   return {
     totalLoans: loans.length,
-    totalAmount,
-    totalBalance,
-    totalPastdue,
-    overdueLoans,
-    overdueRate: totalBalance > 0 ? totalPastdue / totalBalance : 0,
+    totalLoanAmount: cnyTotalAmount + usdTotalAmount * USD_TO_CNY_RATE,
+    totalBalance: totalBalanceCNY,
+    totalPastdueAmount: totalPastdueCNY,
+    overdueRate: totalBalanceCNY > 0 ? totalPastdueCNY / totalBalanceCNY : 0,
+    overdueByDays,
+    warningInfo: {
+      amount: warningAmountCNY,
+      amountUSD: warningAmountCNY / USD_TO_CNY_RATE,
+      merchantCount: overdueMerchants.length,
+    },
     currencyBreakdown: [
       {
         currency: 'CNY',
         loanCount: cnyLoans.length,
-        totalAmount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-        balance: cnyLoans.reduce((sum, l) => sum + calcBalance(l), 0),
+        totalAmount: cnyTotalAmount,
+        balance: cnyBalance,
         overdueAmount: cnyLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0),
         overdueMerchantCount: [...new Set(cnyLoans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))].length,
         overdueLoanCount: cnyLoans.filter(l => calcPastdueAmount(l) > 0).length,
@@ -269,9 +348,9 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
       {
         currency: 'USD',
         loanCount: usdLoans.length,
-        totalAmount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-        balance: usdLoans.reduce((sum, l) => sum + calcBalance(l), 0),
-        overdueAmount: usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0),
+        totalAmount: usdTotalAmount * USD_TO_CNY_RATE,
+        balance: usdBalance * USD_TO_CNY_RATE,
+        overdueAmount: usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l) * USD_TO_CNY_RATE, 0),
         overdueMerchantCount: [...new Set(usdLoans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))].length,
         overdueLoanCount: usdLoans.filter(l => calcPastdueAmount(l) > 0).length,
       },
@@ -761,43 +840,122 @@ export default function HSBCPanelPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
-              {/* 核心指标 */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              {/* 标题说明 */}
+              <div className="text-sm text-slate-500 mb-4">
+                <span className="font-semibold">汇丰（香港）数据</span>（汇率1USD=7CNY）
+              </div>
+
+              {/* 核心指标 - 5个数据卡片 */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                {/* 1. 在贷总额 */}
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileSpreadsheet className="w-4 h-4 opacity-80" />
-                    <span className="text-sm opacity-80">总贷款笔数</span>
+                  <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
+                  <div className="text-xl font-bold">{(stats?.totalLoanAmount / 100000000).toFixed(2)}亿元</div>
+                  <div className="text-xs opacity-70 mt-1">
+                    (折USD)${(stats?.totalLoanAmount / 7 / 100000000).toFixed(2)}亿
                   </div>
-                  <div className="text-2xl font-bold">{stats?.totalLoans || 0}</div>
                 </div>
-                <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="w-4 h-4 opacity-80" />
-                    <span className="text-sm opacity-80">累计放款</span>
-                  </div>
-                  <div className="text-xl font-bold">{formatCurrency(stats?.totalLoanAmount || 0)}</div>
-                </div>
-                <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet className="w-4 h-4 opacity-80" />
-                    <span className="text-sm opacity-80">在贷余额</span>
-                  </div>
-                  <div className="text-xl font-bold">{formatCurrency(stats?.totalBalance || 0)}</div>
-                </div>
+
+                {/* 2. 逾期总额(逾期>0天) */}
                 <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 opacity-80" />
-                    <span className="text-sm opacity-80">逾期总额</span>
+                  <div className="text-sm opacity-80 mb-1">
+                    逾期总额(CNY)
+                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
                   </div>
-                  <div className="text-xl font-bold">{formatCurrency(stats?.totalPastdueAmount || 0)}</div>
+                  <div className="text-xl font-bold">{(stats?.overdueByDays?.over0Days?.amount / 10000).toFixed(2)}万</div>
+                  <div className="text-xs opacity-70 mt-1">
+                    逾期率：{(stats?.overdueByDays?.over0Days?.rate * 100 || 0).toFixed(2)}%
+                  </div>
                 </div>
-                <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Percent className="w-4 h-4 opacity-80" />
-                    <span className="text-sm opacity-80">逾期率</span>
+
+                {/* 3. 逾期总额(逾期>30天) */}
+                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white">
+                  <div className="text-sm opacity-80 mb-1">
+                    逾期总额(CNY)
+                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
                   </div>
-                  <div className="text-2xl font-bold">
-                    {(stats?.overdueRate || 0).toFixed(1)}%
+                  <div className="text-xl font-bold">{(stats?.overdueByDays?.over30Days?.amount / 10000).toFixed(2)}万</div>
+                  <div className="text-xs opacity-70 mt-1">
+                    逾期率：{(stats?.overdueByDays?.over30Days?.rate * 100 || 0).toFixed(2)}%
+                  </div>
+                </div>
+
+                {/* 4. 逾期总额(逾期>90天) */}
+                <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white">
+                  <div className="text-sm opacity-80 mb-1">
+                    逾期总额(CNY)
+                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
+                  </div>
+                  <div className="text-xl font-bold">{(stats?.overdueByDays?.over90Days?.amount / 10000).toFixed(2)}万</div>
+                  <div className="text-xs opacity-70 mt-1">
+                    逾期率：{(stats?.overdueByDays?.over90Days?.rate * 100 || 0).toFixed(2)}%
+                  </div>
+                </div>
+
+                {/* 5. 预警金额 */}
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white">
+                  <div className="text-sm opacity-80 mb-1">
+                    预警金额(CNY)
+                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
+                  </div>
+                  <div className="text-xl font-bold">{formatCurrency(stats?.warningInfo?.amount || 0)}</div>
+                  <div className="text-xs opacity-70 mt-1">
+                    {stats?.warningInfo?.merchantCount || 0}个逾期商户
+                  </div>
+                </div>
+              </div>
+
+              {/* 逾期明细对比表 */}
+              <div className="mb-6 bg-slate-50 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">逾期金额明细（按天数分级）</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="flex items-center justify-between border-b-2 border-red-500 pb-2">
+                    <div>
+                      <div className="text-xs text-slate-500">逾期&gt;0天</div>
+                      <div className="font-mono font-bold text-red-600">
+                        ¥{(stats?.overdueByDays?.over0Days?.amount / 10000).toFixed(2)}万
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500">折USD</div>
+                      <div className="font-mono text-sm">${(stats?.overdueByDays?.over0Days?.amountUSD / 10000).toFixed(2)}万</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-b-2 border-orange-500 pb-2">
+                    <div>
+                      <div className="text-xs text-slate-500">逾期&gt;30天</div>
+                      <div className="font-mono font-bold text-orange-600">
+                        ¥{(stats?.overdueByDays?.over30Days?.amount / 10000).toFixed(2)}万
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500">折USD</div>
+                      <div className="font-mono text-sm">${(stats?.overdueByDays?.over30Days?.amountUSD / 10000).toFixed(2)}万</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-b-2 border-amber-500 pb-2">
+                    <div>
+                      <div className="text-xs text-slate-500">逾期&gt;90天</div>
+                      <div className="font-mono font-bold text-amber-600">
+                        ¥{(stats?.overdueByDays?.over90Days?.amount / 10000).toFixed(2)}万
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500">折USD</div>
+                      <div className="font-mono text-sm">${(stats?.overdueByDays?.over90Days?.amountUSD / 10000).toFixed(2)}万</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-b-2 border-purple-500 pb-2">
+                    <div>
+                      <div className="text-xs text-slate-500">预警金额</div>
+                      <div className="font-mono font-bold text-purple-600">
+                        ¥{(stats?.warningInfo?.amount / 10000).toFixed(2)}万
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500">折USD</div>
+                      <div className="font-mono text-sm">${(stats?.warningInfo?.amountUSD / 10000).toFixed(2)}万</div>
+                    </div>
                   </div>
                 </div>
               </div>
