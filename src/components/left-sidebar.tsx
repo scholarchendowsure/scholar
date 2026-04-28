@@ -80,11 +80,7 @@ const navItems: NavItem[] = [
     href: '/hsbc-panel',
     icon: <Building2 className="h-5 w-5" />
   },
-  {
-    title: '汇丰案件',
-    href: '/hsbc-panel/cases',
-    icon: <Building2 className="h-5 w-5" />
-  },
+
   {
     title: 'MCP数据仓库',
     href: '/mcp-warehouse',

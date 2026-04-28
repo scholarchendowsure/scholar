@@ -36,7 +36,6 @@ const navItems: NavItem[] = [
   { href: '/case-import', label: '案件导入', icon: Upload, gradient: 'from-yellow-500 to-amber-400' },
   { href: '/users', label: '用户管理', icon: Users, gradient: 'from-purple-500 to-violet-400' },
   { href: '/hsbc-panel', label: '汇丰仪表盘', icon: TrendingUp, gradient: 'from-red-500 to-rose-400' },
-  { href: '/hsbc-panel/cases', label: '汇丰案件', icon: FileText, gradient: 'from-slate-500 to-gray-400' },
   { href: '/mcp-warehouse', label: 'MCP数据仓库', icon: Database, gradient: 'from-teal-500 to-cyan-400' },
   { href: '/recycle-bin', label: '回收站', icon: Trash2, gradient: 'from-orange-500 to-red-400' },
 ];
