@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Search, Filter, Download, ChevronDown, ChevronUp,
-  Building2, Banknote, AlertTriangle, Calendar, RefreshCw, Eye
+  Building2, Banknote, AlertTriangle, Calendar, RefreshCw, Eye, Columns
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,6 +75,36 @@ export default function HSBCCasesPage() {
   const [merchants, setMerchants] = useState<MerchantGroup[]>([]);
   const [batchDates, setBatchDates] = useState<string[]>([]);
   const [selectedBatchDate, setSelectedBatchDate] = useState<string>('');
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['loanReference', 'loanStartDate', 'loanTenor', 'maturityDate', 'loanAmount', 'balance', 'pastdueAmount', 'status']);
+  
+  const columnDefinitions = [
+    { key: 'loanReference', label: '贷款编号' },
+    { key: 'loanStartDate', label: '贷款日期' },
+    { key: 'loanTenor', label: '期限' },
+    { key: 'maturityDate', label: '到期日' },
+    { key: 'loanAmount', label: '贷款金额' },
+    { key: 'balance', label: '余额' },
+    { key: 'pastdueAmount', label: '逾期金额' },
+    { key: 'totalRepaid', label: '已还款总额' },
+    { key: 'totalInterestRate', label: '利率' },
+    { key: 'status', label: '状态' },
+  ];
+  
+  const toggleColumn = (key: string) => {
+    if (visibleColumns.includes(key)) {
+      setVisibleColumns(visibleColumns.filter(k => k !== key));
+    } else {
+      setVisibleColumns([...visibleColumns, key]);
+    }
+  };
+  
+  const calcTotalRepaid = (loan: HSBCLoan): number => {
+    if (Array.isArray(loan.repaymentSchedule)) {
+      return loan.repaymentSchedule.reduce((sum: number, p: { amount?: number }) => sum + (p.amount || 0), 0);
+    }
+    return 0;
+  };
 
   const fetchBatchDates = useCallback(async () => {
     try {
@@ -258,6 +288,30 @@ export default function HSBCCasesPage() {
                 <SelectItem value="overdue">逾期</SelectItem>
               </SelectContent>
             </Select>
+            <div className="relative ml-auto">
+              <Button variant="outline" size="sm" onClick={() => setShowColumnPicker(!showColumnPicker)} className="gap-2">
+                <Columns className="w-4 h-4" />
+                列选择
+              </Button>
+              {showColumnPicker && (
+                <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[200px]">
+                  <p className="text-sm font-medium text-slate-700 mb-2">选择显示的列</p>
+                  <div className="space-y-2">
+                    {columnDefinitions.map(col => (
+                      <label key={col.key} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.includes(col.key)}
+                          onChange={() => toggleColumn(col.key)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-slate-600">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -324,45 +378,69 @@ export default function HSBCCasesPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50">
-                        <TableHead className="w-[160px]">贷款编号</TableHead>
-                        <TableHead>贷款日期</TableHead>
-                        <TableHead>期限</TableHead>
-                        <TableHead>到期日</TableHead>
-                        <TableHead className="text-right">贷款金额</TableHead>
-                        <TableHead className="text-right">余额</TableHead>
-                        <TableHead className="text-right">逾期金额</TableHead>
-                        <TableHead>利率</TableHead>
-                        <TableHead>状态</TableHead>
+                        {visibleColumns.includes('loanReference') && <TableHead className="w-[160px]">贷款编号</TableHead>}
+                        {visibleColumns.includes('loanStartDate') && <TableHead>贷款日期</TableHead>}
+                        {visibleColumns.includes('loanTenor') && <TableHead>期限</TableHead>}
+                        {visibleColumns.includes('maturityDate') && <TableHead>到期日</TableHead>}
+                        {visibleColumns.includes('loanAmount') && <TableHead className="text-right">贷款金额</TableHead>}
+                        {visibleColumns.includes('balance') && <TableHead className="text-right">余额</TableHead>}
+                        {visibleColumns.includes('pastdueAmount') && <TableHead className="text-right">逾期金额</TableHead>}
+                        {visibleColumns.includes('totalRepaid') && <TableHead className="text-right">已还款总额</TableHead>}
+                        {visibleColumns.includes('totalInterestRate') && <TableHead>利率</TableHead>}
+                        {visibleColumns.includes('status') && <TableHead>状态</TableHead>}
                         <TableHead className="w-[100px]">操作</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {merchant.loans.map((loan) => (
                         <TableRow key={loan.id} className="hover:bg-slate-50">
+                          {visibleColumns.includes('loanReference') && (
                           <TableCell className="font-mono text-sm">
                             <div className="flex items-center gap-2">
                               <Banknote className="w-4 h-4 text-slate-400" />
                               {loan.loanReference}
                             </div>
                           </TableCell>
+                        )}
+                        {visibleColumns.includes('loanStartDate') && (
                           <TableCell className="text-sm">{loan.loanStartDate}</TableCell>
+                        )}
+                        {visibleColumns.includes('loanTenor') && (
                           <TableCell className="text-sm">{loan.loanTenor}</TableCell>
+                        )}
+                        {visibleColumns.includes('maturityDate') && (
                           <TableCell className="text-sm">{loan.maturityDate}</TableCell>
+                        )}
+                        {visibleColumns.includes('loanAmount') && (
                           <TableCell className="text-right font-mono text-sm">
                             {formatCurrency(loan.loanAmount, loan.loanCurrency)}
                           </TableCell>
+                        )}
+                        {visibleColumns.includes('balance') && (
                           <TableCell className="text-right font-mono text-sm">
                             {formatCurrency(loan.balance, loan.loanCurrency)}
                           </TableCell>
+                        )}
+                        {visibleColumns.includes('pastdueAmount') && (
                           <TableCell className={`text-right font-mono text-sm ${loan.pastdueAmount > 0 ? 'text-red-600 font-medium' : 'text-green-600'}`}>
                             {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
                           </TableCell>
+                        )}
+                        {visibleColumns.includes('totalRepaid') && (
+                          <TableCell className="text-right font-mono text-sm text-blue-600">
+                            {formatCurrency(calcTotalRepaid(loan), loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('totalInterestRate') && (
                           <TableCell className="text-sm text-slate-600">{loan.totalInterestRate}%</TableCell>
+                        )}
+                        {visibleColumns.includes('status') && (
                           <TableCell>{getStatusBadge(loan.pastdueAmount)}</TableCell>
-                          <TableCell>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedLoan(loan)}>
+                        )}
+                        <TableCell>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelectedLoan(loan)}>
                                   <Eye className="w-4 h-4" />
                                   详情
                                 </Button>
