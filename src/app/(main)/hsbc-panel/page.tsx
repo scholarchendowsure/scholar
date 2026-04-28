@@ -495,6 +495,9 @@ export default function HSBCPanelPage() {
   const [filePassword, setFilePassword] = useState<string>('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
+  // 仪表盘币种选择状态
+  const [dashboardCurrency, setDashboardCurrency] = useState<'CNY' | 'USD' | 'ALL'>('CNY');
+
   // 列选择相关状态
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
@@ -1126,186 +1129,386 @@ export default function HSBCPanelPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
-              {/* 标题说明 */}
-              <div className="text-sm text-slate-500 mb-4">
-                <span className="font-semibold">汇丰（香港）数据</span>（汇率1USD=7CNY）
+              {/* 标题说明和币种选择 */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-slate-500">
+                  <span className="font-semibold">汇丰（香港）数据</span>（汇率1USD=7CNY）
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">币种筛选:</span>
+                  <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                    <button
+                      onClick={() => setDashboardCurrency('CNY')}
+                      className={`px-3 py-1.5 text-sm transition-colors ${
+                        dashboardCurrency === 'CNY'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      折CNY
+                    </button>
+                    <button
+                      onClick={() => setDashboardCurrency('USD')}
+                      className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
+                        dashboardCurrency === 'USD'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      折USD
+                    </button>
+                    <button
+                      onClick={() => setDashboardCurrency('ALL')}
+                      className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
+                        dashboardCurrency === 'ALL'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      全部
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* 核心指标 - 5个数据卡片 */}
+              {/* 核心指标 - 根据币种选择显示 */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 {/* 1. 在贷总额 */}
-                <div 
-                  className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'totalBalance' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                  onClick={() => handleCardClick('totalBalance')}
-                >
-                  <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
-                  <div className="text-xl font-bold">¥{((stats?.totalBalance || 0) / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>折USD: ${((stats?.totalBalance || 0) / 7 / 10000).toFixed(2)}万</div>
-                    <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
-                    <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'totalBalance' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('totalBalance')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
+                    <div className="text-xl font-bold">¥{((stats?.totalBalance || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
+                      <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'totalBalanceUSD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('totalBalance')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">在贷总额(折USD)</div>
+                    <div className="text-xl font-bold">${((stats?.totalBalanceUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
+                      <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 2. 逾期总额(逾期>0天) */}
-                <div 
-                  className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                  onClick={() => handleCardClick('overdue0')}
-                >
-                  <div className="text-sm opacity-80 mb-1">
-                    逾期总额(CNY)
-                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue0')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over0Days?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over0Days?.amount || 0) / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
-                    <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
-                    <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-red-600 to-red-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue0')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.overdueByDays?.over0Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 3. 逾期总额(逾期>30天) */}
-                <div 
-                  className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                  onClick={() => handleCardClick('overdue30')}
-                >
-                  <div className="text-sm opacity-80 mb-1">
-                    逾期总额(CNY)
-                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue30')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over30Days?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over30Days?.amount || 0) / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
-                    <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
-                    <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-orange-600 to-orange-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue30')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.overdueByDays?.over30Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 4. 逾期总额(逾期>90天) */}
-                <div 
-                  className={`bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                  onClick={() => handleCardClick('overdue90')}
-                >
-                  <div className="text-sm opacity-80 mb-1">
-                    逾期总额(CNY)
-                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue90')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over90Days?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over90Days?.amount || 0) / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
-                    <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
-                    <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-amber-600 to-amber-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue90')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.overdueByDays?.over90Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* 5. 预警金额 */}
-                <div 
-                  className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warning' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                  onClick={() => handleCardClick('warning')}
-                >
-                  <div className="text-sm opacity-80 mb-1">
-                    预警金额(CNY)
-                    <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warning' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('warning')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      预警金额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.warningInfo?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold">¥{((stats?.warningInfo?.amount || 0) / 10000).toFixed(2)}万</div>
-                  <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                    <div>折USD: ${((stats?.warningInfo?.amountUSD || 0) / 10000).toFixed(2)}万</div>
-                    <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
-                    <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warningUSD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('warning')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      预警金额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.warningInfo?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* 还款期限分布 - 5个卡片 */}
+              {/* 还款期限分布 - 根据币种选择显示 */}
               <div className="mt-6">
-                <div className="text-sm text-slate-500 mb-4">
+                <div className="grid grid-cols-1 gap-4">
+                  {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      {/* 3天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due3' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due3')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">3天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
 
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  {/* 3天内 */}
-                  <div 
-                    className={`bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due3' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                    onClick={() => handleCardClick('due3')}
-                  >
-                    <div className="text-sm opacity-80 mb-1">3天内需还款(折CNY)</div>
-                    <div className="text-xl font-bold mb-2">
-                      ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万
-                    </div>
-                    <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[3]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
-                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
-                    </div>
-                  </div>
+                      {/* 7天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due7' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due7')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">7天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
 
-                  {/* 7天内 */}
-                  <div 
-                    className={`bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due7' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                    onClick={() => handleCardClick('due7')}
-                  >
-                    <div className="text-sm opacity-80 mb-1">7天内需还款(折CNY)</div>
-                    <div className="text-xl font-bold mb-2">
-                      ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万
-                    </div>
-                    <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[7]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
-                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
-                    </div>
-                  </div>
+                      {/* 15天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due15' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due15')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">15天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
 
-                  {/* 15天内 */}
-                  <div 
-                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due15' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                    onClick={() => handleCardClick('due15')}
-                  >
-                    <div className="text-sm opacity-80 mb-1">15天内需还款(折CNY)</div>
-                    <div className="text-xl font-bold mb-2">
-                      ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万
-                    </div>
-                    <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[15]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
-                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
-                    </div>
-                  </div>
+                      {/* 30天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due30')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">30天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
 
-                  {/* 30天内 */}
-                  <div 
-                    className={`bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                    onClick={() => handleCardClick('due30')}
-                  >
-                    <div className="text-sm opacity-80 mb-1">30天内需还款(折CNY)</div>
-                    <div className="text-xl font-bold mb-2">
-                      ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                      {/* 45天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due45' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due45')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">45天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[30]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
-                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
-                    </div>
-                  </div>
+                  )}
 
-                  {/* 45天内 */}
-                  <div 
-                    className={`bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due45' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                    onClick={() => handleCardClick('due45')}
-                  >
-                    <div className="text-sm opacity-80 mb-1">45天内需还款(折CNY)</div>
-                    <div className="text-xl font-bold mb-2">
-                      ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                  {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      {/* 3天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-teal-600 to-teal-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due3USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due3')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">3天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[3]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 7天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due7USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due7')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">7天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[7]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 15天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due15USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due15')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">15天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[15]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 30天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due30')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">30天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[30]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 45天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-violet-600 to-violet-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due45USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due45')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">45天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[45]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs space-y-0.5">
-                      <div className="opacity-90">CNY: ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-70">USD: ${((stats?.repaymentDue?.[45]?.usdAmount || 0) / 10000).toFixed(2)}万</div>
-                      <div className="opacity-80">贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
-                      <div className="opacity-80">商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
