@@ -864,6 +864,33 @@ export default function HSBCPanelPage() {
     });
   }, [filteredLoans, sortField, sortOrder]);
 
+  // 计算当前筛选结果的USD和CNY统计
+  const usdStats = filteredLoans.reduce(
+    (acc, loan: HSBCLoan) => {
+      if (loan.loanCurrency === 'USD') {
+        const balance = calcBalance(loan);
+        const pastdue = calcPastdueAmount(loan);
+        acc.totalBalance += balance;
+        acc.totalPastdue += pastdue;
+      }
+      return acc;
+    },
+    { totalBalance: 0, totalPastdue: 0 }
+  );
+
+  const cnyStats = filteredLoans.reduce(
+    (acc, loan: HSBCLoan) => {
+      if (loan.loanCurrency === 'CNY') {
+        const balance = calcBalance(loan);
+        const pastdue = calcPastdueAmount(loan);
+        acc.totalBalance += balance;
+        acc.totalPastdue += pastdue;
+      }
+      return acc;
+    },
+    { totalBalance: 0, totalPastdue: 0 }
+  );
+
   // 分页
   const totalPages = Math.ceil(sortedFilteredLoans.length / pageSize);
   const paginatedLoans = sortedFilteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -1291,7 +1318,19 @@ export default function HSBCPanelPage() {
                   汇丰案件列表
                   <Badge variant="secondary" className="ml-2">
                     {filteredLoans.length} 条记录
-                  </Badge>
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-700">
+                      USD余额: ${(usdStats.totalBalance / 10000).toFixed(2)}万
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 border-red-300 text-red-700">
+                      USD逾期: ${(usdStats.totalPastdue / 10000).toFixed(2)}万
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-700">
+                      CNY余额: ¥{(cnyStats.totalBalance / 10000).toFixed(2)}万
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 border-red-300 text-red-700">
+                      CNY逾期: ¥{(cnyStats.totalPastdue / 10000).toFixed(2)}万
+                    </Badge>
                   {activeCardFilter && (
                     <Badge variant="outline" className="ml-2 bg-yellow-50 border-yellow-400 text-yellow-700">
                       已筛选: {getFilterLabel(activeCardFilter)}
