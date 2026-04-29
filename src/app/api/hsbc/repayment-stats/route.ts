@@ -2,10 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllHSBCLoans } from '@/storage/database/hsbc-loan-storage';
 import { HSBCLoan } from '@/lib/hsbc-loan';
 
+// 安全解析日期字符串（避免时区偏移问题）
+function parseDateSafe(dateStr: string): number {
+  if (!dateStr) return 0;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return 0;
+  // 使用年月日构建一个纯日期比较值，避免时区问题
+  return parseInt(parts[0]) * 10000 + parseInt(parts[1]) * 100 + parseInt(parts[2]);
+}
+
+// 从日期字符串中提取年月
+function getYearMonth(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 2) return '';
+  return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+}
+
 // 按月份统计还款数据
 function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
-  const [year, month] = yearMonth.split('-').map(Number);
-  
   let ontimeRepaymentUSD = 0; // 未逾期还款金额
   let ontimeRepaymentCNY = 0;
   let ontimeCount = 0; // 未逾期还款笔数
@@ -20,27 +35,24 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
   for (const loan of loans) {
     if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) continue;
     
-    const maturityDate = new Date(loan.maturityDate);
-    const maturityTimestamp = maturityDate.getTime();
+    const maturityDateValue = parseDateSafe(loan.maturityDate);
     
     let loanHasOntimeRepayment = false;
     let loanHasOverdueRepayment = false;
     
     for (const repayment of loan.repaymentSchedule) {
-      const repaymentDate = new Date(repayment.date);
-      const repaymentTimestamp = repaymentDate.getTime();
       const repaymentAmount = repayment.amount || 0;
-      
       if (repaymentAmount <= 0) continue;
       
       // 判断是否在指定月份
-      const repayYear = repaymentDate.getFullYear();
-      const repayMonth = repaymentDate.getMonth() + 1;
+      const repayYearMonth = getYearMonth(repayment.date);
+      if (repayYearMonth !== yearMonth) continue;
       
-      if (repayYear !== year || repayMonth !== month) continue;
+      // 安全比较日期：还款日期 <= 到期日 → 未逾期还款
+      const repaymentDateValue = parseDateSafe(repayment.date);
       
-      // 判断是否在到期日之前还款（未逾期还款）
-      if (repaymentTimestamp < maturityTimestamp) {
+      if (!maturityDateValue || repaymentDateValue <= maturityDateValue) {
+        // 还款日期在到期日当天或之前 → 未逾期还款
         if (loan.loanCurrency === 'USD') {
           ontimeRepaymentUSD += repaymentAmount;
         } else {
@@ -49,7 +61,7 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
         loanHasOntimeRepayment = true;
         ontimeCount++;
       } else {
-        // 到期日之后还款（逾期后还款）
+        // 还款日期在到期日之后 → 逾期后还款
         if (loan.loanCurrency === 'USD') {
           overdueRepaymentUSD += repaymentAmount;
         } else {
@@ -99,14 +111,11 @@ function getAvailableRepaymentMonths(loans: HSBCLoan[]): string[] {
     if (!loan.repaymentSchedule) continue;
     
     for (const repayment of loan.repaymentSchedule) {
-      const date = new Date(repayment.date);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      months.add(`${year}-${month}`);
+      const ym = getYearMonth(repayment.date);
+      if (ym) months.add(ym);
     }
   }
   
-  // 排序，返回最新的在前
   return Array.from(months).sort().reverse();
 }
 
@@ -128,13 +137,10 @@ export async function GET(request: NextRequest) {
     // 获取可用的还款月份
     const availableMonths = getAvailableRepaymentMonths(filteredLoans);
     
-    // 如果没有指定月份，使用最新的月份（如果当前批次的月份没有数据）
-    const targetMonth = yearMonth || availableMonths[0] || '';
-    
-    // 如果指定了批次但该批次没有还款数据月份，则使用可用月份中与批次最近的
-    let finalMonth = targetMonth;
-    if (batchDate && availableMonths.length > 0) {
-      finalMonth = availableMonths[0]; // 使用最新的还款月份
+    // 确定目标月份：优先使用用户指定的月份，否则使用最新的还款月份
+    let finalMonth = yearMonth || '';
+    if (!finalMonth && availableMonths.length > 0) {
+      finalMonth = availableMonths[0]; // 默认使用最新的还款月份
     }
     
     // 计算指定月份的还款统计
