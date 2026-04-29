@@ -69,53 +69,32 @@ export async function getAllHSBCLoans(): Promise<HSBCLoan[]> {
   return allLoans;
 }
 
-// 按批次日期获取汇丰贷款
+// 按批次日期获取汇丰贷款（从 JSON 缓存文件获取，包含完整的还款计划数据）
 export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLoan[]> {
-  const client = getClient();
-  
-  // 首先获取批次ID
-  const { data: batchData, error: batchError } = await client
-    .from('hsbc_loan_batches')
-    .select('id')
-    .eq('batch_date', batchDate)
-    .single();
-  
-  if (batchError || !batchData) {
-    console.warn('未找到批次:', batchDate);
+  try {
+    // 动态导入 hsbc-data 模块
+    const hsbcData = await import('@/lib/hsbc-data');
+    return hsbcData.getLoansByBatchDate(batchDate);
+  } catch (err) {
+    console.error('从 JSON 获取贷款失败:', err);
     return [];
   }
-  
-  const batchId = batchData.id;
-  const allLoans: HSBCLoan[] = [];
-  const BATCH_SIZE = 1000;
-  
-  // 分批获取数据，Supabase 默认限制 1000 行/页
-  while (true) {
-    const { data, error } = await client
-      .from('hsbc_loans')
-      .select('*')
-      .eq('batch_id', batchId)
-      .order('loan_reference')
-      .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
-    
-    if (error) {
-      console.error('获取汇丰贷款失败:', error);
-      throw new Error(`获取汇丰贷款失败: ${error.message}`);
-    }
-    
-    if (!data || data.length === 0) break;
-    allLoans.push(...data.map(transformRow));
-    
-    if (data.length < BATCH_SIZE) break;
-  }
-  
-  console.log(`[DEBUG] getHSBCLoansByBatchDate(${batchDate}): batch_id=${batchId}, returned ${allLoans.length} rows`);
-  
-  return allLoans;
 }
 
 // 获取所有批次日期
 export async function getAllBatchDates(): Promise<string[]> {
+  try {
+    // 从 JSON 缓存获取批次日期
+    const hsbcData = await import('@/lib/hsbc-data');
+    const dates = hsbcData.getBatchDates();
+    if (dates && dates.length > 0) {
+      return dates;
+    }
+  } catch (err) {
+    console.error('从 JSON 获取批次日期失败:', err);
+  }
+  
+  // 备用：从数据库获取
   const client = getClient();
   const { data, error } = await client
     .from('hsbc_loan_batches')
