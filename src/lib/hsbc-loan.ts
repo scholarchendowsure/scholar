@@ -89,63 +89,54 @@ export function calcTotalRepaid(loan: HSBCLoan): number {
   return 0;
 }
 
-// 计算余额：优先使用存储的余额，否则计算
+// 计算余额：贷款金额 - 已还款总额
 export function calcBalance(loan: HSBCLoan): number {
-  // 如果有存储的 balance 且大于 0，直接使用
-  if (loan.balance !== undefined && loan.balance > 0) {
-    return loan.balance;
-  }
-  
-  // 如果余额 <= 0.9 或者没有存储余额，则计算
   const totalRepaid = calcTotalRepaid(loan);
   const balance = loan.loanAmount - totalRepaid;
   // 余额不能为负数
   return Math.max(0, balance);
 }
 
-// 计算逾期金额：直接使用 Excel 导入的逾期金额
-// 根据字段说明文档：优先使用存储的 pastdueAmount 值
+// 计算逾期金额
+// 到期日过后，如果余额 >= 0.9，才算为逾期金额
 export function calcPastdueAmount(loan: HSBCLoan): number {
   // 如果有存储的 pastdueAmount 且大于 0，直接使用
   if (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0) {
     return loan.pastdueAmount;
   }
   
-  // 如果没有存储的逾期金额，返回 0
-  // 不进行动态计算，以确保与 Excel 导入数据一致
+  // 检查是否到期且余额 >= 0.9
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const maturityDate = new Date(loan.maturityDate);
+  maturityDate.setHours(0, 0, 0, 0);
+  
+  // 如果到期日已过
+  if (maturityDate < today) {
+    const balance = calcBalance(loan);
+    // 余额 >= 0.9 算作逾期金额
+    if (balance >= 0.9) {
+      return balance;
+    }
+  }
+  
   return 0;
 }
 
 // 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）
 export function calcOverdueDays(loan: HSBCLoan): number {
-  // 如果有存储的 pastdueAmount 且大于 0，说明已逾期
-  if (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0) {
-    // 如果有存储的 overdueDays，直接使用
-    if (loan.overdueDays !== undefined && loan.overdueDays > 0) {
-      return loan.overdueDays;
-    }
-    
-    // 否则基于 maturityDate 和 batchDate 计算
-    // 使用批次日期或到期日计算逾期天数
-    const batchDate = loan.batchDate ? new Date(loan.batchDate) : new Date();
-    const maturityDate = new Date(loan.maturityDate);
-    
-    // 计算从到期日到批次日期的逾期天数
-    const diffTime = batchDate.getTime() - maturityDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays > 0 ? diffDays : 1; // 至少返回1表示逾期
-  }
-  
   const balance = calcBalance(loan);
-  // 如果余额 <= 0.9，则不算逾期，返回 -1 表示不逾期
-  if (balance <= 0.9) {
-    return -1;
-  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maturityDate = new Date(loan.maturityDate);
   maturityDate.setHours(0, 0, 0, 0);
+  
+  // 如果余额 <= 0.9 或未到期，不算逾期
+  if (balance < 0.9 || maturityDate >= today) {
+    return -1;
+  }
+  
+  // 计算逾期天数
   const diffTime = today.getTime() - maturityDate.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
@@ -162,20 +153,27 @@ export function calcDaysToMaturity(loan: HSBCLoan): number {
   return diffDays;
 }
 
-// 获取状态：基于余额和逾期金额判断
+// 获取状态：基于余额和逾期判断
+// 到期日过后，如果余额 >= 0.9，才算为逾期
 export function calcStatus(loan: HSBCLoan): 'active' | 'settled' | 'overdue' | 'settling' {
   const balance = calcBalance(loan);
   const pastdueAmount = calcPastdueAmount(loan);
   
+  // 如果余额为0，已结清
   if (balance === 0) {
     return 'settled';
   }
+  
+  // 如果余额 >= 0.9 且已到期，算逾期
   if (pastdueAmount > 0) {
     return 'overdue';
   }
+  
+  // 如果有还款但还没结清，算还款中
   if (balance < loan.loanAmount) {
-    return 'settling'; // 还款中
+    return 'settling';
   }
+  
   return 'active';
 }
 
