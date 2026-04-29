@@ -517,10 +517,14 @@ export default function HSBCPanelPage() {
   const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState<string>('');
+  const [activeRepaymentCard, setActiveRepaymentCard] = useState<string | null>(null);
+  const [filteredLoanReferences, setFilteredLoanReferences] = useState<string[] | null>(null);
   
   // 切换还款统计月份
   const handleMonthChange = async (month: string) => {
     setSelectedRepaymentMonth(month);
+    setActiveRepaymentCard(null);
+    setFilteredLoanReferences(null);
     try {
       const params = new URLSearchParams();
       if (selectedBatchDate) params.set('batchDate', selectedBatchDate);
@@ -534,6 +538,34 @@ export default function HSBCPanelPage() {
     } catch (err) {
       console.error('加载还款统计失败:', err);
     }
+  };
+
+  // 处理还款统计卡片点击
+  const handleRepaymentCardClick = (type: 'ontime' | 'overdue' | 'total') => {
+    if (activeRepaymentCard === type) {
+      // 再次点击同一卡片，取消筛选
+      setActiveRepaymentCard(null);
+      setFilteredLoanReferences(null);
+    } else {
+      // 点击新卡片，应用筛选
+      setActiveRepaymentCard(type);
+      let refs: string[] = [];
+      if (type === 'ontime') {
+        refs = (repaymentStats?.stats?.ontimeRepayment as any)?.loanReferences || [];
+      } else if (type === 'overdue') {
+        refs = (repaymentStats?.stats?.overdueRepayment as any)?.loanReferences || [];
+      } else if (type === 'total') {
+        refs = (repaymentStats?.stats?.totalRepayment as any)?.loanReferences || [];
+      }
+      setFilteredLoanReferences(refs);
+    }
+    // 清除其他卡片筛选
+    setActiveCardFilter(null);
+    // 滚动到案件列表
+    setTimeout(() => {
+      casesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    setCurrentPage(1); // 重置分页
   };
   
   const columnDefinitions = [
@@ -691,6 +723,9 @@ export default function HSBCPanelPage() {
     } else {
       setActiveCardFilter(filterType);
     }
+    // 清除还款统计筛选
+    setActiveRepaymentCard(null);
+    setFilteredLoanReferences(null);
     // 滚动到案件列表
     setTimeout(() => {
       casesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -842,7 +877,11 @@ export default function HSBCPanelPage() {
       }
     }
     
-    return matchSearch && matchCurrency && matchStatus && matchCardFilter;
+    // 还款统计卡片筛选
+    const matchRepaymentFilter = !filteredLoanReferences || filteredLoanReferences.length === 0 || 
+      filteredLoanReferences.includes(loan.loanReference);
+    
+    return matchSearch && matchCurrency && matchStatus && matchCardFilter && matchRepaymentFilter;
   });
 
   // 排序后的数据
@@ -1468,12 +1507,18 @@ export default function HSBCPanelPage() {
                 {repaymentStats?.stats ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* 未逾期还款 */}
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
+                    <div 
+                      className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'ontime' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('ontime')}
+                    >
                       <div className="text-sm opacity-90 mb-2">
                         <span className="inline-flex items-center gap-1">
                           <CheckCircle className="w-4 h-4" />
                           未逾期还款
                         </span>
+                        {activeRepaymentCard === 'ontime' && (
+                          <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
+                        )}
                       </div>
                       <div className="space-y-2">
                         {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
@@ -1496,12 +1541,18 @@ export default function HSBCPanelPage() {
                     </div>
 
                     {/* 逾期后还款 */}
-                    <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white">
+                    <div 
+                      className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'overdue' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('overdue')}
+                    >
                       <div className="text-sm opacity-90 mb-2">
                         <span className="inline-flex items-center gap-1">
                           <AlertTriangle className="w-4 h-4" />
                           逾期后还款
                         </span>
+                        {activeRepaymentCard === 'overdue' && (
+                          <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
+                        )}
                       </div>
                       <div className="space-y-2">
                         {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
@@ -1524,12 +1575,18 @@ export default function HSBCPanelPage() {
                     </div>
 
                     {/* 还款总额 */}
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+                    <div 
+                      className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'total' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('total')}
+                    >
                       <div className="text-sm opacity-90 mb-2">
                         <span className="inline-flex items-center gap-1">
                           <DollarSign className="w-4 h-4" />
                           还款总额
                         </span>
+                        {activeRepaymentCard === 'total' && (
+                          <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
+                        )}
                       </div>
                       <div className="space-y-2">
                         {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
@@ -1756,6 +1813,12 @@ export default function HSBCPanelPage() {
                   {activeCardFilter && (
                     <Badge variant="outline" className="ml-2 bg-yellow-50 border-yellow-400 text-yellow-700">
                       已筛选: {getFilterLabel(activeCardFilter)}
+                    </Badge>
+                  )}
+                  {activeRepaymentCard && (
+                    <Badge variant="outline" className="ml-2 bg-green-50 border-green-400 text-green-700">
+                      还款筛选: {activeRepaymentCard === 'ontime' ? '未逾期还款' : activeRepaymentCard === 'overdue' ? '逾期后还款' : '还款总额'}
+                      {selectedRepaymentMonth && ` (${selectedRepaymentMonth})`}
                     </Badge>
                   )}
                 </CardTitle>

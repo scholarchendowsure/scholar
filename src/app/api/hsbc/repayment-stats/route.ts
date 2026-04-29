@@ -29,8 +29,8 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
   let overdueRepaymentCNY = 0;
   let overdueCount = 0; // 逾期后还款笔数
   
-  let ontimeLoanCount = 0; // 有未逾期还款的贷款数
-  let overdueLoanCount = 0; // 有逾期后还款的贷款数
+  const ontimeLoanReferences = new Set<string>(); // 有未逾期还款的贷款编号
+  const overdueLoanReferences = new Set<string>(); // 有逾期后还款的贷款编号
   
   for (const loan of loans) {
     if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) continue;
@@ -72,8 +72,8 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
       }
     }
     
-    if (loanHasOntimeRepayment) ontimeLoanCount++;
-    if (loanHasOverdueRepayment) overdueLoanCount++;
+    if (loanHasOntimeRepayment) ontimeLoanReferences.add(loan.loanReference);
+    if (loanHasOverdueRepayment) overdueLoanReferences.add(loan.loanReference);
   }
   
   // 转换为万为单位
@@ -84,7 +84,8 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
       amountUSDWan: (ontimeRepaymentUSD / 10000).toFixed(2),
       amountCNYWan: (ontimeRepaymentCNY / 10000).toFixed(2),
       count: ontimeCount,
-      loanCount: ontimeLoanCount,
+      loanCount: ontimeLoanReferences.size,
+      loanReferences: Array.from(ontimeLoanReferences),
     },
     overdueRepayment: {
       amountUSD: overdueRepaymentUSD,
@@ -92,13 +93,15 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
       amountUSDWan: (overdueRepaymentUSD / 10000).toFixed(2),
       amountCNYWan: (overdueRepaymentCNY / 10000).toFixed(2),
       count: overdueCount,
-      loanCount: overdueLoanCount,
+      loanCount: overdueLoanReferences.size,
+      loanReferences: Array.from(overdueLoanReferences),
     },
     totalRepayment: {
       amountUSD: ontimeRepaymentUSD + overdueRepaymentUSD,
       amountCNY: ontimeRepaymentCNY + overdueRepaymentCNY,
       amountUSDWan: ((ontimeRepaymentUSD + overdueRepaymentUSD) / 10000).toFixed(2),
       amountCNYWan: ((ontimeRepaymentCNY + overdueRepaymentCNY) / 10000).toFixed(2),
+      loanReferences: Array.from(new Set([...ontimeLoanReferences, ...overdueLoanReferences])),
     },
   };
 }

@@ -353,3 +353,28 @@ export function setCachedLoans(loans: HSBCLoan[]): void {
 export function generateSampleLoans(): HSBCLoan[] {
   return [];
 }
+
+// 还款统计相关类型
+export interface RepaymentStatItem {
+  amountUSD: number;
+  amountCNY: number;
+  amountUSDWan: string;
+  amountCNYWan: string;
+  count: number;
+  loanCount: number;
+  loanReferences: string[];
+}
+
+export interface TotalRepaymentStatItem {
+  amountUSD: number;
+  amountCNY: number;
+  amountUSDWan: string;
+  amountCNYWan: string;
+  loanReferences: string[];
+}
+
+export interface MonthlyRepaymentStats {
+  ontimeRepayment: RepaymentStatItem;
+  overdueRepayment: RepaymentStatItem;
+  totalRepayment: TotalRepaymentStatItem;
+}
