@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
       // 计算逾期天数
       const overdueDays = calculateOverdueDays({ ...loan, balance: effectiveBalance }, loanBatchDate);
       
-      // 计算状态：pastdueAmount > 0 为逾期，否则为正常
-      const status = (loan.pastdueAmount ?? 0) > 0 ? 'overdue' : 'normal';
+      // 计算状态：逾期天数 > 0 为逾期，否则为正常
+      const status = overdueDays > 0 ? 'overdue' : 'normal';
       
       return { 
         ...loan, 
