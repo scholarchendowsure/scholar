@@ -25,6 +25,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    // 添加客户端检测，确保只在浏览器端执行
+    const isClient = typeof window !== 'undefined';
+    if (!isClient) {
+      setLoading(false);
+      return;
+    }
+
     const checkAuth = () => {
       try {
         // 先检查localStorage
