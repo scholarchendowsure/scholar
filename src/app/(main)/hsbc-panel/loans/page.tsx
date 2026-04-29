@@ -271,8 +271,8 @@ export default function HSBCLoansPage() {
                             {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={calcPastdueAmount(loan) > 0 ? 'destructive' : 'secondary'}>
-                              {calcPastdueAmount(loan) > 0 ? '逾期' : '正常'}
+                            <Badge variant={loan.status === 'overdue' ? 'destructive' : 'secondary'}>
+                              {loan.status === 'overdue' ? '逾期' : '正常'}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -374,8 +374,8 @@ export default function HSBCLoansPage() {
                     </div>
                     <div>
                       <span className="text-slate-500">状态:</span>
-                      <Badge variant={calcPastdueAmount(selectedLoan) > 0 ? 'destructive' : 'secondary'} className="ml-2">
-                        {calcPastdueAmount(selectedLoan) > 0 ? '逾期' : '正常'}
+                      <Badge variant={selectedLoan.status === 'overdue' ? 'destructive' : 'secondary'} className="ml-2">
+                        {selectedLoan.status === 'overdue' ? '逾期' : '正常'}
                       </Badge>
                     </div>
                   </div>

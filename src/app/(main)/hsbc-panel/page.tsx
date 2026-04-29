@@ -1941,8 +1941,8 @@ export default function HSBCPanelPage() {
                           </TableCell>
                         )}
                         {visibleColumns.includes('overdueDays') && (
-                          <TableCell className={`text-right font-mono tabular-nums ${calcOverdueDays(loan) >= 0 ? 'text-red-600 font-semibold' : ''}`}>
-                            {calcOverdueDays(loan) >= 0 ? `${calcOverdueDays(loan)}天` : '正常'}
+                          <TableCell className={`text-right font-mono tabular-nums ${(loan.overdueDays ?? -1) > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {(loan.overdueDays ?? -1) > 0 ? `${loan.overdueDays}天` : '正常'}
                           </TableCell>
                         )}
                         {visibleColumns.includes('totalRepaid') && (
@@ -1952,7 +1952,7 @@ export default function HSBCPanelPage() {
                         )}
                         {visibleColumns.includes('status') && (
                           <TableCell className="text-center">
-                            {calcPastdueAmount(loan) > 0 ? (
+                            {loan.status === 'overdue' ? (
                               <Badge className="bg-red-100 text-red-700 border-red-200">
                                 <AlertTriangle className="w-3 h-3 mr-1" />
                                 逾期
