@@ -140,7 +140,7 @@ async function importToDatabase() {
     const loanRefIdx = findColumnIndex(['Loan Reference']);
     const merchantIdIdx = findColumnIndex(['Merchant ID']);
     const borrowerIdx = findColumnIndex(['Borrower Name']);
-    const startDateIdx = findColumnIndex(['Loan Start', 'Start Date']);
+    const startDateIdx = findColumnIndex(['Loan Start Date', 'Loan Start', 'Start Date']);
     const currencyIdx = findColumnIndex(['Loan Currency']);
     const amountIdx = headerRow.findIndex((h, i) => {
       const hl = h.toLowerCase();
