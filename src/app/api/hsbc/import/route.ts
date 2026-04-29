@@ -54,13 +54,35 @@ function parseDate(dateStr: string): string {
   return dateStr;
 }
 
-// 解析金额
-function parseAmount(amountStr: string | number): number {
+// 解析金额（支持多种格式）
+function parseAmount(amountStr: unknown): number {
+  // 如果是数字，直接返回
   if (typeof amountStr === 'number') return amountStr;
-  if (!amountStr || typeof amountStr !== 'string') return 0;
-  const cleaned = amountStr.replace(/[,，\s]/g, '').replace(/["\u200b]/g, '');
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
+  
+  // 如果是字符串
+  if (typeof amountStr === 'string') {
+    const cleaned = amountStr.replace(/[,，\s]/g, '').replace(/["\u200b]/g, '');
+    const num = parseFloat(cleaned);
+    return isNaN(num) ? 0 : num;
+  }
+  
+  // 如果是对象（Excel 单元格对象等）
+  if (amountStr !== null && typeof amountStr === 'object') {
+    const obj = amountStr as Record<string, unknown>;
+    // 尝试从对象中提取数值
+    if (typeof obj.value === 'number') return obj.value;
+    if (typeof obj.v === 'number') return obj.v;
+    if (typeof obj.w === 'string') {
+      const num = parseFloat(obj.w.replace(/[,，\s()]/g, ''));
+      if (!isNaN(num)) return num;
+    }
+    if (typeof obj.text === 'string') {
+      const num = parseFloat(obj.text.replace(/[,，\s()]/g, ''));
+      if (!isNaN(num)) return num;
+    }
+  }
+  
+  return 0;
 }
 
 // 规范化列名
@@ -98,6 +120,24 @@ export async function POST(request: NextRequest) {
       return [];
     }
 
+    // 获取单元格值（处理 Excel 单元格对象）
+    function getCellValue(val: unknown): string | number {
+      if (val === null || val === undefined) return '';
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object') {
+        const obj = val as Record<string, unknown>;
+        // 优先使用格式化文本
+        if (typeof obj.w === 'string') return obj.w;
+        // 使用原始值
+        if (typeof obj.v === 'number') return obj.v;
+        if (typeof obj.v === 'string') return obj.v;
+        // 使用文本属性
+        if (typeof obj.text === 'string') return obj.text;
+      }
+      return String(val);
+    }
+
     // 解析贷款数据
     const parsedLoans = loans.map((row: Record<string, unknown>, index: number) => {
       const keys = Object.keys(row);
@@ -106,10 +146,40 @@ export async function POST(request: NextRequest) {
         for (const key of possibleKeys) {
           const nk = normalizeKey(key);
           for (const k of keys) {
-            if (normalizeKey(k) === nk) return String(row[k] || '');
+            if (normalizeKey(k) === nk) {
+              const val = row[k];
+              const cellVal = getCellValue(val);
+              return String(cellVal);
+            }
           }
         }
         return '';
+      };
+      
+      // 获取数值型值
+      const getNumericValue = (...possibleKeys: string[]): number => {
+        for (const key of possibleKeys) {
+          const nk = normalizeKey(key);
+          for (const k of keys) {
+            if (normalizeKey(k) === nk) {
+              const val = row[k];
+              if (typeof val === 'number') return val;
+              if (typeof val === 'object') {
+                const obj = val as Record<string, unknown>;
+                if (typeof obj.v === 'number') return obj.v;
+                if (typeof obj.w === 'string') {
+                  const num = parseFloat(obj.w.replace(/[,，\s()]/g, ''));
+                  if (!isNaN(num)) return num;
+                }
+              }
+              if (typeof val === 'string') {
+                const num = parseFloat(val.replace(/[,，\s()]/g, ''));
+                if (!isNaN(num)) return num;
+              }
+            }
+          }
+        }
+        return 0;
       };
 
       // 如果需要从列数据解析还款计划
@@ -149,14 +219,14 @@ export async function POST(request: NextRequest) {
         borrowerName: getValue('Borrower Name', 'borrowerName'),
         loanDate: parseDate(getValue('Loan Start Date', 'loanDate')),
         loanCurrency,
-        loanAmount: parseAmount(getValue('Loan Amount', 'loanAmount')),
+        loanAmount: getNumericValue('Loan Amount', 'loanAmount'),
         loanInterest: getValue('Loan Interest', 'loanInterest'),
-        totalInterestRate: parseAmount(getValue('Total Interest Rate', 'totalInterestRate')),
+        totalInterestRate: getNumericValue('Total Interest Rate', 'totalInterestRate'),
         loanTenor: getValue('Loan Tenor', 'loanTenor'),
         maturityDate: parseDate(getValue('Maturity Date', 'maturityDate')),
         repaymentSchedule,
-        balance: parseAmount(getValue('Balance', 'balance')),
-        pastdueAmount: parseAmount(getValue('Pastdue amount', 'pastdueAmount', 'Pastdue Amount')),
+        balance: getNumericValue('Balance', 'balance'),
+        pastdueAmount: getNumericValue('Pastdue amount', 'pastdueAmount', 'Pastdue Amount'),
         batchDate: importDate,
         rmApproval: getValue('Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)'),
         dowsureFreezeConfirm: getValue('Confirmation from Dowsure with action taken on Freeze Account? (DDMMYY)'),

@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const DECRYPT_PASSWORD = 'amazon246';
 
+// 动态导入 officecrypto-tool（仅在需要时导入）
+async function decryptExcel(buffer: Buffer, password: string): Promise<Buffer | null> {
+  try {
+    // officecrypto-tool 是 CommonJS 模块，需要使用 default 导入
+    const officecryptoModule = await import('officecrypto-tool');
+    const officecrypto = officecryptoModule.default || officecryptoModule;
+    const decrypted = await officecrypto.decrypt(buffer, { password });
+    if (Buffer.isBuffer(decrypted)) {
+      return decrypted;
+    }
+    return null;
+  } catch (error) {
+    console.error('officecrypto-tool 解密失败:', error);
+    return null;
+  }
+}
+
 // 解析中文日期格式 "2024年1月29日"
 function parseChineseDate(dateStr: string): string {
   if (!dateStr || typeof dateStr !== 'string') return '';
@@ -132,62 +149,80 @@ export async function POST(request: NextRequest) {
         console.log('使用密码解密成功');
       } catch (passwordError: unknown) {
         const pwdErrorMsg = passwordError instanceof Error ? passwordError.message : String(passwordError);
-        console.log('密码解密失败，尝试xlsx-populate:', pwdErrorMsg.substring(0, 100));
+        console.log('密码解密失败，尝试 officecrypto-tool:', pwdErrorMsg.substring(0, 100));
 
-        // 尝试3: 使用 xlsx-populate 解密
+        // 尝试3: 使用 officecrypto-tool 解密（支持多种加密格式）
         try {
-          const XlsxPopulate = require('xlsx-populate');
-          const populateWorkbook = await XlsxPopulate.fromDataAsync(buffer, { password: DECRYPT_PASSWORD });
-          isEncrypted = true;
-
-          // 从 xlsx-populate workbook 提取数据
-          const sheet = populateWorkbook.sheet(0);
-          const usedRange = sheet.usedRange();
-          if (!usedRange) {
-            return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
+          const decryptedBuffer = await decryptExcel(buffer, DECRYPT_PASSWORD);
+          if (decryptedBuffer) {
+            const workbook = XLSX.read(decryptedBuffer, { type: 'buffer', cellDates: false });
+            isEncrypted = true;
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+            console.log('officecrypto-tool 解密成功，行数:', rawData.length);
+          } else {
+            throw new Error('officecrypto-tool 解密返回空');
           }
+        } catch (cryptoError: unknown) {
+          const cryptoErrorMsg = cryptoError instanceof Error ? cryptoError.message : String(cryptoError);
+          console.log('officecrypto-tool 解密失败，尝试 xlsx-populate:', cryptoErrorMsg.substring(0, 100));
 
-          const startRow = usedRange.startCell().rowNumber();
-          const endRow = usedRange.endCell().rowNumber();
-          const startCol = usedRange.startCell().columnNumber();
-          const endCol = usedRange.endCell().columnNumber();
+          // 尝试4: 使用 xlsx-populate 解密
+          try {
+            const XlsxPopulate = require('xlsx-populate');
+            const populateWorkbook = await XlsxPopulate.fromDataAsync(buffer, { password: DECRYPT_PASSWORD });
+            isEncrypted = true;
 
-          for (let r = startRow; r <= endRow; r++) {
-            const row: (string | number)[] = [];
-            for (let c = startCol; c <= endCol; c++) {
-              try {
-                const cell = sheet.cell(r, c);
-                const value = cell.value();
-                if (value instanceof Date) {
-                  const year = value.getFullYear();
-                  const month = String(value.getMonth() + 1).padStart(2, '0');
-                  const day = String(value.getDate()).padStart(2, '0');
-                  row.push(`${year}年${month}月${day}日`);
-                } else if (typeof value === 'object' && value !== null) {
-                  if ('text' in value) {
-                    row.push(String((value as { text: string }).text));
-                  } else if ('result' in value) {
-                    row.push(Number((value as { result: number }).result) || '');
-                  } else {
-                    row.push(String(value));
-                  }
-                } else {
-                  row.push(value === undefined || value === null ? '' : value);
-                }
-              } catch {
-                row.push('');
-              }
+            // 从 xlsx-populate workbook 提取数据
+            const sheet = populateWorkbook.sheet(0);
+            const usedRange = sheet.usedRange();
+            if (!usedRange) {
+              return NextResponse.json({ error: '文件没有数据' }, { status: 400 });
             }
-            rawData.push(row);
+
+            const startRow = usedRange.startCell().rowNumber();
+            const endRow = usedRange.endCell().rowNumber();
+            const startCol = usedRange.startCell().columnNumber();
+            const endCol = usedRange.endCell().columnNumber();
+
+            for (let r = startRow; r <= endRow; r++) {
+              const row: (string | number)[] = [];
+              for (let c = startCol; c <= endCol; c++) {
+                try {
+                  const cell = sheet.cell(r, c);
+                  const value = cell.value();
+                  if (value instanceof Date) {
+                    const year = value.getFullYear();
+                    const month = String(value.getMonth() + 1).padStart(2, '0');
+                    const day = String(value.getDate()).padStart(2, '0');
+                    row.push(`${year}年${month}月${day}日`);
+                  } else if (typeof value === 'object' && value !== null) {
+                    if ('text' in value) {
+                      row.push(String((value as { text: string }).text));
+                    } else if ('result' in value) {
+                      row.push(Number((value as { result: number }).result) || '');
+                    } else {
+                      row.push(String(value));
+                    }
+                  } else {
+                    row.push(value === undefined || value === null ? '' : value);
+                  }
+                } catch {
+                  row.push('');
+                }
+              }
+              rawData.push(row);
+            }
+            console.log('xlsx-populate 解密成功，行数:', rawData.length);
+          } catch (populateError: unknown) {
+            const popErrorMsg = populateError instanceof Error ? populateError.message : String(populateError);
+            console.error('所有解密方式均失败:', popErrorMsg);
+            return NextResponse.json({
+              error: '文件解密失败，请确认文件是否加密或密码是否正确',
+              detail: popErrorMsg.substring(0, 200),
+            }, { status: 400 });
           }
-          console.log('xlsx-populate 解密成功，行数:', rawData.length);
-        } catch (populateError: unknown) {
-          const popErrorMsg = populateError instanceof Error ? populateError.message : String(populateError);
-          console.error('所有解密方式均失败:', popErrorMsg);
-          return NextResponse.json({
-            error: '文件解密失败，请确认文件是否加密或密码是否正确',
-            detail: popErrorMsg.substring(0, 200),
-          }, { status: 400 });
         }
       }
     }
@@ -284,6 +319,11 @@ export async function POST(request: NextRequest) {
 
       const loanRef = getCellValue(loanRefIdx);
       if (!loanRef) continue;
+
+      // 获取货币类型
+      const currencyRaw = getCellValue(currencyIdx);
+      const currencyStr = typeof currencyRaw === 'string' ? currencyRaw.trim().toUpperCase() : '';
+      const loanCurrency = currencyStr === 'CNY' || currencyStr === 'USD' ? currencyStr : 'CNY';
 
       // 构建还款计划
       const repaymentSchedule: { date: string; amount: number }[] = [];

@@ -143,6 +143,12 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
     return 0;
   };
   
+  // 辅助函数：将数字转换为 PostgreSQL numeric 格式字符串
+  const toNumericString = (val: number): string => {
+    if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return '0';
+    return val.toString();
+  };
+  
   // 转换数据格式 - 只插入数据库表中存在的列
   const dbLoans = loans.map(loan => {
     const loanAmount = safeToNumber(loan.loanAmount);
@@ -158,16 +164,17 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
       currency: loan.loanCurrency === 'USD' ? 'USD' : 'CNY',
       loan_date: String(loan.loanDate || ''),
       maturity_date: String(loan.maturityDate || ''),
-      loan_amount: loanAmount,
-      balance: balance > 0 ? balance : loanAmount, // 如果余额为0，使用贷款金额
-      pastdue_amount: pastdueAmount,
-      overdue_days: safeToNumber(loan.overdueDays),
+      loan_amount: toNumericString(loanAmount),
+      balance: toNumericString(balance > 0 ? balance : loanAmount),
+      pastdue_amount: toNumericString(pastdueAmount),
+      overdue_days: Math.floor(safeToNumber(loan.overdueDays)),
       status: loan.status || 'normal',
       repayment_schedule: loan.repaymentSchedule || [],
     };
   });
   
   // 批量插入数据
+  console.log('准备插入的数据示例:', JSON.stringify(dbLoans.slice(0, 2), null, 2));
   const { error } = await client
     .from('hsbc_loans')
     .insert(dbLoans);
