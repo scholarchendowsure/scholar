@@ -61,13 +61,38 @@ function parseDate(dateValue: string | number | undefined | null): string {
   return dateStr;
 }
 
-// 解析金额
-function parseAmount(amountStr: string | number): number {
-  if (typeof amountStr === 'number') return amountStr;
-  if (!amountStr || typeof amountStr !== 'string') return 0;
-  const cleaned = amountStr.replace(/[,，\s]/g, '').replace(/["\u200b]/g, '');
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
+// 解析金额 - 支持多种格式
+function parseAmount(amountStr: unknown): number {
+  // 如果是数字，直接返回
+  if (typeof amountStr === 'number' && !isNaN(amountStr)) return amountStr;
+  
+  // 如果是字符串
+  if (typeof amountStr === 'string') {
+    const cleaned = amountStr.replace(/[,，\s]/g, '').replace(/["\u200b()]/g, '');
+    // 处理会计格式的负数: (123.45) -> -123.45
+    const isNegative = cleaned.startsWith('-') || amountStr.includes('(');
+    const numStr = cleaned.replace(/[()]/g, '');
+    const num = parseFloat(numStr);
+    if (isNaN(num)) return 0;
+    return isNegative ? -num : num;
+  }
+  
+  // 如果是对象（Excel 复杂单元格格式）
+  if (amountStr !== null && typeof amountStr === 'object') {
+    // 尝试从对象中提取数值
+    const obj = amountStr as Record<string, unknown>;
+    if (typeof obj.value === 'number') return obj.value;
+    if (typeof obj.v === 'number') return obj.v;
+    if (typeof obj.w === 'string') {
+      const num = parseFloat(obj.w.replace(/[,，\s()]/g, ''));
+      if (!isNaN(num)) return num;
+    }
+    // 如果对象有 text 属性，递归解析
+    if (typeof obj.text === 'string') return parseAmount(obj.text);
+    if (typeof obj.t === 'string' && typeof obj.v === 'number') return obj.v;
+  }
+  
+  return 0;
 }
 
 export async function POST(request: NextRequest) {
@@ -226,7 +251,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 解析数据行（跳过表头）
-    const loans: Record<string, string | number>[] = [];
+    const loans: Record<string, unknown>[] = [];
     for (let rowIdx = 1; rowIdx < rawData.length; rowIdx++) {
       const row = rawData[rowIdx];
 
@@ -237,11 +262,23 @@ export async function POST(request: NextRequest) {
       });
       if (!hasData) continue;
 
-      // 获取单元格值，支持数字类型
-      const getCellValue = (idx: number): string | number => {
-        if (idx < 0 || idx >= (row as (string | number)[]).length) return '';
-        const val = (row as (string | number)[])[idx];
+      // 获取单元格值，支持数字和对象类型
+      const getCellValue = (idx: number): unknown => {
+        if (idx < 0 || idx >= (row as unknown[]).length) return '';
+        const val = (row as unknown[])[idx];
         if (val === null || val === undefined) return '';
+        
+        // 处理对象类型（Excel 单元格复杂格式）
+        if (typeof val === 'object') {
+          const obj = val as Record<string, unknown>;
+          // 优先返回原始数值
+          if (typeof obj.v === 'number') return obj.v;
+          if (typeof obj.w === 'string') return obj.w;
+          if (typeof obj.text === 'string') return obj.text;
+          // 如果对象可以转为字符串
+          return String(val);
+        }
+        
         return val;
       };
 
@@ -263,29 +300,41 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const loanCurrency = (getCellValue(currencyIdx) || 'CNY').toUpperCase();
+      // 清理字符串值中的不可见字符
+      const cleanString = (val: unknown): string => {
+        if (val === null || val === undefined) return '';
+        if (typeof val === 'number') return String(val);
+        if (typeof val === 'object') {
+          const obj = val as Record<string, unknown>;
+          if (typeof obj.v === 'number') return String(obj.v);
+          if (typeof obj.text === 'string') return obj.text.replace(/[\u200b\u00a0]/g, '').trim();
+          if (typeof obj.w === 'string') return obj.w;
+          return String(val);
+        }
+        return String(val).replace(/[\u200b\u00a0]/g, '').trim();
+      };
 
-      const loan: Record<string, string | number> = {
-        loanReference: loanRef,
-        merchantId: getCellValue(merchantIdIdx),
-        borrowerName: getCellValue(borrowerIdx),
+      const loan: Record<string, unknown> = {
+        loanReference: cleanString(loanRef),
+        merchantId: cleanString(getCellValue(merchantIdIdx)),
+        borrowerName: cleanString(getCellValue(borrowerIdx)),
         loanStartDate: parseDate(getCellValue(startDateIdx)),
         loanCurrency,
         loanAmount: parseAmount(getCellValue(amountIdx)),
-        loanInterest: getCellValue(interestIdx),
+        loanInterest: cleanString(getCellValue(interestIdx)),
         totalInterestRate: parseAmount(getCellValue(rateIdx)),
-        loanTenor: getCellValue(tenorIdx),
+        loanTenor: cleanString(getCellValue(tenorIdx)),
         maturityDate: parseDate(getCellValue(maturityIdx)),
         repaymentSchedule: repaymentSchedule,
         balance: parseAmount(getCellValue(balanceIdx)),
         pastdueAmount: parseAmount(getCellValue(pastdueIdx)),
         batchDate: '',
-        freezeAccountRequested: getCellValue(freezeIdx),
-        forceDebitRequested: getCellValue(forceDebitIdx),
-        rmApproval: getCellValue(rmApprovalIdx),
-        dowsureFreezeConfirm: getCellValue(dowsureFreezeIdx),
-        dowsureForceDebitConfirm: getCellValue(dowsureForceDebitIdx),
-        remarks: getCellValue(remarksIdx),
+        freezeAccountRequested: cleanString(getCellValue(freezeIdx)),
+        forceDebitRequested: cleanString(getCellValue(forceDebitIdx)),
+        rmApproval: cleanString(getCellValue(rmApprovalIdx)),
+        dowsureFreezeConfirm: cleanString(getCellValue(dowsureFreezeIdx)),
+        dowsureForceDebitConfirm: cleanString(getCellValue(dowsureForceDebitIdx)),
+        remarks: cleanString(getCellValue(remarksIdx)),
       };
 
       loans.push(loan);

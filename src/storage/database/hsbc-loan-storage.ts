@@ -10,20 +10,24 @@ function getClient() {
 // 将数据库行转换为 HSBCLoan 类型
 function transformRow(row: Record<string, unknown>): HSBCLoan {
   return {
-    loanReference: row.loan_reference as string,
-    merchantId: row.merchant_id as string,
-    merchantName: row.merchant_name as string,
-    borrowerName: row.borrower_name as string,
-    loanCurrency: row.currency as 'CNY' | 'USD',
-    loanDate: row.loan_date as string,
-    maturityDate: row.maturity_date as string,
+    id: String(row.id || ''),
+    loanReference: String(row.loan_reference || ''),
+    merchantId: String(row.merchant_id || ''),
+    merchantName: String(row.merchant_name || ''),
+    borrowerName: String(row.borrower_name || ''),
+    loanCurrency: String(row.currency || 'CNY') === 'USD' ? 'USD' : 'CNY',
+    loanStartDate: String(row.loan_date || ''),
+    maturityDate: String(row.maturity_date || ''),
     loanAmount: Number(row.loan_amount) || 0,
+    loanInterest: '',
+    totalInterestRate: 0,
+    loanTenor: '',
     balance: Number(row.balance) || 0,
     pastdueAmount: Number(row.pastdue_amount) || 0,
     overdueDays: Number(row.overdue_days) || 0,
-    status: row.status as HSBCLoan['status'],
+    status: (row.status as HSBCLoan['status']) || 'active',
     repaymentSchedule: (row.repayment_schedule as HSBCLoan['repaymentSchedule']) || [],
-    remarks: (row.remarks as string) || '',
+    remarks: String(row.remarks || ''),
   };
 }
 
@@ -128,23 +132,40 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
     batchId = newBatch.id as number;
   }
   
+  // 辅助函数：安全转换为数字
+  const safeToNumber = (val: unknown): number => {
+    if (typeof val === 'number' && !isNaN(val) && isFinite(val)) return val;
+    if (typeof val === 'string') {
+      const cleaned = val.replace(/[,，\s{}()\[\]]/g, '').trim();
+      const num = parseFloat(cleaned);
+      if (!isNaN(num) && isFinite(num)) return num;
+    }
+    return 0;
+  };
+  
   // 转换数据格式 - 只插入数据库表中存在的列
-  const dbLoans = loans.map(loan => ({
-    batch_id: batchId,
-    loan_reference: loan.loanReference,
-    merchant_id: loan.merchantId || '',
-    merchant_name: loan.merchantName || '',
-    borrower_name: loan.borrowerName || '',
-    currency: loan.loanCurrency || 'CNY',
-    loan_date: loan.loanDate || '',
-    maturity_date: loan.maturityDate || '',
-    loan_amount: Number(loan.loanAmount) || 0,
-    balance: Number(loan.balance || (Number(loan.loanAmount) || 0)),
-    pastdue_amount: Number(loan.pastdueAmount || 0),
-    overdue_days: Number(loan.overdueDays || 0),
-    status: loan.status || 'normal',
-    repayment_schedule: loan.repaymentSchedule || [],
-  }));
+  const dbLoans = loans.map(loan => {
+    const loanAmount = safeToNumber(loan.loanAmount);
+    const balance = safeToNumber(loan.balance);
+    const pastdueAmount = safeToNumber(loan.pastdueAmount);
+    
+    return {
+      batch_id: batchId,
+      loan_reference: String(loan.loanReference || ''),
+      merchant_id: String(loan.merchantId || ''),
+      merchant_name: String(loan.merchantName || ''),
+      borrower_name: String(loan.borrowerName || ''),
+      currency: loan.loanCurrency === 'USD' ? 'USD' : 'CNY',
+      loan_date: String(loan.loanDate || ''),
+      maturity_date: String(loan.maturityDate || ''),
+      loan_amount: loanAmount,
+      balance: balance > 0 ? balance : loanAmount, // 如果余额为0，使用贷款金额
+      pastdue_amount: pastdueAmount,
+      overdue_days: safeToNumber(loan.overdueDays),
+      status: loan.status || 'normal',
+      repayment_schedule: loan.repaymentSchedule || [],
+    };
+  });
   
   // 批量插入数据
   const { error } = await client

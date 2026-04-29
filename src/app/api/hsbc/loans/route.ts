@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHSBCLoansByBatchDate, getAllHSBCLoans, getAllBatchDates, saveHSBCLoans } from '@/storage/database/hsbc-loan-storage';
-import { calcBalance, calcPastdueAmount, calcOverdueDays } from '@/lib/hsbc-loan';
+import type { HSBCLoan } from '@/lib/hsbc-loan';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const merchantId = searchParams.get('merchantId') || '';
 
     // 根据 batchDate 获取数据
-    let loans;
+    let loans: HSBCLoan[];
     if (batchDate) {
       loans = await getHSBCLoansByBatchDate(batchDate);
     } else {
@@ -26,11 +26,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 为每个贷款计算逾期天数
+    // 直接使用数据库中的 balance 和 pastdueAmount 值，不再重新计算
+    // 因为 Excel 中导入的数据已经是正确的
+    // 只有当数据库中的 balance 为空或0时才尝试使用 loanAmount
     loans = loans.map(loan => {
-      const balance = calcBalance(loan);
-      const overdueDays = calcOverdueDays(loan);
-      return { ...loan, balance, overdueDays };
+      // 如果 balance 为空或0，使用 loanAmount
+      const effectiveBalance = (loan.balance ?? 0) > 0 ? loan.balance : loan.loanAmount;
+      return { 
+        ...loan, 
+        balance: effectiveBalance,
+        overdueDays: loan.overdueDays ?? 0 
+      };
     });
 
     // 筛选

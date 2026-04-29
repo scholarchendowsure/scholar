@@ -5,10 +5,12 @@ export interface HSBCLoan {
   id: string;
   loanReference: string;           // Loan Reference
   merchantId: string;             // Merchant ID
+  merchantName?: string;           // Merchant Name
   borrowerName: string;           // Borrower Name
   
   // 贷款信息
   loanStartDate: string;           // Loan Start Date
+  loanDate?: string;               // Loan Date (alias for loanStartDate)
   loanCurrency: 'CNY' | 'USD';    // Loan Currency
   loanAmount: number;              // Loan Amount
   loanInterest: string;           // Loan Interest (e.g., "HIBOR 3.32848% + 2.75%")
@@ -20,8 +22,8 @@ export interface HSBCLoan {
   repaymentSchedule: RepaymentRecord[];
   
   // 财务信息
-  balance: number;                // Balance (余额)
-  pastdueAmount: number;          // Pastdue amount (逾期金额)
+  balance?: number;                // Balance (余额)
+  pastdueAmount?: number;          // Pastdue amount (逾期金额)
   
   // 操作记录
   freezeAccountRequested?: string;       // Freeze Account Requested? (DDMMYY)
@@ -31,13 +33,14 @@ export interface HSBCLoan {
   confirmationForceDebit?: string;       // Confirmation from Dowsure with action taken on Force Debit? (DDMMYY)
   
   // 备注
-  remarks: string;                // Remarks
+  remarks?: string;                // Remarks
   
   // 元数据
   batchDate?: string;             // 批次日期
   createdAt?: string;             // 创建时间
   updatedAt?: string;             // 更新时间
-  status?: 'active' | 'settled' | 'overdue' | 'written_off'; // 状态
+  status?: 'active' | 'settled' | 'overdue' | 'written_off' | 'normal' | 'settling'; // 状态
+  overdueDays?: number;            // 逾期天数
   assignedTo?: string;            // 负责人员
   followUpCount?: number;         // 跟进次数
   lastFollowUpDate?: string;      // 最后跟进时间
@@ -79,17 +82,28 @@ export function calcTotalRepaid(loan: HSBCLoan): number {
   }
 }
 
-// 计算余额：贷款金额 - 已还款总额
+// 计算余额：优先使用存储的余额，否则计算
 export function calcBalance(loan: HSBCLoan): number {
+  // 如果有存储的 balance 且大于 0，直接使用
+  if (loan.balance !== undefined && loan.balance > 0) {
+    return loan.balance;
+  }
+  
+  // 如果余额 <= 0.9 或者没有存储余额，则计算
   const totalRepaid = calcTotalRepaid(loan);
   const balance = loan.loanAmount - totalRepaid;
   // 余额不能为负数
   return Math.max(0, balance);
 }
 
-// 计算逾期金额：到期日期之后仍未还款的金额
+// 计算逾期金额：优先使用存储的逾期金额，否则计算
 // 逻辑：遍历还款计划，到期日之后的未还金额才算逾期
 export function calcPastdueAmount(loan: HSBCLoan): number {
+  // 如果有存储的 pastdueAmount 且大于 0，直接使用
+  if (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0) {
+    return loan.pastdueAmount;
+  }
+  
   const balance = calcBalance(loan);
   
   // 如果余额 <= 0.9，则不算逾期
@@ -111,6 +125,25 @@ export function calcPastdueAmount(loan: HSBCLoan): number {
 
 // 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）
 export function calcOverdueDays(loan: HSBCLoan): number {
+  // 如果有存储的 pastdueAmount 且大于 0，说明已逾期
+  if (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0) {
+    // 如果有存储的 overdueDays，直接使用
+    if (loan.overdueDays !== undefined && loan.overdueDays > 0) {
+      return loan.overdueDays;
+    }
+    
+    // 否则基于 maturityDate 和 batchDate 计算
+    // 使用批次日期或到期日计算逾期天数
+    const batchDate = loan.batchDate ? new Date(loan.batchDate) : new Date();
+    const maturityDate = new Date(loan.maturityDate);
+    
+    // 计算从到期日到批次日期的逾期天数
+    const diffTime = batchDate.getTime() - maturityDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays > 0 ? diffDays : 1; // 至少返回1表示逾期
+  }
+  
   const balance = calcBalance(loan);
   // 如果余额 <= 0.9，则不算逾期，返回 -1 表示不逾期
   if (balance <= 0.9) {
@@ -279,8 +312,11 @@ export function clearCachedLoans(): void {
 }
 
 // 解析 Excel 行为贷款数据
-export function parseImportRow(row: HSBCImportRow): HSBCLoan | null {
+export function parseImportRow(row: HSBCImportRow, batchDate?: string): HSBCLoan | null {
   try {
+    // 使用批次日期或当前日期来判断逾期
+    const today = batchDate ? new Date(batchDate) : new Date();
+    
     const loanReference = row['Loan Reference']?.trim();
     if (!loanReference) return null;
 
@@ -346,7 +382,6 @@ export function parseImportRow(row: HSBCImportRow): HSBCLoan | null {
         const totalRepaid = repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
         const balance = Math.max(0, loanAmount - totalRepaid);
         
-        const today = new Date();
         const maturityDateStr = row['Maturity Date']?.trim();
         if (!maturityDateStr) return 0;
         
@@ -374,7 +409,6 @@ export function parseImportRow(row: HSBCImportRow): HSBCLoan | null {
         
         if (balance === 0) return 'settled';
         
-        const today = new Date();
         const maturityDateStr = row['Maturity Date']?.trim();
         if (maturityDateStr) {
           const maturityDate = new Date(maturityDateStr);
@@ -401,7 +435,7 @@ export function calculateStats(loans: HSBCLoan[]): HSBCStats {
   const totalLoans = loans.length;
   const uniqueMerchants = [...new Set(loans.map(l => l.merchantId))];
   const activeMerchants = uniqueMerchants.filter(m => 
-    loans.some(l => l.merchantId === m && l.balance > 1)
+    loans.some(l => l.merchantId === m && (l.balance ?? 0) > 1)
   ).length;
   
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
@@ -412,14 +446,14 @@ export function calculateStats(loans: HSBCLoan[]): HSBCStats {
     usdLoans.reduce((sum, l) => sum + l.loanAmount * USD_TO_CNY, 0);
   
   const totalBalance = 
-    cnyLoans.reduce((sum, l) => sum + l.balance, 0) +
-    usdLoans.reduce((sum, l) => sum + l.balance * USD_TO_CNY, 0);
+    cnyLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0) +
+    usdLoans.reduce((sum, l) => sum + (l.balance ?? 0) * USD_TO_CNY, 0);
   
   const totalPastdueAmount = 
-    cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0) +
-    usdLoans.reduce((sum, l) => sum + l.pastdueAmount * USD_TO_CNY, 0);
+    cnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0) +
+    usdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) * USD_TO_CNY, 0);
   
-  const overdueLoans = loans.filter(l => l.pastdueAmount > 0);
+  const overdueLoans = loans.filter(l => (l.pastdueAmount ?? 0) > 0);
   const overdueMerchantSet = new Set(overdueLoans.map(l => l.merchantId));
 
   // 币种分布
@@ -428,19 +462,19 @@ export function calculateStats(loans: HSBCLoan[]): HSBCStats {
       currency: 'CNY',
       loanCount: cnyLoans.length,
       totalAmount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-      balance: cnyLoans.reduce((sum, l) => sum + l.balance, 0),
-      pastdueAmount: cnyLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
-      overdueLoans: cnyLoans.filter(l => l.pastdueAmount > 0).length,
-      overdueMerchants: new Set(cnyLoans.filter(l => l.pastdueAmount > 0).map(l => l.merchantId)).size,
+      balance: cnyLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0),
+      pastdueAmount: cnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0),
+      overdueLoans: cnyLoans.filter(l => (l.pastdueAmount ?? 0) > 0).length,
+      overdueMerchants: new Set(cnyLoans.filter(l => (l.pastdueAmount ?? 0) > 0).map(l => l.merchantId)).size,
     },
     {
       currency: 'USD',
       loanCount: usdLoans.length,
       totalAmount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-      balance: usdLoans.reduce((sum, l) => sum + l.balance, 0),
-      pastdueAmount: usdLoans.reduce((sum, l) => sum + l.pastdueAmount, 0),
-      overdueLoans: usdLoans.filter(l => l.pastdueAmount > 0).length,
-      overdueMerchants: new Set(usdLoans.filter(l => l.pastdueAmount > 0).map(l => l.merchantId)).size,
+      balance: usdLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0),
+      pastdueAmount: usdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0),
+      overdueLoans: usdLoans.filter(l => (l.pastdueAmount ?? 0) > 0).length,
+      overdueMerchants: new Set(usdLoans.filter(l => (l.pastdueAmount ?? 0) > 0).map(l => l.merchantId)).size,
     },
   ];
 
@@ -513,14 +547,14 @@ export function filterLoans(loans: HSBCLoan[], filter: HSBCLoanFilter): HSBCLoan
 
   if (filter.status && filter.status !== 'all') {
     if (filter.status === 'overdue') {
-      result = result.filter(l => l.pastdueAmount > 0);
+      result = result.filter(l => (l.pastdueAmount ?? 0) > 0);
     } else {
       result = result.filter(l => l.status === filter.status);
     }
   }
 
   if (filter.hasOverdue) {
-    result = result.filter(l => l.pastdueAmount > 0);
+    result = result.filter(l => (l.pastdueAmount ?? 0) > 0);
   }
 
   if (filter.minAmount) {
@@ -629,7 +663,6 @@ export function generateSampleLoans(): HSBCLoan[] {
         pastdueAmount: Math.round(Math.max(0, balance) * 100) / 100,
         status: balance === 0 ? 'settled' : (isPastDue && balance > 0 ? 'overdue' : (balance < loanAmount ? 'active' : 'active')),
         batchDate: startDate.toISOString().split('T')[0].substring(0, 7),
-        actionInfo: {},
       });
     }
   });

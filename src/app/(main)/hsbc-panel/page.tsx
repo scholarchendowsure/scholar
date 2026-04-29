@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from 'react';
 import { formatCurrency } from '@/lib/constants';
-import { calcPastdueAmount, calcBalance, calcOverdueDays, calcDaysToMaturity, calcTotalRepaid } from '@/lib/hsbc-loan';
+import { calcPastdueAmount, calcBalance, calcOverdueDays, calcDaysToMaturity, calcTotalRepaid, HSBCLoan } from '@/lib/hsbc-loan';
 import {
   Card,
   CardContent,
@@ -69,34 +69,6 @@ import {
 } from 'lucide-react';
 
 // ============ 类型定义 ============
-interface HSBCLoan {
-  id: string;
-  loanReference: string;
-  merchantId: string;
-  borrowerName: string;
-  loanStartDate: string;
-  loanCurrency: string;
-  loanAmount: number;
-  loanInterest: string;
-  totalInterestRate: number;
-  loanTenor: string;
-  maturityDate: string;
-  balance: number;
-  pastdueAmount: number;
-  status: 'normal' | 'overdue';
-  batchDate: string;
-  repaymentSchedule: Array<{
-    date: string;
-    amount: number;
-  }>;
-  operationLogs: Array<{
-    date: string;
-    type: string;
-    description: string;
-    status: string;
-  }>;
-}
-
 interface HSBCStats {
   totalLoans: number;
   activeMerchants: number;
@@ -232,9 +204,11 @@ const generateMockLoans = (): HSBCLoan[] => {
       
       // 逾期金额计算：只有到期日已过且有余额才算逾期
       let pastdue = 0;
+      let overdueDaysCalc = -1;
       const today = new Date();
       if (today > maturityDate && balance > 0) {
         pastdue = balance;
+        overdueDaysCalc = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
       }
 
       loans.push({
@@ -243,7 +217,7 @@ const generateMockLoans = (): HSBCLoan[] => {
         merchantId: merchant.id,
         borrowerName: merchant.name,
         loanStartDate: startDate.toISOString().split('T')[0],
-        loanCurrency: currency,
+        loanCurrency: currency as 'CNY' | 'USD',
         loanAmount: amount,
         loanInterest: currency === 'USD' ? '90D SOFR TERM + 3%' : '90D CNY HBR + 2.25%',
         totalInterestRate: currency === 'USD' ? 8.2 + Math.random() * 0.3 : 5.5 + Math.random() * 0.5,
@@ -251,11 +225,11 @@ const generateMockLoans = (): HSBCLoan[] => {
         maturityDate: maturityDate.toISOString().split('T')[0],
         balance,
         pastdueAmount: pastdue,
+        overdueDays: overdueDaysCalc,
         status: pastdue > 0 ? 'overdue' : (balance === 0 ? 'settled' : 'active'),
         remarks: '',
         batchDate: '2024-07',
         repaymentSchedule,
-        operationLogs: [],
       });
     }
   });
@@ -406,9 +380,11 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
     }
   });
   
+  const totalLoanAmount = cnyTotalAmount + usdTotalAmount * USD_TO_CNY_RATE;
+  
   return {
     totalLoans: loans.length,
-    totalLoanAmount: cnyTotalAmount + usdTotalAmount * USD_TO_CNY_RATE,
+    totalLoanAmount,
     totalBalance: totalBalanceCNY,
     totalBalanceLoanCount: activeLoanCount,
     totalBalanceMerchantCount: activeMerchantCount,
@@ -443,10 +419,10 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
       },
     ],
     riskDistribution: [
-      { level: '低风险', count: Math.floor(loans.length * 0.4), amount: Math.floor(totalAmount * 0.4) },
-      { level: '中风险', count: Math.floor(loans.length * 0.3), amount: Math.floor(totalAmount * 0.3) },
-      { level: '高风险', count: Math.floor(loans.length * 0.2), amount: Math.floor(totalAmount * 0.2) },
-      { level: '严重', count: Math.floor(loans.length * 0.1), amount: Math.floor(totalAmount * 0.1) },
+      { level: '低风险', count: Math.floor(loans.length * 0.4), amount: Math.floor(totalLoanAmount * 0.4) },
+      { level: '中风险', count: Math.floor(loans.length * 0.3), amount: Math.floor(totalLoanAmount * 0.3) },
+      { level: '高风险', count: Math.floor(loans.length * 0.2), amount: Math.floor(totalLoanAmount * 0.2) },
+      { level: '严重', count: Math.floor(loans.length * 0.1), amount: Math.floor(totalLoanAmount * 0.1) },
     ],
     maturityDistribution: [
       { range: '7天内', count: 3, amount: 500000 },
@@ -2079,12 +2055,12 @@ export default function HSBCPanelPage() {
                   </div>
                   <div>
                     <div className="text-sm text-slate-500">在贷余额</div>
-                    <div className="font-mono">{formatCurrency(selectedLoan.balance, selectedLoan.loanCurrency)}</div>
+                    <div className="font-mono">{formatCurrency(selectedLoan.balance ?? 0, selectedLoan.loanCurrency)}</div>
                   </div>
                   <div>
                     <div className="text-sm text-slate-500">逾期金额</div>
-                    <div className={`font-mono font-semibold ${selectedLoan.pastdueAmount > 0 ? 'text-red-600' : ''}`}>
-                      {formatCurrency(selectedLoan.pastdueAmount, selectedLoan.loanCurrency)}
+                    <div className={`font-mono font-semibold ${(selectedLoan.pastdueAmount ?? 0) > 0 ? 'text-red-600' : ''}`}>
+                      {formatCurrency(selectedLoan.pastdueAmount ?? 0, selectedLoan.loanCurrency)}
                     </div>
                   </div>
                   <div>
