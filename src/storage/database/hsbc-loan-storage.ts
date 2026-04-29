@@ -44,18 +44,24 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
 }
 
 // 获取所有汇丰贷款
-export async function getAllHSBCLoans(): Promise<HSBCLoan[]> {
+export async function getAllHSBCLoans(batchDate?: string): Promise<HSBCLoan[]> {
   const client = getClient();
   const allLoans: HSBCLoan[] = [];
   const BATCH_SIZE = 1000;
   
   // 分批获取数据，Supabase 默认限制 1000 行/页
   while (true) {
-    const { data, error } = await client
+    let query = client
       .from('hsbc_loans')
       .select('*')
       .order('loan_reference')
       .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+    
+    if (batchDate) {
+      query = query.eq('batch_date', batchDate);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error('获取汇丰贷款失败:', error);

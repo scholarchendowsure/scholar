@@ -169,7 +169,7 @@ async function importToDatabase() {
     console.log('清空现有数据...');
     await supabase.from('hsbc_loans').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     
-    const batchDate = '2026-04-28';
+    const batchDate = '2026-04-29';
     
     const batchSize = 50;
     let imported = 0;
@@ -194,12 +194,16 @@ async function importToDatabase() {
           }
         }
         
-        const totalRepaid = repayments.reduce((sum, r) => sum + r.amount, 0);
-        
-        // 使用解析函数处理多值情况
+        // 使用解析函数处理多值情况（需要先声明再使用）
         const rawStartDate = getCellValue(row, startDateIdx);
-        const rawMaturityDate = getCellValue(row, maturityIdx);
         const rawLoanAmount = getCellValue(row, amountIdx);
+        const rawMaturityDateVal = getCellValue(row, maturityIdx);
+        
+        const totalRepaid = repayments.reduce((sum, r) => sum + r.amount, 0);
+        const loanAmount = parseAmount(rawLoanAmount);
+        const calculatedBalance = Math.max(0, loanAmount - totalRepaid);
+        const maturityDate = parseDate(rawMaturityDateVal);
+        const isPastDue = maturityDate && new Date(maturityDate) < new Date() && calculatedBalance > 0.9;
         
         loansToInsert.push({
           batch_id: batchDate,
@@ -209,14 +213,14 @@ async function importToDatabase() {
           borrower_name: cleanString(getCellValue(row, borrowerIdx)),
           currency: getCellValue(row, currencyIdx) === 'USD' ? 'USD' : 'CNY',
           loan_date: parseDate(rawStartDate),
-          loan_amount: parseAmount(rawLoanAmount),
+          loan_amount: loanAmount,
           loan_interest: cleanString(getCellValue(row, interestIdx)),
           interest_rate: Number(getCellValue(row, rateIdx)) || 0,
           loan_tenor: cleanString(getCellValue(row, tenorIdx)),
-          maturity_date: parseDate(rawMaturityDate),
-          balance: Number(getCellValue(row, balanceIdx)) || 0,
-          pastdue_amount: Number(getCellValue(row, pastdueIdx)) || 0,
-          status: 'normal',
+          maturity_date: maturityDate,
+          balance: calculatedBalance,
+          pastdue_amount: isPastDue ? calculatedBalance : 0,
+          status: isPastDue ? 'overdue' : 'normal',
           repayment_schedule: repayments,
           total_repaid: totalRepaid,
           remarks: cleanString(getCellValue(row, remarksIdx)),

@@ -54,10 +54,13 @@ export async function PUT(
     const log: HSBCLoanLog = {
       id: `log_${Date.now()}`,
       loanId: id,
+      loanReference: existingLoan.loanReference,
       action: body.action || 'update',
+      detail: body.details || '贷款信息已更新',
+      details: body.details || '贷款信息已更新',
       operator: body.operator || 'System',
       timestamp: new Date().toISOString(),
-      details: body.details || '贷款信息已更新',
+      createdAt: new Date().toISOString(),
     };
     const logs = loanLogs.get(id) || [];
     logs.unshift(log);

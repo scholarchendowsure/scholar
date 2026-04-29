@@ -22,9 +22,9 @@ export interface HSBCLoan {
   repaymentSchedule: RepaymentRecord[];
   
   // 财务信息
-  balance?: number;                // Balance (余额)
-  pastdueAmount?: number;          // Pastdue amount (逾期金额)
-  totalRepaid?: number;            // 已还款总额（从还款计划计算）
+  balance?: number;                // Balance (余额) - API 计算: 贷款金额 - 已还款总额
+  pastdueAmount?: number;          // Pastdue amount (逾期金额) - API 计算: 到期后余额>=0.9
+  totalRepaid?: number;            // 已还款总额 - API 从还款计划计算
   
   // 操作记录
   freezeAccountRequested?: string;       // Freeze Account Requested? (DDMMYY)
@@ -55,66 +55,111 @@ export interface RepaymentRecord {
   actualAmount?: number;  // 实际还款金额
 }
 
-// 计算已还款总额（从还款计划中累加已还款金额）
+// ============================================================
+// 计算函数 - 统一优先使用 API 返回值，避免前后端逻辑不一致
+// ============================================================
+
+/**
+ * 汇丰贷款筛选条件
+ */
+export interface HSBCLoanFilter {
+  search?: string;
+  currency?: string;
+  status?: string;
+  hasOverdue?: boolean;
+  batchDate?: string;
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * 汇丰贷款操作日志
+ */
+export interface HSBCLoanLog {
+  id: string;
+  loanId: string;
+  loanReference: string;
+  action: string;
+  detail: string;
+  details: string;
+  operator: string;
+  timestamp: string;
+  createdAt: string;
+}
+
+/**
+ * 计算已还款总额
+ * 优先级: loan.totalRepaid (API) > loanAmount - loan.balance (反推) > 还款计划 > 0
+ */
 export function calcTotalRepaid(loan: HSBCLoan): number {
-  // 优先使用API返回的totalRepaid字段（从Excel导入的还款计划计算）
+  // 1. 优先使用 API 返回的 totalRepaid 字段（从还款计划计算）
   if (loan.totalRepaid !== undefined && loan.totalRepaid !== null) {
     return loan.totalRepaid;
   }
   
-  // 如果有存储的balance字段，根据余额计算已还款
-  // 已还金额 = 贷款金额 - 余额
-  if (loan.balance !== undefined) {
+  // 2. 如果有 balance 字段，反推已还款 = 贷款金额 - 余额
+  if (loan.balance !== undefined && loan.balance !== null) {
     return Math.max(0, loan.loanAmount - loan.balance);
   }
   
-  // 如果没有balance，检查还款计划
-  // Excel导入的还款计划可能是未来还款计划，不是已还款记录
-  // 因此主要依赖balance来计算已还款
-  if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) {
-    return 0;
+  // 3. 检查还款计划中的 repaid 标记
+  if (loan.repaymentSchedule && loan.repaymentSchedule.length > 0) {
+    const hasRepaidField = loan.repaymentSchedule.some(r => r.repaid !== undefined);
+    if (hasRepaidField) {
+      return loan.repaymentSchedule
+        .filter(r => r.repaid)
+        .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
+    }
   }
   
-  // 如果还款计划存在，检查是否有repaid标记
-  const hasRepaidField = loan.repaymentSchedule.some(r => r.repaid !== undefined);
-  
-  if (hasRepaidField) {
-    return loan.repaymentSchedule
-      .filter(r => r.repaid)
-      .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
-  }
-  
-  // 没有repaid标记的还款计划，默认返回0
-  // 已还款应该通过 balance = loanAmount - totalRepaid 来计算
   return 0;
 }
 
-// 计算余额：贷款金额 - 已还款总额
+/**
+ * 计算余额：贷款金额 - 已还款总额
+ * 优先级: loan.balance (API) > loanAmount - totalRepaid (计算)
+ * 
+ * 计算规则: 余额 = 贷款金额 - 已还款总额
+ */
 export function calcBalance(loan: HSBCLoan): number {
-  const totalRepaid = calcTotalRepaid(loan);
-  const balance = loan.loanAmount - totalRepaid;
-  // 余额不能为负数
-  return Math.max(0, balance);
-}
-
-// 计算逾期金额
-// 到期日过后，如果余额 >= 0.9，才算为逾期金额
-export function calcPastdueAmount(loan: HSBCLoan): number {
-  // 如果有存储的 pastdueAmount 且大于 0，直接使用
-  if (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0) {
-    return loan.pastdueAmount;
+  // 1. 优先使用 API 返回的 balance 字段
+  if (loan.balance !== undefined && loan.balance !== null) {
+    return Math.max(0, loan.balance);
   }
   
-  // 检查是否到期且余额 >= 0.9
+  // 2. 从 totalRepaid 反推
+  const totalRepaid = calcTotalRepaid(loan);
+  return Math.max(0, loan.loanAmount - totalRepaid);
+}
+
+/**
+ * 计算逾期金额
+ * 计算规则: 到期日过后，如果余额 >= 0.9，才算为逾期金额（等于余额）
+ * 优先级: 基于 loan.status 和 loan.balance (API) > 本地计算
+ */
+export function calcPastdueAmount(loan: HSBCLoan): number {
+  // 1. 如果 API 明确标记状态，直接根据状态判断
+  if (loan.status === 'overdue') {
+    // 逾期金额 = 余额
+    return calcBalance(loan);
+  }
+  
+  // 2. 如果状态不是逾期，逾期金额为0
+  if (loan.status === 'normal' || loan.status === 'settled' || loan.status === 'active') {
+    return 0;
+  }
+  
+  // 3. 如果没有 status 字段，本地计算
+  // 到期日过后，余额 >= 0.9 才算逾期金额
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maturityDate = new Date(loan.maturityDate);
   maturityDate.setHours(0, 0, 0, 0);
   
-  // 如果到期日已过
   if (maturityDate < today) {
     const balance = calcBalance(loan);
-    // 余额 >= 0.9 算作逾期金额
     if (balance >= 0.9) {
       return balance;
     }
@@ -123,64 +168,80 @@ export function calcPastdueAmount(loan: HSBCLoan): number {
   return 0;
 }
 
-// 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）
+/**
+ * 计算逾期天数
+ * 计算规则: 到期日过后，如果余额 >= 0.9，逾期天数 = 今天 - 到期日
+ * 优先级: loan.overdueDays (API) > 本地计算
+ * 
+ * 返回值: >0 表示逾期天数，<=0 表示未逾期
+ */
 export function calcOverdueDays(loan: HSBCLoan): number {
+  // 1. 优先使用 API 返回的 overdueDays 字段
+  if (loan.overdueDays !== undefined && loan.overdueDays !== null) {
+    return loan.overdueDays;
+  }
+  
+  // 2. 本地计算
   const balance = calcBalance(loan);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maturityDate = new Date(loan.maturityDate);
   maturityDate.setHours(0, 0, 0, 0);
   
-  // 如果余额 <= 0.9 或未到期，不算逾期
+  // 余额 < 0.9 或未到期，不算逾期
   if (balance < 0.9 || maturityDate >= today) {
     return -1;
   }
   
-  // 计算逾期天数
   const diffTime = today.getTime() - maturityDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// 计算距离到期的天数（负数表示已到期）
+/**
+ * 计算距离到期的天数（负数表示已到期）
+ */
 export function calcDaysToMaturity(loan: HSBCLoan): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maturityDate = new Date(loan.maturityDate);
   maturityDate.setHours(0, 0, 0, 0);
   const diffTime = maturityDate.getTime() - today.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
-// 获取状态：基于余额和逾期判断
-// 到期日过后，如果余额 >= 0.9，才算为逾期
-export function calcStatus(loan: HSBCLoan): 'active' | 'settled' | 'overdue' | 'settling' {
+/**
+ * 获取状态
+ * 优先级: loan.status (API) > 本地计算
+ * 
+ * 计算规则:
+ * - 余额 = 0 → settled (已结清)
+ * - 到期后余额 >= 0.9 → overdue (逾期)
+ * - 有还款但未结清 → settling (还款中)
+ * - 其他 → active (正常)
+ */
+export function calcStatus(loan: HSBCLoan): 'active' | 'settled' | 'overdue' | 'settling' | 'normal' {
+  // 1. 优先使用 API 返回的 status 字段
+  if (loan.status) {
+    return loan.status as 'active' | 'settled' | 'overdue' | 'settling' | 'normal';
+  }
+  
+  // 2. 本地计算
   const balance = calcBalance(loan);
   const pastdueAmount = calcPastdueAmount(loan);
   
-  // 如果余额为0，已结清
-  if (balance === 0) {
-    return 'settled';
-  }
-  
-  // 如果余额 >= 0.9 且已到期，算逾期
-  if (pastdueAmount > 0) {
-    return 'overdue';
-  }
-  
-  // 如果有还款但还没结清，算还款中
-  if (balance < loan.loanAmount) {
-    return 'settling';
-  }
-  
+  if (balance === 0) return 'settled';
+  if (pastdueAmount > 0) return 'overdue';
+  if (balance < loan.loanAmount) return 'settling';
   return 'active';
 }
+
+
 
 // Excel 导入行数据
 export interface HSBCImportRow {
   'Loan Reference'?: string;
   'Merchant ID'?: string;
+  'Merchant Name'?: string;
   'Borrower Name'?: string;
   'Loan Start Date'?: string;
   'Loan Currency'?: string;
@@ -200,463 +261,95 @@ export interface HSBCImportRow {
   [key: string]: string | undefined;
 }
 
-// 汇丰统计仪表盘
-export interface HSBCStats {
-  totalLoans: number;
-  totalMerchants: number;
-  activeMerchants: number;
-  totalLoanAmount: number;
-  totalBalance: number;
-  totalPastdueAmount: number;
-  overdueRate: number;
-  overdueMerchants: number;
-  overdueLoans: number;
-  currencyBreakdown: CurrencyBreakdown[];
-  riskDistribution: RiskDistribution[];
-  maturityDistribution: MaturityDistribution[];
-  recentTrend: TrendItem[];
-}
-
-export interface CurrencyBreakdown {
-  currency: 'CNY' | 'USD';
-  loanCount: number;
-  totalAmount: number;
-  balance: number;
-  pastdueAmount: number;
-  overdueLoans: number;
-  overdueMerchants: number;
-}
-
-export interface RiskDistribution {
-  level: string;
-  count: number;
-  amount: number;
-  color: string;
-}
-
-export interface MaturityDistribution {
-  range: string;
-  days: number;
-  count: number;
-  amount: number;
-}
-
-export interface TrendItem {
-  date: string;
-  amount: number;
-  pastdue: number;
-}
-
-// 案件筛选条件
-export interface HSBCLoanFilter {
-  search?: string;
-  merchantId?: string;
-  borrowerName?: string;
-  currency?: 'CNY' | 'USD' | 'all';
-  status?: 'all' | 'active' | 'settled' | 'overdue';
-  minAmount?: number;
-  maxAmount?: number;
-  batchDate?: string;
-  hasOverdue?: boolean;
-  page?: number;
-  pageSize?: number;
-}
-
-// 案件操作日志
-export interface HSBCLoanLog {
-  id: string;
-  loanId: string;
-  action: string;
-  operator: string;
-  timestamp: string;
-  details?: string;
-}
-
-// 导出数据结构
-export interface HSBCExportData {
-  loans: HSBCLoan[];
-  stats: HSBCStats;
-  exportTime: string;
-  exportedBy: string;
-}
-
-// 缓存的贷款数据
-let cachedLoans: HSBCLoan[] = [];
-let lastImportTime: string | null = null;
-
-export function getCachedLoans(): HSBCLoan[] {
-  return cachedLoans;
-}
-
-export function setCachedLoans(loans: HSBCLoan[]): void {
-  cachedLoans = loans;
-  lastImportTime = new Date().toISOString();
-}
-
-export function getLastImportTime(): string | null {
-  return lastImportTime;
-}
-
-export function clearCachedLoans(): void {
-  cachedLoans = [];
-  lastImportTime = null;
-}
-
-// 解析 Excel 行为贷款数据
-export function parseImportRow(row: HSBCImportRow, batchDate?: string): HSBCLoan | null {
-  try {
-    // 使用批次日期或当前日期来判断逾期
-    const today = batchDate ? new Date(batchDate) : new Date();
-    
-    const loanReference = row['Loan Reference']?.trim();
-    if (!loanReference) return null;
-
-    const merchantId = row['Merchant ID']?.trim() || '';
-    const borrowerName = row['Borrower Name']?.trim() || '';
-    
-    // 解析还款计划
-    const repaymentSchedule: RepaymentRecord[] = [];
-    let idx = 1;
-    while (row[`Repayment Date`] && row[`Repay amount`]) {
-      const dateKey = Object.keys(row).find(k => k.includes('Repayment Date') && !k.includes('Repay'));
-      const amountKey = Object.keys(row).find(k => k.includes('Repay amount'));
-      if (!dateKey || !amountKey) break;
-      
-      const date = row[dateKey];
-      const amountStr = row[amountKey];
-      if (date && amountStr) {
-        const amount = parseFloat(amountStr.replace(/,/g, '')) || 0;
-        if (amount > 0) {
-          repaymentSchedule.push({
-            date: date.trim(),
-            amount,
-            repaid: false,
-          });
-        }
-      }
-      
-      // 移动到下一对
-      idx++;
-      if (idx > 40) break; // 防止无限循环
-    }
-
-    // 解析金额
-    const parseAmount = (str?: string): number => {
-      if (!str) return 0;
-      const cleaned = str.toString().replace(/,/g, '').trim();
-      const num = parseFloat(cleaned);
-      return isNaN(num) ? 0 : num;
-    };
-
-    return {
-      id: loanReference,
-      loanReference,
-      merchantId,
-      borrowerName,
-      loanStartDate: row['Loan Start Date']?.trim() || '',
-      loanCurrency: (row['Loan Currency']?.trim().toUpperCase() || 'USD') as 'CNY' | 'USD',
-      loanAmount: parseAmount(row['Loan Amount']),
-      loanInterest: row['Loan Interest']?.trim() || '',
-      totalInterestRate: parseFloat(row['Total Interest Rate'] || '0') || 0,
-      loanTenor: row['Loan Tenor']?.trim() || '',
-      maturityDate: row['Maturity Date']?.trim() || '',
-      repaymentSchedule,
-      // 余额 = 贷款金额 - 已还款总额（从还款计划计算）
-      balance: (() => {
-        const totalRepaid = repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
-        return Math.max(0, parseAmount(row['Loan Amount']) - totalRepaid);
-      })(),
-      // 逾期金额 = 到期日之后仍未还款的金额
-      // 只有当前日期超过到期日，且仍有未还金额时才计算逾期
-      pastdueAmount: (() => {
-        const loanAmount = parseAmount(row['Loan Amount']);
-        const totalRepaid = repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
-        const balance = Math.max(0, loanAmount - totalRepaid);
-        
-        const maturityDateStr = row['Maturity Date']?.trim();
-        if (!maturityDateStr) return 0;
-        
-        const maturityDate = new Date(maturityDateStr);
-        if (today <= maturityDate) {
-          // 还未到到期日，没有逾期
-          return 0;
-        }
-        
-        // 超过到期日，逾期金额 = 余额
-        return balance;
-      })(),
-      freezeAccountRequested: row['Freeze Account Requested? (DDMMYY)']?.trim() || undefined,
-      forceDebitRequested: row['Force Debit Requested? (DDMMYY)']?.trim() || undefined,
-      approvalFromRM: row['Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)']?.trim() || undefined,
-      confirmationFreezeAccount: row['Confirmation from Dowsure with action taken on Freeze Account?']?.trim() || undefined,
-      confirmationForceDebit: row['Confirmation from Dowsure with action taken on Force Debit?']?.trim() || undefined,
-      remarks: row['Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)']?.trim() || 
-               row['备注（任何后续行动，如在第8天冻结PSP账户，或在行动日期没有回应时跟进Dowsure）']?.trim() || '',
-      // 状态判断：基于余额和逾期金额
-      status: (() => {
-        const loanAmount = parseAmount(row['Loan Amount']);
-        const totalRepaid = repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
-        const balance = Math.max(0, loanAmount - totalRepaid);
-        
-        if (balance === 0) return 'settled';
-        
-        const maturityDateStr = row['Maturity Date']?.trim();
-        if (maturityDateStr) {
-          const maturityDate = new Date(maturityDateStr);
-          if (today > maturityDate && balance > 0) {
-            return 'overdue';
-          }
-        }
-        
-        return balance < loanAmount ? 'settling' : 'active';
-      })(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('Error parsing import row:', error);
-    return null;
-  }
-}
-
-// 计算统计数据
-export function calculateStats(loans: HSBCLoan[]): HSBCStats {
-  const USD_TO_CNY = 7;
+/**
+ * 解析导入行数据为 HSBCLoan
+ */
+export function parseImportRow(row: HSBCImportRow, batchDate?: string): HSBCLoan {
+  const loanAmount = parseFloat(String(row['Loan Amount'] || '0').replace(/,/g, '')) || 0;
+  const balance = parseFloat(String(row['Balance'] || '0').replace(/,/g, '')) || 0;
+  const pastdueAmount = parseFloat(String(row['Pastdue amount'] || '0').replace(/,/g, '')) || 0;
+  const totalInterestRate = parseFloat(String(row['Total Interest Rate'] || '0').replace(/%/g, '')) || 0;
   
-  const totalLoans = loans.length;
-  const uniqueMerchants = [...new Set(loans.map(l => l.merchantId))];
-  const activeMerchants = uniqueMerchants.filter(m => 
-    loans.some(l => l.merchantId === m && (l.balance ?? 0) > 1)
-  ).length;
+  const totalRepaid = Math.max(0, loanAmount - balance);
+  const isOverdue = pastdueAmount > 0.9 && balance > 0.9;
+  
+  return {
+    id: '',
+    loanReference: String(row['Loan Reference'] || '').trim(),
+    merchantId: String(row['Merchant ID'] || '').trim(),
+    merchantName: String(row['Merchant Name'] || '').trim(),
+    borrowerName: String(row['Borrower Name'] || '').trim(),
+    loanStartDate: String(row['Loan Start Date'] || '').trim(),
+    loanCurrency: (String(row['Loan Currency'] || 'USD').trim().toUpperCase() as 'CNY' | 'USD'),
+    loanAmount,
+    loanInterest: String(row['Loan Interest'] || '').trim(),
+    totalInterestRate: totalInterestRate / 100,
+    loanTenor: String(row['Loan Tenor'] || '').trim(),
+    maturityDate: String(row['Maturity Date'] || '').trim(),
+    balance,
+    pastdueAmount,
+    totalRepaid,
+    repaymentSchedule: [],
+    remarks: String(row['Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)'] || '').trim(),
+    batchDate,
+    status: isOverdue ? 'overdue' : 'normal',
+    freezeAccountRequested: String(row['Freeze Account Requested? (DDMMYY)'] || '').trim(),
+    forceDebitRequested: String(row['Force Debit Requested? (DDMMYY)'] || '').trim(),
+    approvalFromRM: String(row['Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)'] || '').trim(),
+    confirmationFreezeAccount: String(row['Confirmation from Dowsure with action taken on Freeze Account?'] || '').trim(),
+    confirmationForceDebit: String(row['Confirmation from Dowsure with action taken on Force Debit?'] || '').trim(),
+  };
+}
+
+/**
+ * 计算统计数据
+ */
+export function calculateStats(loans: HSBCLoan[]) {
+  const total = loans.length;
+  const totalLoanAmount = loans.reduce((sum, l) => sum + l.loanAmount, 0);
+  const totalBalance = loans.reduce((sum, l) => sum + calcBalance(l), 0);
+  const totalRepaid = loans.reduce((sum, l) => sum + calcTotalRepaid(l), 0);
+  const totalPastdueAmount = loans.reduce((sum, l) => sum + calcPastdueAmount(l), 0);
+  
+  const overdueLoans = loans.filter(l => l.status === 'overdue');
+  const normalLoans = loans.filter(l => l.status !== 'overdue');
   
   const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
   const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
   
-  const totalLoanAmount = 
-    cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0) +
-    usdLoans.reduce((sum, l) => sum + l.loanAmount * USD_TO_CNY, 0);
-  
-  const totalBalance = 
-    cnyLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0) +
-    usdLoans.reduce((sum, l) => sum + (l.balance ?? 0) * USD_TO_CNY, 0);
-  
-  const totalPastdueAmount = 
-    cnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0) +
-    usdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) * USD_TO_CNY, 0);
-  
-  const overdueLoans = loans.filter(l => (l.pastdueAmount ?? 0) > 0);
-  const overdueMerchantSet = new Set(overdueLoans.map(l => l.merchantId));
-
-  // 币种分布
-  const currencyBreakdown: CurrencyBreakdown[] = [
-    {
-      currency: 'CNY',
-      loanCount: cnyLoans.length,
-      totalAmount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-      balance: cnyLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0),
-      pastdueAmount: cnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0),
-      overdueLoans: cnyLoans.filter(l => (l.pastdueAmount ?? 0) > 0).length,
-      overdueMerchants: new Set(cnyLoans.filter(l => (l.pastdueAmount ?? 0) > 0).map(l => l.merchantId)).size,
-    },
-    {
-      currency: 'USD',
-      loanCount: usdLoans.length,
-      totalAmount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
-      balance: usdLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0),
-      pastdueAmount: usdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0),
-      overdueLoans: usdLoans.filter(l => (l.pastdueAmount ?? 0) > 0).length,
-      overdueMerchants: new Set(usdLoans.filter(l => (l.pastdueAmount ?? 0) > 0).map(l => l.merchantId)).size,
-    },
-  ];
-
-  // 风险分布
-  const riskDistribution: RiskDistribution[] = [
-    { level: '低风险', count: Math.floor(overdueLoans.length * 0.3), amount: totalPastdueAmount * 0.3, color: '#22c55e' },
-    { level: '中风险', count: Math.floor(overdueLoans.length * 0.25), amount: totalPastdueAmount * 0.25, color: '#eab308' },
-    { level: '高风险', count: Math.floor(overdueLoans.length * 0.25), amount: totalPastdueAmount * 0.25, color: '#f97316' },
-    { level: '严重风险', count: Math.floor(overdueLoans.length * 0.15), amount: totalPastdueAmount * 0.15, color: '#ef4444' },
-    { level: '极高风险', count: Math.floor(overdueLoans.length * 0.05), amount: totalPastdueAmount * 0.05, color: '#991b1b' },
-  ];
-
-  // 期限分布
-  const maturityDistribution: MaturityDistribution[] = [
-    { range: '7天内', days: 7, count: Math.floor(totalLoans * 0.05), amount: totalBalance * 0.05 },
-    { range: '15天内', days: 15, count: Math.floor(totalLoans * 0.08), amount: totalBalance * 0.08 },
-    { range: '30天内', days: 30, count: Math.floor(totalLoans * 0.12), amount: totalBalance * 0.12 },
-    { range: '45天内', days: 45, count: Math.floor(totalLoans * 0.1), amount: totalBalance * 0.1 },
-    { range: '45天以上', days: 999, count: Math.floor(totalLoans * 0.65), amount: totalBalance * 0.65 },
-  ];
-
-  // 趋势数据 (最近6个月)
-  const recentTrend: TrendItem[] = [];
-  const months = ['2024-01', '2024-02', '2024-03', '2024-04', '2024-05', '2024-06'];
-  months.forEach((month, idx) => {
-    recentTrend.push({
-      date: month,
-      amount: totalBalance * (0.8 + idx * 0.04),
-      pastdue: totalPastdueAmount * (0.5 + idx * 0.1),
-    });
-  });
-
   return {
-    totalLoans,
-    totalMerchants: uniqueMerchants.length,
-    activeMerchants,
-    totalLoanAmount: Math.round(totalLoanAmount),
-    totalBalance: Math.round(totalBalance),
-    totalPastdueAmount: Math.round(totalPastdueAmount),
-    overdueRate: totalBalance > 0 ? Math.round((totalPastdueAmount / totalBalance) * 10000) / 100 : 0,
-    overdueMerchants: overdueMerchantSet.size,
-    overdueLoans: overdueLoans.length,
-    currencyBreakdown,
-    riskDistribution,
-    maturityDistribution,
-    recentTrend,
+    total,
+    totalLoanAmount,
+    totalBalance,
+    totalRepaid,
+    totalPastdueAmount,
+    overdueCount: overdueLoans.length,
+    overdueAmount: overdueLoans.reduce((sum, l) => sum + calcBalance(l), 0),
+    normalCount: normalLoans.length,
+    normalAmount: normalLoans.reduce((sum, l) => sum + calcBalance(l), 0),
+    cnyCount: cnyLoans.length,
+    cnyAmount: cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0),
+    usdCount: usdLoans.length,
+    usdAmount: usdLoans.reduce((sum, l) => sum + l.loanAmount, 0),
+    overdueRate: total > 0 ? (overdueLoans.length / total) * 100 : 0,
+    repaymentRate: totalLoanAmount > 0 ? (totalRepaid / totalLoanAmount) * 100 : 0,
   };
 }
 
-// 筛选贷款
-export function filterLoans(loans: HSBCLoan[], filter: HSBCLoanFilter): HSBCLoan[] {
-  let result = [...loans];
+// JSON 缓存（已废弃，使用数据库）
+let _cachedLoans: HSBCLoan[] | null = null;
 
-  if (filter.search) {
-    const search = filter.search.toLowerCase();
-    result = result.filter(l =>
-      l.loanReference.toLowerCase().includes(search) ||
-      l.borrowerName.toLowerCase().includes(search) ||
-      l.merchantId.toLowerCase().includes(search)
-    );
-  }
-
-  if (filter.merchantId) {
-    result = result.filter(l => l.merchantId === filter.merchantId);
-  }
-
-  if (filter.currency && filter.currency !== 'all') {
-    result = result.filter(l => l.loanCurrency === filter.currency);
-  }
-
-  if (filter.status && filter.status !== 'all') {
-    if (filter.status === 'overdue') {
-      result = result.filter(l => (l.pastdueAmount ?? 0) > 0);
-    } else {
-      result = result.filter(l => l.status === filter.status);
-    }
-  }
-
-  if (filter.hasOverdue) {
-    result = result.filter(l => (l.pastdueAmount ?? 0) > 0);
-  }
-
-  if (filter.minAmount) {
-    result = result.filter(l => l.loanAmount >= filter.minAmount!);
-  }
-
-  if (filter.maxAmount) {
-    result = result.filter(l => l.loanAmount <= filter.maxAmount!);
-  }
-
-  if (filter.batchDate) {
-    result = result.filter(l => l.batchDate === filter.batchDate);
-  }
-
-  return result;
+/** @deprecated 使用数据库存储 */
+export function getCachedLoans(): HSBCLoan[] | null {
+  return _cachedLoans;
 }
 
-// 生成示例贷款数据
+/** @deprecated 使用数据库存储 */
+export function setCachedLoans(loans: HSBCLoan[]): void {
+  _cachedLoans = loans;
+}
+
+/** @deprecated 使用数据库存储 */
 export function generateSampleLoans(): HSBCLoan[] {
-  const borrowers = [
-    { merchantId: '68537', name: 'RONDAFUL (HK) INTERNATIONAL LIMITED', currency: 'CNY' as const, baseAmount: 1971109.85 },
-    { merchantId: '63257', name: 'ZHONGBO INTL TRADE CO LIMITED', currency: 'USD' as const, baseAmount: 250000 },
-    { merchantId: '70643', name: 'HK GRATEFULNESS GROUP CO LIMITED', currency: 'CNY' as const, baseAmount: 638712 },
-    { merchantId: '69717', name: 'MAXUP HOLDINGS LIMITED', currency: 'USD' as const, baseAmount: 400000 },
-    { merchantId: '69248', name: 'HK LA LA LA TECH CO LTD', currency: 'USD' as const, baseAmount: 110000 },
-    { merchantId: '69300', name: 'HK HENGYU INTERNATIONAL LIMITED', currency: 'USD' as const, baseAmount: 100000 },
-    { merchantId: '71490', name: 'XIAOYOUZI TECH CO LTD', currency: 'USD' as const, baseAmount: 50000 },
-    { merchantId: '71880', name: 'HONGKONG ZHENGDASHENG PACKING CO LIMITED', currency: 'USD' as const, baseAmount: 300000 },
-    { merchantId: '71753', name: 'KOWCOMMS TECH (HK) CO LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '71830', name: 'SECUTEK TECH LTD', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '68718', name: 'ZHILE HOLDINGS GROUP (HK) LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '71228', name: 'HK HONGYI HUI INTL TECHNOLOGY LTD', currency: 'USD' as const, baseAmount: 100000 },
-    { merchantId: '62312', name: 'SMART DO INTERNATIONAL LIMITED', currency: 'USD' as const, baseAmount: 400000 },
-    { merchantId: '70536', name: 'HK INAMORI TRADING LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '61382', name: 'GAMEGEEK LIMITED', currency: 'USD' as const, baseAmount: 1000000 },
-    { merchantId: '72311', name: 'LH TECHNOLOGY (HK) CO LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '72640', name: 'HK YUANHAO HOLDING GROUP LTD', currency: 'USD' as const, baseAmount: 1 },
-    { merchantId: '71543', name: 'CHUANGXIN INTL TRADE CO LIMITED', currency: 'USD' as const, baseAmount: 85000 },
-    { merchantId: '72248', name: 'HK XINJINHUI TECHNOLOGY CO LIMITED', currency: 'USD' as const, baseAmount: 350000 },
-    { merchantId: '68665', name: 'FUTURE LIGHT HOLDINGS LIMITED', currency: 'USD' as const, baseAmount: 500000 },
-    { merchantId: '62596', name: 'HYTOP INOVATION (HK) TECHNOLOGY LTD', currency: 'USD' as const, baseAmount: 485000 },
-    { merchantId: '72851', name: 'HONGKONG FEILING TRADING LIMITED', currency: 'USD' as const, baseAmount: 300000 },
-    { merchantId: '65366', name: 'KARY (HONG KONG) SUPPLY CHAIN MGT C', currency: 'USD' as const, baseAmount: 1 },
-    { merchantId: '67348', name: 'BEST CHOICE ARTS PRODUCTS CO LTD', currency: 'USD' as const, baseAmount: 240000 },
-  ];
-
-  const prefixes = ['LAEAM', 'WCTHK', 'TPJHK', 'LAEHK'];
-  const loans: HSBCLoan[] = [];
-
-  borrowers.forEach((borrower, idx) => {
-    const loanCount = Math.floor(Math.random() * 3) + 1;
-    for (let i = 0; i < loanCount; i++) {
-      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-      const loanRef = `${prefix}${1000000 + idx * 100 + i}`;
-      const loanAmount = borrower.baseAmount * (0.1 + Math.random() * 0.9);
-      // 随机生成还款进度（已还比例）
-      const repaidRatio = Math.random();
-      const balance = loanAmount * (1 - repaidRatio);
-      // 逾期：到期日设为过去的日期，且还有未还金额
-      const isPastDue = Math.random() > 0.7;
-      const startDate = new Date(2024, Math.floor(Math.random() * 6), Math.floor(Math.random() * 28) + 1);
-      const tenorDays = [90, 120, 180][Math.floor(Math.random() * 3)];
-      const maturityDate = new Date(startDate);
-      maturityDate.setDate(maturityDate.getDate() + tenorDays);
-      
-      // 如果需要逾期，设置到期日为过去
-      if (isPastDue && balance > 0) {
-        maturityDate.setFullYear(maturityDate.getFullYear() - 1); // 设为一年前
-      }
-
-      // 生成还款计划
-      const repaymentSchedule: RepaymentRecord[] = [];
-      if (repaidRatio > 0) {
-        repaymentSchedule.push({
-          date: startDate.toISOString().split('T')[0],
-          amount: loanAmount * repaidRatio,
-          repaid: true,
-        });
-      }
-      if (balance > 0) {
-        repaymentSchedule.push({
-          date: maturityDate.toISOString().split('T')[0],
-          amount: balance,
-          repaid: false,
-        });
-      }
-
-      loans.push({
-        id: `loan_${idx}_${i}`,
-        loanReference: loanRef,
-        merchantId: borrower.merchantId,
-        borrowerName: borrower.name,
-        loanStartDate: startDate.toISOString().split('T')[0],
-        loanCurrency: borrower.currency,
-        loanAmount: Math.round(loanAmount * 100) / 100,
-        loanInterest: borrower.currency === 'CNY' 
-          ? `90D CNY HBR + ${(1.5 + Math.random()).toFixed(2)}%`
-          : `120D SOFR TERM + ${(2.5 + Math.random()).toFixed(2)}%`,
-        totalInterestRate: 5 + Math.random() * 4,
-        loanTenor: `${tenorDays}D`,
-        maturityDate: maturityDate.toISOString().split('T')[0],
-        // 余额由calcBalance函数计算，这里存储计算后的值用于兼容
-        balance: Math.round(balance * 100) / 100,
-        repaymentSchedule,
-        // 逾期金额由calcPastdueAmount函数计算，这里存储计算后的值
-        pastdueAmount: Math.round(Math.max(0, balance) * 100) / 100,
-        status: balance === 0 ? 'settled' : (isPastDue && balance > 0 ? 'overdue' : (balance < loanAmount ? 'active' : 'active')),
-        batchDate: startDate.toISOString().split('T')[0].substring(0, 7),
-      });
-    }
-  });
-
-  return loans;
+  return [];
 }
