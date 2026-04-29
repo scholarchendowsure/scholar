@@ -26,35 +26,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 计算逾期天数
-    // 规则：
-    // 1. pastdueAmount > 0 时，根据批次日期和到期日计算逾期天数
-    // 2. pastdueAmount = 0 且 balance > 0.9 且已到期时，计算逾期天数
-    // 3. balance <= 0.9 或未到期时，返回 -1（不逾期）
+    // 计算逾期天数（只考虑是否已到期，不考虑余额）
+    // 返回值：-1 表示未到期或未逾期，天数表示已逾期
     const calculateOverdueDays = (loan: HSBCLoan, batchDate: string | null): number => {
-      const balance = loan.balance ?? 0;
-      const pastdueAmount = loan.pastdueAmount ?? 0;
       const maturityDate = new Date(loan.maturityDate);
       maturityDate.setHours(0, 0, 0, 0);
       
-      // 如果 pastdueAmount > 0，根据批次日期计算
-      if (pastdueAmount > 0) {
-        const refDate = batchDate ? new Date(batchDate) : new Date();
-        refDate.setHours(0, 0, 0, 0);
-        const diffTime = refDate.getTime() - maturityDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays > 0 ? diffDays : 0;
-      }
-      
-      // 如果余额 <= 0.9，不逾期
-      if (balance <= 0.9) {
-        return -1;
-      }
-      
-      // 检查是否已到期
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const diffTime = today.getTime() - maturityDate.getTime();
+      // 根据批次日期计算逾期天数
+      const refDate = batchDate ? new Date(batchDate) : new Date();
+      refDate.setHours(0, 0, 0, 0);
+      const diffTime = refDate.getTime() - maturityDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       
       return diffDays > 0 ? diffDays : -1;
@@ -62,15 +43,20 @@ export async function GET(request: NextRequest) {
 
     // 批量处理贷款数据
     loans = loans.map(loan => {
-      // 如果 balance 为空或0，使用 loanAmount
-      const effectiveBalance = (loan.balance ?? 0) > 0 ? loan.balance : loan.loanAmount;
+      // 计算实际余额：贷款金额 - 已还款总额
+      const effectiveBalance = Math.max(0, loan.loanAmount - (loan.totalRepaid || 0));
+      
       // 获取批次日期
       const loanBatchDate = (loan as any).batchDate || batchDate || null;
       // 计算逾期天数
-      const overdueDays = calculateOverdueDays({ ...loan, balance: effectiveBalance }, loanBatchDate);
+      const overdueDays = calculateOverdueDays(loan, loanBatchDate);
       
-      // 计算状态：逾期天数 > 0 为逾期，否则为正常
-      const status = overdueDays > 0 ? 'overdue' : 'normal';
+      // 计算状态：
+      // 1. 逾期天数 > 0
+      // 2. 余额 > 0.9（余额大于等于1才算逾期）
+      // 两个条件都满足才算逾期
+      const isOverdue = overdueDays > 0 && effectiveBalance > 0.9;
+      const status = isOverdue ? 'overdue' : 'normal';
       
       return { 
         ...loan, 
