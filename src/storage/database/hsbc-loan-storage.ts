@@ -15,6 +15,7 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
   const repaymentSchedule = (row.repayment_schedule as HSBCLoan['repaymentSchedule']) || [];
   const loanAmount = Number(row.loan_amount) || 0;
   const balance = Number(row.balance) || 0;
+  const totalRepaid = Number(row.total_repaid) || 0;
   
   const baseLoan: HSBCLoan = {
     id: String(row.id || ''),
@@ -35,7 +36,7 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
     status: (row.status as HSBCLoan['status']) || 'active',
     repaymentSchedule,
     remarks: String(row.remarks || ''),
-    totalRepaid: Math.max(0, loanAmount - balance),
+    totalRepaid,
   };
   
   return baseLoan;
@@ -69,14 +70,56 @@ export async function getAllHSBCLoans(): Promise<HSBCLoan[]> {
   return allLoans;
 }
 
-// 按批次日期获取汇丰贷款（从 JSON 缓存文件获取，包含完整的还款计划数据）
+// 按批次日期获取汇丰贷款（从数据库获取，包含完整的还款计划数据）
 export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLoan[]> {
   try {
-    // 动态导入 hsbc-data 模块
-    const hsbcData = await import('@/lib/hsbc-data');
-    return hsbcData.getLoansByBatchDate(batchDate);
+    const client = getClient();
+    
+    // 首先查找该批次日期对应的批次ID
+    const { data: batchData, error: batchError } = await client
+      .from('hsbc_loan_batches')
+      .select('id')
+      .eq('batch_date', batchDate)
+      .single();
+    
+    if (batchError) {
+      console.error('获取批次ID失败:', batchError);
+      return [];
+    }
+    
+    if (!batchData) {
+      console.error('未找到批次:', batchDate);
+      return [];
+    }
+    
+    const batchId = batchData.id;
+    
+    // 分批获取该批次的所有贷款
+    const allLoans: HSBCLoan[] = [];
+    const BATCH_SIZE = 1000;
+    
+    while (true) {
+      const { data, error } = await client
+        .from('hsbc_loans')
+        .select('*')
+        .eq('batch_id', batchId)
+        .order('loan_reference')
+        .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+      
+      if (error) {
+        console.error('从数据库获取贷款失败:', error);
+        return [];
+      }
+      
+      if (!data || data.length === 0) break;
+      allLoans.push(...data.map(transformRow));
+      
+      if (data.length < BATCH_SIZE) break;
+    }
+    
+    return allLoans;
   } catch (err) {
-    console.error('从 JSON 获取贷款失败:', err);
+    console.error('从数据库获取贷款失败:', err);
     return [];
   }
 }
@@ -84,53 +127,58 @@ export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLo
 // 获取所有批次日期
 export async function getAllBatchDates(): Promise<string[]> {
   try {
-    // 从 JSON 缓存获取批次日期
-    const hsbcData = await import('@/lib/hsbc-data');
-    const dates = hsbcData.getBatchDates();
-    if (dates && dates.length > 0) {
+    // 从数据库获取批次日期
+    const client = getClient();
+    const { data, error } = await client
+      .from('hsbc_loan_batches')
+      .select('batch_date')
+      .order('batch_date', { ascending: false });
+    
+    if (error) {
+      console.error('获取批次日期失败:', error);
+      return [];
+    }
+    
+    const dates = (data || []).map((row: Record<string, unknown>) => row.batch_date as string);
+    if (dates.length > 0) {
       return dates;
     }
   } catch (err) {
-    console.error('从 JSON 获取批次日期失败:', err);
+    console.error('从数据库获取批次日期失败:', err);
   }
   
-  // 备用：从数据库获取
+  return [];
+}
+
+// 获取所有汇丰贷款（从数据库）
+export async function getAllLoans(): Promise<HSBCLoan[]> {
   const client = getClient();
-  const { data, error } = await client
-    .from('hsbc_loan_batches')
-    .select('batch_date')
-    .order('batch_date', { ascending: false });
+  const allLoans: HSBCLoan[] = [];
+  const BATCH_SIZE = 1000;
   
-  if (error) {
-    console.error('获取批次日期失败:', error);
-    throw new Error(`获取批次日期失败: ${error.message}`);
+  // 分批获取数据
+  while (true) {
+    const { data, error } = await client
+      .from('hsbc_loans')
+      .select('*')
+      .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+    
+    if (error) {
+      console.error('从数据库获取汇丰贷款失败:', error);
+      return [];
+    }
+    
+    if (!data || data.length === 0) break;
+    allLoans.push(...data.map(transformRow));
+    
+    if (data.length < BATCH_SIZE) break;
   }
   
-  return (data || []).map((row: Record<string, unknown>) => row.batch_date as string);
+  return allLoans;
 }
 
-// 获取所有汇丰贷款（从 JSON 缓存文件）
-function getAllLoans(): HSBCLoan[] {
-  try {
-    // 动态导入 hsbc-data 模块
-    const { getAllLoans: getLoansFromJson } = require('@/lib/hsbc-data');
-    return getLoansFromJson();
-  } catch (err) {
-    console.error('加载汇丰数据失败:', err);
-    return [];
-  }
-}
-
-// 根据贷款编号获取单条贷款
+// 根据贷款编号获取单条贷款（从数据库获取）
 export async function getHSBCLoanByReference(loanReference: string): Promise<HSBCLoan | null> {
-  // 优先从缓存文件读取
-  const allLoans = getAllLoans();
-  const loan = allLoans.find(l => l.loanReference === loanReference);
-  if (loan) {
-    return loan;
-  }
-  
-  // 回退到数据库
   const client = getClient();
   const { data, error } = await client
     .from('hsbc_loans')

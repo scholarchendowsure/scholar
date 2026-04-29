@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLoansByBatchDate, getAllLoans, getLatestBatchDate, getBatchDates, getMockHSBCLoans } from '@/lib/hsbc-data';
+import { getAllHSBCLoans, getAllBatchDates, getHSBCLoansByBatchDate } from '@/storage/database/hsbc-loan-storage';
 
 // 汇丰贷款列表
 export async function GET(request: NextRequest) {
@@ -12,13 +12,12 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const batchDate = searchParams.get('batchDate');
 
-    // 根据 batchDate 获取数据
+    // 从数据库获取数据
     let loans;
     if (batchDate) {
-      loans = getLoansByBatchDate(batchDate);
+      loans = await getHSBCLoansByBatchDate(batchDate);
     } else {
-      const latestDate = getLatestBatchDate();
-      loans = latestDate ? getLoansByBatchDate(latestDate) : getAllLoans();
+      loans = await getAllHSBCLoans();
     }
 
     // 应用筛选

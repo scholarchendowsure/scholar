@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { HSBCLoanLog } from '@/lib/hsbc-loan';
-import { getAllLoans } from '@/lib/hsbc-data';
+import { getHSBCLoanByReference } from '@/storage/database/hsbc-loan-storage';
 
 // 操作日志存储 (内存中)
 const loanLogs: Map<string, HSBCLoanLog[]> = new Map();
@@ -12,9 +12,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    // 直接从 JSON 缓存文件获取贷款数据
-    const allLoans = getAllLoans();
-    const loan = allLoans.find(l => l.loanReference === id);
+    // 从数据库获取贷款数据
+    const loan = await getHSBCLoanByReference(id);
 
     if (!loan) {
       return NextResponse.json({ error: '贷款不存在' }, { status: 404 });
@@ -46,8 +45,7 @@ export async function PUT(
     const body = await request.json();
     
     // 检查贷款是否存在
-    const allLoans = getAllLoans();
-    const existingLoan = allLoans.find(l => l.loanReference === id);
+    const existingLoan = await getHSBCLoanByReference(id);
     if (!existingLoan) {
       return NextResponse.json({ error: '贷款不存在' }, { status: 404 });
     }

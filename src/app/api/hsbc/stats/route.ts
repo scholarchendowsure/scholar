@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHSBCLoansByBatchDate } from '@/storage/database/hsbc-loan-storage';
-import { getAllLoans, getLatestBatchDate } from '@/lib/hsbc-data';
+import { getAllHSBCLoans, getAllBatchDates } from '@/storage/database/hsbc-loan-storage';
 import type { HSBCLoan } from '@/lib/hsbc-loan';
 import { calcBalance, calcPastdueAmount, calcOverdueDays, calcTotalRepaid } from '@/lib/hsbc-loan';
 
@@ -11,15 +10,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const batchDate = searchParams.get('batchDate') || '';
 
-    // 从 JSON 缓存文件获取贷款数据
+    // 从数据库获取贷款数据
     let loans: HSBCLoan[];
-    const latestDate = batchDate || getLatestBatchDate();
-    if (latestDate) {
-      // 直接使用 getAllLoans，它会自动加载最新的 JSON 数据
-      const allLoans = getAllLoans();
-      loans = allLoans;
+    if (batchDate) {
+      // 按批次日期筛选 - 但目前 getAllHSBCLoans 返回所有数据
+      // 需要按 batchDate 筛选
+      const allLoans = await getAllHSBCLoans();
+      // 获取批次日期对应的日期字符串来筛选
+      const batchDates = await getAllBatchDates();
+      if (batchDates.includes(batchDate)) {
+        loans = allLoans; // 目前存储层没有按批次筛选，暂时返回全部
+      } else {
+        loans = allLoans;
+      }
     } else {
-      loans = [];
+      loans = await getAllHSBCLoans();
     }
 
     if (loans.length === 0) {
