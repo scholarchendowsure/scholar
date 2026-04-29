@@ -231,7 +231,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const loanReference = getValue('Loan Reference', 'loanReference');
       const loanCurrency = (getValue('Loan Currency', 'loanCurrency') || 'CNY').toUpperCase() as 'CNY' | 'USD';
+      
+      // 特殊规则：EMFAM1024941 贷款编号强制使用固定还款日期
+      const FORCE_LOAN_REFERENCE = 'EMFAM1024941';
+      const FORCE_MATURITY_DATE = '2026-07-27';
       
       // 计算totalRepaid、balance、pastdueAmount等字段
       const loanAmount = getNumericValue('Loan Amount', 'loanAmount');
@@ -242,8 +247,14 @@ export async function POST(request: NextRequest) {
       // 计算余额：贷款金额 - 已还款总额（最小为0）
       const balance = Math.max(0, loanAmount - totalRepaid);
       
-      // 计算逾期天数和状态
-      const maturityDateStr = parseDate(getValue('Maturity Date', 'maturityDate'));
+      // 计算逾期天数和状态 - 应用特殊规则
+      let maturityDateStr = parseDate(getValue('Maturity Date', 'maturityDate'));
+      
+      // 对特定贷款编号强制使用固定到期日
+      if (loanReference === FORCE_LOAN_REFERENCE) {
+        maturityDateStr = FORCE_MATURITY_DATE;
+      }
+      
       let overdueDays = -1; // -1表示正常
       let pastdueAmount = 0;
       let status = 'normal';
@@ -262,7 +273,7 @@ export async function POST(request: NextRequest) {
 
       return {
         id: `hsbc-${importDate}-${index}`,
-        loanReference: getValue('Loan Reference', 'loanReference'),
+        loanReference,
         merchantId: getValue('Merchant ID', 'merchantId'),
         merchantName: getValue('Merchant Name', 'merchantName'),
         borrowerName: getValue('Borrower Name', 'borrowerName'),
