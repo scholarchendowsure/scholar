@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHSBCLoansByBatchDate, getAllBatchDates, HSBCLoan } from '@/storage/database/hsbc-loan-storage';
-import { calcBalance, calcPastdueAmount, calcOverdueDays } from '@/lib/hsbc-loan';
+import { getHSBCLoansByBatchDate } from '@/storage/database/hsbc-loan-storage';
+import { getAllLoans, getLatestBatchDate } from '@/lib/hsbc-data';
+import type { HSBCLoan } from '@/lib/hsbc-loan';
+import { calcBalance, calcPastdueAmount, calcOverdueDays, calcTotalRepaid } from '@/lib/hsbc-loan';
 
 const USD_TO_CNY_RATE = 7;
 
@@ -9,17 +11,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const batchDate = searchParams.get('batchDate') || '';
 
-    // 获取贷款数据
+    // 从 JSON 缓存文件获取贷款数据
     let loans: HSBCLoan[];
-    if (batchDate) {
-      loans = await getHSBCLoansByBatchDate(batchDate);
+    const latestDate = batchDate || getLatestBatchDate();
+    if (latestDate) {
+      // 直接使用 getAllLoans，它会自动加载最新的 JSON 数据
+      const allLoans = getAllLoans();
+      loans = allLoans;
     } else {
-      const dates = await getAllBatchDates();
-      if (dates.length > 0) {
-        loans = await getHSBCLoansByBatchDate(dates[0]);
-      } else {
-        loans = [];
-      }
+      loans = [];
     }
 
     if (loans.length === 0) {
@@ -136,6 +136,12 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // 已还款总额
+    const totalRepaidCNY = cnyLoans.reduce((sum, l) => sum + (l.totalRepaid ?? 0), 0);
+    const totalRepaidUSD = usdLoans.reduce((sum, l) => sum + (l.totalRepaid ?? 0), 0);
+    const totalRepaid = totalRepaidCNY + totalRepaidUSD * USD_TO_CNY_RATE;
+    const totalRepaidUSDAmount = totalRepaidCNY / USD_TO_CNY_RATE + totalRepaidUSD;
+
     return NextResponse.json({
       data: {
         totalLoans,
@@ -147,6 +153,8 @@ export async function GET(request: NextRequest) {
         totalBalanceMerchantCount: [...new Set(loans.filter(l => calcBalance(l) > 0.9).map(l => l.merchantId))].length,
         totalPastdueAmount: over0AmountCNY,
         totalPastdueAmountUSD: over0AmountUSD,
+        totalRepaid,
+        totalRepaidUSD: totalRepaidUSDAmount,
         overdueRate: totalBalance > 0 ? over0AmountCNY / totalBalance : 0,
         overdueMerchantRate: totalLoans > 0 ? over0Merchants.size / totalLoans : 0,
         warningAmount: warningAmountCNY,

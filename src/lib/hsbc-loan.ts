@@ -24,6 +24,7 @@ export interface HSBCLoan {
   // 财务信息
   balance?: number;                // Balance (余额)
   pastdueAmount?: number;          // Pastdue amount (逾期金额)
+  totalRepaid?: number;            // 已还款总额（从还款计划计算）
   
   // 操作记录
   freezeAccountRequested?: string;       // Freeze Account Requested? (DDMMYY)
@@ -56,30 +57,36 @@ export interface RepaymentRecord {
 
 // 计算已还款总额（从还款计划中累加已还款金额）
 export function calcTotalRepaid(loan: HSBCLoan): number {
-  // 如果API返回了balance字段，优先使用
+  // 优先使用API返回的totalRepaid字段（从Excel导入的还款计划计算）
+  if (loan.totalRepaid !== undefined && loan.totalRepaid !== null) {
+    return loan.totalRepaid;
+  }
+  
+  // 如果有存储的balance字段，根据余额计算已还款
   // 已还金额 = 贷款金额 - 余额
   if (loan.balance !== undefined) {
     return Math.max(0, loan.loanAmount - loan.balance);
   }
   
+  // 如果没有balance，检查还款计划
+  // Excel导入的还款计划可能是未来还款计划，不是已还款记录
+  // 因此主要依赖balance来计算已还款
   if (!loan.repaymentSchedule || loan.repaymentSchedule.length === 0) {
     return 0;
   }
+  
   // 如果还款计划存在，检查是否有repaid标记
-  // 如果有repaid字段，只计算repaid=true的金额
-  // 如果没有repaid字段（Excel导入的还款计划），使用贷款金额减去所有计划还款金额
   const hasRepaidField = loan.repaymentSchedule.some(r => r.repaid !== undefined);
   
   if (hasRepaidField) {
     return loan.repaymentSchedule
       .filter(r => r.repaid)
       .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
-  } else {
-    // Excel导入的还款计划，已还金额 = 贷款金额 - 余额
-    // 但如果balance未定义，则使用贷款金额减去所有计划还款金额
-    const scheduledTotal = loan.repaymentSchedule.reduce((sum, r) => sum + r.amount, 0);
-    return Math.max(0, loan.loanAmount - scheduledTotal);
   }
+  
+  // 没有repaid标记的还款计划，默认返回0
+  // 已还款应该通过 balance = loanAmount - totalRepaid 来计算
+  return 0;
 }
 
 // 计算余额：优先使用存储的余额，否则计算

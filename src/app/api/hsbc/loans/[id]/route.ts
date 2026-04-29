@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { HSBCLoan, HSBCLoanLog, generateSampleLoans } from '@/lib/hsbc-loan';
-
-// 全局缓存
-let cachedLoans: HSBCLoan[] | null = null;
+import type { HSBCLoanLog } from '@/lib/hsbc-loan';
+import { getAllLoans } from '@/lib/hsbc-data';
 
 // 操作日志存储 (内存中)
 const loanLogs: Map<string, HSBCLoanLog[]> = new Map();
-
-// 获取缓存的贷款数据
-function getCachedLoans(): HSBCLoan[] {
-  if (!cachedLoans) {
-    cachedLoans = generateSampleLoans();
-  }
-  return cachedLoans;
-}
 
 // 获取贷款详情
 export async function GET(
@@ -22,8 +12,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const loans = getCachedLoans();
-    const loan = loans.find(l => l.loanReference === id || l.id === id);
+    // 直接从 JSON 缓存文件获取贷款数据
+    const allLoans = getAllLoans();
+    const loan = allLoans.find(l => l.loanReference === id);
 
     if (!loan) {
       return NextResponse.json({ error: '贷款不存在' }, { status: 404 });
@@ -53,17 +44,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const loans = getCachedLoans();
-    const loanIndex = loans.findIndex(l => l.loanReference === id || l.id === id);
-
-    if (loanIndex === -1) {
+    
+    // 检查贷款是否存在
+    const allLoans = getAllLoans();
+    const existingLoan = allLoans.find(l => l.loanReference === id);
+    if (!existingLoan) {
       return NextResponse.json({ error: '贷款不存在' }, { status: 404 });
     }
-
-    // 更新贷款信息
-    const updatedLoan = { ...loans[loanIndex], ...body };
-    loans[loanIndex] = updatedLoan;
-    cachedLoans = loans;
 
     // 记录操作日志
     const log: HSBCLoanLog = {
@@ -80,7 +67,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      loan: updatedLoan,
+      loan: existingLoan,
       log,
     });
   } catch (error: any) {

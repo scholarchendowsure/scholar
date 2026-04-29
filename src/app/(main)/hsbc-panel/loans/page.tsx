@@ -245,6 +245,7 @@ export default function HSBCLoansPage() {
                       <TableRow>
                         <TableHead>贷款编号</TableHead>
                         <TableHead>贷款金额</TableHead>
+                        <TableHead>已还款</TableHead>
                         <TableHead>期限</TableHead>
                         <TableHead>到期日</TableHead>
                         <TableHead>余额</TableHead>
@@ -259,6 +260,9 @@ export default function HSBCLoansPage() {
                           <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
                           <TableCell className="font-mono">
                             {formatCurrency(loan.loanAmount, loan.loanCurrency)}
+                          </TableCell>
+                          <TableCell className="font-mono text-green-600">
+                            {formatCurrency(loan.totalRepaid ?? 0, loan.loanCurrency)}
                           </TableCell>
                           <TableCell>{loan.loanTenor}</TableCell>
                           <TableCell>{loan.maturityDate}</TableCell>

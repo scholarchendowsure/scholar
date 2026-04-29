@@ -12,7 +12,11 @@ function getClient() {
 
 // 将数据库行转换为 HSBCLoan 类型
 function transformRow(row: Record<string, unknown>): HSBCLoan {
-  return {
+  const repaymentSchedule = (row.repayment_schedule as HSBCLoan['repaymentSchedule']) || [];
+  const loanAmount = Number(row.loan_amount) || 0;
+  const balance = Number(row.balance) || 0;
+  
+  const baseLoan: HSBCLoan = {
     id: String(row.id || ''),
     loanReference: String(row.loan_reference || ''),
     merchantId: String(row.merchant_id || ''),
@@ -21,17 +25,20 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
     loanCurrency: String(row.currency || 'CNY') === 'USD' ? 'USD' : 'CNY',
     loanStartDate: String(row.loan_date || ''),
     maturityDate: String(row.maturity_date || ''),
-    loanAmount: Number(row.loan_amount) || 0,
+    loanAmount,
     loanInterest: String(row.loan_interest || ''),
     totalInterestRate: Number(row.interest_rate) || 0,
     loanTenor: String(row.loan_tenor || ''),
-    balance: Number(row.balance) || 0,
+    balance,
     pastdueAmount: Number(row.pastdue_amount) || 0,
     overdueDays: Number(row.overdue_days) || 0,
     status: (row.status as HSBCLoan['status']) || 'active',
-    repaymentSchedule: (row.repayment_schedule as HSBCLoan['repaymentSchedule']) || [],
+    repaymentSchedule,
     remarks: String(row.remarks || ''),
+    totalRepaid: Math.max(0, loanAmount - balance),
   };
+  
+  return baseLoan;
 }
 
 // 获取所有汇丰贷款
@@ -121,6 +128,46 @@ export async function getAllBatchDates(): Promise<string[]> {
   }
   
   return (data || []).map((row: Record<string, unknown>) => row.batch_date as string);
+}
+
+// 获取所有汇丰贷款（从 JSON 缓存文件）
+function getAllLoans(): HSBCLoan[] {
+  try {
+    // 动态导入 hsbc-data 模块
+    const { getAllLoans: getLoansFromJson } = require('@/lib/hsbc-data');
+    return getLoansFromJson();
+  } catch (err) {
+    console.error('加载汇丰数据失败:', err);
+    return [];
+  }
+}
+
+// 根据贷款编号获取单条贷款
+export async function getHSBCLoanByReference(loanReference: string): Promise<HSBCLoan | null> {
+  // 优先从缓存文件读取
+  const allLoans = getAllLoans();
+  const loan = allLoans.find(l => l.loanReference === loanReference);
+  if (loan) {
+    return loan;
+  }
+  
+  // 回退到数据库
+  const client = getClient();
+  const { data, error } = await client
+    .from('hsbc_loans')
+    .select('*')
+    .eq('loan_reference', loanReference)
+    .single();
+  
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null; // Not found
+    }
+    console.error('获取贷款详情失败:', error);
+    throw new Error(`获取贷款详情失败: ${error.message}`);
+  }
+  
+  return transformRow(data);
 }
 
 // 保存汇丰贷款数据

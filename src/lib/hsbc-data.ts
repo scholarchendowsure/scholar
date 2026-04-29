@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { calcBalance, calcPastdueAmount, calcOverdueDays } from './hsbc-loan';
+import { calcBalance, calcPastdueAmount, calcOverdueDays, calcTotalRepaid } from './hsbc-loan';
 
 export interface RepaymentRecord {
   date: string;
@@ -25,6 +25,7 @@ export interface HSBCLoan {
   repaymentSchedule: RepaymentRecord[];
   balance: number;
   pastdueAmount: number;
+  totalRepaid?: number;  // 已还款总额
   batchDate: string;
   freezeAccountRequested?: string;
   forceDebitRequested?: string;
@@ -188,7 +189,7 @@ export function getBatchDates(): string[] {
 export function getLoansByBatchDate(batchDate: string): HSBCLoan[] {
   loadDataFromFile();
   const loans = loansByBatchDate.get(batchDate) || [];
-  // 为每个贷款计算逾期天数
+  // 为每个贷款计算逾期天数和已还款总额
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return loans.map(loan => {
@@ -199,7 +200,9 @@ export function getLoansByBatchDate(batchDate: string): HSBCLoan[] {
     if (today > maturityDate && balance > 0.9) {
       overdueDays = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
     }
-    return { ...loan, overdueDays };
+    // 计算已还款总额
+    const totalRepaid = loan.totalRepaid ?? calcTotalRepaid({ ...loan, balance });
+    return { ...loan, overdueDays, totalRepaid };
   });
 }
 

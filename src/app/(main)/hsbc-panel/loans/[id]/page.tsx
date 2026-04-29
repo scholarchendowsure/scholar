@@ -352,6 +352,15 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                     {formatCurrency(loan.loanAmount, loan.loanCurrency)}
                   </p>
                 </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-green-600 mb-1">
+                    <DollarSign className="w-4 h-4" />
+                    <span className="text-sm">已还款总额</span>
+                  </div>
+                  <p className="text-2xl font-bold font-mono text-green-600">
+                    {formatCurrency(loan.totalRepaid ?? 0, loan.loanCurrency)}
+                  </p>
+                </div>
                 <div className="bg-slate-50 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-slate-500 mb-1">
                     <DollarSign className="w-4 h-4" />
