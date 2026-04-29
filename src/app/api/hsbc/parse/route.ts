@@ -369,7 +369,6 @@ export async function POST(request: NextRequest) {
         balance: parseAmount(getCellValue(balanceIdx)),
         pastdueAmount: parseAmount(getCellValue(pastdueIdx)),
         batchDate: '',
-        freezeAccountRequested: cleanString(getCellValue(freezeIdx)),
         forceDebitRequested: cleanString(getCellValue(forceDebitIdx)),
         rmApproval: cleanString(getCellValue(rmApprovalIdx)),
         dowsureFreezeConfirm: cleanString(getCellValue(dowsureFreezeIdx)),

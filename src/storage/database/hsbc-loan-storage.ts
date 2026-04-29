@@ -180,6 +180,7 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
     const loanAmount = safeToNumber(loan.loanAmount);
     const balance = safeToNumber(loan.balance);
     const pastdueAmount = safeToNumber(loan.pastdueAmount);
+    const overdueDays = Math.floor(safeToNumber(loan.overdueDays));
     
     return {
       batch_id: batchId,
@@ -190,10 +191,11 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
       currency: loan.loanCurrency === 'USD' ? 'USD' : 'CNY',
       loan_date: String(loan.loanDate || ''),
       maturity_date: String(loan.maturityDate || ''),
-      loan_amount: toNumericString(loanAmount),
-      balance: toNumericString(balance > 0 ? balance : loanAmount),
-      pastdue_amount: toNumericString(pastdueAmount),
-      overdue_days: Math.floor(safeToNumber(loan.overdueDays)),
+      // numeric 类型列直接传数字
+      loan_amount: loanAmount,
+      balance: balance > 0 ? balance : loanAmount,
+      pastdue_amount: pastdueAmount,
+      overdue_days: overdueDays,
       status: loan.status || 'normal',
       repayment_schedule: loan.repaymentSchedule || [],
     };

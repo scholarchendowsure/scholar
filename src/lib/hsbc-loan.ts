@@ -96,31 +96,17 @@ export function calcBalance(loan: HSBCLoan): number {
   return Math.max(0, balance);
 }
 
-// 计算逾期金额：优先使用存储的逾期金额，否则计算
-// 逻辑：遍历还款计划，到期日之后的未还金额才算逾期
+// 计算逾期金额：直接使用 Excel 导入的逾期金额
+// 根据字段说明文档：优先使用存储的 pastdueAmount 值
 export function calcPastdueAmount(loan: HSBCLoan): number {
   // 如果有存储的 pastdueAmount 且大于 0，直接使用
   if (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0) {
     return loan.pastdueAmount;
   }
   
-  const balance = calcBalance(loan);
-  
-  // 如果余额 <= 0.9，则不算逾期
-  if (balance <= 0.9) {
-    return 0;
-  }
-  
-  const today = new Date();
-  const maturityDate = new Date(loan.maturityDate);
-  
-  // 如果当前日期在到期日之前，没有逾期
-  if (today <= maturityDate) {
-    return 0;
-  }
-  
-  // 超过到期日且余额 > 0.9，逾期金额 = 余额
-  return balance;
+  // 如果没有存储的逾期金额，返回 0
+  // 不进行动态计算，以确保与 Excel 导入数据一致
+  return 0;
 }
 
 // 计算逾期天数：从到期日到今天的天数（如果是负数表示未到期）

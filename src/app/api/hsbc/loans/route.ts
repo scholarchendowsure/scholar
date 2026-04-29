@@ -26,16 +26,57 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 直接使用数据库中的 balance 和 pastdueAmount 值，不再重新计算
-    // 因为 Excel 中导入的数据已经是正确的
-    // 只有当数据库中的 balance 为空或0时才尝试使用 loanAmount
+    // 计算逾期天数
+    // 规则：
+    // 1. pastdueAmount > 0 时，根据批次日期和到期日计算逾期天数
+    // 2. pastdueAmount = 0 且 balance > 0.9 且已到期时，计算逾期天数
+    // 3. balance <= 0.9 或未到期时，返回 -1（不逾期）
+    const calculateOverdueDays = (loan: HSBCLoan, batchDate: string | null): number => {
+      const balance = loan.balance ?? 0;
+      const pastdueAmount = loan.pastdueAmount ?? 0;
+      const maturityDate = new Date(loan.maturityDate);
+      maturityDate.setHours(0, 0, 0, 0);
+      
+      // 如果 pastdueAmount > 0，根据批次日期计算
+      if (pastdueAmount > 0) {
+        const refDate = batchDate ? new Date(batchDate) : new Date();
+        refDate.setHours(0, 0, 0, 0);
+        const diffTime = refDate.getTime() - maturityDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays > 0 ? diffDays : 0;
+      }
+      
+      // 如果余额 <= 0.9，不逾期
+      if (balance <= 0.9) {
+        return -1;
+      }
+      
+      // 检查是否已到期
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffTime = today.getTime() - maturityDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      return diffDays > 0 ? diffDays : -1;
+    };
+
+    // 批量处理贷款数据
     loans = loans.map(loan => {
       // 如果 balance 为空或0，使用 loanAmount
       const effectiveBalance = (loan.balance ?? 0) > 0 ? loan.balance : loan.loanAmount;
+      // 获取批次日期
+      const loanBatchDate = (loan as any).batchDate || batchDate || null;
+      // 计算逾期天数
+      const overdueDays = calculateOverdueDays({ ...loan, balance: effectiveBalance }, loanBatchDate);
+      
+      // 计算状态：pastdueAmount > 0 为逾期，否则为正常
+      const status = (loan.pastdueAmount ?? 0) > 0 ? 'overdue' : 'normal';
+      
       return { 
         ...loan, 
         balance: effectiveBalance,
-        overdueDays: loan.overdueDays ?? 0 
+        overdueDays,
+        status,
       };
     });
 
