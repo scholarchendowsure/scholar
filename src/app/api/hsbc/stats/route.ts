@@ -10,19 +10,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const batchDate = searchParams.get('batchDate') || '';
 
-    // 从数据库获取贷款数据
+    // 从数据库获取贷款数据，按批次日期筛选
     let loans: HSBCLoan[];
     if (batchDate) {
-      // 按批次日期筛选 - 但目前 getAllHSBCLoans 返回所有数据
-      // 需要按 batchDate 筛选
-      const allLoans = await getAllHSBCLoans();
-      // 获取批次日期对应的日期字符串来筛选
-      const batchDates = await getAllBatchDates();
-      if (batchDates.includes(batchDate)) {
-        loans = allLoans; // 目前存储层没有按批次筛选，暂时返回全部
-      } else {
-        loans = allLoans;
-      }
+      // 按批次日期筛选
+      loans = await getAllHSBCLoans(batchDate);
     } else {
       loans = await getAllHSBCLoans();
     }
@@ -61,20 +53,19 @@ export async function GET(request: NextRequest) {
     const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
     const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
 
-    // 在贷余额计算
-    const cnyBalanceSum = cnyLoans.reduce((sum, l) => sum + calcBalance(l), 0);
-    const usdBalanceSum = usdLoans.reduce((sum, l) => sum + calcBalance(l), 0);
+    // 在贷余额计算 - 直接使用数据库中的balance字段
+    const cnyBalanceSum = cnyLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0);
+    const usdBalanceSum = usdLoans.reduce((sum, l) => sum + (l.balance ?? 0), 0);
     const totalBalance = cnyBalanceSum + usdBalanceSum * USD_TO_CNY_RATE;
     const totalBalanceUSD = cnyBalanceSum / USD_TO_CNY_RATE + usdBalanceSum;
 
-    // 逾期天数分级
-    const today = new Date();
+    // 逾期天数分级 - 使用数据库中的overdueDays字段
     const over0Merchants = new Set<string>();
     const over30Merchants = new Set<string>();
     const over90Merchants = new Set<string>();
 
     loans.forEach(loan => {
-      const overdueDays = calcOverdueDays(loan);
+      const overdueDays = loan.overdueDays ?? -1;
       if (overdueDays > 0) {
         over0Merchants.add(loan.merchantId);
         if (overdueDays >= 30) over30Merchants.add(loan.merchantId);
@@ -82,21 +73,27 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 逾期金额计算
-    const over0AmountCNY = cnyLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0)
-      + usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l) * USD_TO_CNY_RATE, 0);
-    const over0AmountUSD = cnyLoans.reduce((sum, l) => sum + calcPastdueAmount(l) / USD_TO_CNY_RATE, 0)
-      + usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0);
+    // 逾期金额计算 - 直接使用数据库中的pastdueAmount字段
+    const over0AmountCNY = cnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0)
+      + usdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) * USD_TO_CNY_RATE, 0);
+    const over0AmountUSD = cnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) / USD_TO_CNY_RATE, 0)
+      + usdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0);
 
-    const over30AmountCNY = cnyLoans.filter(l => calcOverdueDays(l) >= 30).reduce((sum, l) => sum + calcPastdueAmount(l), 0)
-      + usdLoans.filter(l => calcOverdueDays(l) >= 30).reduce((sum, l) => sum + calcPastdueAmount(l) * USD_TO_CNY_RATE, 0);
-    const over30AmountUSD = cnyLoans.filter(l => calcOverdueDays(l) >= 30).reduce((sum, l) => sum + calcPastdueAmount(l) / USD_TO_CNY_RATE, 0)
-      + usdLoans.filter(l => calcOverdueDays(l) >= 30).reduce((sum, l) => sum + calcPastdueAmount(l), 0);
+    const over30Loans = loans.filter(l => (l.overdueDays ?? -1) >= 30);
+    const over30CnyLoans = over30Loans.filter(l => l.loanCurrency === 'CNY');
+    const over30UsdLoans = over30Loans.filter(l => l.loanCurrency === 'USD');
+    const over30AmountCNY = over30CnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0)
+      + over30UsdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) * USD_TO_CNY_RATE, 0);
+    const over30AmountUSD = over30CnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) / USD_TO_CNY_RATE, 0)
+      + over30UsdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0);
 
-    const over90AmountCNY = cnyLoans.filter(l => calcOverdueDays(l) >= 90).reduce((sum, l) => sum + calcPastdueAmount(l), 0)
-      + usdLoans.filter(l => calcOverdueDays(l) >= 90).reduce((sum, l) => sum + calcPastdueAmount(l) * USD_TO_CNY_RATE, 0);
-    const over90AmountUSD = cnyLoans.filter(l => calcOverdueDays(l) >= 90).reduce((sum, l) => sum + calcPastdueAmount(l) / USD_TO_CNY_RATE, 0)
-      + usdLoans.filter(l => calcOverdueDays(l) >= 90).reduce((sum, l) => sum + calcPastdueAmount(l), 0);
+    const over90Loans = loans.filter(l => (l.overdueDays ?? -1) >= 90);
+    const over90CnyLoans = over90Loans.filter(l => l.loanCurrency === 'CNY');
+    const over90UsdLoans = over90Loans.filter(l => l.loanCurrency === 'USD');
+    const over90AmountCNY = over90CnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0)
+      + over90UsdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) * USD_TO_CNY_RATE, 0);
+    const over90AmountUSD = over90CnyLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0) / USD_TO_CNY_RATE, 0)
+      + over90UsdLoans.reduce((sum, l) => sum + (l.pastdueAmount ?? 0), 0);
 
     // 预警金额：逾期但未到期的余额
     const warningMerchants = new Set<string>();
@@ -104,10 +101,13 @@ export async function GET(request: NextRequest) {
     let warningAmountUSD = 0;
     let warningLoanCount = 0;
 
+    // 获取批次日期作为参考日期，如果没有则使用当前日期
+    const referenceDate = batchDate ? new Date(batchDate) : new Date();
+
     loans.forEach(loan => {
       const maturityDate = new Date(loan.maturityDate);
-      const balance = calcBalance(loan);
-      if (today <= maturityDate && balance > 0.9) {
+      const balance = loan.balance ?? 0;
+      if (referenceDate <= maturityDate && balance > 0.9) {
         if (loan.loanCurrency === 'CNY') {
           warningAmountCNY += balance;
           warningAmountUSD += balance / USD_TO_CNY_RATE;
@@ -125,13 +125,15 @@ export async function GET(request: NextRequest) {
     [3, 7, 15, 30, 45].forEach(days => {
       const dueLoans = loans.filter(l => {
         const maturityDate = new Date(l.maturityDate);
-        const daysDiff = Math.floor((maturityDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.floor((maturityDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
         return daysDiff >= 0 && daysDiff <= days;
       });
       
       const merchantSet = new Set(dueLoans.map(l => l.merchantId));
-      const cnyAmt = dueLoans.filter(l => l.loanCurrency === 'CNY').reduce((s, l) => s + calcBalance(l), 0);
-      const usdAmt = dueLoans.filter(l => l.loanCurrency === 'USD').reduce((s, l) => s + calcBalance(l), 0);
+      const dueCnyLoans = dueLoans.filter(l => l.loanCurrency === 'CNY');
+      const dueUsdLoans = dueLoans.filter(l => l.loanCurrency === 'USD');
+      const cnyAmt = dueCnyLoans.reduce((s, l) => s + (l.balance ?? 0), 0);
+      const usdAmt = dueUsdLoans.reduce((s, l) => s + (l.balance ?? 0), 0);
       
       repaymentDue[days] = {
         cnyAmount: cnyAmt + usdAmt * USD_TO_CNY_RATE,
@@ -154,8 +156,8 @@ export async function GET(request: NextRequest) {
         totalLoanAmount: loans.reduce((s, l) => s + l.loanAmount, 0),
         totalBalance,
         totalBalanceUSD,
-        totalBalanceLoanCount: loans.filter(l => calcBalance(l) > 0.9).length,
-        totalBalanceMerchantCount: [...new Set(loans.filter(l => calcBalance(l) > 0.9).map(l => l.merchantId))].length,
+        totalBalanceLoanCount: loans.filter(l => (l.balance ?? 0) > 0.9).length,
+        totalBalanceMerchantCount: [...new Set(loans.filter(l => (l.balance ?? 0) > 0.9).map(l => l.merchantId))].length,
         totalPastdueAmount: over0AmountCNY,
         totalPastdueAmountUSD: over0AmountUSD,
         totalRepaid,
@@ -170,21 +172,21 @@ export async function GET(request: NextRequest) {
             amount: over0AmountCNY,
             rate: totalBalance > 0 ? over0AmountCNY / totalBalance : 0,
             amountUSD: over0AmountUSD,
-            loanCount: loans.filter(l => calcPastdueAmount(l) > 0).length,
+            loanCount: loans.filter(l => (l.pastdueAmount ?? 0) > 0).length,
             merchantCount: over0Merchants.size,
           },
           over30Days: {
             amount: over30AmountCNY,
             rate: totalBalance > 0 ? over30AmountCNY / totalBalance : 0,
             amountUSD: over30AmountUSD,
-            loanCount: loans.filter(l => calcOverdueDays(l) >= 30).length,
+            loanCount: loans.filter(l => (l.overdueDays ?? -1) >= 30).length,
             merchantCount: over30Merchants.size,
           },
           over90Days: {
             amount: over90AmountCNY,
             rate: totalBalance > 0 ? over90AmountCNY / totalBalance : 0,
             amountUSD: over90AmountUSD,
-            loanCount: loans.filter(l => calcOverdueDays(l) >= 90).length,
+            loanCount: loans.filter(l => (l.overdueDays ?? -1) >= 90).length,
             merchantCount: over90Merchants.size,
           },
         },
