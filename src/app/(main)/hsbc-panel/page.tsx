@@ -776,35 +776,41 @@ export default function HSBCPanelPage() {
     
     // 构建去重后的贷款数据
     return Array.from(map.values()).map(item => {
-      const mergedLoan = {
-        ...item.loan,
-        loanAmount: item.loan.loanAmount, // 第一笔贷款的金额
-        balance: item.loan.balance, // 第一笔贷款的余额
-        pastdueAmount: item.loan.pastdueAmount, // 第一笔贷款的逾期
-        maturityDate: item.earliestMaturityDate, // 保留最早到期的日期
-        repaymentSchedule: item.allRepaymentSchedules, // 合并所有还款计划
-      };
+      // 重新计算合并后的所有字段
+      const merchantLoans = loans.filter(l => l.merchantId === item.loan.merchantId);
       
-      // 重新计算合并后的余额和逾期金额
-      const totalLoanAmount = loans
-        .filter(l => l.merchantId === item.loan.merchantId)
-        .reduce((sum, l) => sum + l.loanAmount, 0);
+      const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
+      const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
+      const balance = Math.max(0, totalLoanAmount - totalRepaid);
       
-      const totalRepaid = mergedLoan.repaymentSchedule
-        .filter(r => r.repaid)
-        .reduce((sum, r) => sum + (r.actualAmount || r.amount), 0);
+      // 批次日期是2026-04-29
+      const batchDate = new Date('2026-04-29');
+      const maturityDate = new Date(item.earliestMaturityDate);
       
-      mergedLoan.loanAmount = totalLoanAmount;
-      mergedLoan.balance = Math.max(0, totalLoanAmount - totalRepaid);
-      
-      // 计算逾期：基于最早到期的日期
-      const today = new Date();
-      const maturityDate = new Date(mergedLoan.maturityDate);
-      if (today > maturityDate && mergedLoan.balance > 0) {
-        mergedLoan.pastdueAmount = mergedLoan.balance;
-      } else {
-        mergedLoan.pastdueAmount = 0;
+      // 计算逾期天数：到期日已过且余额>0.9才算逾期
+      let overdueDays = -1;
+      if (item.earliestMaturityDate) {
+        const diffDays = Math.floor((batchDate.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > 0 && balance > 0.9) {
+          overdueDays = diffDays;
+        }
       }
+      
+      // 计算逾期金额和状态
+      const pastdueAmount = overdueDays > 0 ? balance : 0;
+      const status = overdueDays > 0 ? 'overdue' : 'normal';
+      
+      const mergedLoan: HSBCLoan = {
+        ...item.loan,
+        loanAmount: totalLoanAmount,
+        totalRepaid: totalRepaid,
+        balance: balance,
+        pastdueAmount: pastdueAmount,
+        overdueDays: overdueDays,
+        status: status,
+        maturityDate: item.earliestMaturityDate,
+        repaymentSchedule: item.allRepaymentSchedules,
+      };
       
       return mergedLoan;
     });
