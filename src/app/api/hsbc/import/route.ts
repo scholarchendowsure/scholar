@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHSBCLoansByBatchDate, saveHSBCLoans } from '@/storage/database/hsbc-loan-storage';
+import type { HSBCLoan } from '@/lib/hsbc-loan';
 
 // 解析中文日期格式 "2024年1月29日"
 function parseChineseDate(dateStr: string): string {
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
         loanReference: getValue('Loan Reference', 'loanReference'),
         merchantId: getValue('Merchant ID', 'merchantId'),
         borrowerName: getValue('Borrower Name', 'borrowerName'),
-        loanDate: parseDate(getValue('Loan Start Date', 'loanDate')),
+        loanStartDate: parseDate(getValue('Loan Start Date', 'loanDate')),
         loanCurrency,
         loanAmount: getNumericValue('Loan Amount', 'loanAmount'),
         loanInterest: getValue('Loan Interest', 'loanInterest'),
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
         dowsureFreezeConfirm: getValue('Confirmation from Dowsure with action taken on Freeze Account? (DDMMYY)'),
         dowsureForceDebitConfirm: getValue('Confirmation from Dowsure with action taken on Force Debit? (DDMMYY)'),
         remarks: getValue('Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)'),
-      };
+      } as HSBCLoan;
     });
 
 // 根据导入模式处理

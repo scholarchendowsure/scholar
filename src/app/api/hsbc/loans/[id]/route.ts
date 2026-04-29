@@ -68,7 +68,7 @@ export async function PUT(
     // 记录操作日志
     const log: HSBCLoanLog = {
       id: `log_${Date.now()}`,
-      loanReference: id,
+      loanId: id,
       action: body.action || 'update',
       operator: body.operator || 'System',
       timestamp: new Date().toISOString(),

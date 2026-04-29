@@ -56,10 +56,10 @@ interface ClosureStats {
 }
 
 const closureTypeConfig = {
-  full_repayment: { label: '全额回款', variant: 'success' as const },
-  partial_repayment: { label: '部分回款', variant: 'warning' as const },
-  no_repayment: { label: '无回款', variant: 'danger' as const },
-  other: { label: '其他', variant: 'default' as const },
+  full_repayment: { label: '全额回款', variant: 'default' as const, className: 'bg-emerald-500 text-white border-transparent' },
+  partial_repayment: { label: '部分回款', variant: 'default' as const, className: 'bg-amber-500 text-white border-transparent' },
+  no_repayment: { label: '无回款', variant: 'destructive' as const },
+  other: { label: '其他', variant: 'outline' as const },
 };
 
 export default function ClosedCasesPage() {

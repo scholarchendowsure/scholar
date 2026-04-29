@@ -661,7 +661,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <div className="text-2xl font-bold font-data text-[hsl(0,75%,50%)]">
-                  {formatCurrency(postLoanStats?.totalOverdue || '0')}
+                  {formatCurrency(Number(postLoanStats?.totalOverdue) || 0)}
                 </div>
               )}
               <p className="text-xs text-muted-foreground mt-1">当前总逾期未还款金额</p>
@@ -680,7 +680,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <div className="text-2xl font-bold font-data text-[hsl(145,65%,38%)]">
-                  {formatCurrency(postLoanStats?.totalRepayment || '0')}
+                  {formatCurrency(Number(postLoanStats?.totalRepayment) || 0)}
                 </div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
@@ -746,7 +746,7 @@ export default function DashboardPage() {
                         border: '1px solid hsl(220,20%,88%)',
                         borderRadius: '2px',
                       }}
-                      formatter={(value: number) => [formatCurrency(value.toString()), '']}
+                      formatter={(value: number) => [formatCurrency(value), '']}
                     />
                     <Legend />
                     <Area
@@ -838,7 +838,7 @@ export default function DashboardPage() {
                           </Badge>
                         </td>
                         <td className="py-3 px-4 text-right font-data text-[hsl(145,65%,38%)]">
-                          {formatCurrency(user.totalRepayment)}
+                          {formatCurrency(Number(user.totalRepayment))}
                         </td>
                       </tr>
                     ))

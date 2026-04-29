@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHSBCLoansByBatchDate, getAllBatchDates } from '@/storage/database/hsbc-loan-storage';
+import { getHSBCLoansByBatchDate, getAllBatchDates, HSBCLoan } from '@/storage/database/hsbc-loan-storage';
 import { calcBalance, calcPastdueAmount, calcOverdueDays } from '@/lib/hsbc-loan';
 
 const USD_TO_CNY_RATE = 7;
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const batchDate = searchParams.get('batchDate') || '';
 
     // 获取贷款数据
-    let loans;
+    let loans: HSBCLoan[];
     if (batchDate) {
       loans = await getHSBCLoansByBatchDate(batchDate);
     } else {

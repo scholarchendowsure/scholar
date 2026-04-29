@@ -254,7 +254,7 @@ export default function HSBCLoansPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {merchant.loans.map((loan: HSBCLoan) => (
+                      {(merchant.loans || []).map((loan: HSBCLoan) => (
                         <TableRow key={loan.id}>
                           <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
                           <TableCell className="font-mono">

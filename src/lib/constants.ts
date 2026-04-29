@@ -1,5 +1,5 @@
 // 案件状态配置
-export const CASE_STATUS_CONFIG = {
+export const CASE_STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   pending_assign: {
     label: '待分配',
     color: 'bg-amber-100 text-amber-800 border-amber-200',
@@ -20,7 +20,7 @@ export const CASE_STATUS_CONFIG = {
     color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     bgColor: 'bg-emerald-500',
   },
-} as const;
+};
 
 // 金额格式化函数
 export function formatCurrency(amount: number | string, currency: string = 'CNY'): string {
@@ -52,7 +52,7 @@ export const HSBC_RISK_LABELS = [
 
 // 结案类型配置
 // 用户角色配置
-export const USER_ROLE_CONFIG = {
+export const USER_ROLE_CONFIG: Record<string, { label: string; color: string }> = {
   admin: {
     label: '管理员',
     color: 'bg-purple-100 text-purple-800 border-purple-200',
@@ -65,7 +65,11 @@ export const USER_ROLE_CONFIG = {
     label: '外访员',
     color: 'bg-blue-100 text-blue-800 border-blue-200',
   },
-} as const;
+  agent: {
+    label: '外访员',
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+  },
+};
 
 // 用户状态配置
 export const USER_STATUS_CONFIG = {

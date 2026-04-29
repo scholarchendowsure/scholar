@@ -2,6 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import type { HSBCLoan } from '@/lib/hsbc-loan';
 import { getSupabaseClient } from './supabase-client';
 
+// Re-export HSBCLoan type
+export type { HSBCLoan } from '@/lib/hsbc-loan';
+
 // 初始化 Supabase 客户端
 function getClient() {
   return getSupabaseClient();
@@ -19,9 +22,9 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
     loanStartDate: String(row.loan_date || ''),
     maturityDate: String(row.maturity_date || ''),
     loanAmount: Number(row.loan_amount) || 0,
-    loanInterest: '',
-    totalInterestRate: 0,
-    loanTenor: '',
+    loanInterest: String(row.loan_interest || ''),
+    totalInterestRate: Number(row.interest_rate) || 0,
+    loanTenor: String(row.loan_tenor || ''),
     balance: Number(row.balance) || 0,
     pastdueAmount: Number(row.pastdue_amount) || 0,
     overdueDays: Number(row.overdue_days) || 0,
@@ -189,8 +192,11 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
       merchant_name: String(loan.merchantName || ''),
       borrower_name: String(loan.borrowerName || ''),
       currency: loan.loanCurrency === 'USD' ? 'USD' : 'CNY',
-      loan_date: String(loan.loanDate || ''),
+      loan_date: String(loan.loanStartDate || loan.loanDate || ''),
       maturity_date: String(loan.maturityDate || ''),
+      loan_interest: String(loan.loanInterest || ''),
+      interest_rate: safeToNumber(loan.totalInterestRate),
+      loan_tenor: String(loan.loanTenor || ''),
       // numeric 类型列直接传数字
       loan_amount: loanAmount,
       balance: balance > 0 ? balance : loanAmount,

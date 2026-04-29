@@ -358,7 +358,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                     <span className="text-sm">当前余额</span>
                   </div>
                   <p className="text-2xl font-bold font-mono">
-                    {formatCurrency(loan.balance, loan.loanCurrency)}
+                    {formatCurrency(loan.balance ?? 0, loan.loanCurrency)}
                   </p>
                 </div>
                 <div className="bg-red-50 rounded-lg p-4">
@@ -367,12 +367,12 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                     <span className="text-sm">逾期金额</span>
                   </div>
                   <p className="text-2xl font-bold font-mono text-red-600">
-                    {formatCurrency(loan.pastdueAmount, loan.loanCurrency)}
+                    {formatCurrency(loan.pastdueAmount ?? 0, loan.loanCurrency)}
                   </p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Badge variant={loan.pastdueAmount > 0 ? 'destructive' : 'default'}>
-                    {loan.pastdueAmount > 0 ? '逾期中' : '正常'}
+                  <Badge variant={(loan.pastdueAmount ?? 0) > 0 ? 'destructive' : 'default'}>
+                    {(loan.pastdueAmount ?? 0) > 0 ? '逾期中' : '正常'}
                   </Badge>
                   <span className="text-sm text-slate-500">
                     {loan.loanCurrency}

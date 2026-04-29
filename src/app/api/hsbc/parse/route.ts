@@ -53,7 +53,7 @@ function parseDDMMMYY(dateStr: string): string {
 }
 
 // 解析日期（支持多种格式，包括Excel序列号）
-function parseDate(dateValue: string | number | undefined | null): string {
+function parseDate(dateValue: unknown): string {
   if (!dateValue || dateValue === '') return '';
   
   // 如果是数字（Excel序列号日期）
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
     const loanRefIdx = findColumnIndex(['Loan Reference']);
     const merchantIdIdx = findColumnIndex(['Merchant ID']);
     const borrowerIdx = findColumnIndex(['Borrower Name']);
-    const startDateIdx = findColumnIndex(['Loan Start Date']);
+    const startDateIdx = findColumnIndex(['Loan Start', 'Start Date']);
     const currencyIdx = findColumnIndex(['Loan Currency']);
     const amountIdx = headerRow.findIndex((h: string, i: number) => {
       const hl = h.toLowerCase();
@@ -257,7 +257,7 @@ export async function POST(request: NextRequest) {
     });
     const interestIdx = findColumnIndex(['Loan Interest']);
     const rateIdx = findColumnIndex(['Total Interest Rate']);
-    const tenorIdx = findColumnIndex(['Loan Tenor']);
+    const tenorIdx = headerRow.findIndex((h: string) => h.replace(/[\s\n\r]/g, '').toLowerCase().includes('tenor'));
     const maturityIdx = findColumnIndex(['Maturity Date']);
     const balanceIdx = headerRow.reduce((lastIdx: number, h: string, i: number) => {
       return h.toLowerCase() === 'balance' ? i : lastIdx;

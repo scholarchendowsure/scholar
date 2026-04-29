@@ -77,12 +77,12 @@ export async function POST(request: Request) {
       sequence: mockUsers.length + 1,
       name: body.name,
       username: body.username,
-      email: body.email || null,
+      email: (body.email || '') as string,
       password: body.password,
-      department: body.department || null,
+      department: (body.department || '') as string,
       role: body.role || 'agent',
       status: 'active',
-      lastLoginTime: null,
+      lastLoginTime: '',
       createdAt: new Date().toISOString(),
     };
     

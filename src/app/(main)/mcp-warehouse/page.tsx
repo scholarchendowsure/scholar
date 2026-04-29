@@ -195,12 +195,13 @@ export default function McpWarehousePage() {
 
   const openEditDialog = (service: McpService) => {
     setSelectedService(service);
+    const config = service.config as { host?: string; port?: number; database?: string } || {};
     setFormData({
       name: service.name,
       description: service.description || '',
       type: service.type,
       endpoint: service.endpoint || '',
-      config: service.config as { host?: string; port?: number; database?: string } || { host: '', port: 5432, database: '' },
+      config: { host: config.host || '', port: config.port || 5432, database: config.database || '' },
       apiKey: '',
     });
     setEditDialogOpen(true);

@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, varchar, numeric, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, timestamp, varchar, numeric, jsonb, index, text } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const healthCheck = pgTable("health_check", {

@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq } from 'drizzle-orm';
 import { successResponse, errorResponse } from '@/lib/auth';
+
+// Mock data for testing
+const mockServices = [
+  {
+    id: '1',
+    name: '测试服务',
+    type: 'http',
+    endpoint: 'https://api.example.com',
+    config: { host: '', port: 0, database: '' },
+    apiKey: '',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
 
 // 测试 MCP 服务连接
 export async function POST(
@@ -11,17 +24,12 @@ export async function POST(
   try {
     const { id } = await params;
 
-    const services = await db
-      .select()
-      .from(schema.mcpServices)
-      .where(eq(schema.mcpServices.id, id))
-      .limit(1);
+    // Find service by ID (mock)
+    const service = mockServices.find(s => s.id === id);
 
-    if (!services[0]) {
+    if (!service) {
       return NextResponse.json(errorResponse('服务不存在'), { status: 404 });
     }
-
-    const service = services[0];
 
     // 根据类型测试连接
     let testResult = { success: false, message: '' };
@@ -63,14 +71,8 @@ export async function POST(
       testResult = { success: false, message: '不支持的服务类型' };
     }
 
-    // 更新服务状态
-    await db
-      .update(schema.mcpServices)
-      .set({
-        status: testResult.success ? 'active' : 'error',
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.mcpServices.id, id));
+    // Mock update service status
+    // await mockDb.update(schema.mcpServices).set({ status: testResult.success ? 'active' : 'error' }).where(eq(schema.mcpServices.id, id));
 
     return NextResponse.json(successResponse(testResult));
   } catch (error) {

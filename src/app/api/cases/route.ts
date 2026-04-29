@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
     }
     if (search) {
       cases = cases.filter(c =>
-        c.caseNo.toLowerCase().includes(search) ||
-        c.borrowerName.toLowerCase().includes(search) ||
-        c.borrowerPhone?.includes(search)
+        c.caseNo.toLowerCase().includes(search.toLowerCase()) ||
+        c.borrowerName.toLowerCase().includes(search.toLowerCase()) ||
+        (c.borrowerPhone && String(c.borrowerPhone).includes(search))
       );
     }
 

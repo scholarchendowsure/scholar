@@ -276,9 +276,10 @@ export default function AssignmentPage() {
                           item.overdueDays > 60
                             ? 'destructive'
                             : item.overdueDays > 30
-                            ? 'warning'
+                            ? 'default'
                             : 'outline'
                         }
+                        className={item.overdueDays > 30 && item.overdueDays <= 60 ? 'bg-amber-500 text-white border-transparent' : ''}
                       >
                         {item.overdueDays} 天
                       </Badge>
