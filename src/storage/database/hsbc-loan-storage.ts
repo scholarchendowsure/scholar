@@ -185,38 +185,18 @@ export async function getHSBCLoanByReference(loanReference: string): Promise<HSB
 export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
   const client = getClient();
   
-  // 获取或创建批次
+  // 获取批次日期
   const batchDate = loans[0]?.batchDate || new Date().toISOString().split('T')[0];
   
-  // 查找或创建批次记录
-  let batchId: number | null = null;
+  // 使用 batch_date 删除旧数据（不再依赖 hsbc_loan_batches 表的 batch_id）
+  const { error: deleteError } = await client
+    .from('hsbc_loans')
+    .delete()
+    .eq('batch_date', batchDate);
   
-  const { data: existingBatch } = await client
-    .from('hsbc_loan_batches')
-    .select('id')
-    .eq('batch_date', batchDate)
-    .single();
-  
-  if (existingBatch) {
-    batchId = existingBatch.id as number;
-    // 删除旧数据
-    await client
-      .from('hsbc_loans')
-      .delete()
-      .eq('batch_id', batchId);
-  } else {
-    // 创建新批次
-    const { data: newBatch, error: insertError } = await client
-      .from('hsbc_loan_batches')
-      .insert({ batch_date: batchDate })
-      .select('id')
-      .single();
-    
-    if (insertError || !newBatch) {
-      console.error('创建批次失败:', insertError);
-      throw new Error(`创建批次失败: ${insertError?.message || '未知错误'}`);
-    }
-    batchId = newBatch.id as number;
+  if (deleteError) {
+    console.error('删除旧数据失败:', deleteError);
+    // 不抛出错误，继续插入
   }
   
   // 辅助函数：安全转换为数字
@@ -230,12 +210,6 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
     return 0;
   };
   
-  // 辅助函数：将数字转换为 PostgreSQL numeric 格式字符串
-  const toNumericString = (val: number): string => {
-    if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return '0';
-    return val.toString();
-  };
-  
   // 转换数据格式 - 只插入数据库表中存在的列
   const dbLoans = loans.map(loan => {
     const loanAmount = safeToNumber(loan.loanAmount);
@@ -244,7 +218,7 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
     const overdueDays = Math.floor(safeToNumber(loan.overdueDays));
     
     return {
-      batch_id: batchId,
+      batch_date: batchDate,
       loan_reference: String(loan.loanReference || ''),
       merchant_id: String(loan.merchantId || ''),
       merchant_name: String(loan.merchantName || ''),
@@ -255,24 +229,30 @@ export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
       loan_interest: String(loan.loanInterest || ''),
       interest_rate: safeToNumber(loan.totalInterestRate),
       loan_tenor: String(loan.loanTenor || ''),
-      // numeric 类型列直接传数字
       loan_amount: loanAmount,
       balance: balance > 0 ? balance : loanAmount,
       pastdue_amount: pastdueAmount,
       overdue_days: overdueDays,
       status: loan.status || 'normal',
       repayment_schedule: loan.repaymentSchedule || [],
+      total_repaid: safeToNumber(loan.totalRepaid),
+      remarks: String(loan.remarks || ''),
     };
   });
   
-  // 批量插入数据
-  console.log('准备插入的数据示例:', JSON.stringify(dbLoans.slice(0, 2), null, 2));
-  const { error } = await client
-    .from('hsbc_loans')
-    .insert(dbLoans);
-  
-  if (error) {
-    console.error('保存汇丰贷款失败:', error);
-    throw new Error(`保存汇丰贷款失败: ${error.message}`);
+  // 分批插入数据（每次最多 500 条，避免 Supabase 请求体过大）
+  // 使用 upsert 避免 loan_reference 唯一约束冲突
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < dbLoans.length; i += BATCH_SIZE) {
+    const batch = dbLoans.slice(i, i + BATCH_SIZE);
+    console.log(`插入第 ${Math.floor(i / BATCH_SIZE) + 1} 批数据，共 ${batch.length} 条`);
+    const { error } = await client
+      .from('hsbc_loans')
+      .upsert(batch, { onConflict: 'loan_reference' });
+    
+    if (error) {
+      console.error('保存汇丰贷款失败:', error);
+      throw new Error(`保存汇丰贷款失败: ${error.message}`);
+    }
   }
 }
