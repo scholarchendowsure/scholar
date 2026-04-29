@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getBatchDates } from '@/lib/hsbc-data';
+import { getAllBatchDates } from '@/storage/database/hsbc-loan-storage';
 
 export async function GET() {
   try {
-    const dates = getBatchDates();
-    return NextResponse.json({ data: dates });
+    const batchDates = await getAllBatchDates();
+    return NextResponse.json({ data: batchDates });
   } catch (error) {
     console.error('获取批次日期失败:', error);
     return NextResponse.json({ error: '获取批次日期失败' }, { status: 500 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLoansByBatchDate, getAllLoans, getLatestBatchDate } from '@/lib/hsbc-data';
+import { getHSBCLoansByBatchDate, getAllHSBCLoans, getAllBatchDates, saveHSBCLoans } from '@/storage/database/hsbc-loan-storage';
+import { calcBalance, calcPastdueAmount, calcOverdueDays } from '@/lib/hsbc-loan';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,12 +15,23 @@ export async function GET(request: NextRequest) {
     // 根据 batchDate 获取数据
     let loans;
     if (batchDate) {
-      loans = getLoansByBatchDate(batchDate);
+      loans = await getHSBCLoansByBatchDate(batchDate);
     } else {
       // 默认获取最新批次的数据
-      const latestDate = getLatestBatchDate();
-      loans = latestDate ? getLoansByBatchDate(latestDate) : getAllLoans();
+      const dates = await getAllBatchDates();
+      if (dates.length > 0) {
+        loans = await getHSBCLoansByBatchDate(dates[0]);
+      } else {
+        loans = await getAllHSBCLoans();
+      }
     }
+
+    // 为每个贷款计算逾期天数
+    loans = loans.map(loan => {
+      const balance = calcBalance(loan);
+      const overdueDays = calcOverdueDays(loan);
+      return { ...loan, balance, overdueDays };
+    });
 
     // 筛选
     let filtered = [...loans];
@@ -66,5 +78,29 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('获取汇丰贷款列表失败:', error);
     return NextResponse.json({ error: '获取数据失败' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { loans, batchDate } = body;
+
+    if (!loans || !Array.isArray(loans) || loans.length === 0) {
+      return NextResponse.json({ error: '贷款数据不能为空' }, { status: 400 });
+    }
+
+    // 添加批次日期
+    const loansWithBatchDate = loans.map(loan => ({
+      ...loan,
+      batchDate: batchDate || new Date().toISOString().split('T')[0],
+    }));
+
+    await saveHSBCLoans(loansWithBatchDate);
+
+    return NextResponse.json({ success: true, count: loans.length });
+  } catch (error) {
+    console.error('保存汇丰贷款失败:', error);
+    return NextResponse.json({ error: '保存数据失败' }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { setLoansByBatchDate, getLoansByBatchDate } from '@/lib/hsbc-data';
+import { getHSBCLoansByBatchDate, saveHSBCLoans } from '@/storage/database/hsbc-loan-storage';
 
 // 解析中文日期格式 "2024年1月29日"
 function parseChineseDate(dateStr: string): string {
@@ -169,16 +169,18 @@ export async function POST(request: NextRequest) {
 
 // 根据导入模式处理
     if (mode === 'append' || mode === 'merge') {
-      const existingLoans = getLoansByBatchDate(importDate);
+      const existingLoans = await getHSBCLoansByBatchDate(importDate);
       // 增量模式：去重追加
       const existingRefs = new Set(existingLoans.map(l => l.loanReference));
       const newLoans = parsedLoans.filter(l => !existingRefs.has(l.loanReference));
-      setLoansByBatchDate(importDate, [...existingLoans, ...newLoans]);
+      const loansToSave = [...existingLoans, ...newLoans].map(l => ({ ...l, batchDate: importDate }));
+      await saveHSBCLoans(loansToSave);
     } else {
-      setLoansByBatchDate(importDate, parsedLoans);
+      const loansToSave = parsedLoans.map(l => ({ ...l, batchDate: importDate }));
+      await saveHSBCLoans(loansToSave);
     }
 
-    const currentLoans = getLoansByBatchDate(importDate);
+    const currentLoans = await getHSBCLoansByBatchDate(importDate);
 
     return NextResponse.json({
       success: true,

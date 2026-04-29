@@ -252,6 +252,7 @@ const generateMockLoans = (): HSBCLoan[] => {
         balance,
         pastdueAmount: pastdue,
         status: pastdue > 0 ? 'overdue' : (balance === 0 ? 'settled' : 'active'),
+        remarks: '',
         batchDate: '2024-07',
         repaymentSchedule,
         operationLogs: [],
