@@ -34,17 +34,29 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
 // 获取所有汇丰贷款
 export async function getAllHSBCLoans(): Promise<HSBCLoan[]> {
   const client = getClient();
-  const { data, error } = await client
-    .from('hsbc_loans')
-    .select('*')
-    .order('loan_reference');
+  const allLoans: HSBCLoan[] = [];
+  const BATCH_SIZE = 1000;
   
-  if (error) {
-    console.error('获取汇丰贷款失败:', error);
-    throw new Error(`获取汇丰贷款失败: ${error.message}`);
+  // 分批获取数据，Supabase 默认限制 1000 行/页
+  while (true) {
+    const { data, error } = await client
+      .from('hsbc_loans')
+      .select('*')
+      .order('loan_reference')
+      .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+    
+    if (error) {
+      console.error('获取汇丰贷款失败:', error);
+      throw new Error(`获取汇丰贷款失败: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) break;
+    allLoans.push(...data.map(transformRow));
+    
+    if (data.length < BATCH_SIZE) break;
   }
   
-  return (data || []).map(transformRow);
+  return allLoans;
 }
 
 // 按批次日期获取汇丰贷款
@@ -63,19 +75,33 @@ export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLo
     return [];
   }
   
-  // 使用批次ID获取贷款
-  const { data, error } = await client
-    .from('hsbc_loans')
-    .select('*')
-    .eq('batch_id', batchData.id)
-    .order('loan_reference');
+  const batchId = batchData.id;
+  const allLoans: HSBCLoan[] = [];
+  const BATCH_SIZE = 1000;
   
-  if (error) {
-    console.error('获取汇丰贷款失败:', error);
-    throw new Error(`获取汇丰贷款失败: ${error.message}`);
+  // 分批获取数据，Supabase 默认限制 1000 行/页
+  while (true) {
+    const { data, error } = await client
+      .from('hsbc_loans')
+      .select('*')
+      .eq('batch_id', batchId)
+      .order('loan_reference')
+      .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+    
+    if (error) {
+      console.error('获取汇丰贷款失败:', error);
+      throw new Error(`获取汇丰贷款失败: ${error.message}`);
+    }
+    
+    if (!data || data.length === 0) break;
+    allLoans.push(...data.map(transformRow));
+    
+    if (data.length < BATCH_SIZE) break;
   }
   
-  return (data || []).map(transformRow);
+  console.log(`[DEBUG] getHSBCLoansByBatchDate(${batchDate}): batch_id=${batchId}, returned ${allLoans.length} rows`);
+  
+  return allLoans;
 }
 
 // 获取所有批次日期
