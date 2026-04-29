@@ -323,6 +323,9 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
     }
   });
   
+  console.log('=== 预警金额调试信息 ===');
+  console.log('逾期商户数量:', overdueMerchantIds.size);
+  
   // 2. 预警金额(CNY)逾期商户未到期：逾期商户下未逾期贷款的余额总额
   let warningOverdueMerchantCNY = 0;
   let warningOverdueMerchantCount = 0;
@@ -364,6 +367,11 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
       }
     }
   });
+  
+  console.log('预警金额(CNY)逾期商户未到期:', warningOverdueMerchantCNY);
+  console.log('预警金额笔数:', warningOverdueMerchantCount);
+  console.log('预警金额商户数:', warningOverdueMerchants.size);
+  console.log('=== 调试信息结束 ===');
   
   // 卡片上显示的是"预警金额(CNY)逾期商户未到期"，用第一个数值
   const warningAmountCNY = warningOverdueMerchantCNY;
