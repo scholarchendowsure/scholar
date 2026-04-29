@@ -98,16 +98,33 @@ export async function GET(request: NextRequest) {
     const over90AmountUSD = cnyLoans.filter(l => calcOverdueDays(l) >= 90).reduce((sum, l) => sum + calcPastdueAmount(l) / USD_TO_CNY_RATE, 0)
       + usdLoans.filter(l => calcOverdueDays(l) >= 90).reduce((sum, l) => sum + calcPastdueAmount(l), 0);
 
-    // 预警金额：逾期但未到期的余额
+    // 预警金额计算
+    // 1. 先找出所有逾期商户（有逾期案件的商户）
+    const overdueMerchantIds = new Set<string>();
+    loans.forEach(loan => {
+      if (calcPastdueAmount(loan) > 0) {
+        overdueMerchantIds.add(loan.merchantId);
+      }
+    });
+
+    // 2. 预警金额(CNY)逾期商户未到期：逾期商户下未逾期且未到期的贷款余额总额
     const warningMerchants = new Set<string>();
     let warningAmountCNY = 0;
     let warningAmountUSD = 0;
     let warningLoanCount = 0;
+    
+    // 批次日期：使用 2026-04-29
+    const cutoffDate = new Date('2026-04-29');
 
     loans.forEach(loan => {
       const maturityDate = new Date(loan.maturityDate);
       const balance = calcBalance(loan);
-      if (today <= maturityDate && balance > 0.9) {
+      const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
+      const isLoanOverdue = calcPastdueAmount(loan) > 0;
+      const isLoanUnmatured = maturityDate >= cutoffDate && balance > 0.9;
+      
+      // 预警金额(CNY)逾期商户未到期：逾期商户下未逾期且未到期的贷款余额
+      if (isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) {
         if (loan.loanCurrency === 'CNY') {
           warningAmountCNY += balance;
           warningAmountUSD += balance / USD_TO_CNY_RATE;
