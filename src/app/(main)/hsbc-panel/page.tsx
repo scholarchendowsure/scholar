@@ -312,24 +312,56 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
   overdueByDays.over30Days.rate = totalBalanceCNY > 0 ? overdueByDays.over30Days.amount / totalBalanceCNY : 0;
   overdueByDays.over90Days.rate = totalBalanceCNY > 0 ? overdueByDays.over90Days.amount / totalBalanceCNY : 0;
   
-  // 预警金额：逾期商户未到期的余额总和
-  const overdueMerchants = [...new Set(loans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))];
-  let warningAmountCNY = 0;
-  let warningLoanCount = 0;
-  const warningMerchants = new Set<string>();
-  overdueMerchants.forEach(merchantId => {
-    const merchantLoans = loans.filter(l => l.merchantId === merchantId);
-    merchantLoans.forEach(loan => {
-      const maturityDate = new Date(loan.maturityDate);
-      const balance = calcBalance(loan);
-      // 未到期但逾期的余额
-      if (today <= maturityDate && balance > 0) {
-        warningAmountCNY += loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
-        warningLoanCount++;
-        warningMerchants.add(loan.merchantId);
-      }
-    });
+  // 预警金额计算
+  const batchDate = new Date('2026-04-29');
+  
+  // 1. 预警金额(CNY)逾期商户未到期：所有逾期案件中未到期日期余额总额
+  // 先找出所有逾期案件
+  const overdueLoans = loans.filter(l => calcPastdueAmount(l) > 0);
+  // 从逾期案件中找出未到期的余额
+  let warningOverdueMerchantCNY = 0;
+  let warningOverdueMerchantCount = 0;
+  const warningOverdueMerchants = new Set<string>();
+  overdueLoans.forEach(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    const balance = calcBalance(loan);
+    if (maturityDate >= batchDate && balance > 0) {
+      warningOverdueMerchantCNY += loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+      warningOverdueMerchantCount++;
+      warningOverdueMerchants.add(loan.merchantId);
+    }
   });
+  
+  // 2. (CNY)预警金额总额：所有人民币案件未到期余额 + 所有美元案件未到期余额*7
+  // 3. (USD)预警金额总额：所有人民币案件未到期余额/7 + 所有美元案件未到期余额
+  let warningCNYUnmaturedCNY = 0;
+  let warningCNYUnmaturedUSD = 0;
+  let warningUSDUnmaturedCNY = 0;
+  let warningUSDUnmaturedUSD = 0;
+  let warningTotalCount = 0;
+  const warningTotalMerchants = new Set<string>();
+  
+  loans.forEach(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    const balance = calcBalance(loan);
+    if (maturityDate >= batchDate && balance > 0) {
+      warningTotalCount++;
+      warningTotalMerchants.add(loan.merchantId);
+      if (loan.loanCurrency === 'CNY') {
+        warningCNYUnmaturedCNY += balance;
+        warningUSDUnmaturedCNY += balance;
+      } else {
+        warningCNYUnmaturedUSD += balance;
+        warningUSDUnmaturedUSD += balance;
+      }
+    }
+  });
+  
+  // 卡片上显示的是"预警金额(CNY)逾期商户未到期"，用第一个数值
+  const warningAmountCNY = warningOverdueMerchantCNY;
+  const warningAmountUSD = warningOverdueMerchantCNY / USD_TO_CNY_RATE;
+  const warningLoanCount = warningOverdueMerchantCount;
+  const warningMerchants = warningOverdueMerchants;
 
   const totalPastdueCNY = overdueByDays.over0Days.amount;
   
