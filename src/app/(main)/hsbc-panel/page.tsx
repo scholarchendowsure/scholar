@@ -831,9 +831,25 @@ export default function HSBCPanelPage() {
             const overdueDays30 = calcOverdueDays(loan);
             matchCardFilter = overdueDays30 >= 90 && pastdueAmount > 0;
             break;
-          case 'warning': // 预警金额 - 逾期但未到期
-            const daysToMaturity = calcDaysToMaturity(loan);
-            matchCardFilter = pastdueAmount > 0 && daysToMaturity > 0;
+          case 'warning': // 预警金额 - 逾期商户下未逾期且未到期的贷款
+            // 1. 先找出所有逾期商户（有其他贷款逾期的商户）
+            const overdueMerchantIds = new Set<string>();
+            loans.forEach(l => {
+              if (calcPastdueAmount(l) > 0) {
+                overdueMerchantIds.add(l.merchantId);
+              }
+            });
+            // 2. 判断当前贷款是否符合条件：
+            //    - 商户是逾期商户
+            //    - 该贷款本身未逾期
+            //    - 该贷款未到期（到期日 >= 2026-04-29）
+            const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
+            const isLoanOverdue = calcPastdueAmount(loan) > 0;
+            const cutoffDate = new Date('2026-04-29');
+            const maturityDate = new Date(loan.maturityDate);
+            const isLoanUnmatured = maturityDate >= cutoffDate && balance > 0.9;
+            
+            matchCardFilter = isOverdueMerchant && !isLoanOverdue && isLoanUnmatured;
             break;
           case 'due3': // 3天内到期
             const days3 = calcDaysToMaturity(loan);
