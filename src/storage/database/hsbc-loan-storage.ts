@@ -37,6 +37,7 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
     repaymentSchedule,
     remarks: String(row.remarks || ''),
     totalRepaid,
+    batchDate: String(row.batch_date || ''),
   };
   
   return baseLoan;

@@ -433,10 +433,43 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
   };
 };
 
+// ============ 贷后还款统计类型 ============
+interface RepaymentStats {
+  availableMonths: string[];
+  currentMonth: string;
+  stats: {
+    ontimeRepayment: {
+      amountUSD: number;
+      amountCNY: number;
+      amountUSDWan: string;
+      amountCNYWan: string;
+      count: number;
+      loanCount: number;
+    };
+    overdueRepayment: {
+      amountUSD: number;
+      amountCNY: number;
+      amountUSDWan: string;
+      amountCNYWan: string;
+      count: number;
+      loanCount: number;
+    };
+    totalRepayment: {
+      amountUSD: number;
+      amountCNY: number;
+      amountUSDWan: string;
+      amountCNYWan: string;
+    };
+  } | null;
+  totalLoans: number;
+  loansWithRepayment: number;
+}
+
 // ============ 主组件 ============
 export default function HSBCPanelPage() {
   const [loans, setLoans] = useState<HSBCLoan[]>([]);
   const [stats, setStats] = useState<HSBCStats | null>(null);
+  const [repaymentStats, setRepaymentStats] = useState<RepaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     dashboard: true,
@@ -481,6 +514,25 @@ export default function HSBCPanelPage() {
     'loanReference', 'merchantId', 'borrowerName', 'loanCurrency', 
     'loanStartDate', 'loanAmount', 'balance', 'pastdueAmount', 'status'
   ]);
+  const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
+  
+  // 切换还款统计月份
+  const handleMonthChange = async (month: string) => {
+    setSelectedRepaymentMonth(month);
+    try {
+      const params = new URLSearchParams();
+      if (selectedBatchDate) params.set('batchDate', selectedBatchDate);
+      if (month) params.set('yearMonth', month);
+      
+      const res = await fetch(`/api/hsbc/repayment-stats?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRepaymentStats(data.data || null);
+      }
+    } catch (err) {
+      console.error('加载还款统计失败:', err);
+    }
+  };
   
   const columnDefinitions = [
     { key: 'loanReference', label: '贷款编号' },
@@ -537,6 +589,12 @@ export default function HSBCPanelPage() {
           const statsData = await statsRes.json();
           setStats(statsData.data || null);
         }
+        // 加载还款统计数据
+        const repaymentStatsRes = await fetch(`/api/hsbc/repayment-stats?batchDate=${encodeURIComponent(latestDate)}`);
+        if (repaymentStatsRes.ok) {
+          const repaymentStatsData = await repaymentStatsRes.json();
+          setRepaymentStats(repaymentStatsData.data || null);
+        }
       } else {
         // 没有批次日期时，加载所有数据
         const loansRes = await fetch('/api/hsbc/loans?pageSize=99999');
@@ -586,6 +644,12 @@ export default function HSBCPanelPage() {
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData.data || null);
+        }
+        // 获取还款统计数据
+        const repaymentStatsRes = await fetch(`/api/hsbc/repayment-stats?batchDate=${encodeURIComponent(batchDate)}`);
+        if (repaymentStatsRes.ok) {
+          const repaymentStatsData = await repaymentStatsRes.json();
+          setRepaymentStats(repaymentStatsData.data || null);
         }
       }
     } catch (err) {
@@ -1322,6 +1386,125 @@ export default function HSBCPanelPage() {
                       <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ============ 贷后数据卡片 ============ */}
+              <div className="mt-6 border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-green-500" />
+                    <span className="font-semibold text-slate-700">贷后还款数据</span>
+                    <span className="text-xs text-slate-500">
+                      ({repaymentStats?.totalLoans || 0}笔贷款中有{repaymentStats?.loansWithRepayment || 0}笔有还款记录)
+                    </span>
+                  </div>
+                  <select
+                    value={repaymentStats?.currentMonth || ''}
+                    onChange={(e) => handleMonthChange(e.target.value)}
+                    className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">选择月份</option>
+                    {(repaymentStats?.availableMonths || []).map((month: string) => (
+                      <option key={month} value={month}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {repaymentStats?.stats ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 未逾期还款 */}
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-90 mb-2">
+                        <span className="inline-flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                          未逾期还款
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-2xl font-bold">¥{repaymentStats.stats.ontimeRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                        )}
+                        {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-2xl font-bold">${repaymentStats.stats.ontimeRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs opacity-70 mt-3 space-y-1">
+                        <div>还款笔数: {repaymentStats.stats.ontimeRepayment.count}笔</div>
+                        <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount}笔</div>
+                      </div>
+                    </div>
+
+                    {/* 逾期后还款 */}
+                    <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-90 mb-2">
+                        <span className="inline-flex items-center gap-1">
+                          <AlertTriangle className="w-4 h-4" />
+                          逾期后还款
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-2xl font-bold">¥{repaymentStats.stats.overdueRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                        )}
+                        {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-2xl font-bold">${repaymentStats.stats.overdueRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs opacity-70 mt-3 space-y-1">
+                        <div>还款笔数: {repaymentStats.stats.overdueRepayment.count}笔</div>
+                        <div>涉及贷款: {repaymentStats.stats.overdueRepayment.loanCount}笔</div>
+                      </div>
+                    </div>
+
+                    {/* 还款总额 */}
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white">
+                      <div className="text-sm opacity-90 mb-2">
+                        <span className="inline-flex items-center gap-1">
+                          <DollarSign className="w-4 h-4" />
+                          还款总额
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-2xl font-bold">¥{repaymentStats.stats.totalRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                        )}
+                        {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-2xl font-bold">${repaymentStats.stats.totalRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs opacity-70 mt-3 space-y-1">
+                        <div>总还款笔数: {repaymentStats.stats.ontimeRepayment.count + repaymentStats.stats.overdueRepayment.count}笔</div>
+                        <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount + repaymentStats.stats.overdueRepayment.loanCount}笔</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-500">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>暂无还款数据</p>
+                    <p className="text-xs">请选择月份查看该月的还款情况</p>
                   </div>
                 )}
               </div>
