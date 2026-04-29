@@ -744,16 +744,98 @@ export default function HSBCPanelPage() {
     setCurrentPage(1);
   };
 
-  // 去重商户ID后的贷款数据
+  // 先筛选（不去重）
+  const filteredLoansBeforeDedupe = useMemo(() => {
+    return loans.filter((loan: HSBCLoan) => {
+      // 支持多商户ID搜索（用空格分隔）
+      const searchTerms = searchTerm.trim().split(/\s+/).filter(t => t.length > 0);
+      const matchSearch = searchTerms.length === 0 ||
+        searchTerms.some(term =>
+          loan.loanReference.toLowerCase().includes(term.toLowerCase()) ||
+          loan.merchantId.toLowerCase().includes(term.toLowerCase()) ||
+          loan.borrowerName.toLowerCase().includes(term.toLowerCase())
+        );
+      const matchCurrency = currencyFilter === 'all' || loan.loanCurrency === currencyFilter;
+      const matchStatus = statusFilter === 'all' ||
+        (statusFilter === 'overdue' && calcPastdueAmount(loan) > 0) ||
+        (statusFilter === 'normal' && calcPastdueAmount(loan) === 0);
+    
+      // 卡片点击过滤
+      let matchCardFilter = true;
+      const today = new Date().toISOString().slice(0, 10);
+      const maturityDate = loan.maturityDate;
+      const balance = calcBalance(loan);
+      const pastdueAmount = calcPastdueAmount(loan);
+      
+      if (activeCardFilter) {
+        switch (activeCardFilter) {
+          case 'totalBalance': // 在贷总额 - 余额>0的贷款
+            matchCardFilter = balance > 0;
+            break;
+          case 'overdue0': // 逾期>0天 - 逾期金额>0
+            matchCardFilter = pastdueAmount > 0;
+            break;
+          case 'overdue30': // 逾期>30天 - 逾期天数>=30
+            const overdueDays0 = calcOverdueDays(loan);
+            matchCardFilter = overdueDays0 >= 30 && pastdueAmount > 0;
+            break;
+          case 'overdue90': // 逾期>90天 - 逾期天数>=90
+            const overdueDays30 = calcOverdueDays(loan);
+            matchCardFilter = overdueDays30 >= 90 && pastdueAmount > 0;
+            break;
+          case 'warning': // 预警金额 - 逾期但未到期
+            const daysToMaturity = calcDaysToMaturity(loan);
+            matchCardFilter = pastdueAmount > 0 && daysToMaturity > 0;
+            break;
+          case 'due3': // 3天内到期
+            const days3 = calcDaysToMaturity(loan);
+            matchCardFilter = days3 >= 0 && days3 <= 3;
+            break;
+          case 'due7': // 7天内到期
+            const days7 = calcDaysToMaturity(loan);
+            matchCardFilter = days7 >= 0 && days7 <= 7;
+            break;
+          case 'due15': // 15天内到期
+            const days15 = calcDaysToMaturity(loan);
+            matchCardFilter = days15 >= 0 && days15 <= 15;
+            break;
+          case 'due30': // 30天内到期
+            const days30 = calcDaysToMaturity(loan);
+            matchCardFilter = days30 >= 0 && days30 <= 30;
+            break;
+          case 'due45': // 45天内到期
+            const days45 = calcDaysToMaturity(loan);
+            matchCardFilter = days45 >= 0 && days45 <= 45;
+            break;
+          default:
+            matchCardFilter = true;
+        }
+      }
+      
+      // 还款统计卡片筛选
+      const matchRepaymentFilter = !filteredLoanReferences || filteredLoanReferences.length === 0 || 
+        filteredLoanReferences.includes(loan.loanReference);
+      
+      // 去重商户筛选
+      const matchDeduplicateFilter = !activeRepaymentCard || 
+        (activeRepaymentCard === 'ontime' && loan.loanReference !== 'dummy') ||
+        (activeRepaymentCard === 'overdue' && loan.loanReference !== 'dummy') ||
+        (activeRepaymentCard === 'total' && loan.loanReference !== 'dummy');
+      
+      return matchSearch && matchCurrency && matchStatus && matchCardFilter && matchRepaymentFilter && matchDeduplicateFilter;
+    });
+  }, [loans, searchTerm, currencyFilter, statusFilter, activeCardFilter, filteredLoanReferences, activeRepaymentCard]);
+
+  // 去重商户ID后的贷款数据（基于筛选后的结果去重）
   const deduplicatedLoans = useMemo(() => {
-    if (!deduplicateMerchant) return loans;
+    if (!deduplicateMerchant) return filteredLoansBeforeDedupe;
     const map = new Map<string, {
       loan: HSBCLoan;
       allRepaymentSchedules: HSBCLoan['repaymentSchedule'];
       earliestMaturityDate: string;
     }>();
     
-    loans.forEach(loan => {
+    filteredLoansBeforeDedupe.forEach(loan => {
       if (!map.has(loan.merchantId)) {
         map.set(loan.merchantId, {
           loan: { ...loan },
@@ -776,8 +858,8 @@ export default function HSBCPanelPage() {
     
     // 构建去重后的贷款数据
     return Array.from(map.values()).map(item => {
-      // 重新计算合并后的所有字段
-      const merchantLoans = loans.filter(l => l.merchantId === item.loan.merchantId);
+      // 重新计算合并后的所有字段（基于筛选后的结果）
+      const merchantLoans = filteredLoansBeforeDedupe.filter(l => l.merchantId === item.loan.merchantId);
       
       const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
@@ -814,81 +896,10 @@ export default function HSBCPanelPage() {
       
       return mergedLoan;
     });
-  }, [loans, deduplicateMerchant]);
+  }, [filteredLoansBeforeDedupe, deduplicateMerchant]);
 
-  // 筛选后的贷款（如果选择了批次日期，数据已经是该日期的数据）
-  const filteredLoans = deduplicatedLoans.filter((loan: HSBCLoan) => {
-    // 支持多商户ID搜索（用空格分隔）
-    const searchTerms = searchTerm.trim().split(/\s+/).filter(t => t.length > 0);
-    const matchSearch = searchTerms.length === 0 ||
-      searchTerms.some(term =>
-        loan.loanReference.toLowerCase().includes(term.toLowerCase()) ||
-        loan.merchantId.toLowerCase().includes(term.toLowerCase()) ||
-        loan.borrowerName.toLowerCase().includes(term.toLowerCase())
-      );
-    const matchCurrency = currencyFilter === 'all' || loan.loanCurrency === currencyFilter;
-    const matchStatus = statusFilter === 'all' ||
-      (statusFilter === 'overdue' && calcPastdueAmount(loan) > 0) ||
-      (statusFilter === 'normal' && calcPastdueAmount(loan) === 0);
-    
-    // 卡片点击过滤
-    let matchCardFilter = true;
-    const today = new Date().toISOString().slice(0, 10);
-    const maturityDate = loan.maturityDate;
-    const balance = calcBalance(loan);
-    const pastdueAmount = calcPastdueAmount(loan);
-    
-    if (activeCardFilter) {
-      switch (activeCardFilter) {
-        case 'totalBalance': // 在贷总额 - 余额>0的贷款
-          matchCardFilter = balance > 0;
-          break;
-        case 'overdue0': // 逾期>0天 - 逾期金额>0
-          matchCardFilter = pastdueAmount > 0;
-          break;
-        case 'overdue30': // 逾期>30天 - 逾期天数>=30
-          const overdueDays0 = calcOverdueDays(loan);
-          matchCardFilter = overdueDays0 >= 30 && pastdueAmount > 0;
-          break;
-        case 'overdue90': // 逾期>90天 - 逾期天数>=90
-          const overdueDays30 = calcOverdueDays(loan);
-          matchCardFilter = overdueDays30 >= 90 && pastdueAmount > 0;
-          break;
-        case 'warning': // 预警金额 - 逾期但未到期
-          const daysToMaturity = calcDaysToMaturity(loan);
-          matchCardFilter = pastdueAmount > 0 && daysToMaturity > 0;
-          break;
-        case 'due3': // 3天内到期
-          const days3 = calcDaysToMaturity(loan);
-          matchCardFilter = days3 >= 0 && days3 <= 3;
-          break;
-        case 'due7': // 7天内到期
-          const days7 = calcDaysToMaturity(loan);
-          matchCardFilter = days7 >= 0 && days7 <= 7;
-          break;
-        case 'due15': // 15天内到期
-          const days15 = calcDaysToMaturity(loan);
-          matchCardFilter = days15 >= 0 && days15 <= 15;
-          break;
-        case 'due30': // 30天内到期
-          const days30 = calcDaysToMaturity(loan);
-          matchCardFilter = days30 >= 0 && days30 <= 30;
-          break;
-        case 'due45': // 45天内到期
-          const days45 = calcDaysToMaturity(loan);
-          matchCardFilter = days45 >= 0 && days45 <= 45;
-          break;
-        default:
-          matchCardFilter = true;
-      }
-    }
-    
-    // 还款统计卡片筛选
-    const matchRepaymentFilter = !filteredLoanReferences || filteredLoanReferences.length === 0 || 
-      filteredLoanReferences.includes(loan.loanReference);
-    
-    return matchSearch && matchCurrency && matchStatus && matchCardFilter && matchRepaymentFilter;
-  });
+  // 最终显示的贷款（已经去重和筛选好了）
+  const filteredLoans = deduplicatedLoans;
 
   // 排序后的数据
   const sortedFilteredLoans = useMemo(() => {
