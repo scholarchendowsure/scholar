@@ -1,0 +1,30 @@
+services:
+  # 后端服务
+  - type: web
+    name: collection-system-api
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        value: https://collection-system-web.onrender.com
+    disk:
+      name: database
+      mountPath: /app/data
+      sizeGB: 1
+
+  # 前端服务
+  - type: web
+    name: collection-system-web
+    runtime: docker
+    rootDir: client
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: VITE_API_URL
+        value: https://collection-system-api.onrender.com
