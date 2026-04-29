@@ -187,22 +187,48 @@ export async function getHSBCLoanByReference(loanReference: string): Promise<HSB
   return transformRow(data);
 }
 
+// 删除指定批次的所有贷款数据
+export async function deleteHSBCBatch(batchDate: string): Promise<{ deletedCount: number }> {
+  const client = getClient();
+  
+  // 先查询一下该批次有多少条记录
+  const { count } = await client
+    .from('hsbc_loans')
+    .select('*', { count: 'exact', head: true })
+    .eq('batch_date', batchDate);
+  
+  // 删除该批次的所有数据
+  const { error } = await client
+    .from('hsbc_loans')
+    .delete()
+    .eq('batch_date', batchDate);
+  
+  if (error) {
+    console.error('删除批次失败:', error);
+    throw new Error(`删除批次失败: ${error.message}`);
+  }
+  
+  return { deletedCount: count || 0 };
+}
+
 // 保存汇丰贷款数据
-export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
+export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge' = 'replace'): Promise<void> {
   const client = getClient();
   
   // 获取批次日期
   const batchDate = loans[0]?.batchDate || new Date().toISOString().split('T')[0];
   
-  // 使用 batch_date 删除旧数据（不再依赖 hsbc_loan_batches 表的 batch_id）
-  const { error: deleteError } = await client
-    .from('hsbc_loans')
-    .delete()
-    .eq('batch_date', batchDate);
-  
-  if (deleteError) {
-    console.error('删除旧数据失败:', deleteError);
-    // 不抛出错误，继续插入
+  if (mode === 'replace') {
+    // 覆盖模式：删除该批次的所有旧数据
+    const { error: deleteError } = await client
+      .from('hsbc_loans')
+      .delete()
+      .eq('batch_date', batchDate);
+    
+    if (deleteError) {
+      console.error('删除旧数据失败:', deleteError);
+      // 不抛出错误，继续插入
+    }
   }
   
   // 辅助函数：安全转换为数字

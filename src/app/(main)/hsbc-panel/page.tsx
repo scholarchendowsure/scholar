@@ -515,6 +515,8 @@ export default function HSBCPanelPage() {
     'loanStartDate', 'loanAmount', 'balance', 'pastdueAmount', 'status'
   ]);
   const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [batchToDelete, setBatchToDelete] = useState<string>('');
   
   // 切换还款统计月份
   const handleMonthChange = async (month: string) => {
@@ -1076,6 +1078,44 @@ export default function HSBCPanelPage() {
     }
   };
 
+  // 处理删除批次
+  const handleDeleteBatch = (batchDate: string) => {
+    setBatchToDelete(batchDate);
+    setShowDeleteConfirm(true);
+  };
+
+  // 确认删除批次
+  const confirmDeleteBatch = async () => {
+    try {
+      const response = await fetch(`/api/hsbc/delete-batch?batchDate=${encodeURIComponent(batchToDelete)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '删除失败');
+      }
+
+      const result = await response.json();
+      
+      // 清空选择的批次日期
+      setSelectedBatchDate('');
+      
+      // 重新加载数据
+      await loadData();
+      
+      // 刷新批次日期列表
+      await fetchBatchDates();
+      
+      setShowDeleteConfirm(false);
+      setBatchToDelete('');
+      toast.success(result.message || '删除成功');
+    } catch (err) {
+      console.error('删除错误:', err);
+      toast.error(err instanceof Error ? err.message : '删除失败，请重试');
+    }
+  };
+
   // 获取批次日期列表
   const fetchBatchDates = async () => {
     try {
@@ -1126,7 +1166,7 @@ export default function HSBCPanelPage() {
           <p className="text-slate-500 text-sm mt-1">管理汇丰银行贷后案件全流程</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* 批次日期选择 */}
+          {/* 批次日期选择与删除 */}
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-500" />
             <select
@@ -1139,6 +1179,17 @@ export default function HSBCPanelPage() {
                 <option key={date} value={date}>{date}</option>
               ))}
             </select>
+            {selectedBatchDate && (
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => handleDeleteBatch(selectedBatchDate)}
+                className="gap-1"
+              >
+                <X className="w-4 h-4" />
+                删除批次
+              </Button>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -2191,6 +2242,34 @@ export default function HSBCPanelPage() {
             </Button>
             <Button onClick={confirmImport}>
               确认导入
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除批次确认弹窗 */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              确认删除批次
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-600">
+              您确定要删除批次 <span className="font-mono font-semibold text-slate-800">{batchToDelete}</span> 的所有数据吗？
+            </p>
+            <p className="text-sm text-slate-500 mt-2">
+              此操作不可恢复，该批次的所有贷款记录将被永久删除。
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteBatch}>
+              确认删除
             </Button>
           </div>
         </DialogContent>

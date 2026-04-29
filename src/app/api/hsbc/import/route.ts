@@ -35,12 +35,30 @@ function parseDDMMMYY(dateStr: string): string {
   return '';
 }
 
-// 解析日期（支持多种格式）
+// 解析日期（支持多种格式，包含多日期取后面一个）
 function parseDate(dateStr: string): string {
   if (!dateStr || typeof dateStr !== 'string') return '';
+  
+  // 处理多日期情况：换行分隔或空格分隔，取后面那个日期
+  const cleaned = dateStr.replace(/["\u200b]/g, '').trim();
+  const dateParts = cleaned.split(/[\n\r]+/).map(s => s.trim()).filter(Boolean);
+  
+  if (dateParts.length > 1) {
+    // 有多个日期，取最后一个
+    for (let i = dateParts.length - 1; i >= 0; i--) {
+      const parsed = tryParseSingleDate(dateParts[i]);
+      if (parsed) return parsed;
+    }
+  }
+  
+  return tryParseSingleDate(cleaned);
+}
+
+// 尝试解析单个日期
+function tryParseSingleDate(dateStr: string): string {
   // 尝试中文日期
   const chinese = parseChineseDate(dateStr);
-  if (chinese && chinese.includes('-') && chinese !== dateStr.replace(/["\u200b]/g, '').trim()) return chinese;
+  if (chinese && chinese.includes('-') && chinese !== dateStr) return chinese;
   // 尝试DD-MMM-YY
   const ddmmmmyy = parseDDMMMYY(dateStr);
   if (ddmmmmyy) return ddmmmmyy;
@@ -55,14 +73,17 @@ function parseDate(dateStr: string): string {
   return dateStr;
 }
 
-// 解析金额（支持多种格式）
+// 解析金额（支持多种格式，多金额取第一个）
 function parseAmount(amountStr: unknown): number {
   // 如果是数字，直接返回
   if (typeof amountStr === 'number') return amountStr;
   
   // 如果是字符串
   if (typeof amountStr === 'string') {
-    const cleaned = amountStr.replace(/[,，\s]/g, '').replace(/["\u200b]/g, '');
+    // 处理多金额情况：换行分隔，取第一个
+    const parts = amountStr.split(/[\n\r]+/).map(s => s.trim()).filter(Boolean);
+    const targetStr = parts.length > 0 ? parts[0] : amountStr;
+    const cleaned = targetStr.replace(/[,，\s]/g, '').replace(/["\u200b]/g, '');
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
   }
@@ -174,8 +195,7 @@ export async function POST(request: NextRequest) {
                 }
               }
               if (typeof val === 'string') {
-                const num = parseFloat(val.replace(/[,，\s()]/g, ''));
-                if (!isNaN(num)) return num;
+                return parseAmount(val);
               }
             }
           }
@@ -212,51 +232,76 @@ export async function POST(request: NextRequest) {
       }
 
       const loanCurrency = (getValue('Loan Currency', 'loanCurrency') || 'CNY').toUpperCase() as 'CNY' | 'USD';
+      
+      // 计算totalRepaid、balance、pastdueAmount等字段
+      const loanAmount = getNumericValue('Loan Amount', 'loanAmount');
+      
+      // 从还款计划计算已还款总额
+      const totalRepaid = repaymentSchedule.reduce((sum, item) => sum + (item.amount || 0), 0);
+      
+      // 计算余额：贷款金额 - 已还款总额（最小为0）
+      const balance = Math.max(0, loanAmount - totalRepaid);
+      
+      // 计算逾期天数和状态
+      const maturityDateStr = parseDate(getValue('Maturity Date', 'maturityDate'));
+      let overdueDays = -1; // -1表示正常
+      let pastdueAmount = 0;
+      let status = 'normal';
+      
+      if (maturityDateStr && balance > 0.9) {
+        const maturityDate = new Date(maturityDateStr);
+        const referenceDate = new Date(importDate);
+        const diffDays = Math.floor((referenceDate.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays > 0) {
+          overdueDays = diffDays;
+          pastdueAmount = balance;
+          status = 'overdue';
+        }
+      }
 
       return {
         id: `hsbc-${importDate}-${index}`,
         loanReference: getValue('Loan Reference', 'loanReference'),
         merchantId: getValue('Merchant ID', 'merchantId'),
+        merchantName: getValue('Merchant Name', 'merchantName'),
         borrowerName: getValue('Borrower Name', 'borrowerName'),
         loanStartDate: parseDate(getValue('Loan Start Date', 'loanDate')),
         loanCurrency,
-        loanAmount: getNumericValue('Loan Amount', 'loanAmount'),
+        loanAmount,
         loanInterest: getValue('Loan Interest', 'loanInterest'),
         totalInterestRate: getNumericValue('Total Interest Rate', 'totalInterestRate'),
         loanTenor: getValue('Loan Tenor', 'loanTenor'),
-        maturityDate: parseDate(getValue('Maturity Date', 'maturityDate')),
+        maturityDate: maturityDateStr,
         repaymentSchedule,
-        balance: getNumericValue('Balance', 'balance'),
-        pastdueAmount: getNumericValue('Pastdue amount', 'pastdueAmount', 'Pastdue Amount'),
+        balance,
+        pastdueAmount,
+        overdueDays,
+        status,
+        totalRepaid,
         batchDate: importDate,
-        rmApproval: getValue('Approval from RM TH (No action taken on Freeze Account OR Force Debit)? (DDMMYY)'),
-        dowsureFreezeConfirm: getValue('Confirmation from Dowsure with action taken on Freeze Account? (DDMMYY)'),
-        dowsureForceDebitConfirm: getValue('Confirmation from Dowsure with action taken on Force Debit? (DDMMYY)'),
-        remarks: getValue('Remarks (Any subsequent action likes freeze PSP account on day 8 or follow up with Dowsure if no response on action date)'),
+        remarks: getValue('Remarks', 'remarks'),
       } as HSBCLoan;
     });
 
-// 根据导入模式处理
-    if (mode === 'append' || mode === 'merge') {
-      const existingLoans = await getHSBCLoansByBatchDate(importDate);
-      // 增量模式：去重追加
-      const existingRefs = new Set(existingLoans.map(l => l.loanReference));
-      const newLoans = parsedLoans.filter(l => !existingRefs.has(l.loanReference));
-      const loansToSave = [...existingLoans, ...newLoans].map(l => ({ ...l, batchDate: importDate }));
-      await saveHSBCLoans(loansToSave);
+    // 根据导入模式处理
+    if (mode === 'merge') {
+      // 增量模式：使用 upsert 更新相同 loanReference 的记录，不删除其他数据
+      await saveHSBCLoans(parsedLoans, 'merge');
     } else {
-      const loansToSave = parsedLoans.map(l => ({ ...l, batchDate: importDate }));
-      await saveHSBCLoans(loansToSave);
+      // 覆盖模式：删除该批次所有旧数据，插入新数据
+      await saveHSBCLoans(parsedLoans, 'replace');
     }
 
     const currentLoans = await getHSBCLoansByBatchDate(importDate);
 
     return NextResponse.json({
       success: true,
-      message: `成功导入 ${parsedLoans.length} 条记录，批次日期：${importDate}`,
+      message: `成功导入 ${parsedLoans.length} 条记录，批次日期：${importDate}，模式：${mode === 'merge' ? '增量导入' : '覆盖导入'}`,
       importedCount: parsedLoans.length,
       totalCount: currentLoans.length,
       batchDate: importDate,
+      mode,
     });
   } catch (error) {
     console.error('汇丰数据导入失败:', error);
