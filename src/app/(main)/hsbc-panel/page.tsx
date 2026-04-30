@@ -1746,14 +1746,7 @@ export default function HSBCPanelPage() {
 
               {/* ============ 贷后数据卡片 ============ */}
               <div className="mt-6 border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-green-500" />
-                    <span className="font-semibold text-slate-700">贷后还款数据</span>
-                    <span className="text-xs text-slate-500">
-                      ({repaymentStats?.totalLoans || 0}笔贷款中有{repaymentStats?.loansWithRepayment || 0}笔有还款记录)
-                    </span>
-                  </div>
+                <div className="flex items-center justify-end mb-4">
                   <select
                     value={repaymentStats?.currentMonth || ''}
                     onChange={(e) => handleMonthChange(e.target.value)}
