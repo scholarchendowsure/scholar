@@ -1761,19 +1761,15 @@ export default function HSBCPanelPage() {
                       
                       {/* 原有内容区域 */}
                       <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                            <div>
-                              <div className="text-xl font-bold">¥{repaymentStats.stats.ontimeRepayment.amountCNYWan}万</div>
-                              <div className="text-xs opacity-70">CNY</div>
-                            </div>
-                          )}
-                          {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                            <div>
-                              <div className="text-xl font-bold">${repaymentStats.stats.ontimeRepayment.amountUSDWan}万</div>
-                              <div className="text-xs opacity-70">USD</div>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-8">
+                          <div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.ontimeRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.ontimeRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
                         </div>
                         <div className="text-xs opacity-70 text-right space-y-1">
                           <div>还款笔数: {repaymentStats.stats.ontimeRepayment.count}笔</div>
@@ -1813,19 +1809,15 @@ export default function HSBCPanelPage() {
                       
                       {/* 原有内容区域 */}
                       <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                            <div>
-                              <div className="text-xl font-bold">¥{repaymentStats.stats.overdueRepayment.amountCNYWan}万</div>
-                              <div className="text-xs opacity-70">CNY</div>
-                            </div>
-                          )}
-                          {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                            <div>
-                              <div className="text-xl font-bold">${repaymentStats.stats.overdueRepayment.amountUSDWan}万</div>
-                              <div className="text-xs opacity-70">USD</div>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-8">
+                          <div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.overdueRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.overdueRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
                         </div>
                         <div className="text-xs opacity-70 text-right space-y-1">
                           <div>还款笔数: {repaymentStats.stats.overdueRepayment.count}笔</div>
@@ -1865,19 +1857,15 @@ export default function HSBCPanelPage() {
                       
                       {/* 原有内容区域 */}
                       <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                            <div>
-                              <div className="text-xl font-bold">¥{repaymentStats.stats.totalRepayment.amountCNYWan}万</div>
-                              <div className="text-xs opacity-70">CNY</div>
-                            </div>
-                          )}
-                          {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                            <div>
-                              <div className="text-xl font-bold">${repaymentStats.stats.totalRepayment.amountUSDWan}万</div>
-                              <div className="text-xs opacity-70">USD</div>
-                            </div>
-                          )}
+                        <div className="flex items-center gap-8">
+                          <div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.totalRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.totalRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
                         </div>
                         <div className="text-xs opacity-70 text-right space-y-1">
                           <div>总还款笔数: {repaymentStats.stats.ontimeRepayment.count + repaymentStats.stats.overdueRepayment.count}笔</div>
