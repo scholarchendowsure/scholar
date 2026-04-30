@@ -2092,81 +2092,6 @@ export default function HSBCPanelPage() {
         </Card>
       </Collapsible>
 
-      {/* ============ 预警商户管理 ============ */}
-      <Collapsible open={expandedSections.warningMerchants} onOpenChange={() => toggleSection('warningMerchants')}>
-        <Card className="border-l-4 border-l-purple-500">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-purple-500" />
-                预警商户管理
-                {customWarningMerchants.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {customWarningMerchants.length} 个商户
-                  </Badge>
-                )}
-              </CardTitle>
-              <Button variant="ghost" size="sm">
-                {expandedSections.warningMerchants ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </Button>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
-              <div className="space-y-4">
-                {/* 输入区域 */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={warningMerchantInput}
-                    onChange={(e) => setWarningMerchantInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addWarningMerchants()}
-                    placeholder="输入商户ID（多个用空格隔开）"
-                    className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 bg-background"
-                  />
-                  <button
-                    onClick={addWarningMerchants}
-                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-                  >
-                    添加
-                  </button>
-                </div>
-                
-                {/* 已添加的商户列表 */}
-                {customWarningMerchants.length > 0 && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      已添加 {customWarningMerchants.length} 个预警商户：
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {customWarningMerchants.map((merchant) => (
-                        <div
-                          key={merchant.id}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-full"
-                        >
-                          <span className="font-mono text-sm text-purple-700">{merchant.id}</span>
-                          <span className="text-xs text-purple-600 truncate max-w-[200px]">{merchant.name}</span>
-                          <button
-                            onClick={() => removeWarningMerchant(merchant.id)}
-                            className="ml-1 text-purple-400 hover:text-purple-600 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
       {/* ============ 汇丰案件列表 ============ */}
       <div ref={casesListRef}>
         <Collapsible open={expandedSections.loans} onOpenChange={() => toggleSection('loans')}>
@@ -2628,6 +2553,81 @@ export default function HSBCPanelPage() {
                     下载导入模板
                   </Button>
                 </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* ============ 预警商户管理 ============ */}
+      <Collapsible open={expandedSections.warningMerchants} onOpenChange={() => toggleSection('warningMerchants')}>
+        <Card className="border-l-4 border-l-purple-500">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-purple-500" />
+                预警商户管理
+                {customWarningMerchants.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {customWarningMerchants.length} 个商户
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button variant="ghost" size="sm">
+                {expandedSections.warningMerchants ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="space-y-4">
+                {/* 输入区域 */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={warningMerchantInput}
+                    onChange={(e) => setWarningMerchantInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addWarningMerchants()}
+                    placeholder="输入商户ID（多个用空格隔开）"
+                    className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 bg-background"
+                  />
+                  <button
+                    onClick={addWarningMerchants}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    添加
+                  </button>
+                </div>
+                
+                {/* 已添加的商户列表 */}
+                {customWarningMerchants.length > 0 && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      已添加 {customWarningMerchants.length} 个预警商户：
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {customWarningMerchants.map((merchant) => (
+                        <div
+                          key={merchant.id}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-full"
+                        >
+                          <span className="font-mono text-sm text-purple-700">{merchant.id}</span>
+                          <span className="text-xs text-purple-600 truncate max-w-[200px]">{merchant.name}</span>
+                          <button
+                            onClick={() => removeWarningMerchant(merchant.id)}
+                            className="ml-1 text-purple-400 hover:text-purple-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </CollapsibleContent>
