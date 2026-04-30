@@ -644,6 +644,22 @@ export default function HSBCPanelPage() {
   const [activeCardFilter, setActiveCardFilter] = useState<string | null>(null);
   const casesListRef = useRef<HTMLDivElement>(null);
 
+  // 自定义预警商户相关状态
+  interface CustomWarningMerchant {
+    id: string;
+    name: string;
+    addedAt: string;
+  }
+  const [customWarningMerchants, setCustomWarningMerchants] = useState<CustomWarningMerchant[]>(() => {
+    // 从 localStorage 初始化
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hsbc_custom_warning_merchants');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [warningMerchantInput, setWarningMerchantInput] = useState('');
+
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -739,6 +755,52 @@ export default function HSBCPanelPage() {
     }
   };
 
+  // 自定义预警商户相关函数
+  // 解析商户ID（支持空格分隔）
+  const parseMerchantIds = (input: string): string[] => {
+    return input.trim()
+      .split(/\s+/)
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
+  };
+
+  // 添加预警商户
+  const addWarningMerchants = () => {
+    const merchantIds = parseMerchantIds(warningMerchantInput);
+    if (merchantIds.length === 0) {
+      return;
+    }
+
+    const newMerchants: CustomWarningMerchant[] = [...customWarningMerchants];
+    
+    merchantIds.forEach(merchantId => {
+      // 查找商户名称
+      const merchant = loans.find(l => l.merchantId === merchantId);
+      const merchantName = merchant?.borrowerName || '未知商户';
+      
+      // 检查是否已存在
+      if (!newMerchants.find(m => m.id === merchantId)) {
+        newMerchants.push({
+          id: merchantId,
+          name: merchantName,
+          addedAt: new Date().toISOString()
+        });
+      }
+    });
+    
+    setCustomWarningMerchants(newMerchants);
+    // 保存到 localStorage
+    localStorage.setItem('hsbc_custom_warning_merchants', JSON.stringify(newMerchants));
+    setWarningMerchantInput('');
+  };
+
+  // 删除预警商户
+  const removeWarningMerchant = (merchantId: string) => {
+    const newMerchants = customWarningMerchants.filter(m => m.id !== merchantId);
+    setCustomWarningMerchants(newMerchants);
+    localStorage.setItem('hsbc_custom_warning_merchants', JSON.stringify(newMerchants));
+  };
+
   // 切换展开/闭合
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
@@ -831,7 +893,7 @@ export default function HSBCPanelPage() {
             const overdueDays30 = calcOverdueDays(loan);
             matchCardFilter = overdueDays30 >= 90 && pastdueAmount > 0;
             break;
-          case 'warning': // 预警金额 - 逾期商户下未逾期且未到期的贷款
+          case 'warning': // 预警金额 - 逾期商户下未逾期且未到期 + 自定义预警商户未到期
             // 1. 先找出所有逾期商户（有其他贷款逾期的商户）
             const overdueMerchantIds = new Set<string>();
             loans.forEach(l => {
@@ -839,17 +901,22 @@ export default function HSBCPanelPage() {
                 overdueMerchantIds.add(l.merchantId);
               }
             });
-            // 2. 判断当前贷款是否符合条件：
-            //    - 商户是逾期商户
-            //    - 该贷款本身未逾期
-            //    - 该贷款未到期（到期日 >= 2026-04-29）
+            // 2. 自定义预警商户ID集合
+            const customWarningMerchantIds = new Set(
+              customWarningMerchants.map(m => m.id)
+            );
+            // 3. 判断当前贷款是否符合条件：
+            //    - 情况1：商户是逾期商户，且该贷款本身未逾期且未到期
+            //    - 情况2：商户是自定义预警商户，且该贷款未到期
             const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
             const isLoanOverdue = calcPastdueAmount(loan) > 0;
+            const isCustomWarningMerchant = customWarningMerchantIds.has(loan.merchantId);
             const cutoffDate = new Date('2026-04-29');
-            const maturityDate = new Date(loan.maturityDate);
-            const isLoanUnmatured = maturityDate >= cutoffDate && balance > 0.9;
+            const maturityDateObj = new Date(loan.maturityDate);
+            const isLoanUnmatured = maturityDateObj >= cutoffDate && balance > 0.9;
             
-            matchCardFilter = isOverdueMerchant && !isLoanOverdue && isLoanUnmatured;
+            matchCardFilter = (isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) || 
+                              (isCustomWarningMerchant && isLoanUnmatured);
             break;
           case 'due3': // 3天内到期
             const days3 = calcDaysToMaturity(loan);
@@ -889,6 +956,57 @@ export default function HSBCPanelPage() {
       return matchSearch && matchCurrency && matchStatus && matchCardFilter && matchRepaymentFilter && matchDeduplicateFilter;
     });
   }, [loans, searchTerm, currencyFilter, statusFilter, activeCardFilter, filteredLoanReferences, activeRepaymentCard]);
+
+  // 计算预警金额（包含自定义预警商户）
+  const warningStats = useMemo(() => {
+    // 1. 先找出所有逾期商户（有逾期案件的商户）
+    const overdueMerchantIds = new Set<string>();
+    loans.forEach(l => {
+      if (calcPastdueAmount(l) > 0) {
+        overdueMerchantIds.add(l.merchantId);
+      }
+    });
+    
+    // 2. 自定义预警商户ID集合
+    const customWarningMerchantIds = new Set(
+      customWarningMerchants.map(m => m.id)
+    );
+    
+    let amountCNY = 0;
+    let amountUSD = 0;
+    let loanCount = 0;
+    const merchantSet = new Set<string>();
+    const cutoffDate = new Date('2026-04-29');
+    
+    loans.forEach(loan => {
+      const balance = calcBalance(loan);
+      const maturityDate = new Date(loan.maturityDate);
+      const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
+      const isLoanOverdue = calcPastdueAmount(loan) > 0;
+      const isCustomWarningMerchant = customWarningMerchantIds.has(loan.merchantId);
+      const isLoanUnmatured = maturityDate >= cutoffDate && balance > 0.9;
+      
+      if ((isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) || 
+          (isCustomWarningMerchant && isLoanUnmatured)) {
+        if (loan.loanCurrency === 'CNY') {
+          amountCNY += balance;
+          amountUSD += balance / 7;
+        } else {
+          amountCNY += balance * 7;
+          amountUSD += balance;
+        }
+        loanCount++;
+        merchantSet.add(loan.merchantId);
+      }
+    });
+    
+    return {
+      amountCNY,
+      amountUSD,
+      loanCount,
+      merchantCount: merchantSet.size
+    };
+  }, [loans, customWarningMerchants]);
 
   // 去重商户ID后的贷款数据（基于筛选后的结果去重）
   const deduplicatedLoans = useMemo(() => {
@@ -1383,6 +1501,65 @@ export default function HSBCPanelPage() {
                 </div>
               </div>
 
+              {/* 预警商户管理 */}
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-5 h-5 text-purple-500" />
+                  <h3 className="font-semibold text-slate-700">预警商户管理</h3>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={warningMerchantInput}
+                      onChange={(e) => setWarningMerchantInput(e.target.value)}
+                      placeholder="输入商户ID（多个用空格隔开）"
+                      className="w-full border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          addWarningMerchants();
+                        }
+                      }}
+                    />
+                  </div>
+                  <Button 
+                    onClick={addWarningMerchants}
+                    className="bg-purple-500 hover:bg-purple-600 text-white"
+                  >
+                    添加
+                  </Button>
+                </div>
+                
+                {/* 已添加的预警商户列表 */}
+                {customWarningMerchants.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-sm text-slate-500 mb-2">
+                      已添加 {customWarningMerchants.length} 个预警商户：
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {customWarningMerchants.map((merchant) => (
+                        <div 
+                          key={merchant.id}
+                          className="flex items-center gap-2 bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm"
+                        >
+                          <span className="font-mono">{merchant.id}</span>
+                          <span className="text-purple-500">|</span>
+                          <span className="max-w-32 truncate" title={merchant.name}>
+                            {merchant.name}
+                          </span>
+                          <button
+                            onClick={() => removeWarningMerchant(merchant.id)}
+                            className="ml-1 text-purple-400 hover:text-purple-600"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* 核心指标 - 根据币种选择显示 */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 {/* 1. 在贷总额 */}
@@ -1533,12 +1710,14 @@ export default function HSBCPanelPage() {
                   >
                     <div className="text-sm opacity-80 mb-1">
                       预警金额(CNY)
-                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">
+                        {customWarningMerchants.length > 0 ? '含自定义预警商户' : '逾期商户未到期'}
+                      </span>
                     </div>
-                    <div className="text-xl font-bold">¥{((stats?.warningInfo?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xl font-bold">¥{(warningStats.amountCNY / 10000).toFixed(2)}万</div>
                     <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                      <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
-                      <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
+                      <div>未到期笔数: {warningStats.loanCount}笔</div>
+                      <div>商户数: {warningStats.merchantCount}个</div>
                     </div>
                   </div>
                 )}
@@ -1550,12 +1729,14 @@ export default function HSBCPanelPage() {
                   >
                     <div className="text-sm opacity-80 mb-1">
                       预警金额(USD)
-                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期商户未到期</span>
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">
+                        {customWarningMerchants.length > 0 ? '含自定义预警商户' : '逾期商户未到期'}
+                      </span>
                     </div>
-                    <div className="text-xl font-bold">${((stats?.warningInfo?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xl font-bold">${(warningStats.amountUSD / 10000).toFixed(2)}万</div>
                     <div className="text-xs opacity-70 mt-2 space-y-0.5">
-                      <div>未到期笔数: {stats?.warningInfo?.loanCount || 0}笔</div>
-                      <div>商户数: {stats?.warningInfo?.merchantCount || 0}个</div>
+                      <div>未到期笔数: {warningStats.loanCount}笔</div>
+                      <div>商户数: {warningStats.merchantCount}个</div>
                     </div>
                   </div>
                 )}
