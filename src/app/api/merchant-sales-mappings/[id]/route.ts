@@ -18,7 +18,15 @@ export async function GET(
         { status: 404 }
       );
     }
-    return NextResponse.json({ success: true, data: mapping });
+    // 转换字段名
+    const formattedMapping = {
+      id: mapping.id,
+      merchantId: mapping.merchantId,
+      feishuName: mapping.salesFeishuName,
+      createdAt: mapping.createdAt.toISOString(),
+      updatedAt: mapping.updatedAt.toISOString(),
+    };
+    return NextResponse.json({ success: true, data: formattedMapping });
   } catch (error) {
     console.error('获取商户-销售映射关系失败:', error);
     return NextResponse.json(
@@ -35,11 +43,12 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { merchantId, salesFeishuName } = body;
+    const { merchantId, salesFeishuName, feishuName } = body;
 
     const updates: Partial<{ merchantId: string; salesFeishuName: string }> = {};
     if (merchantId !== undefined) updates.merchantId = merchantId;
     if (salesFeishuName !== undefined) updates.salesFeishuName = salesFeishuName;
+    if (feishuName !== undefined) updates.salesFeishuName = feishuName;
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(

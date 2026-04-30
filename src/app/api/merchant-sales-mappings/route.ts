@@ -7,7 +7,15 @@ import {
 export async function GET() {
   try {
     const result = await getAllMerchantSalesMappings();
-    return NextResponse.json({ success: true, data: result });
+    // 转换字段名以匹配前端期望
+    const formattedMappings = result.mappings.map(m => ({
+      id: m.id,
+      merchantId: m.merchantId,
+      feishuName: m.salesFeishuName,
+      createdAt: m.createdAt.toISOString(),
+      updatedAt: m.updatedAt.toISOString(),
+    }));
+    return NextResponse.json({ success: true, data: formattedMappings });
   } catch (error) {
     console.error('获取商户-销售映射关系失败:', error);
     return NextResponse.json(
@@ -29,7 +37,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await batchImportMerchantSalesMappings(mappings, mode);
+    // 转换字段名
+    const formattedMappings = mappings.map(m => ({
+      merchantId: m.merchantId,
+      salesFeishuName: m.feishuName || m.salesFeishuName,
+    }));
+
+    const result = await batchImportMerchantSalesMappings(formattedMappings, mode);
     return NextResponse.json({ success: true, message: '保存成功', data: result });
   } catch (error) {
     console.error('保存商户-销售映射关系失败:', error);
