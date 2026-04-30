@@ -7,10 +7,10 @@ import {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const mapping = await getMerchantSalesMapping(id);
     if (!mapping) {
       return NextResponse.json(
@@ -30,21 +30,25 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
-    const { feishuName } = body;
+    const { merchantId, salesFeishuName } = body;
 
-    if (!feishuName) {
+    const updates: Partial<{ merchantId: string; salesFeishuName: string }> = {};
+    if (merchantId !== undefined) updates.merchantId = merchantId;
+    if (salesFeishuName !== undefined) updates.salesFeishuName = salesFeishuName;
+
+    if (Object.keys(updates).length === 0) {
       return NextResponse.json(
-        { success: false, error: '请提供飞书名称' },
+        { success: false, error: '请提供有效的更新数据' },
         { status: 400 }
       );
     }
 
-    await updateMerchantSalesMapping(id, { feishuName });
+    await updateMerchantSalesMapping(id, updates);
     return NextResponse.json({ success: true, message: '更新成功' });
   } catch (error) {
     console.error('更新商户-销售映射关系失败:', error);
@@ -57,10 +61,10 @@ export async function PUT(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await deleteMerchantSalesMapping(id);
     return NextResponse.json({ success: true, message: '删除成功' });
   } catch (error) {

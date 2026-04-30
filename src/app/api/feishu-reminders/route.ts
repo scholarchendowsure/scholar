@@ -61,14 +61,16 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取所有映射关系和贷款数据
-    const [mappings, loans] = await Promise.all([
+    const [mappingsResult, loans] = await Promise.all([
       getAllMerchantSalesMappings(),
       getAllHSBCLoans(),
     ]);
 
+    const mappings = mappingsResult.mappings;
+
     // 创建商户ID到销售的映射
     const merchantToSales = new Map(
-      mappings.map(m => [m.merchantId, m.feishuName])
+      mappings.map(m => [m.merchantId, m.salesFeishuName])
     );
 
     // 计算到期日期
@@ -112,13 +114,11 @@ export async function POST(request: NextRequest) {
 
       // 为每个贷款生成提醒消息
       for (const loan of merchantLoans) {
-        const balance = loan.outstandingBalanceCny !== null 
-          ? `¥${loan.outstandingBalanceCny.toLocaleString()}`
-          : loan.outstandingBalanceUsd !== null
-          ? `$${loan.outstandingBalanceUsd.toLocaleString()}`
+        const balance = loan.balance !== undefined 
+          ? `¥${loan.balance.toLocaleString()}`
           : '未知';
         
-        const currency = loan.currency || loan.outstandingBalanceCny !== null ? 'CNY' : 'USD';
+        const currency = loan.loanCurrency || 'CNY';
         const maturityDate = loan.maturityDate || '未知';
 
         const message = `${feishuName}，商户${merchantId}有一笔${balance}${currency}在${maturityDate}需要到期还款，记得要及时跟进。`;

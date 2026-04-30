@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getAllMerchantSalesMappings,
-  saveMerchantSalesMappings,
-  updateMerchantSalesMapping,
-  deleteMerchantSalesMapping,
-  deleteMerchantSalesMappings,
+  batchImportMerchantSalesMappings,
 } from '@/storage/database/merchant-sales-mapping-storage';
 
 export async function GET() {
   try {
-    const mappings = await getAllMerchantSalesMappings();
-    return NextResponse.json({ success: true, data: mappings });
+    const result = await getAllMerchantSalesMappings();
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     console.error('获取商户-销售映射关系失败:', error);
     return NextResponse.json(
@@ -32,8 +29,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await saveMerchantSalesMappings(mappings, mode);
-    return NextResponse.json({ success: true, message: '保存成功' });
+    const result = await batchImportMerchantSalesMappings(mappings, mode);
+    return NextResponse.json({ success: true, message: '保存成功', data: result });
   } catch (error) {
     console.error('保存商户-销售映射关系失败:', error);
     return NextResponse.json(
