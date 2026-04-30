@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const batchDate = searchParams.get('batchDate') || '';
+    const calcDateStr = searchParams.get('calcDate') || '2026-04-29';
+    const calcDate = new Date(calcDateStr);
 
     // 从数据库获取贷款数据
     let loans: HSBCLoan[];
@@ -112,16 +114,13 @@ export async function GET(request: NextRequest) {
     let warningAmountCNY = 0;
     let warningAmountUSD = 0;
     let warningLoanCount = 0;
-    
-    // 批次日期：使用 2026-04-29
-    const cutoffDate = new Date('2026-04-29');
 
     loans.forEach(loan => {
       const maturityDate = new Date(loan.maturityDate);
       const balance = calcBalance(loan);
       const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
       const isLoanOverdue = calcPastdueAmount(loan) > 0;
-      const isLoanUnmatured = maturityDate >= cutoffDate && balance > 0.9;
+      const isLoanUnmatured = maturityDate >= calcDate && balance > 0.9;
       
       // 预警金额(CNY)逾期商户未到期：逾期商户下未逾期且未到期的贷款余额
       if (isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) {
@@ -142,7 +141,7 @@ export async function GET(request: NextRequest) {
     [3, 7, 15, 30, 45].forEach(days => {
       const dueLoans = loans.filter(l => {
         const maturityDate = new Date(l.maturityDate);
-        const daysDiff = Math.floor((maturityDate.getTime() - cutoffDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.floor((maturityDate.getTime() - calcDate.getTime()) / (1000 * 60 * 60 * 24));
         return daysDiff >= 0 && daysDiff <= days;
       });
       
