@@ -77,12 +77,25 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
   }
   
   // 转换为万为单位
+  // 计算合计金额（折CNY和折USD）
+  const totalOntimeCNY = ontimeRepaymentCNY + ontimeRepaymentUSD * 7;
+  const totalOntimeUSD = ontimeRepaymentCNY / 7 + ontimeRepaymentUSD;
+  const totalOverdueCNY = overdueRepaymentCNY + overdueRepaymentUSD * 7;
+  const totalOverdueUSD = overdueRepaymentCNY / 7 + overdueRepaymentUSD;
+  const totalTotalCNY = (ontimeRepaymentCNY + overdueRepaymentCNY) + (ontimeRepaymentUSD + overdueRepaymentUSD) * 7;
+  const totalTotalUSD = (ontimeRepaymentCNY + overdueRepaymentCNY) / 7 + (ontimeRepaymentUSD + overdueRepaymentUSD);
+  
   return {
     ontimeRepayment: {
       amountUSD: ontimeRepaymentUSD,
       amountCNY: ontimeRepaymentCNY,
       amountUSDWan: (ontimeRepaymentUSD / 10000).toFixed(2),
       amountCNYWan: (ontimeRepaymentCNY / 10000).toFixed(2),
+      // 新增合计金额
+      totalAmountCNY: totalOntimeCNY,
+      totalAmountUSD: totalOntimeUSD,
+      totalAmountCNYWan: (totalOntimeCNY / 10000).toFixed(2),
+      totalAmountUSDWan: (totalOntimeUSD / 10000).toFixed(2),
       count: ontimeCount,
       loanCount: ontimeLoanReferences.size,
       loanReferences: Array.from(ontimeLoanReferences),
@@ -92,6 +105,11 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
       amountCNY: overdueRepaymentCNY,
       amountUSDWan: (overdueRepaymentUSD / 10000).toFixed(2),
       amountCNYWan: (overdueRepaymentCNY / 10000).toFixed(2),
+      // 新增合计金额
+      totalAmountCNY: totalOverdueCNY,
+      totalAmountUSD: totalOverdueUSD,
+      totalAmountCNYWan: (totalOverdueCNY / 10000).toFixed(2),
+      totalAmountUSDWan: (totalOverdueUSD / 10000).toFixed(2),
       count: overdueCount,
       loanCount: overdueLoanReferences.size,
       loanReferences: Array.from(overdueLoanReferences),
@@ -101,6 +119,11 @@ function getMonthlyRepaymentStats(loans: HSBCLoan[], yearMonth: string) {
       amountCNY: ontimeRepaymentCNY + overdueRepaymentCNY,
       amountUSDWan: ((ontimeRepaymentUSD + overdueRepaymentUSD) / 10000).toFixed(2),
       amountCNYWan: ((ontimeRepaymentCNY + overdueRepaymentCNY) / 10000).toFixed(2),
+      // 新增合计金额
+      totalAmountCNY: totalTotalCNY,
+      totalAmountUSD: totalTotalUSD,
+      totalAmountCNYWan: (totalTotalCNY / 10000).toFixed(2),
+      totalAmountUSDWan: (totalTotalUSD / 10000).toFixed(2),
       loanReferences: Array.from(new Set([...ontimeLoanReferences, ...overdueLoanReferences])),
     },
   };

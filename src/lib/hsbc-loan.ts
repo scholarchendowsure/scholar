@@ -360,6 +360,11 @@ export interface RepaymentStatItem {
   amountCNY: number;
   amountUSDWan: string;
   amountCNYWan: string;
+  // 新增合计金额（折CNY和折USD）
+  totalAmountCNY: number;
+  totalAmountUSD: number;
+  totalAmountCNYWan: string;
+  totalAmountUSDWan: string;
   count: number;
   loanCount: number;
   loanReferences: string[];
@@ -370,6 +375,11 @@ export interface TotalRepaymentStatItem {
   amountCNY: number;
   amountUSDWan: string;
   amountCNYWan: string;
+  // 新增合计金额（折CNY和折USD）
+  totalAmountCNY: number;
+  totalAmountUSD: number;
+  totalAmountCNYWan: string;
+  totalAmountUSDWan: string;
   loanReferences: string[];
 }
 
