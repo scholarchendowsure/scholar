@@ -1657,8 +1657,8 @@ export default function HSBCPanelPage() {
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={enableScheduledReminder}
-                        onChange={(e) => setEnableScheduledReminder(e.target.checked)}
+                        checked={scheduledReminderEnabled}
+                        onChange={(e) => setScheduledReminderEnabled(e.target.checked)}
                         className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500"
                       />
                       <span className="text-sm text-slate-500">定时提醒</span>
