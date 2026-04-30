@@ -63,6 +63,7 @@ export default function FeishuConfigPage() {
   const [selectedUser, setSelectedUser] = useState<FeishuUser | null>(null);
   const [directUserId, setDirectUserId] = useState('');
   const [useDirectUserId, setUseDirectUserId] = useState(false);
+  const [idType, setIdType] = useState<'user_id' | 'open_id' | 'union_id'>('open_id');
 
   // 加载配置
   useEffect(() => {
@@ -341,6 +342,7 @@ export default function FeishuConfigPage() {
         body: JSON.stringify({
           userId: targetUserId,
           message: testMessage,
+          idType: idType,
         }),
       });
       
@@ -734,15 +736,32 @@ export default function FeishuConfigPage() {
                   /* 直接输入User ID模式 */
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="directUserId">飞书User ID</Label>
+                      <Label htmlFor="idType">ID类型</Label>
+                      <select
+                        id="idType"
+                        value={idType}
+                        onChange={(e) => setIdType(e.target.value as any)}
+                        className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                      >
+                        <option value="open_id">Open ID（推荐）</option>
+                        <option value="user_id">User ID</option>
+                        <option value="union_id">Union ID</option>
+                      </select>
+                      <p className="text-sm text-muted-foreground">
+                        提示：根据错误信息，通常使用 Open ID
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="directUserId">飞书{idType === 'open_id' ? 'Open ID' : idType === 'user_id' ? 'User ID' : 'Union ID'}</Label>
                       <Input
                         id="directUserId"
                         value={directUserId}
                         onChange={(e) => setDirectUserId(e.target.value)}
-                        placeholder="请输入飞书User ID（例如：8cgee58f）"
+                        placeholder={`请输入飞书${idType === 'open_id' ? 'Open ID' : idType === 'user_id' ? 'User ID' : 'Union ID'}`}
                       />
                       <p className="text-sm text-muted-foreground">
-                        提示：您可以在飞书中查看自己的User ID，或者让同事提供他们的User ID
+                        提示：您可以在飞书中查看自己的{idType === 'open_id' ? 'Open ID' : idType === 'user_id' ? 'User ID' : 'Union ID'}，或者让同事提供
                       </p>
                     </div>
 

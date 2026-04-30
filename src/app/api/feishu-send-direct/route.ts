@@ -7,7 +7,7 @@ const TEST_APP_SECRET = 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, message } = body;
+    const { userId, message, idType = 'open_id' } = body;
     
     if (!userId) {
       return NextResponse.json(
@@ -24,13 +24,15 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('📤 直接发送消息给用户:', userId);
+    console.log('🆔 ID类型:', idType);
     console.log('💬 消息内容:', message);
     
     const result = await sendFeishuPrivateMessage(
       TEST_APP_ID,
       TEST_APP_SECRET,
       userId,
-      message
+      message,
+      idType as 'user_id' | 'open_id' | 'union_id'
     );
 
     return NextResponse.json({

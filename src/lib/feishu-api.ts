@@ -252,15 +252,17 @@ export async function sendFeishuPrivateMessage(
   appId: string,
   appSecret: string,
   receiveId: string,
-  content: string
+  content: string,
+  receiveIdType: 'user_id' | 'open_id' | 'union_id' = 'open_id'
 ): Promise<FeishuMessage> {
   const accessToken = await getTenantAccessToken(appId, appSecret);
 
   console.log('📤 开始发送飞书私聊消息');
   console.log('👤 接收者ID:', receiveId);
+  console.log('🆔 ID类型:', receiveIdType);
   console.log('💬 消息内容:', content);
 
-  const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=user_id`, {
+  const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
