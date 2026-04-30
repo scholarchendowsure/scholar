@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     [3, 7, 15, 30, 45].forEach(days => {
       const dueLoans = loans.filter(l => {
         const maturityDate = new Date(l.maturityDate);
-        const daysDiff = Math.floor((maturityDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.floor((maturityDate.getTime() - cutoffDate.getTime()) / (1000 * 60 * 60 * 24));
         return daysDiff >= 0 && daysDiff <= days;
       });
       

@@ -938,23 +938,23 @@ export default function HSBCPanelPage() {
                               (isCustomWarningMerchant && isLoanUnmatured);
             break;
           case 'due3': // 3天内到期
-            const days3 = calcDaysToMaturity(loan);
+            const days3 = calcDaysToMaturity(loan, new Date('2026-04-29'));
             matchCardFilter = days3 >= 0 && days3 <= 3;
             break;
           case 'due7': // 7天内到期
-            const days7 = calcDaysToMaturity(loan);
+            const days7 = calcDaysToMaturity(loan, new Date('2026-04-29'));
             matchCardFilter = days7 >= 0 && days7 <= 7;
             break;
           case 'due15': // 15天内到期
-            const days15 = calcDaysToMaturity(loan);
+            const days15 = calcDaysToMaturity(loan, new Date('2026-04-29'));
             matchCardFilter = days15 >= 0 && days15 <= 15;
             break;
           case 'due30': // 30天内到期
-            const days30 = calcDaysToMaturity(loan);
+            const days30 = calcDaysToMaturity(loan, new Date('2026-04-29'));
             matchCardFilter = days30 >= 0 && days30 <= 30;
             break;
           case 'due45': // 45天内到期
-            const days45 = calcDaysToMaturity(loan);
+            const days45 = calcDaysToMaturity(loan, new Date('2026-04-29'));
             matchCardFilter = days45 >= 0 && days45 <= 45;
             break;
           default:

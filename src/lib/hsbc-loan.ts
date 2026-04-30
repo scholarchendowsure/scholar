@@ -200,8 +200,8 @@ export function calcOverdueDays(loan: HSBCLoan): number {
 /**
  * 计算距离到期的天数（负数表示已到期）
  */
-export function calcDaysToMaturity(loan: HSBCLoan): number {
-  const today = new Date();
+export function calcDaysToMaturity(loan: HSBCLoan, referenceDate?: Date): number {
+  const today = referenceDate || new Date();
   today.setHours(0, 0, 0, 0);
   const maturityDate = new Date(loan.maturityDate);
   maturityDate.setHours(0, 0, 0, 0);
