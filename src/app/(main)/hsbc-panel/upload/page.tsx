@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 export default function HSBCUploadPage() {
   const router = useRouter();
@@ -16,6 +17,8 @@ export default function HSBCUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [batchDate, setBatchDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -27,6 +30,47 @@ export default function HSBCUploadPage() {
     setIsDragging(false);
   }, []);
 
+  const parseExcelFile = (file: File): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+          
+          if (jsonData.length < 2) {
+            reject(new Error('文件格式错误，请检查文件内容'));
+            return;
+          }
+          
+          const headers = jsonData[0] as string[];
+          const rows: any[] = [];
+          
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (row && row.length > 0) {
+              const obj: any = {};
+              headers.forEach((header, index) => {
+                if (header) {
+                  obj[header.trim()] = row[index];
+                }
+              });
+              rows.push(obj);
+            }
+          }
+          
+          resolve(rows);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('文件读取失败'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -35,38 +79,53 @@ export default function HSBCUploadPage() {
     if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls') || droppedFile.name.endsWith('.csv'))) {
       setFile(droppedFile);
       setUploadResult(null);
+      parseAndPreview(droppedFile);
     } else {
       toast.error('请上传 Excel (.xlsx, .xls) 或 CSV 文件');
     }
   }, []);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       setUploadResult(null);
+      parseAndPreview(selectedFile);
+    }
+  };
+
+  const parseAndPreview = async (file: File) => {
+    try {
+      const data = await parseExcelFile(file);
+      setPreviewData(data.slice(0, 10)); // 只显示前10条作为预览
+      toast.success(`成功解析 ${data.length} 条记录`);
+    } catch (error) {
+      toast.error('文件解析失败：' + (error as Error).message);
     }
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file || !batchDate) return;
 
     setIsUploading(true);
     setUploadProgress(0);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('mode', 'replace');
-
     try {
+      const data = await parseExcelFile(file);
+      
       // 模拟上传进度
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
+        setUploadProgress(prev => Math.min(prev + 10, 80));
       }, 200);
 
-      const response = await fetch('/api/hsbc/upload', {
+      const response = await fetch('/api/hsbc/import', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loans: data,
+          batchDate,
+          mode: 'replace',
+        }),
       });
 
       clearInterval(progressInterval);
@@ -74,14 +133,14 @@ export default function HSBCUploadPage() {
 
       const result = await response.json();
 
-      if (response.ok) {
+      if (result.success) {
         setUploadResult(result);
-        toast.success(`成功导入 ${result.imported} 条贷款记录`);
+        toast.success(result.message);
       } else {
         toast.error(result.error || '上传失败');
       }
     } catch (error) {
-      toast.error('上传出错，请重试');
+      toast.error('上传出错：' + (error as Error).message);
     } finally {
       setIsUploading(false);
     }
@@ -91,6 +150,7 @@ export default function HSBCUploadPage() {
     setFile(null);
     setUploadResult(null);
     setUploadProgress(0);
+    setPreviewData([]);
   };
 
   const formatCurrency = (amount: number) => {
@@ -109,6 +169,26 @@ export default function HSBCUploadPage() {
           <h1 className="text-3xl font-bold text-slate-900">汇丰贷款数据导入</h1>
           <p className="text-slate-600 mt-2">上传 Excel 或 CSV 文件，导入汇丰贷款案件数据</p>
         </div>
+
+        {/* 批次日期选择 */}
+        {!uploadResult && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>选择批次日期</CardTitle>
+              <CardDescription>
+                请选择本次导入数据的批次日期
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <input
+                type="date"
+                value={batchDate}
+                onChange={(e) => setBatchDate(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* 上传区域 */}
         <Card className="mb-6">
@@ -141,10 +221,40 @@ export default function HSBCUploadPage() {
                       {(file.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
+                  
+                  {/* 数据预览 */}
+                  {previewData.length > 0 && !uploadResult && (
+                    <div className="mt-4 text-left">
+                      <p className="font-medium text-slate-700 mb-2">数据预览（前{previewData.length}条）：</p>
+                      <div className="bg-slate-50 rounded-lg p-4 overflow-x-auto max-h-64 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200">
+                              {Object.keys(previewData[0]).slice(0, 5).map((key) => (
+                                <th key={key} className="px-2 py-1 text-left text-slate-600">{key}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewData.map((row, index) => (
+                              <tr key={index} className="border-b border-slate-100">
+                                {Object.values(row).slice(0, 5).map((value, idx) => (
+                                  <td key={idx} className="px-2 py-1 text-slate-800">{String(value)}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex gap-3 justify-center">
-                    <Button onClick={handleUpload} disabled={isUploading}>
-                      {isUploading ? '上传中...' : '开始导入'}
-                    </Button>
+                    {!uploadResult && (
+                      <Button onClick={handleUpload} disabled={isUploading || !batchDate}>
+                        {isUploading ? '上传中...' : '开始导入'}
+                      </Button>
+                    )}
                     <Button variant="outline" onClick={handleClear}>
                       清除
                     </Button>
@@ -190,37 +300,17 @@ export default function HSBCUploadPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-slate-50 rounded-lg p-4">
                   <p className="text-sm text-slate-500">导入记录</p>
-                  <p className="text-2xl font-bold text-slate-900">{uploadResult.imported}</p>
+                  <p className="text-2xl font-bold text-slate-900">{uploadResult.importedCount || uploadResult.imported}</p>
                 </div>
                 <div className="bg-slate-50 rounded-lg p-4">
                   <p className="text-sm text-slate-500">总贷款</p>
-                  <p className="text-2xl font-bold text-slate-900">{uploadResult.stats?.totalLoans || 0}</p>
+                  <p className="text-2xl font-bold text-slate-900">{uploadResult.totalCount || 0}</p>
                 </div>
                 <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-sm text-slate-500">在贷余额</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {formatCurrency(uploadResult.stats?.totalBalance || 0)}
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <p className="text-sm text-slate-500">逾期总额</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {formatCurrency(uploadResult.stats?.totalPastdueAmount || 0)}
-                  </p>
+                  <p className="text-sm text-slate-500">批次日期</p>
+                  <p className="text-2xl font-bold text-slate-900">{uploadResult.batchDate}</p>
                 </div>
               </div>
-
-              {uploadResult.errors && uploadResult.errors.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-2 text-amber-800 mb-2">
-                    <AlertCircle className="w-4 h-4" />
-                    <span className="font-medium">部分数据导入失败</span>
-                  </div>
-                  <p className="text-sm text-amber-700">
-                    共 {uploadResult.totalErrors} 条记录导入失败
-                  </p>
-                </div>
-              )}
 
               <div className="flex gap-4">
                 <Button onClick={() => router.push('/hsbc-panel/loans')}>
@@ -254,37 +344,6 @@ export default function HSBCUploadPage() {
                 <span>Maturity Date (到期日)</span>
                 <span>Balance (余额)</span>
                 <span>Pastdue amount (逾期金额)</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 文件格式说明 */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>文件格式说明</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="bg-slate-50 rounded-lg p-4">
-                <p className="font-medium mb-2">Excel 文件 (.xlsx/.xls)</p>
-                <p className="text-sm text-slate-600">
-                  请确保第一行为表头，数据从第二行开始。支持的字段请参考模板。
-                </p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-4">
-                <p className="font-medium mb-2">CSV 文件 (.csv)</p>
-                <p className="text-sm text-slate-600">
-                  请使用 UTF-8 编码，并用逗号分隔各字段值。
-                </p>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="font-medium text-blue-800 mb-2">注意事项</p>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• 同一商户的多笔贷款请放在同一批次导入</li>
-                  <li>• 已存在的贷款记录将根据 Loan Reference 更新</li>
-                  <li>• 建议单次导入不超过 10000 条记录</li>
-                </ul>
               </div>
             </div>
           </CardContent>
