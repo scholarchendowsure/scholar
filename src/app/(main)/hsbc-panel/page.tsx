@@ -36,13 +36,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -320,7 +320,7 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
   overdueByDays.over90Days.rate = totalBalanceCNY > 0 ? overdueByDays.over90Days.amount / totalBalanceCNY : 0;
   
   // 预警金额计算
-  const calcDate = selectedCalcDate || new Date('2026-04-29');
+  const batchDate = new Date('2026-04-29');
   
   // 1. 先找出所有逾期商户（有逾期案件的商户）
   const overdueMerchantIds = new Set<string>();
@@ -352,7 +352,7 @@ const generateMockStats = (loans: HSBCLoan[]): any => {
     const balance = calcBalance(loan);
     const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
     const isLoanOverdue = calcPastdueAmount(loan) > 0;
-    const isLoanUnmatured = maturityDate >= calcDate && balance > 0;
+    const isLoanUnmatured = maturityDate >= batchDate && balance > 0;
     
     // 预警金额(CNY)逾期商户未到期：逾期商户下未逾期贷款的余额
     if (isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) {
@@ -769,8 +769,8 @@ export default function HSBCPanelPage() {
       if (response.ok) {
         const data = await response.json();
         setLoans(data.data || []);
-        // 同时获取对应日期的统计数据
         const calcDateParam = selectedCalcDate ? `&calcDate=${format(selectedCalcDate, 'yyyy-MM-dd')}` : '';
+        // 同时获取对应日期的统计数据
         const statsResponse = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(batchDate)}${calcDateParam}`);
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
@@ -1039,7 +1039,7 @@ export default function HSBCPanelPage() {
       loanCount,
       merchantCount: merchantSet.size
     };
-  }, [loans, customWarningMerchants]);
+  }, [loans, customWarningMerchants, selectedCalcDate]);
 
   // 去重商户ID后的贷款数据（基于筛选后的结果去重）
   const deduplicatedLoans = useMemo(() => {
@@ -1080,14 +1080,14 @@ export default function HSBCPanelPage() {
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
       const balance = Math.max(0, totalLoanAmount - totalRepaid);
       
-      // 数据日期计算日
-      const calcDate = selectedCalcDate || new Date('2026-04-29');
+      // 使用选中的计算日期或默认批次日期
+      const batchDate = selectedCalcDate || new Date('2026-04-29');
       const maturityDate = new Date(item.earliestMaturityDate);
       
       // 计算逾期天数：到期日已过且余额>0.9才算逾期
       let overdueDays = -1;
       if (item.earliestMaturityDate) {
-        const diffDays = Math.floor((calcDate.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor((batchDate.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays > 0 && balance > 0.9) {
           overdueDays = diffDays;
         }
@@ -1111,7 +1111,7 @@ export default function HSBCPanelPage() {
       
       return mergedLoan;
     });
-  }, [filteredLoansBeforeDedupe, deduplicateMerchant]);
+  }, [filteredLoansBeforeDedupe, deduplicateMerchant, selectedCalcDate]);
 
   // 最终显示的贷款（已经去重和筛选好了）
   const filteredLoans = deduplicatedLoans;
@@ -1439,7 +1439,7 @@ export default function HSBCPanelPage() {
         <div className="flex items-center gap-3">
           {/* 批次日期选择与删除 */}
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-slate-500" />
+            <Calendar className="w-4 h-4 text-slate-500" />
             <select
               value={selectedBatchDate}
               onChange={(e) => setSelectedBatchDate(e.target.value)}
@@ -1492,34 +1492,51 @@ export default function HSBCPanelPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
-              {/* 标题说明和筛选 */}
+              {/* 标题说明和币种选择 */}
               <div className="flex items-center justify-between mb-4">
                 <div className="text-sm text-slate-500">
                   <span className="font-semibold">汇丰（香港）数据</span>（汇率1USD=7CNY）
                 </div>
                 <div className="flex items-center gap-4">
+                  {/* 数据日期计算日选择器 */}
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-500">数据日期计算日:</span>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-[240px] justify-start text-left font-normal"
+                        >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedCalcDate ? format(selectedCalcDate, 'yyyy-MM-dd') : <span>选择日期</span>}
+                          {selectedCalcDate ? format(selectedCalcDate, 'yyyy-MM-dd') : <span className="text-slate-400">选择日期</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
+                      <PopoverContent className="w-auto p-0" align="end">
                         <Calendar
                           mode="single"
                           selected={selectedCalcDate}
-                          onSelect={setSelectedCalcDate}
+                          onSelect={(date) => {
+                            setSelectedCalcDate(date || null);
+                            setOpen(false);
+                          }}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
+                    {selectedCalcDate && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedCalcDate(null)}
+                      >
+                        清除
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">币种筛选:</span>
-                    <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                  <span className="text-sm text-slate-500">币种筛选:</span>
+                  <div className="flex rounded-lg border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setDashboardCurrency('CNY')}
                       className={`px-3 py-1.5 text-sm transition-colors ${
@@ -2792,7 +2809,7 @@ export default function HSBCPanelPage() {
                   <div>
                     <div className="text-sm text-slate-500">贷款开始日期</div>
                     <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-slate-400" />
+                      <Calendar className="w-4 h-4 text-slate-400" />
                       {selectedLoan.loanStartDate}
                     </div>
                   </div>
@@ -2821,7 +2838,7 @@ export default function HSBCPanelPage() {
                           <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
                             {idx + 1}
                           </span>
-                          <CalendarIcon className="w-4 h-4 text-slate-400" />
+                          <Calendar className="w-4 h-4 text-slate-400" />
                           {item.date}
                         </span>
                         <span className="font-mono font-medium">
