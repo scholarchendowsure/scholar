@@ -451,13 +451,14 @@ export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge'
   // 添加新数据
   loansCache = [...(loansCache || []), ...loans];
   
-  // 去重（基于 loanReference）
+  // 去重（基于 loanReference + batchDate 组合）
   const seen = new Set<string>();
   loansCache = loansCache.filter(loan => {
-    if (seen.has(loan.loanReference)) {
+    const key = `${loan.loanReference}-${loan.batchDate}`;
+    if (seen.has(key)) {
       return false;
     }
-    seen.add(loan.loanReference);
+    seen.add(key);
     return true;
   });
   
