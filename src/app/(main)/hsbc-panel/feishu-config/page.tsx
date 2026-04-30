@@ -61,6 +61,8 @@ export default function FeishuConfigPage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [searchResults, setSearchResults] = useState<FeishuUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<FeishuUser | null>(null);
+  const [directUserId, setDirectUserId] = useState('');
+  const [useDirectUserId, setUseDirectUserId] = useState(false);
 
   // 加载配置
   useEffect(() => {
@@ -287,8 +289,10 @@ export default function FeishuConfigPage() {
 
   // 发送测试消息
   const sendTestMessage = async () => {
-    if (!selectedUser) {
-      toast.error('请先选择要发送消息的同事');
+    const targetUserId = useDirectUserId ? directUserId : selectedUser?.userId;
+    
+    if (!targetUserId) {
+      toast.error(useDirectUserId ? '请输入飞书User ID' : '请先选择要发送消息的同事');
       return;
     }
     if (!testMessage.trim()) {
@@ -302,7 +306,7 @@ export default function FeishuConfigPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: selectedUser.userId,
+          userId: targetUserId,
           message: testMessage,
         }),
       });
@@ -605,63 +609,108 @@ export default function FeishuConfigPage() {
             <CardHeader>
               <CardTitle>消息测试</CardTitle>
               <CardDescription>
-                搜索同事并发送测试消息
+                搜索同事或直接输入User ID发送测试消息
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* 搜索同事 */}
+              {/* 选择发送方式 */}
               <div className="space-y-4">
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1 space-y-2">
-                    <Label htmlFor="colleagueSearch">同事花名</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="colleagueSearch"
-                        value={colleagueSearch}
-                        onChange={(e) => setColleagueSearch(e.target.value)}
-                        placeholder="请输入同事花名中的汉字"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSearchColleague();
-                          }
-                        }}
-                      />
-                      <Button onClick={handleSearchColleague}>
-                        <Search className="w-4 h-4 mr-2" />
-                        搜索
-                      </Button>
-                    </div>
-                  </div>
+                <div className="flex gap-4">
+                  <Button
+                    variant={!useDirectUserId ? 'default' : 'secondary'}
+                    onClick={() => setUseDirectUserId(false)}
+                  >
+                    搜索同事
+                  </Button>
+                  <Button
+                    variant={useDirectUserId ? 'default' : 'secondary'}
+                    onClick={() => setUseDirectUserId(true)}
+                  >
+                    直接输入User ID
+                  </Button>
                 </div>
 
-                {/* 搜索结果 */}
-                {searchResults.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>搜索结果（选择一位同事）</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {searchResults.map((user) => (
-                        <Button
-                          key={user.id}
-                          variant={selectedUser?.id === user.id ? 'default' : 'secondary'}
-                          className="justify-start text-left"
-                          onClick={() => setSelectedUser(user)}
-                        >
-                          {user.name}
-                        </Button>
-                      ))}
+                {!useDirectUserId ? (
+                  /* 搜索同事模式 */
+                  <div className="space-y-4">
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1 space-y-2">
+                        <Label htmlFor="colleagueSearch">同事花名</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="colleagueSearch"
+                            value={colleagueSearch}
+                            onChange={(e) => setColleagueSearch(e.target.value)}
+                            placeholder="请输入同事花名中的汉字"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleSearchColleague();
+                              }
+                            }}
+                          />
+                          <Button onClick={handleSearchColleague}>
+                            <Search className="w-4 h-4 mr-2" />
+                            搜索
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {/* 已选择的用户 */}
-                {selectedUser && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="font-medium mb-2">已选择的同事</div>
-                    <div className="text-sm text-muted-foreground">
-                      <div>姓名：{selectedUser.name}</div>
-                      <div>用户ID：{selectedUser.userId}</div>
-                      {selectedUser.email && <div>邮箱：{selectedUser.email}</div>}
+                    {/* 搜索结果 */}
+                    {searchResults.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>搜索结果（选择一位同事）</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {searchResults.map((user) => (
+                            <Button
+                              key={user.id}
+                              variant={selectedUser?.id === user.id ? 'default' : 'secondary'}
+                              className="justify-start text-left"
+                              onClick={() => setSelectedUser(user)}
+                            >
+                              {user.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 已选择的用户 */}
+                    {selectedUser && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <div className="font-medium mb-2">已选择的同事</div>
+                        <div className="text-sm text-muted-foreground">
+                          <div>姓名：{selectedUser.name}</div>
+                          <div>用户ID：{selectedUser.userId}</div>
+                          {selectedUser.email && <div>邮箱：{selectedUser.email}</div>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* 直接输入User ID模式 */
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="directUserId">飞书User ID</Label>
+                      <Input
+                        id="directUserId"
+                        value={directUserId}
+                        onChange={(e) => setDirectUserId(e.target.value)}
+                        placeholder="请输入飞书User ID（例如：8cgee58f）"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        提示：您可以在飞书中查看自己的User ID，或者让同事提供他们的User ID
+                      </p>
                     </div>
+
+                    {directUserId && (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <div className="font-medium mb-2">目标用户</div>
+                        <div className="text-sm text-muted-foreground">
+                          <div>User ID：{directUserId}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -679,7 +728,7 @@ export default function FeishuConfigPage() {
                 {/* 发送按钮 */}
                 <Button
                   onClick={sendTestMessage}
-                  disabled={sendingMessage || !selectedUser || !testMessage.trim()}
+                  disabled={sendingMessage || !(useDirectUserId ? directUserId : selectedUser) || !testMessage.trim()}
                   className="w-full md:w-auto"
                 >
                   {sendingMessage ? (
