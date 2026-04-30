@@ -1,21 +1,45 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Lock, User, Loader2, Shield } from 'lucide-react';
+import { Lock, User, Loader2, Shield, RefreshCw, Image as ImageIcon } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
+    captcha: '',
   });
+  const [captchaData, setCaptchaData] = useState<{ id: string; image: string } | null>(null);
+
+  // 获取验证码
+  const fetchCaptcha = async () => {
+    setCaptchaLoading(true);
+    try {
+      const res = await fetch('/api/auth/captcha');
+      const json = await res.json();
+      if (json.success) {
+        setCaptchaData(json.data);
+      }
+    } catch (error) {
+      toast.error('获取验证码失败');
+    } finally {
+      setCaptchaLoading(false);
+    }
+  };
+
+  // 页面加载时获取验证码
+  useEffect(() => {
+    fetchCaptcha();
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -25,12 +49,27 @@ export default function LoginPage() {
       return;
     }
 
+    if (!credentials.captcha) {
+      toast.error('请输入验证码');
+      return;
+    }
+
+    if (!captchaData) {
+      toast.error('请先获取验证码');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({
+          username: credentials.username,
+          password: credentials.password,
+          captcha: credentials.captcha,
+          captchaId: captchaData.id,
+        }),
       });
 
       const json = await res.json();
@@ -42,6 +81,11 @@ export default function LoginPage() {
         router.push('/');
       } else {
         toast.error(json.error || '登录失败');
+        // 登录失败时刷新验证码
+        if (json.error?.includes('验证码')) {
+          fetchCaptcha();
+          setCredentials({ ...credentials, captcha: '' });
+        }
       }
     } catch (error) {
       toast.error('登录失败，请稍后重试');
@@ -106,6 +150,48 @@ export default function LoginPage() {
                   autoComplete="current-password"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="captcha" className="text-slate-700 font-medium">
+                验证码
+              </Label>
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Input
+                    id="captcha"
+                    type="text"
+                    placeholder="请输入验证码"
+                    value={credentials.captcha}
+                    onChange={(e) => setCredentials({ ...credentials, captcha: e.target.value })}
+                    className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    autoComplete="off"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchCaptcha}
+                  disabled={captchaLoading}
+                  className="h-12 px-4 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 flex items-center justify-center transition-colors disabled:opacity-50"
+                >
+                  {captchaLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                  ) : captchaData ? (
+                    <img
+                      src={captchaData.image}
+                      alt="验证码"
+                      className="h-10 w-auto object-contain"
+                    />
+                  ) : (
+                    <RefreshCw className="w-5 h-5 text-slate-500" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <RefreshCw className="w-3 h-3" />
+                点击图片刷新验证码
+              </p>
             </div>
 
             <Button

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/auth';
 import { formatDateTime } from '@/lib/utils';
 
+// 验证码存储（生产环境应使用Redis）
+const captchaStore = new Map<string, { code: string; expires: number }>();
+
 // Mock用户数据
 let mockUsers = [
   { id: '1', sequence: 1, name: '张三', username: 'zhangsan', email: 'zhangsan@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-20T09:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
@@ -14,11 +17,33 @@ let mockUsers = [
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { username, password } = body;
+    const { username, password, captcha, captchaId } = body;
 
     if (!username || !password) {
       return NextResponse.json(errorResponse('请输入用户名和密码'), { status: 400 });
     }
+
+    if (!captcha || !captchaId) {
+      return NextResponse.json(errorResponse('请输入验证码'), { status: 400 });
+    }
+
+    // 验证验证码
+    const storedCaptcha = captchaStore.get(captchaId);
+    if (!storedCaptcha) {
+      return NextResponse.json(errorResponse('验证码已过期，请刷新'), { status: 400 });
+    }
+
+    if (Date.now() > storedCaptcha.expires) {
+      captchaStore.delete(captchaId);
+      return NextResponse.json(errorResponse('验证码已过期，请刷新'), { status: 400 });
+    }
+
+    if (storedCaptcha.code.toLowerCase() !== captcha.toLowerCase()) {
+      return NextResponse.json(errorResponse('验证码错误'), { status: 400 });
+    }
+
+    // 验证码正确，删除已使用的验证码
+    captchaStore.delete(captchaId);
 
     const user = mockUsers.find(u => u.username === username && u.password === password);
 
