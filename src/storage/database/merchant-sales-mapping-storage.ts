@@ -1,3 +1,5 @@
+import { getSupabaseClient } from './supabase-client';
+
 // 商户-销售人员映射关系类型
 export interface MerchantSalesMapping {
   id: string;
@@ -7,35 +9,29 @@ export interface MerchantSalesMapping {
   updatedAt: Date;
 }
 
-// 确定存储文件路径
-function getStorageFilePath(): string {
+// Fallback 存储：内存+文件
+let fallbackData: MerchantSalesMapping[] = [];
+let fallbackNextId: number = 1;
+let fallbackDataLoaded = false;
+
+// 确定 fallback 存储文件路径
+function getFallbackStorageFilePath(): string {
   const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
-  // 生产环境使用 /tmp 目录，开发环境使用项目目录
   if (isProd) {
     return '/tmp/merchant-sales-mappings.json';
   }
-  // 开发环境使用项目根目录
   const workspacePath = process.env.COZE_WORKSPACE_PATH || '/workspace/projects';
   return `${workspacePath}/merchant-sales-mappings.json`;
 }
 
-// 确保文件存在
-let storageFileInitialized = false;
-
-// 内存缓存
-let mockData: MerchantSalesMapping[] = [];
-let nextId: number = 1;
-let dataLoaded = false;
-
-// 从文件加载数据
-async function loadFromFile(): Promise<void> {
-  if (dataLoaded) return;
-  
-  const fs = require('fs');
-  const path = require('path');
+// 从 fallback 文件加载数据
+async function loadFromFallbackFile(): Promise<void> {
+  if (fallbackDataLoaded) return;
   
   try {
-    const filePath = getStorageFilePath();
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = getFallbackStorageFilePath();
     
     // 确保目录存在
     const dir = path.dirname(filePath);
@@ -46,27 +42,26 @@ async function loadFromFile(): Promise<void> {
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
       const parsed = JSON.parse(data);
-      mockData = parsed.mappings.map((item: any) => ({
+      fallbackData = parsed.mappings.map((item: any) => ({
         ...item,
         createdAt: new Date(item.createdAt),
         updatedAt: new Date(item.updatedAt),
       }));
-      nextId = parsed.nextId || 1;
+      fallbackNextId = parsed.nextId || 1;
     }
-    dataLoaded = true;
+    fallbackDataLoaded = true;
   } catch (error) {
-    console.error('从文件加载数据失败:', error);
-    dataLoaded = true;
+    console.error('从 fallback 文件加载数据失败:', error);
+    fallbackDataLoaded = true;
   }
 }
 
-// 保存数据到文件
-async function saveToFile(): Promise<void> {
-  const fs = require('fs');
-  const path = require('path');
-  
+// 保存数据到 fallback 文件
+async function saveToFallbackFile(): Promise<void> {
   try {
-    const filePath = getStorageFilePath();
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = getFallbackStorageFilePath();
     
     // 确保目录存在
     const dir = path.dirname(filePath);
@@ -75,19 +70,49 @@ async function saveToFile(): Promise<void> {
     }
     
     const dataToSave = {
-      mappings: mockData,
-      nextId,
+      mappings: fallbackData,
+      nextId: fallbackNextId,
     };
     
     fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2), 'utf8');
   } catch (error) {
-    console.error('保存数据到文件失败:', error);
+    console.error('保存数据到 fallback 文件失败:', error);
   }
 }
 
-// 生成唯一 ID
-function generateId(): string {
-  return String(nextId++);
+// 生成 fallback 唯一 ID
+function generateFallbackId(): string {
+  return String(fallbackNextId++);
+}
+
+// 将数据库行转换为 MerchantSalesMapping 类型
+function transformRow(row: Record<string, unknown>): MerchantSalesMapping {
+  return {
+    id: String(row.id || ''),
+    merchantId: String(row.merchant_id || ''),
+    salesFeishuName: String(row.sales_feishu_name || ''),
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+// 检查 Supabase 表是否存在
+async function checkSupabaseTableExists(): Promise<boolean> {
+  try {
+    const client = getSupabaseClient();
+    const { error } = await client
+      .from('merchant_sales_mappings')
+      .select('*')
+      .limit(1);
+    
+    // 如果错误信息包含"关系不存在"，说明表不存在
+    if (error && (error.message.includes('relation') || error.message.includes('does not exist'))) {
+      return false;
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 // 获取所有商户-销售映射关系（分页）
@@ -95,23 +120,97 @@ export async function getAllMerchantSalesMappings(
   offset: number = 0,
   limit: number = 100000
 ): Promise<{ mappings: MerchantSalesMapping[]; total: number }> {
-  await loadFromFile();
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      
+      // 先获取总数
+      const { count, error: countError } = await client
+        .from('merchant_sales_mappings')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError) {
+        console.error('获取商户-销售映射关系总数失败:', countError);
+      }
+      
+      // 再获取分页数据
+      const { data, error } = await client
+        .from('merchant_sales_mappings')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      
+      if (error) {
+        console.error('获取商户-销售映射关系失败:', error);
+      }
+      
+      const mappings = (data || []).map(transformRow);
+      return { mappings, total: count || mappings.length };
+    } catch (err) {
+      console.error('Supabase 查询失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
   const end = offset + limit;
-  const mappings = mockData.slice(offset, end);
-  return { mappings, total: mockData.length };
+  const mappings = fallbackData.slice(offset, end);
+  return { mappings, total: fallbackData.length };
 }
 
 // 根据ID获取商户-销售映射关系
 export async function getMerchantSalesMapping(id: string): Promise<MerchantSalesMapping | null> {
-  await loadFromFile();
-  const mapping = mockData.find(m => m.id === id);
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('merchant_sales_mappings')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (!error && data) {
+        return transformRow(data);
+      }
+    } catch (err) {
+      console.error('Supabase 查询失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
+  const mapping = fallbackData.find(m => m.id === id);
   return mapping || null;
 }
 
 // 根据商户ID获取销售人员
 export async function getSalesByMerchantId(merchantId: string): Promise<MerchantSalesMapping | null> {
-  await loadFromFile();
-  const mapping = mockData.find(m => m.merchantId === merchantId);
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client
+        .from('merchant_sales_mappings')
+        .select('*')
+        .eq('merchant_id', merchantId)
+        .maybeSingle();
+      
+      if (!error && data) {
+        return transformRow(data);
+      }
+    } catch (err) {
+      console.error('Supabase 查询失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
+  const mapping = fallbackData.find(m => m.merchantId === merchantId);
   return mapping || null;
 }
 
@@ -120,18 +219,45 @@ export async function createMerchantSalesMapping(
   merchantId: string,
   salesFeishuName: string
 ): Promise<MerchantSalesMapping> {
-  await loadFromFile();
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      const now = new Date().toISOString();
+      
+      const { data, error } = await client
+        .from('merchant_sales_mappings')
+        .insert({
+          merchant_id: merchantId,
+          sales_feishu_name: salesFeishuName,
+          created_at: now,
+          updated_at: now,
+        })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        return transformRow(data);
+      }
+    } catch (err) {
+      console.error('Supabase 插入失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
   const now = new Date();
   const mapping: MerchantSalesMapping = {
-    id: generateId(),
+    id: generateFallbackId(),
     merchantId,
     salesFeishuName,
     createdAt: now,
     updatedAt: now,
   };
   
-  mockData.push(mapping);
-  await saveToFile();
+  fallbackData.push(mapping);
+  await saveToFallbackFile();
   return mapping;
 }
 
@@ -140,29 +266,80 @@ export async function updateMerchantSalesMapping(
   id: string,
   updates: Partial<{ merchantId: string; salesFeishuName: string }>
 ): Promise<MerchantSalesMapping> {
-  await loadFromFile();
-  const index = mockData.findIndex(m => m.id === id);
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (updates.merchantId !== undefined) {
+        updateData.merchant_id = updates.merchantId;
+      }
+      if (updates.salesFeishuName !== undefined) {
+        updateData.sales_feishu_name = updates.salesFeishuName;
+      }
+      
+      const { data, error } = await client
+        .from('merchant_sales_mappings')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (!error && data) {
+        return transformRow(data);
+      }
+    } catch (err) {
+      console.error('Supabase 更新失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
+  const index = fallbackData.findIndex(m => m.id === id);
   if (index === -1) {
     throw new Error('商户-销售映射关系不存在');
   }
 
-  mockData[index] = {
-    ...mockData[index],
+  fallbackData[index] = {
+    ...fallbackData[index],
     ...updates,
     updatedAt: new Date(),
   };
   
-  await saveToFile();
-  return mockData[index];
+  await saveToFallbackFile();
+  return fallbackData[index];
 }
 
 // 删除商户-销售映射关系
 export async function deleteMerchantSalesMapping(id: string): Promise<void> {
-  await loadFromFile();
-  const index = mockData.findIndex(m => m.id === id);
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client
+        .from('merchant_sales_mappings')
+        .delete()
+        .eq('id', id);
+      
+      if (!error) {
+        return;
+      }
+    } catch (err) {
+      console.error('Supabase 删除失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
+  const index = fallbackData.findIndex(m => m.id === id);
   if (index !== -1) {
-    mockData.splice(index, 1);
-    await saveToFile();
+    fallbackData.splice(index, 1);
+    await saveToFallbackFile();
   }
 }
 
@@ -171,24 +348,111 @@ export async function batchImportMerchantSalesMappings(
   mappings: Array<{ merchantId: string; salesFeishuName: string }>,
   mode: 'append' | 'replace' = 'append'
 ): Promise<{ inserted: number; updated: number }> {
-  await loadFromFile();
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      let inserted = 0;
+      let updated = 0;
+      const now = new Date().toISOString();
+
+      if (mode === 'replace') {
+        // 替换模式：先删除所有现有数据
+        const { error: deleteError } = await client
+          .from('merchant_sales_mappings')
+          .delete()
+          .neq('id', '');
+        
+        if (deleteError) {
+          console.error('清空商户-销售映射关系失败:', deleteError);
+        }
+      }
+
+      // 分批处理，每批 100 条
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < mappings.length; i += BATCH_SIZE) {
+        const batch = mappings.slice(i, i + BATCH_SIZE);
+        
+        if (mode === 'append') {
+          // 追加模式：需要检查是否已存在，然后更新或插入
+          for (const mapping of batch) {
+            // 检查是否已存在
+            const { data: existing } = await client
+              .from('merchant_sales_mappings')
+              .select('*')
+              .eq('merchant_id', mapping.merchantId)
+              .maybeSingle();
+            
+            if (existing) {
+              // 更新已有数据
+              const { error } = await client
+                .from('merchant_sales_mappings')
+                .update({
+                  sales_feishu_name: mapping.salesFeishuName,
+                  updated_at: now,
+                })
+                .eq('merchant_id', mapping.merchantId);
+              
+              if (!error) updated++;
+            } else {
+              // 插入新数据
+              const { error } = await client
+                .from('merchant_sales_mappings')
+                .insert({
+                  merchant_id: mapping.merchantId,
+                  sales_feishu_name: mapping.salesFeishuName,
+                  created_at: now,
+                  updated_at: now,
+                });
+              
+              if (!error) inserted++;
+            }
+          }
+        } else {
+          // 替换模式：直接插入
+          const insertData = batch.map(mapping => ({
+            merchant_id: mapping.merchantId,
+            sales_feishu_name: mapping.salesFeishuName,
+            created_at: now,
+            updated_at: now,
+          }));
+          
+          const { error } = await client
+            .from('merchant_sales_mappings')
+            .insert(insertData);
+          
+          if (!error) {
+            inserted += batch.length;
+          }
+        }
+      }
+
+      return { inserted, updated };
+    } catch (err) {
+      console.error('Supabase 批量导入失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
   let inserted = 0;
   let updated = 0;
   const now = new Date();
 
   if (mode === 'replace') {
     // 替换模式：先删除所有现有数据
-    mockData = [];
-    nextId = 1;
+    fallbackData = [];
+    fallbackNextId = 1;
   }
 
   for (const mapping of mappings) {
-    const existingIndex = mockData.findIndex(m => m.merchantId === mapping.merchantId);
+    const existingIndex = fallbackData.findIndex(m => m.merchantId === mapping.merchantId);
     
     if (existingIndex !== -1 && mode === 'append') {
       // 追加模式：更新已有数据
-      mockData[existingIndex] = {
-        ...mockData[existingIndex],
+      fallbackData[existingIndex] = {
+        ...fallbackData[existingIndex],
         salesFeishuName: mapping.salesFeishuName,
         updatedAt: now,
       };
@@ -196,25 +460,44 @@ export async function batchImportMerchantSalesMappings(
     } else {
       // 插入新数据
       const newMapping: MerchantSalesMapping = {
-        id: generateId(),
+        id: generateFallbackId(),
         merchantId: mapping.merchantId,
         salesFeishuName: mapping.salesFeishuName,
         createdAt: now,
         updatedAt: now,
       };
-      mockData.push(newMapping);
+      fallbackData.push(newMapping);
       inserted++;
     }
   }
 
-  await saveToFile();
+  await saveToFallbackFile();
   return { inserted, updated };
 }
 
 // 清空所有商户-销售映射关系
 export async function clearAllMerchantSalesMappings(): Promise<void> {
-  await loadFromFile();
-  mockData = [];
-  nextId = 1;
-  await saveToFile();
+  const tableExists = await checkSupabaseTableExists();
+  
+  if (tableExists) {
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client
+        .from('merchant_sales_mappings')
+        .delete()
+        .neq('id', '');
+      
+      if (!error) {
+        return;
+      }
+    } catch (err) {
+      console.error('Supabase 清空失败，使用 fallback:', err);
+    }
+  }
+  
+  // Fallback: 使用本地存储
+  await loadFromFallbackFile();
+  fallbackData = [];
+  fallbackNextId = 1;
+  await saveToFallbackFile();
 }
