@@ -40,6 +40,19 @@ export default function HSBCLoansPage() {
   const [searchInput, setSearchInput] = useState('');
   const [pagination, setPagination] = useState({ page: 1, pageSize: 50, total: 0, totalPages: 0 });
   const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
+  const [batchDate, setBatchDate] = useState<string>('all');
+  const [batchDates, setBatchDates] = useState<string[]>([]);
+
+  // 获取批次日期
+  const fetchBatchDates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/hsbc/batch-dates');
+      const data = await res.json();
+      setBatchDates(data.data || []);
+    } catch (error) {
+      console.error('获取批次日期失败:', error);
+    }
+  }, []);
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -50,10 +63,11 @@ export default function HSBCLoansPage() {
       if (filter.currency && filter.currency !== 'all') params.set('currency', filter.currency);
       if (filter.status && filter.status !== 'all') params.set('status', filter.status);
       if (filter.hasOverdue) params.set('hasOverdue', 'true');
+      if (batchDate && batchDate !== 'all') params.set('batchDate', batchDate);
       params.set('page', String(filter.page || 1));
       params.set('pageSize', String(filter.pageSize || 50));
 
-      const res = await fetch(`/api/hsbc/loans?${params.toString()}`);
+      const res = await fetch(`/api/hsbc?${params.toString()}`);
       const data = await res.json();
       let merchantsData = data.merchants || [];
       
@@ -86,8 +100,12 @@ export default function HSBCLoansPage() {
   }, [filter, deduplicateMerchant]);
 
   useEffect(() => {
+    fetchBatchDates();
+  }, [fetchBatchDates]);
+
+  useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, batchDate]);
 
   // 防抖搜索
   useEffect(() => {
@@ -164,6 +182,17 @@ export default function HSBCLoansPage() {
                   />
                 </div>
               </div>
+              <Select value={batchDate} onValueChange={setBatchDate}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="选择批次日期" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部批次</SelectItem>
+                  {batchDates.map(date => (
+                    <SelectItem key={date} value={date}>{date}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select
                 value={filter.currency || 'all'}
                 onValueChange={(value) => setFilter(prev => ({ ...prev, currency: value as any, page: 1 }))}

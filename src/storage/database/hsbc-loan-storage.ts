@@ -89,11 +89,11 @@ function saveBatchDatesToLocalStorage(dates: string[]) {
 }
 
 // 初始化内存缓存
-function initCache() {
-  if (loansCache === null) {
+function initCache(forceReload = false) {
+  if (loansCache === null || forceReload) {
     loansCache = loadFromLocalStorage();
   }
-  if (batchDatesCache === null) {
+  if (batchDatesCache === null || forceReload) {
     batchDatesCache = loadBatchDatesFromLocalStorage();
   }
 }
@@ -133,7 +133,7 @@ function transformRow(row: Record<string, unknown>): HSBCLoan {
 
 // 获取所有汇丰贷款
 export async function getAllHSBCLoans(batchDate?: string): Promise<HSBCLoan[]> {
-  initCache();
+  initCache(true);
   
   const supabaseAvailable = await isSupabaseAvailable();
   
@@ -184,7 +184,7 @@ export async function getAllHSBCLoans(batchDate?: string): Promise<HSBCLoan[]> {
 
 // 按批次日期获取汇丰贷款
 export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLoan[]> {
-  initCache();
+  initCache(true);
   
   const supabaseAvailable = await isSupabaseAvailable();
   
@@ -228,7 +228,7 @@ export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLo
 
 // 获取所有批次日期
 export async function getAllBatchDates(): Promise<string[]> {
-  initCache();
+  initCache(true);
   
   const supabaseAvailable = await isSupabaseAvailable();
   

@@ -14,17 +14,9 @@ export async function GET(request: NextRequest) {
 
     // 从数据库获取贷款数据
     let loans: HSBCLoan[];
-    if (batchDate) {
-      // 按批次日期筛选 - 但目前 getAllHSBCLoans 返回所有数据
-      // 需要按 batchDate 筛选
-      const allLoans = await getAllHSBCLoans();
-      // 获取批次日期对应的日期字符串来筛选
-      const batchDates = await getAllBatchDates();
-      if (batchDates.includes(batchDate)) {
-        loans = allLoans; // 目前存储层没有按批次筛选，暂时返回全部
-      } else {
-        loans = allLoans;
-      }
+    if (batchDate && batchDate !== 'all') {
+      // 按批次日期筛选
+      loans = await getAllHSBCLoans(batchDate);
     } else {
       loans = await getAllHSBCLoans();
     }
