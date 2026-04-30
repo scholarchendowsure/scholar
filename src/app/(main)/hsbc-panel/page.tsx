@@ -1556,6 +1556,20 @@ export default function HSBCPanelPage() {
                         全部
                       </button>
                     </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500">月份筛选:</span>
+                    <select
+                      value={repaymentStats?.currentMonth || ''}
+                      onChange={(e) => handleMonthChange(e.target.value)}
+                      className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">选择月份</option>
+                      {(repaymentStats?.availableMonths || []).map((month: string) => (
+                        <option key={month} value={month}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -1746,20 +1760,6 @@ export default function HSBCPanelPage() {
 
               {/* ============ 贷后数据卡片 ============ */}
               <div className="mt-6 border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-end mb-4">
-                  <select
-                    value={repaymentStats?.currentMonth || ''}
-                    onChange={(e) => handleMonthChange(e.target.value)}
-                    className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">选择月份</option>
-                    {(repaymentStats?.availableMonths || []).map((month: string) => (
-                      <option key={month} value={month}>
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 
                 {repaymentStats?.stats ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
