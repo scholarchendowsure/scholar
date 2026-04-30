@@ -287,4 +287,21 @@ export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge'
       throw new Error(`保存汇丰贷款失败: ${error.message}`);
     }
   }
+  
+  // 重要：同时更新 hsbc_loan_batches 表，确保日期选择器能显示这个批次
+  try {
+    const { error: batchError } = await client
+      .from('hsbc_loan_batches')
+      .upsert({ batch_date: batchDate }, { onConflict: 'batch_date' });
+    
+    if (batchError) {
+      console.error('更新批次日期表失败:', batchError);
+      // 不抛出错误，因为主数据已经保存成功了
+    } else {
+      console.log(`成功更新批次日期表: ${batchDate}`);
+    }
+  } catch (err) {
+    console.error('更新批次日期表时出错:', err);
+    // 不抛出错误
+  }
 }
