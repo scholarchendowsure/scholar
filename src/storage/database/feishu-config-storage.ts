@@ -1,109 +1,262 @@
 import fs from 'fs';
 import path from 'path';
-
-// 飞书同事类型
-export interface FeishuColleague {
-  id: string;
-  name: string;
-  feishuUserId: string;
-  email?: string;
-  createdAt: number;
-}
+import { encryptAppSecret, decryptAppSecret, FeishuUser as ApiFeishuUser } from '@/lib/feishu-api';
 
 // 飞书配置类型
 export interface FeishuConfig {
-  webhookUrl: string;
-  sendMode: 'webhook' | 'private';
+  webhookUrl?: string;
   appId?: string;
-  appSecret?: string;
-  feishuAccessToken?: string;
-  feishuRefreshToken?: string;
-  feishuTokenExpiresAt?: number;
-  colleagues: FeishuColleague[];
+  appSecretEncrypted?: string;
+  sendMode: 'webhook' | 'private';
+}
+
+// 飞书用户类型
+export interface FeishuUser {
+  id: string;
+  unionId: string;
+  userId: string;
+  name: string;
+  enName?: string;
+  email?: string;
+  mobile?: string;
+  avatarUrl?: string;
+  status: 'active' | 'inactive';
+  syncedAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// 商户-销售-飞书用户映射
+export interface MerchantSalesFeishuMapping {
+  id: string;
+  merchantId: string;
+  salesName: string;
+  feishuUserId?: string;
+  feishuUserName?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 const DEFAULT_CONFIG: FeishuConfig = {
+  sendMode: 'private',
   webhookUrl: '',
-  sendMode: 'webhook',
-  colleagues: [],
 };
 
 // 根据环境决定文件存储位置
-const getStorageFilePath = (): string => {
+const getConfigFilePath = (): string => {
   const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
   if (isProd) {
     return '/tmp/feishu-config.json';
   }
-  // 开发环境：保存在项目根目录
   return path.join(process.cwd(), 'feishu-config.json');
+};
+
+const getUsersFilePath = (): string => {
+  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
+  if (isProd) {
+    return '/tmp/feishu-users.json';
+  }
+  return path.join(process.cwd(), 'feishu-users.json');
+};
+
+const getMappingsFilePath = (): string => {
+  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
+  if (isProd) {
+    return '/tmp/feishu-mappings.json';
+  }
+  return path.join(process.cwd(), 'feishu-mappings.json');
 };
 
 // 从文件加载配置
 let cachedConfig: FeishuConfig | null = null;
+let cachedUsers: FeishuUser[] | null = null;
+let cachedMappings: MerchantSalesFeishuMapping[] | null = null;
 
-const loadConfigFromFile = (): FeishuConfig => {
-  const filePath = getStorageFilePath();
+const loadFromFile = <T>(filePath: string, defaultValue: T): T => {
   try {
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8');
-      const config = JSON.parse(content);
-      console.log('✅ 从文件加载飞书配置成功');
-      return config;
+      return JSON.parse(content);
     }
   } catch (error) {
-    console.error('❌ 从文件加载飞书配置失败:', error);
+    console.error(`❌ 从文件加载失败: ${filePath}`, error);
   }
-  return { ...DEFAULT_CONFIG };
+  return defaultValue;
 };
 
-// 保存配置到文件
-const saveConfigToFile = (config: FeishuConfig) => {
-  const filePath = getStorageFilePath();
+const saveToFile = (filePath: string, data: any) => {
   try {
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
-    cachedConfig = config;
-    console.log('✅ 飞书配置已保存到文件');
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    console.log(`✅ 数据已保存到文件: ${filePath}`);
   } catch (error) {
-    console.error('❌ 保存飞书配置到文件失败:', error);
+    console.error(`❌ 保存到文件失败: ${filePath}`, error);
   }
 };
 
-// 获取飞书配置
+// ==================== 飞书配置管理 ====================
+
 export async function getFeishuConfig(): Promise<FeishuConfig> {
   if (cachedConfig) {
     return cachedConfig;
   }
   
-  const config = loadConfigFromFile();
+  const config = loadFromFile<FeishuConfig>(getConfigFilePath(), DEFAULT_CONFIG);
   cachedConfig = config;
   return config;
 }
 
-// 保存飞书配置
 export async function saveFeishuConfig(config: FeishuConfig): Promise<void> {
-  saveConfigToFile(config);
+  saveToFile(getConfigFilePath(), config);
+  cachedConfig = config;
 }
 
-// 添加同事
-export async function addFeishuColleague(colleague: Omit<FeishuColleague, 'id' | 'createdAt'>): Promise<FeishuColleague> {
+export async function updateFeishuAppCredentials(
+  appId: string, 
+  appSecret: string
+): Promise<void> {
   const config = await getFeishuConfig();
-  const newColleague: FeishuColleague = {
-    ...colleague,
-    id: Date.now().toString(),
-    createdAt: Date.now(),
+  const updatedConfig: FeishuConfig = {
+    ...config,
+    appId,
+    appSecretEncrypted: encryptAppSecret(appSecret),
+    sendMode: 'private',
   };
-  config.colleagues = [...(config.colleagues || []), newColleague];
-  await saveFeishuConfig(config);
-  return newColleague;
+  await saveFeishuConfig(updatedConfig);
 }
 
-// 删除同事
-export async function removeFeishuColleague(colleagueId: string): Promise<void> {
+export async function getFeishuAppCredentials(): Promise<{ appId?: string; appSecret?: string }> {
   const config = await getFeishuConfig();
-  config.colleagues = (config.colleagues || []).filter(c => c.id !== colleagueId);
-  await saveFeishuConfig(config);
+  return {
+    appId: config.appId,
+    appSecret: config.appSecretEncrypted ? decryptAppSecret(config.appSecretEncrypted) : undefined,
+  };
+}
+
+// ==================== 飞书用户管理 ====================
+
+export async function getFeishuUsers(): Promise<FeishuUser[]> {
+  if (cachedUsers) {
+    return cachedUsers;
+  }
+  
+  const users = loadFromFile<FeishuUser[]>(getUsersFilePath(), []);
+  cachedUsers = users;
+  return users;
+}
+
+export async function saveFeishuUsers(users: FeishuUser[]): Promise<void> {
+  saveToFile(getUsersFilePath(), users);
+  cachedUsers = users;
+}
+
+export async function syncFeishuUsers(apiUsers: ApiFeishuUser[]): Promise<FeishuUser[]> {
+  const existingUsers = await getFeishuUsers();
+  const existingUserMap = new Map(existingUsers.map(u => [u.unionId, u]));
+  
+  const now = Date.now();
+  const syncedUsers: FeishuUser[] = apiUsers.map(apiUser => {
+    const existing = existingUserMap.get(apiUser.unionId);
+    return {
+      id: existing?.id || apiUser.unionId,
+      unionId: apiUser.unionId,
+      userId: apiUser.userId,
+      name: apiUser.name,
+      enName: apiUser.enName,
+      email: apiUser.email,
+      mobile: apiUser.mobile,
+      avatarUrl: apiUser.avatarUrl,
+      status: apiUser.status,
+      syncedAt: now,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+  });
+  
+  await saveFeishuUsers(syncedUsers);
+  return syncedUsers;
+}
+
+export async function getFeishuUserById(id: string): Promise<FeishuUser | undefined> {
+  const users = await getFeishuUsers();
+  return users.find(u => u.id === id || u.userId === id || u.unionId === id);
+}
+
+// ==================== 商户-销售-飞书用户映射管理 ====================
+
+export async function getMerchantSalesFeishuMappings(): Promise<MerchantSalesFeishuMapping[]> {
+  if (cachedMappings) {
+    return cachedMappings;
+  }
+  
+  const mappings = loadFromFile<MerchantSalesFeishuMapping[]>(getMappingsFilePath(), []);
+  cachedMappings = mappings;
+  return mappings;
+}
+
+export async function saveMerchantSalesFeishuMappings(mappings: MerchantSalesFeishuMapping[]): Promise<void> {
+  saveToFile(getMappingsFilePath(), mappings);
+  cachedMappings = mappings;
+}
+
+export async function createMerchantSalesFeishuMapping(
+  mapping: Omit<MerchantSalesFeishuMapping, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<MerchantSalesFeishuMapping> {
+  const mappings = await getMerchantSalesFeishuMappings();
+  const now = Date.now();
+  const newMapping: MerchantSalesFeishuMapping = {
+    ...mapping,
+    id: Date.now().toString(),
+    createdAt: now,
+    updatedAt: now,
+  };
+  
+  // 替换相同商户ID的映射
+  const filteredMappings = mappings.filter(m => m.merchantId !== mapping.merchantId);
+  await saveMerchantSalesFeishuMappings([...filteredMappings, newMapping]);
+  
+  return newMapping;
+}
+
+export async function updateMerchantSalesFeishuMapping(
+  id: string,
+  updates: Partial<Omit<MerchantSalesFeishuMapping, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<MerchantSalesFeishuMapping | null> {
+  const mappings = await getMerchantSalesFeishuMappings();
+  const index = mappings.findIndex(m => m.id === id);
+  
+  if (index === -1) {
+    return null;
+  }
+  
+  const updatedMapping: MerchantSalesFeishuMapping = {
+    ...mappings[index],
+    ...updates,
+    updatedAt: Date.now(),
+  };
+  
+  mappings[index] = updatedMapping;
+  await saveMerchantSalesFeishuMappings(mappings);
+  
+  return updatedMapping;
+}
+
+export async function getMappingByMerchantId(merchantId: string): Promise<MerchantSalesFeishuMapping | undefined> {
+  const mappings = await getMerchantSalesFeishuMappings();
+  return mappings.find(m => m.merchantId === merchantId);
+}
+
+export async function deleteMerchantSalesFeishuMapping(id: string): Promise<boolean> {
+  const mappings = await getMerchantSalesFeishuMappings();
+  const filtered = mappings.filter(m => m.id !== id);
+  
+  if (filtered.length === mappings.length) {
+    return false;
+  }
+  
+  await saveMerchantSalesFeishuMappings(filtered);
+  return true;
 }

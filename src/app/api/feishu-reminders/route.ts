@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllHSBCLoans } from '@/storage/database/hsbc-loan-storage';
 import { getAllMerchantSalesMappings } from '@/storage/database/merchant-sales-mapping-storage';
-import { getFeishuConfig } from '@/storage/database/feishu-config-storage';
-import { sendFeishuWebhookMessage } from '@/lib/feishu-api';
+import { 
+  getFeishuConfig, 
+  getFeishuAppCredentials,
+  getMappingByMerchantId
+} from '@/storage/database/feishu-config-storage';
+import { 
+  sendFeishuWebhookMessage, 
+  sendFeishuPrivateMessage 
+} from '@/lib/feishu-api';
 import { formatCurrency } from '@/lib/constants';
 import { format } from 'date-fns';
 
@@ -13,32 +20,32 @@ export async function POST(request: NextRequest) {
 
     // 获取飞书配置
     const config = await getFeishuConfig();
+    const credentials = await getFeishuAppCredentials();
     
-    if (!config.webhookUrl) {
-      console.log('❌ 飞书 Webhook URL 未配置');
-      return NextResponse.json({ 
-        success: false, 
-        message: '请先配置飞书 Webhook URL' 
-      }, { status: 400 });
-    }
+    console.log('✅ 飞书配置加载成功，发送模式:', config.sendMode);
 
-    console.log('✅ 飞书配置加载成功');
+    // 根据发送模式检查配置
+    if (config.sendMode === 'private') {
+      if (!credentials.appId || !credentials.appSecret) {
+        console.log('❌ 飞书应用凭证未配置');
+        return NextResponse.json({ 
+          success: false, 
+          message: '请先配置飞书 App ID 和 App Secret' 
+        }, { status: 400 });
+      }
+    } else {
+      if (!config.webhookUrl) {
+        console.log('❌ 飞书 Webhook URL 未配置');
+        return NextResponse.json({ 
+          success: false, 
+          message: '请先配置飞书 Webhook URL' 
+        }, { status: 400 });
+      }
+    }
 
     // 获取商户-销售映射
-    const { mappings } = await getAllMerchantSalesMappings(1, 100000);
-    console.log('📋 商户-销售映射数量:', mappings.length);
-
-    if (mappings.length === 0) {
-      console.log('❌ 没有商户-销售映射数据');
-      return NextResponse.json({ 
-        success: false, 
-        message: '请先配置商户-销售映射关系' 
-      }, { status: 400 });
-    }
-
-    const merchantToSales = new Map(
-      mappings.map(m => [m.merchantId, m.salesFeishuName])
-    );
+    const { mappings: merchantMappings } = await getAllMerchantSalesMappings(1, 100000);
+    console.log('📋 商户-销售映射数量:', merchantMappings.length);
 
     // 获取所有贷款
     const loans = await getAllHSBCLoans(batchDate);
@@ -54,7 +61,6 @@ export async function POST(request: NextRequest) {
     const loansToRemind = loans.filter(loan => {
       try {
         const maturityDate = new Date(loan.maturityDate);
-        // 检查是否在指定天数内到期
         const diffTime = maturityDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays >= 0 && diffDays <= days;
@@ -78,28 +84,60 @@ export async function POST(request: NextRequest) {
     let failedCount = 0;
 
     for (const loan of loansToRemind) {
-      const salesName = merchantToSales.get(loan.merchantId);
+      // 先从飞书映射中查找
+      let feishuMapping = await getMappingByMerchantId(loan.merchantId);
       
-      if (!salesName) {
-        console.log(`⚠️ 商户 ${loan.merchantId} 没有对应的销售，跳过`);
+      // 如果飞书映射中没有，从商户-销售映射中查找并创建
+      if (!feishuMapping) {
+        const merchantMapping = merchantMappings.find(m => m.merchantId === loan.merchantId);
+        if (merchantMapping) {
+          console.log(`📝 为商户 ${loan.merchantId} 创建飞书映射`);
+          // 这里我们暂时只记录，不自动创建
+        }
+        console.log(`⚠️ 商户 ${loan.merchantId} 没有对应的飞书映射，跳过`);
         continue;
       }
 
+      if (!feishuMapping.feishuUserId) {
+        console.log(`⚠️ 商户 ${loan.merchantId} 没有配置飞书用户，跳过`);
+        continue;
+      }
+
+      const salesName = feishuMapping.feishuUserName || feishuMapping.salesName;
+      const feishuUserId = feishuMapping.feishuUserId;
+      
       // 构建消息
       const balance = loan.balance || loan.loanAmount;
       const message = `${salesName}，${loan.merchantId}有一笔${formatCurrency(balance)}${loan.loanCurrency || 'CNY'}在${format(new Date(loan.maturityDate), 'yyyy-MM-dd')}需要到期还款，记得要及时跟进`;
       
-      console.log(`📤 发送消息给 ${salesName}:`, message);
+      console.log(`📤 发送消息给 ${salesName} (${feishuUserId}):`, message);
 
-      // 发送飞书消息
-      const result = await sendFeishuWebhookMessage(config.webhookUrl, message);
-      
-      if (result.success) {
-        sentCount++;
-        console.log(`✅ 消息发送成功: ${salesName}`);
-      } else {
+      try {
+        // 根据发送模式选择发送方式
+        if (config.sendMode === 'private' && credentials.appId && credentials.appSecret) {
+          // 发送私聊消息
+          await sendFeishuPrivateMessage(
+            credentials.appId,
+            credentials.appSecret,
+            feishuUserId,
+            message
+          );
+          sentCount++;
+          console.log(`✅ 私聊消息发送成功: ${salesName}`);
+        } else if (config.webhookUrl) {
+          // 发送群聊消息
+          const result = await sendFeishuWebhookMessage(config.webhookUrl, message);
+          if (result.success) {
+            sentCount++;
+            console.log(`✅ 群聊消息发送成功: ${salesName}`);
+          } else {
+            failedCount++;
+            console.log(`❌ 群聊消息发送失败: ${salesName}`);
+          }
+        }
+      } catch (error) {
         failedCount++;
-        console.log(`❌ 消息发送失败: ${salesName}`);
+        console.error(`❌ 消息发送失败: ${salesName}`, error);
       }
     }
 
@@ -116,7 +154,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ 发送飞书提醒失败:', error);
     return NextResponse.json({ 
       success: false, 
-      message: '发送飞书提醒失败，请稍后重试' 
+      message: error instanceof Error ? error.message : '发送飞书提醒失败，请稍后重试' 
     }, { status: 500 });
   }
 }
