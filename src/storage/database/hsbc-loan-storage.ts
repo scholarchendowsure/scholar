@@ -463,10 +463,18 @@ export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge'
   
   saveToLocalStorage(loansCache);
   
-  // 更新批次日期文件
-  const allDates = [...new Set(loansCache.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
-  batchDatesCache = allDates.sort((a, b) => (b || '').localeCompare(a || ''));
+  // 更新批次日期文件 - 确保新上传的批次日期被添加
+  const existingDates = batchDatesCache || loadBatchDatesFromLocalStorage();
+  const loanDates = [...new Set(loansCache.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
+  
+  // 合并现有的批次日期和贷款数据中的批次日期，去重
+  const allDatesSet = new Set([...existingDates, ...loanDates]);
+  const allDates = Array.from(allDatesSet).sort((a, b) => (b || '').localeCompare(a || ''));
+  
+  batchDatesCache = allDates;
   saveBatchDatesToLocalStorage(batchDatesCache);
+  
+  console.log(`✅ 更新批次日期文件，共 ${allDates.length} 个批次:`, allDates);
   
   // 保存后强制刷新缓存，确保下次读取时是最新数据
   initCache(true);
