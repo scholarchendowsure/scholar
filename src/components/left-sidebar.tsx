@@ -19,7 +19,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Menu,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -84,6 +85,11 @@ const navItems: NavItem[] = [
     title: '商户销售管理',
     href: '/hsbc-panel/merchant-sales',
     icon: <UserCog className="h-5 w-5" />
+  },
+  {
+    title: '飞书配置',
+    href: '/hsbc-panel/feishu-config',
+    icon: <MessageSquare className="h-5 w-5" />
   },
   {
     title: 'MCP数据仓库',
