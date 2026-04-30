@@ -1,139 +1,109 @@
-import { getSupabaseClient } from './supabase-client';
-import * as fs from 'fs';
-import * as path from 'path';
+import fs from 'fs';
+import path from 'path';
 
-export interface FeishuConfig {
-  id?: number;
-  webhookUrl: string;
-  createdAt?: string;
-  updatedAt?: string;
+// 飞书同事类型
+export interface FeishuColleague {
+  id: string;
+  name: string;
+  feishuUserId: string;
+  email?: string;
+  createdAt: number;
 }
 
-const CONFIG_FILE_PATH = path.join(
-  process.env.COZE_WORKSPACE_PATH || '/workspace/projects',
-  'feishu-config.json'
-);
+// 飞书配置类型
+export interface FeishuConfig {
+  webhookUrl: string;
+  sendMode: 'webhook' | 'private';
+  appId?: string;
+  appSecret?: string;
+  feishuAccessToken?: string;
+  feishuRefreshToken?: string;
+  feishuTokenExpiresAt?: number;
+  colleagues: FeishuColleague[];
+}
 
-const PROD_CONFIG_FILE_PATH = '/tmp/feishu-config.json';
-
-const getConfigFilePath = (): string => {
-  return process.env.COZE_PROJECT_ENV === 'PROD' ? PROD_CONFIG_FILE_PATH : CONFIG_FILE_PATH;
+const DEFAULT_CONFIG: FeishuConfig = {
+  webhookUrl: '',
+  sendMode: 'webhook',
+  colleagues: [],
 };
 
-let cachedConfig: FeishuConfig | null = null;
-let configLoaded = false;
+// 根据环境决定文件存储位置
+const getStorageFilePath = (): string => {
+  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
+  if (isProd) {
+    return '/tmp/feishu-config.json';
+  }
+  // 开发环境：保存在项目根目录
+  return path.join(process.cwd(), 'feishu-config.json');
+};
 
-const loadConfigFromFile = (): FeishuConfig | null => {
+// 从文件加载配置
+let cachedConfig: FeishuConfig | null = null;
+
+const loadConfigFromFile = (): FeishuConfig => {
+  const filePath = getStorageFilePath();
   try {
-    const filePath = getConfigFilePath();
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, 'utf-8');
       const config = JSON.parse(content);
-      cachedConfig = config;
-      configLoaded = true;
-      console.log('从文件加载飞书配置:', config);
+      console.log('✅ 从文件加载飞书配置成功');
       return config;
     }
   } catch (error) {
-    console.error('从文件加载飞书配置失败:', error);
+    console.error('❌ 从文件加载飞书配置失败:', error);
   }
-  configLoaded = true;
-  return null;
+  return { ...DEFAULT_CONFIG };
 };
 
+// 保存配置到文件
 const saveConfigToFile = (config: FeishuConfig) => {
+  const filePath = getStorageFilePath();
   try {
-    const filePath = getConfigFilePath();
-    const configToSave = {
-      ...config,
-      updatedAt: new Date().toISOString(),
-    };
-    fs.writeFileSync(filePath, JSON.stringify(configToSave, null, 2));
-    cachedConfig = configToSave;
-    console.log('飞书配置已保存到文件:', configToSave);
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
+    cachedConfig = config;
+    console.log('✅ 飞书配置已保存到文件');
   } catch (error) {
-    console.error('保存飞书配置到文件失败:', error);
+    console.error('❌ 保存飞书配置到文件失败:', error);
   }
 };
 
 // 获取飞书配置
-export async function getFeishuConfig(): Promise<FeishuConfig | null> {
-  // 先尝试从 Supabase 获取
-  try {
-    const client = getSupabaseClient();
-    const { data, error } = await client
-      .from('feishu_configs')
-      .select('*')
-      .order('id', { ascending: false })
-      .limit(1);
-    
-    if (!error && data && data.length > 0) {
-      console.log('从 Supabase 获取飞书配置成功');
-      return data[0] as FeishuConfig;
-    }
-  } catch (error) {
-    console.error('从 Supabase 获取飞书配置失败，使用本地文件:', error);
-  }
-
-  // Supabase 不可用时，从本地文件加载
-  if (!configLoaded) {
-    loadConfigFromFile();
+export async function getFeishuConfig(): Promise<FeishuConfig> {
+  if (cachedConfig) {
+    return cachedConfig;
   }
   
-  return cachedConfig;
+  const config = loadConfigFromFile();
+  cachedConfig = config;
+  return config;
 }
 
 // 保存飞书配置
-export async function saveFeishuConfig(config: FeishuConfig): Promise<FeishuConfig> {
-  // 先尝试保存到 Supabase
-  try {
-    const client = getSupabaseClient();
-    const existingConfig = await getFeishuConfig();
-    
-    if (existingConfig && existingConfig.id) {
-      // 更新现有配置
-      const { data, error } = await client
-        .from('feishu_configs')
-        .update({
-          webhook_url: config.webhookUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingConfig.id)
-        .select();
-      
-      if (!error && data) {
-        console.log('飞书配置已更新到 Supabase');
-        saveConfigToFile(data[0] as FeishuConfig);
-        return data[0] as FeishuConfig;
-      }
-    } else {
-      // 创建新配置
-      const { data, error } = await client
-        .from('feishu_configs')
-        .insert({
-          webhook_url: config.webhookUrl,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select();
-      
-      if (!error && data) {
-        console.log('飞书配置已保存到 Supabase');
-        saveConfigToFile(data[0] as FeishuConfig);
-        return data[0] as FeishuConfig;
-      }
-    }
-  } catch (error) {
-    console.error('保存飞书配置到 Supabase 失败，使用本地文件:', error);
-  }
+export async function saveFeishuConfig(config: FeishuConfig): Promise<void> {
+  saveConfigToFile(config);
+}
 
-  // Supabase 不可用时，保存到本地文件
-  const configToSave = {
-    ...config,
-    id: cachedConfig?.id || 1,
-    createdAt: cachedConfig?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+// 添加同事
+export async function addFeishuColleague(colleague: Omit<FeishuColleague, 'id' | 'createdAt'>): Promise<FeishuColleague> {
+  const config = await getFeishuConfig();
+  const newColleague: FeishuColleague = {
+    ...colleague,
+    id: Date.now().toString(),
+    createdAt: Date.now(),
   };
-  saveConfigToFile(configToSave);
-  return configToSave;
+  config.colleagues = [...(config.colleagues || []), newColleague];
+  await saveFeishuConfig(config);
+  return newColleague;
+}
+
+// 删除同事
+export async function removeFeishuColleague(colleagueId: string): Promise<void> {
+  const config = await getFeishuConfig();
+  config.colleagues = (config.colleagues || []).filter(c => c.id !== colleagueId);
+  await saveFeishuConfig(config);
 }
