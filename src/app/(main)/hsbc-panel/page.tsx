@@ -1556,6 +1556,7 @@ export default function HSBCPanelPage() {
                         全部
                       </button>
                     </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-500">月份筛选:</span>
                     <select
@@ -1760,7 +1761,6 @@ export default function HSBCPanelPage() {
 
               {/* ============ 贷后数据卡片 ============ */}
               <div className="mt-6 border-t border-slate-200 pt-4">
-                
                 {repaymentStats?.stats ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* 未逾期还款 */}
