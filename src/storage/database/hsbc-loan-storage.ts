@@ -235,15 +235,16 @@ export async function getAllBatchDates(): Promise<string[]> {
   if (supabaseAvailable) {
     try {
       const client = getSupabaseClient();
+      // 直接从贷款数据表中获取所有不重复的批次日期
       const { data, error } = await client
-        .from('hsbc_loan_batches')
+        .from('hsbc_loans')
         .select('batch_date')
         .order('batch_date', { ascending: false });
       
       if (!error) {
-        const dates = (data || []).map((row: Record<string, unknown>) => row.batch_date as string);
+        const dates = [...new Set((data || []).map((row: Record<string, unknown>) => row.batch_date as string).filter((date): date is string => date !== undefined))];
         if (dates.length > 0) {
-          return dates;
+          return dates.sort((a, b) => (b || '').localeCompare(a || ''));
         }
       }
     } catch (error) {
@@ -251,8 +252,10 @@ export async function getAllBatchDates(): Promise<string[]> {
     }
   }
   
-  // Fallback 到本地存储
-  return batchDatesCache || [];
+  // Fallback 到本地存储：直接从贷款数据中提取批次日期
+  const loans = loansCache || [];
+  const dates = [...new Set(loans.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
+  return dates.sort((a, b) => (b || '').localeCompare(a || ''));
 }
 
 // 获取所有汇丰贷款
@@ -326,9 +329,7 @@ export async function deleteHSBCBatch(batchDate: string): Promise<{ deletedCount
   deletedCount = originalLength - (loansCache?.length || 0);
   saveToLocalStorage(loansCache || []);
   
-  // 同时更新批次日期
-  batchDatesCache = (batchDatesCache || []).filter(date => date !== batchDate);
-  saveBatchDatesToLocalStorage(batchDatesCache || []);
+  // 批次日期现在直接从贷款数据中提取，不再需要单独管理
   
   return { deletedCount };
 }
@@ -449,11 +450,5 @@ export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge'
   
   saveToLocalStorage(loansCache);
   
-  // 同时更新批次日期
-  if (!batchDatesCache?.includes(batchDate)) {
-    batchDatesCache = [batchDate, ...(batchDatesCache || [])];
-    // 去重并排序
-    batchDatesCache = [...new Set(batchDatesCache)].sort((a, b) => b.localeCompare(a));
-    saveBatchDatesToLocalStorage(batchDatesCache);
-  }
+  // 批次日期现在直接从贷款数据中提取，不再需要单独管理
 }
