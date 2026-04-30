@@ -37,6 +37,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -51,7 +58,7 @@ import {
   TrendingUp,
   DollarSign,
   CreditCard,
-  Calendar,
+  Calendar as CalendarIcon,
   Percent,
   Search,
   Eye,
@@ -1428,7 +1435,7 @@ export default function HSBCPanelPage() {
         <div className="flex items-center gap-3">
           {/* 批次日期选择与删除 */}
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-500" />
+            <CalendarIcon className="w-4 h-4 text-slate-500" />
             <select
               value={selectedBatchDate}
               onChange={(e) => setSelectedBatchDate(e.target.value)}
@@ -1486,39 +1493,69 @@ export default function HSBCPanelPage() {
                 <div className="text-sm text-slate-500">
                   <span className="font-semibold">汇丰（香港）数据</span>（汇率1USD=7CNY）
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-500">币种筛选:</span>
-                  <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-                    <button
-                      onClick={() => setDashboardCurrency('CNY')}
-                      className={`px-3 py-1.5 text-sm transition-colors ${
-                        dashboardCurrency === 'CNY'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      折CNY
-                    </button>
-                    <button
-                      onClick={() => setDashboardCurrency('USD')}
-                      className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
-                        dashboardCurrency === 'USD'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      折USD
-                    </button>
-                    <button
-                      onClick={() => setDashboardCurrency('ALL')}
-                      className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
-                        dashboardCurrency === 'ALL'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      全部
-                    </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500">数据日期计算日:</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <CalendarIcon className="w-4 h-4" />
+                          {selectedCalcDate || '选择日期'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedCalcDate ? new Date(selectedCalcDate) : undefined}
+                          onSelect={(date) => {
+                            if (date) {
+                              setSelectedCalcDate(format(date, 'yyyy-MM-dd'));
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {selectedCalcDate && (
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedCalcDate('2026-04-29')}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500">币种筛选:</span>
+                    <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                      <button
+                        onClick={() => setDashboardCurrency('CNY')}
+                        className={`px-3 py-1.5 text-sm transition-colors ${
+                          dashboardCurrency === 'CNY'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        折CNY
+                      </button>
+                      <button
+                        onClick={() => setDashboardCurrency('USD')}
+                        className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
+                          dashboardCurrency === 'USD'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        折USD
+                      </button>
+                      <button
+                        onClick={() => setDashboardCurrency('ALL')}
+                        className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
+                          dashboardCurrency === 'ALL'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        全部
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2761,7 +2798,7 @@ export default function HSBCPanelPage() {
                   <div>
                     <div className="text-sm text-slate-500">贷款开始日期</div>
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-slate-400" />
+                      <CalendarIcon className="w-4 h-4 text-slate-400" />
                       {selectedLoan.loanStartDate}
                     </div>
                   </div>
@@ -2790,7 +2827,7 @@ export default function HSBCPanelPage() {
                           <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
                             {idx + 1}
                           </span>
-                          <Calendar className="w-4 h-4 text-slate-400" />
+                          <CalendarIcon className="w-4 h-4 text-slate-400" />
                           {item.date}
                         </span>
                         <span className="font-mono font-medium">
