@@ -267,23 +267,56 @@ export default function FeishuConfigPage() {
     }
   };
 
-  // 搜索同事
-  const handleSearchColleague = () => {
+  // 搜索同事（实时搜索飞书并自动保存）
+  const handleSearchColleague = async () => {
     if (!colleagueSearch.trim()) {
       setSearchResults([]);
       setSelectedUser(null);
       return;
     }
 
-    const results = feishuUsers.filter(user => 
-      user.name.includes(colleagueSearch)
-    );
-    setSearchResults(results);
-    
-    if (results.length === 0) {
-      toast.warning('未找到匹配的同事，请尝试其他关键词');
-    } else if (results.length === 1) {
-      setSelectedUser(results[0]);
+    setSendingMessage(true); // 复用发送状态表示搜索中
+    try {
+      // 使用实时搜索API搜索并保存
+      const response = await fetch(
+        `/api/feishu-search-save?action=search-and-save&keyword=${encodeURIComponent(colleagueSearch)}`
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('🔍 搜索结果:', data);
+        setSearchResults(data.users || []);
+        
+        // 刷新已保存的用户列表
+        await loadFeishuUsers();
+        
+        if (data.count === 0) {
+          toast.warning('未找到匹配的同事，请尝试其他关键词');
+        } else if (data.count === 1) {
+          setSelectedUser(data.users[0]);
+          toast.success(`找到并保存了 ${data.count} 个用户`);
+        } else {
+          toast.success(`找到并保存了 ${data.count} 个用户，请选择一个`);
+        }
+      } else {
+        toast.error(data.message || '搜索失败');
+      }
+    } catch (error) {
+      console.error('搜索同事失败:', error);
+      toast.error('搜索失败，请稍后重试');
+      
+      // 搜索失败时，fallback到本地搜索
+      const localResults = feishuUsers.filter(user => 
+        user.name.includes(colleagueSearch)
+      );
+      setSearchResults(localResults);
+      
+      if (localResults.length > 0) {
+        toast.info('已从本地缓存中找到用户');
+      }
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -641,16 +674,16 @@ export default function FeishuConfigPage() {
                             id="colleagueSearch"
                             value={colleagueSearch}
                             onChange={(e) => setColleagueSearch(e.target.value)}
-                            placeholder="请输入同事花名中的汉字"
+                            placeholder="请输入同事花名中的汉字（如：晨忻）"
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 handleSearchColleague();
                               }
                             }}
                           />
-                          <Button onClick={handleSearchColleague}>
+                          <Button onClick={handleSearchColleague} disabled={sendingMessage}>
                             <Search className="w-4 h-4 mr-2" />
-                            搜索
+                            {sendingMessage ? '搜索中...' : '搜索并保存'}
                           </Button>
                         </div>
                       </div>
@@ -659,7 +692,12 @@ export default function FeishuConfigPage() {
                     {/* 搜索结果 */}
                     {searchResults.length > 0 && (
                       <div className="space-y-2">
-                        <Label>搜索结果（选择一位同事）</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>搜索结果（已自动保存到用户管理）</Label>
+                          <span className="text-sm text-muted-foreground">
+                            找到 {searchResults.length} 位同事
+                          </span>
+                        </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           {searchResults.map((user) => (
                             <Button
@@ -669,6 +707,11 @@ export default function FeishuConfigPage() {
                               onClick={() => setSelectedUser(user)}
                             >
                               {user.name}
+                              {user.userId && (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  ID: {user.userId}
+                                </span>
+                              )}
                             </Button>
                           ))}
                         </div>

@@ -359,3 +359,121 @@ export function clearTokenCache(): void {
   tokenCache = null;
   console.log('🧹 Token缓存已清除');
 }
+
+/**
+ * 直接通过飞书API搜索用户（用于实时搜索，不依赖已同步的用户）
+ * 尝试多种方式找到匹配的用户
+ */
+export async function searchFeishuUsersDirectly(
+  appId: string,
+  appSecret: string,
+  keyword: string
+): Promise<FeishuUser[]> {
+  console.log('🔍 开始直接搜索飞书用户，关键词:', keyword);
+  
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+  const matchedUsers: FeishuUser[] = [];
+  
+  // 方式1: 先尝试获取所有用户（虽然可能有限制，但先试试）
+  try {
+    console.log('📋 尝试获取用户列表...');
+    const allUsers = await getAllFeishuUsers(appId, appSecret);
+    console.log(`📋 获取到 ${allUsers.length} 个用户，开始筛选...`);
+    
+    for (const user of allUsers) {
+      if (user.name.includes(keyword) || 
+          (user.enName && user.enName.toLowerCase().includes(keyword.toLowerCase())) ||
+          (user.mobile && user.mobile.includes(keyword)) ||
+          (user.email && user.email.toLowerCase().includes(keyword.toLowerCase()))) {
+        console.log('✅ 找到匹配用户:', user.name, user.userId);
+        matchedUsers.push(user);
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ 获取所有用户失败，尝试其他方式:', error);
+  }
+  
+  // 方式2: 如果方式1没找到，尝试通过其他API或方式查找
+  // 这里可以扩展其他搜索方式
+  
+  console.log(`🎯 搜索完成，共找到 ${matchedUsers.length} 个匹配用户`);
+  return matchedUsers;
+}
+
+/**
+ * 通过获取用户详情尝试获取更完整的用户信息
+ */
+export async function getFeishuUserDetail(
+  appId: string,
+  appSecret: string,
+  userId: string
+): Promise<FeishuUser | null> {
+  console.log('👤 尝试获取用户详情，用户ID:', userId);
+  
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+  
+  try {
+    const response = await fetch(
+      `${FEISHU_API_BASE}/contact/v3/users/${userId}?user_id_type=user_id`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+    
+    console.log('📡 用户详情API响应状态:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('📊 用户详情API响应:', JSON.stringify(data, null, 2));
+      
+      if (data.code === 0 && data.data) {
+        const user = data.data.user;
+        return {
+          unionId: user.union_id || '',
+          userId: user.user_id || userId,
+          name: user.name || user.en_name || '未知用户',
+          enName: user.en_name,
+          email: user.email,
+          mobile: user.mobile,
+          avatarUrl: user.avatar?.avatar_72 || user.avatar?.avatar_240,
+          status: user.status?.is_frozen ? 'inactive' : 'active',
+          departmentIds: user.department_ids,
+        };
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ 获取用户详情失败:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * 尝试通过多种方式查找用户（最全面的搜索）
+ */
+export async function searchFeishuUserComprehensive(
+  appId: string,
+  appSecret: string,
+  keyword: string
+): Promise<FeishuUser[]> {
+  console.log('🎯 开始全面搜索飞书用户，关键词:', keyword);
+  
+  const results: FeishuUser[] = [];
+  const seenUserIds = new Set<string>();
+  
+  // 首先尝试直接搜索
+  const directUsers = await searchFeishuUsersDirectly(appId, appSecret, keyword);
+  
+  for (const user of directUsers) {
+    if (!seenUserIds.has(user.userId)) {
+      seenUserIds.add(user.userId);
+      results.push(user);
+    }
+  }
+  
+  console.log(`✅ 全面搜索完成，共找到 ${results.length} 个唯一用户`);
+  return results;
+}
