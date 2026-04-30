@@ -252,7 +252,13 @@ export async function getAllBatchDates(): Promise<string[]> {
     }
   }
   
-  // Fallback 到本地存储：直接从贷款数据中提取批次日期
+  // Fallback 到本地存储
+  // 首先尝试从批次日期文件读取
+  if (batchDatesCache && batchDatesCache.length > 0) {
+    return batchDatesCache.sort((a, b) => (b || '').localeCompare(a || ''));
+  }
+  
+  // 如果批次日期文件为空，则从贷款数据中提取
   const loans = loansCache || [];
   const dates = [...new Set(loans.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
   return dates.sort((a, b) => (b || '').localeCompare(a || ''));
@@ -329,14 +335,21 @@ export async function deleteHSBCBatch(batchDate: string): Promise<{ deletedCount
   deletedCount = originalLength - (loansCache?.length || 0);
   saveToLocalStorage(loansCache || []);
   
-  // 批次日期现在直接从贷款数据中提取，不再需要单独管理
+  // 更新批次日期文件
+  const allDates = [...new Set(loansCache.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
+  batchDatesCache = allDates.sort((a, b) => (b || '').localeCompare(a || ''));
+  saveBatchDatesToLocalStorage(batchDatesCache);
+  
+  // 删除后强制刷新缓存
+  initCache(true);
   
   return { deletedCount };
 }
 
 // 保存汇丰贷款数据
 export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge' = 'replace'): Promise<void> {
-  initCache();
+  // 强制刷新缓存，确保拿到最新数据
+  initCache(true);
   
   // 获取批次日期
   const batchDate = loans[0]?.batchDate || new Date().toISOString().split('T')[0];
@@ -450,5 +463,11 @@ export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge'
   
   saveToLocalStorage(loansCache);
   
-  // 批次日期现在直接从贷款数据中提取，不再需要单独管理
+  // 更新批次日期文件
+  const allDates = [...new Set(loansCache.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
+  batchDatesCache = allDates.sort((a, b) => (b || '').localeCompare(a || ''));
+  saveBatchDatesToLocalStorage(batchDatesCache);
+  
+  // 保存后强制刷新缓存，确保下次读取时是最新数据
+  initCache(true);
 }
