@@ -16,6 +16,7 @@ import {
   Trash2, RefreshCw, X, Edit, Save, Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 interface MerchantSalesMapping {
   id: string;
@@ -95,13 +96,119 @@ export default function MerchantSalesMappingPage() {
     return result;
   };
 
+  // 解析CSV文件
+  const parseCSVFile = async (file: File): Promise<ImportRow[]> => {
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      throw new Error('文件格式错误，请检查文件内容');
+    }
+
+    const headers = parseCSVLine(lines[0]);
+    
+    const data: ImportRow[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseCSVLine(lines[i]);
+      if (values.length > 0) {
+        const row: ImportRow = {};
+        headers.forEach((header, index) => {
+          row[header.trim()] = values[index]?.trim() || '';
+        });
+        // 兼容无表头格式
+        if (!row.merchantId) row.merchantId = row['商户ID'] || values[0]?.trim();
+        if (!row.feishuName) row.feishuName = row['销售飞书名称'] || values[1]?.trim();
+        if (row.merchantId && row.feishuName) {
+          data.push(row);
+        }
+      }
+    }
+
+    if (data.length === 0) {
+      throw new Error('未找到有效的数据行');
+    }
+
+    return data;
+  };
+
+  // 解析Excel文件
+  const parseExcelFile = async (file: File): Promise<ImportRow[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          
+          // 获取第一个工作表
+          const firstSheetName = workbook.SheetNames[0];
+          if (!firstSheetName) {
+            reject(new Error('Excel文件中没有工作表'));
+            return;
+          }
+          
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+          
+          if (jsonData.length < 2) {
+            reject(new Error('文件格式错误，请检查文件内容'));
+            return;
+          }
+          
+          const headers = (jsonData[0] as string[]).map(h => String(h || '').trim());
+          const result: ImportRow[] = [];
+          
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i] as string[];
+            if (row.length > 0) {
+              const importRow: ImportRow = {};
+              headers.forEach((header, index) => {
+                importRow[header] = String(row[index] || '').trim();
+              });
+              
+              // 兼容无表头格式
+              if (!importRow.merchantId) {
+                importRow.merchantId = importRow['商户ID'] || String(row[0] || '').trim();
+              }
+              if (!importRow.feishuName) {
+                importRow.feishuName = importRow['销售飞书名称'] || String(row[1] || '').trim();
+              }
+              
+              if (importRow.merchantId && importRow.feishuName) {
+                result.push(importRow);
+              }
+            }
+          }
+          
+          if (result.length === 0) {
+            reject(new Error('未找到有效的数据行'));
+            return;
+          }
+          
+          resolve(result);
+        } catch (error) {
+          console.error('解析Excel文件失败:', error);
+          reject(new Error('解析Excel文件失败'));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('读取文件失败'));
+      };
+      
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
   // 选择文件
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (!selectedFile.name.endsWith('.xlsx') && 
-          !selectedFile.name.endsWith('.xls') && 
-          !selectedFile.name.endsWith('.csv')) {
+      const fileName = selectedFile.name.toLowerCase();
+      if (!fileName.endsWith('.xlsx') && 
+          !fileName.endsWith('.xls') && 
+          !fileName.endsWith('.csv')) {
         toast.error('请选择 Excel 或 CSV 文件');
         return;
       }
@@ -113,43 +220,23 @@ export default function MerchantSalesMappingPage() {
   // 解析文件
   const parseFile = async (file: File) => {
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
+      let result: ImportRow[];
+      const fileName = file.name.toLowerCase();
       
-      if (lines.length < 2) {
-        toast.error('文件格式错误，请检查文件内容');
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        result = await parseExcelFile(file);
+      } else if (fileName.endsWith('.csv')) {
+        result = await parseCSVFile(file);
+      } else {
+        toast.error('不支持的文件格式');
         return;
       }
 
-      const headers = parseCSVLine(lines[0]);
-      
-      const data: ImportRow[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = parseCSVLine(lines[i]);
-        if (values.length > 0) {
-          const row: ImportRow = {};
-          headers.forEach((header, index) => {
-            row[header.trim()] = values[index]?.trim() || '';
-          });
-          // 兼容无表头格式
-          if (!row.merchantId) row.merchantId = row['商户ID'] || values[0]?.trim();
-          if (!row.feishuName) row.feishuName = row['销售飞书名称'] || values[1]?.trim();
-          if (row.merchantId && row.feishuName) {
-            data.push(row);
-          }
-        }
-      }
-
-      if (data.length === 0) {
-        toast.error('未找到有效的数据行');
-        return;
-      }
-
-      setPreviewData(data);
+      setPreviewData(result);
       setShowPreview(true);
     } catch (error) {
       console.error('解析文件失败:', error);
-      toast.error('解析文件失败');
+      toast.error(error instanceof Error ? error.message : '解析文件失败');
     }
   };
 
