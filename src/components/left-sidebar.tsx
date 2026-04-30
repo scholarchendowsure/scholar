@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import {
@@ -20,9 +20,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  MessageSquare
+  MessageSquare,
+  KeyRound,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/components/auth-provider';
+import { toast } from 'sonner';
 
 interface NavItem {
   title: string;
@@ -105,7 +109,34 @@ const navItems: NavItem[] = [
 
 export function LeftSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        logout();
+        toast.success('已安全退出');
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      logout();
+      router.push('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className={cn(
@@ -166,8 +197,45 @@ export function LeftSidebar() {
 
       {/* 底部区域 */}
       <div className="border-t border-slate-200 p-4">
+        {/* 用户信息 */}
+        {isExpanded && user && (
+          <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+            <div className="text-sm font-medium text-slate-900">{user.name}</div>
+            <div className="text-xs text-slate-500">{user.department || ''}</div>
+            <div className="text-xs text-slate-400 mt-1">
+              {user.role === 'admin' ? '管理员' : user.role === 'manager' ? '经理' : '外访员'}
+            </div>
+          </div>
+        )}
+        
+        {/* 功能按钮 */}
+        <div className="space-y-2">
+          {/* 修改密码 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => router.push('/change-password')}
+          >
+            <KeyRound className="h-4 w-4 mr-2" />
+            {isExpanded && <span>修改密码</span>}
+          </Button>
+          
+          {/* 注销登录 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {isExpanded && <span>{isLoggingOut ? '退出中...' : '注销登录'}</span>}
+          </Button>
+        </div>
+        
         {isExpanded && (
-          <div className="text-xs text-slate-500 text-center">
+          <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-500 text-center">
             贷后案件管理系统 v1.0
           </div>
         )}
