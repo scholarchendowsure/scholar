@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Save, Users, Settings, Link, Trash2 } from 'lucide-react';
+import { Loader2, RefreshCw, Save, Users, Settings, Link, Trash2, MessageSquare, Search, Send } from 'lucide-react';
 
 // 类型定义
 interface FeishuUser {
@@ -54,6 +54,13 @@ export default function FeishuConfigPage() {
   // 商户-销售映射状态
   const [mappings, setMappings] = useState<MerchantSalesFeishuMapping[]>([]);
   const [merchantMappings, setMerchantMappings] = useState<MerchantSalesMapping[]>([]);
+
+  // 消息测试状态
+  const [colleagueSearch, setColleagueSearch] = useState('');
+  const [testMessage, setTestMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [searchResults, setSearchResults] = useState<FeishuUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<FeishuUser | null>(null);
 
   // 加载配置
   useEffect(() => {
@@ -258,6 +265,62 @@ export default function FeishuConfigPage() {
     }
   };
 
+  // 搜索同事
+  const handleSearchColleague = () => {
+    if (!colleagueSearch.trim()) {
+      setSearchResults([]);
+      setSelectedUser(null);
+      return;
+    }
+
+    const results = feishuUsers.filter(user => 
+      user.name.includes(colleagueSearch)
+    );
+    setSearchResults(results);
+    
+    if (results.length === 0) {
+      toast.warning('未找到匹配的同事，请尝试其他关键词');
+    } else if (results.length === 1) {
+      setSelectedUser(results[0]);
+    }
+  };
+
+  // 发送测试消息
+  const sendTestMessage = async () => {
+    if (!selectedUser) {
+      toast.error('请先选择要发送消息的同事');
+      return;
+    }
+    if (!testMessage.trim()) {
+      toast.error('请输入测试消息内容');
+      return;
+    }
+
+    setSendingMessage(true);
+    try {
+      const response = await fetch('/api/feishu-send-direct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.userId,
+          message: testMessage,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('测试消息发送成功！');
+        setTestMessage('');
+      } else {
+        toast.error(data.message || '发送失败');
+      }
+    } catch (error) {
+      toast.error('发送消息失败');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -282,6 +345,10 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="mappings">
             <Link className="w-4 h-4 mr-2" />
             映射配置
+          </TabsTrigger>
+          <TabsTrigger value="message-test">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            消息测试
           </TabsTrigger>
         </TabsList>
 
@@ -528,6 +595,106 @@ export default function FeishuConfigPage() {
                   暂无映射配置，请先在商户-销售映射中添加数据
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 消息测试 */}
+        <TabsContent value="message-test" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>消息测试</CardTitle>
+              <CardDescription>
+                搜索同事并发送测试消息
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* 搜索同事 */}
+              <div className="space-y-4">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="colleagueSearch">同事花名</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="colleagueSearch"
+                        value={colleagueSearch}
+                        onChange={(e) => setColleagueSearch(e.target.value)}
+                        placeholder="请输入同事花名中的汉字"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSearchColleague();
+                          }
+                        }}
+                      />
+                      <Button onClick={handleSearchColleague}>
+                        <Search className="w-4 h-4 mr-2" />
+                        搜索
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 搜索结果 */}
+                {searchResults.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>搜索结果（选择一位同事）</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {searchResults.map((user) => (
+                        <Button
+                          key={user.id}
+                          variant={selectedUser?.id === user.id ? 'default' : 'secondary'}
+                          className="justify-start text-left"
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          {user.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 已选择的用户 */}
+                {selectedUser && (
+                  <div className="p-4 bg-muted rounded-lg">
+                    <div className="font-medium mb-2">已选择的同事</div>
+                    <div className="text-sm text-muted-foreground">
+                      <div>姓名：{selectedUser.name}</div>
+                      <div>用户ID：{selectedUser.userId}</div>
+                      {selectedUser.email && <div>邮箱：{selectedUser.email}</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* 测试消息 */}
+                <div className="space-y-2">
+                  <Label htmlFor="testMessage">测试消息</Label>
+                  <Input
+                    id="testMessage"
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    placeholder="请输入要发送的测试消息内容"
+                  />
+                </div>
+
+                {/* 发送按钮 */}
+                <Button
+                  onClick={sendTestMessage}
+                  disabled={sendingMessage || !selectedUser || !testMessage.trim()}
+                  className="w-full md:w-auto"
+                >
+                  {sendingMessage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      发送中...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      发送测试
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

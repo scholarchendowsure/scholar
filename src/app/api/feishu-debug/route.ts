@@ -5,7 +5,6 @@ const TEST_APP_SECRET = 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
 const FEISHU_API_BASE = 'https://open.feishu.cn/open-apis';
 
 async function getTenantAccessToken() {
-  console.log('🔐 获取token...');
   const response = await fetch(`${FEISHU_API_BASE}/auth/v3/tenant_access_token/internal`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -16,7 +15,6 @@ async function getTenantAccessToken() {
   });
   
   const data = await response.json();
-  console.log('📊 Token响应:', JSON.stringify(data, null, 2));
   return data.tenant_access_token;
 }
 
@@ -25,109 +23,106 @@ export async function GET(request: NextRequest) {
   const step = searchParams.get('step');
 
   try {
-    console.log('🔍 调试步骤:', step);
+    const token = await getTenantAccessToken();
 
     switch (step) {
-      case 'token': {
-        const token = await getTenantAccessToken();
-        return NextResponse.json({
-          success: true,
-          message: 'Token获取成功',
-          tokenPreview: token ? token.substring(0, 20) + '...' : 'null',
+      case 'employee-type': {
+        console.log('📡 尝试员工类型API...');
+        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/users?user_id_type=open_id&page_size=100`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         });
+        const data = await response.json();
+        return NextResponse.json({ success: true, step, data });
       }
 
-      case 'raw-users': {
-        const token = await getTenantAccessToken();
-        console.log('📡 调用用户API...');
-        
-        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/users?page_size=50`, {
-          method: 'GET',
+      case 'batch-get': {
+        console.log('📡 尝试批量获取用户...');
+        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/users/batch_get_id`, {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            user_ids: ['8cgee58f'],
+          user_id_type: 'user_id',
+          department_id_type: 'department_id',
+          department_ids: ['0'],
+          department_user_id_type: 'user_id',
+        }),
         });
+        const data = await response.json();
+        return NextResponse.json({ success: true, step, data });
+      }
 
-        const rawText = await response.text();
-        console.log('📄 原始响应:', rawText);
+      case 'user-detail': {
+        const userId = searchParams.get('userId') || '8cgee58f';
+        console.log('📡 获取单个用户详情...');
+        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/users/${userId}?user_id_type=user_id`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        return NextResponse.json({ success: true, step, userId, data });
+      }
 
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch (e) {
-          return NextResponse.json({
-            success: false,
-            message: '响应不是有效的JSON',
-            rawText,
-          });
+      case 'contact-scopes': {
+        console.log('📡 检查通讯录权限范围...');
+        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/scope/get`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        return NextResponse.json({ success: true, step, data });
+      }
+
+      case 'all-endpoints': {
+        const results: any = {};
+        
+        // 测试多个端点
+        const endpoints = [
+          { name: 'users-v3', url: `${FEISHU_API_BASE}/contact/v3/users?page_size=50` },
+          { name: 'users-department', url: `${FEISHU_API_BASE}/contact/v3/users/find_by_department?department_id=0&page_size=50` },
+          { name: 'employees', url: `${FEISHU_API_BASE}/contact/v3/employees?page_size=50` },
+        ];
+
+        for (const endpoint of endpoints) {
+          try {
+            const response = await fetch(endpoint.url, {
+              method: 'GET',
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            results[endpoint.name] = await response.json();
+          } catch (e) {
+            results[endpoint.name] = { error: String(e) };
+          }
         }
 
-        return NextResponse.json({
-          success: true,
-          message: '获取原始用户数据成功',
-          status: response.status,
-          data,
-        });
-      }
-
-      case 'departments': {
-        const token = await getTenantAccessToken();
-        console.log('📡 调用部门API...');
-        
-        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/departments?page_size=50`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
-        return NextResponse.json({
-          success: true,
-          message: '获取部门数据成功',
-          data,
-        });
-      }
-
-      case 'users-by-department': {
-        const deptId = searchParams.get('deptId') || '0';
-        const token = await getTenantAccessToken();
-        console.log('📡 调用部门用户API，部门ID:', deptId);
-        
-        const response = await fetch(`${FEISHU_API_BASE}/contact/v3/users/find_by_department?department_id=${deptId}&page_size=50`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
-        return NextResponse.json({
-          success: true,
-          message: '获取部门用户成功',
-          departmentId: deptId,
-          data,
-        });
+        return NextResponse.json({ success: true, step, results });
       }
 
       default: {
         return NextResponse.json({
           success: true,
-          message: '飞书调试API',
+          message: '飞书调试API - 多种获取用户方式测试',
           availableSteps: [
-            'token - 测试获取token',
-            'raw-users - 获取原始用户数据（查看完整响应）',
-            'departments - 获取部门列表',
-            'users-by-department?deptId=0 - 获取指定部门的用户',
+            'employee-type - 使用open_id获取用户',
+            'user-detail?userId=xxx - 获取单个用户详情',
+            'batch-get - 批量获取用户',
+            'contact-scopes - 检查权限范围',
+            'all-endpoints - 测试所有端点',
           ],
         });
       }
     }
   } catch (error) {
-    console.error('❌ 调试失败:', error);
     return NextResponse.json(
       { 
         success: false, 
