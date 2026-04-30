@@ -51,3 +51,19 @@ export const hsbcLoans = pgTable(
     index("hsbc_loans_status_idx").on(table.status),
   ]
 );
+
+// 商户-销售人员映射关系表
+export const merchantSalesMappings = pgTable(
+  "merchant_sales_mappings",
+  {
+    id: serial("id").primaryKey(),
+    merchant_id: varchar("merchant_id", { length: 50 }).notNull(), // 商户ID
+    sales_feishu_name: varchar("sales_feishu_name", { length: 255 }).notNull(), // 销售飞书名称
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updated_at: timestamp("updated_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("merchant_sales_mappings_merchant_id_idx").on(table.merchant_id),
+    index("merchant_sales_mappings_sales_feishu_name_idx").on(table.sales_feishu_name),
+  ]
+);

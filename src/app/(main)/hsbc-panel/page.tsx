@@ -73,6 +73,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Loader2,
+  Send,
 } from 'lucide-react';
 
 // ============ 类型定义 ============
@@ -585,10 +587,19 @@ export default function HSBCPanelPage() {
   // 数据日期计算日状态
   const [selectedCalcDate, setSelectedCalcDate] = useState<string>('2026-04-29');
 
+  // 商户-销售映射关系
+  const [merchantSalesMappings, setMerchantSalesMappings] = useState<any[]>([]);
+
+  // 飞书提醒相关状态
+  const [reminderDays, setReminderDays] = useState<number>(3);
+  const [scheduledReminderEnabled, setScheduledReminderEnabled] = useState<boolean>(false);
+  const [sendingReminder, setSendingReminder] = useState<boolean>(false);
+  const [showReminderSuccess, setShowReminderSuccess] = useState<boolean>(false);
+
   // 列选择相关状态
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'loanReference', 'merchantId', 'borrowerName', 'loanCurrency', 
+    'loanReference', 'merchantId', 'salesName', 'borrowerName', 'loanCurrency', 
     'loanStartDate', 'loanAmount', 'balance', 'pastdueAmount', 'status'
   ]);
   const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
@@ -648,6 +659,7 @@ export default function HSBCPanelPage() {
   const columnDefinitions = [
     { key: 'loanReference', label: '贷款编号' },
     { key: 'merchantId', label: '商户ID' },
+    { key: 'salesName', label: '销售' },
     { key: 'borrowerName', label: '借款人名称' },
     { key: 'loanCurrency', label: '币种' },
     { key: 'loanStartDate', label: '贷款日期' },
@@ -745,6 +757,22 @@ export default function HSBCPanelPage() {
   // 加载批次日期列表
   useEffect(() => {
     fetchBatchDates();
+  }, []);
+
+  // 加载商户-销售映射关系
+  useEffect(() => {
+    const loadMerchantSalesMappings = async () => {
+      try {
+        const response = await fetch('/api/merchant-sales-mappings');
+        if (response.ok) {
+          const data = await response.json();
+          setMerchantSalesMappings(data.mappings || []);
+        }
+      } catch (err) {
+        console.error('加载商户-销售映射关系失败:', err);
+      }
+    };
+    loadMerchantSalesMappings();
   }, []);
 
   // 根据选择的批次日期重新加载数据（跳过初始加载，因为 loadData 已经处理了）
@@ -1383,6 +1411,41 @@ export default function HSBCPanelPage() {
     }
   };
 
+  // 发送飞书提醒
+  const handleSendFeishuReminder = async () => {
+    if (!selectedBatchDate) {
+      toast.error('请先选择批次日期');
+      return;
+    }
+    setSendingReminder(true);
+    try {
+      const response = await fetch('/api/feishu-reminders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batchDate: selectedBatchDate,
+          days: reminderDays,
+          calcDate: selectedCalcDate,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '发送提醒失败');
+      }
+      const result = await response.json();
+      setShowReminderSuccess(true);
+      setTimeout(() => setShowReminderSuccess(false), 3000);
+      toast.success(`成功发送${result.data?.sentCount || 0}条提醒`);
+    } catch (err) {
+      console.error('发送飞书提醒错误:', err);
+      toast.error(err instanceof Error ? err.message : '发送提醒失败，请重试');
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
   // 获取批次日期列表
   const fetchBatchDates = async () => {
     try {
@@ -1572,6 +1635,57 @@ export default function HSBCPanelPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500">到期天数:</span>
+                    <select
+                      value={reminderDays}
+                      onChange={(e) => setReminderDays(parseInt(e.target.value))}
+                      className="border border-slate-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={1}>1天</option>
+                      <option value={2}>2天</option>
+                      <option value={3}>3天</option>
+                      <option value={4}>4天</option>
+                      <option value={5}>5天</option>
+                      <option value={7}>7天</option>
+                      <option value={15}>15天</option>
+                      <option value={30}>30天</option>
+                      <option value={45}>45天</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enableScheduledReminder}
+                        onChange={(e) => setEnableScheduledReminder(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-500 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-500">定时提醒</span>
+                    </label>
+                  </div>
+                  <Button 
+                    onClick={handleSendFeishuReminder}
+                    disabled={sendingReminder}
+                    className="bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    {sendingReminder ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        发送中...
+                      </>
+                    ) : showReminderSuccess ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        发送成功
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        发送飞书提醒
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
 
@@ -2232,6 +2346,13 @@ export default function HSBCPanelPage() {
                           </div>
                         </TableHead>
                       )}
+                      {visibleColumns.includes('salesName') && (
+                        <TableHead className="cursor-pointer hover:bg-slate-100">
+                          <div className="flex items-center gap-1">
+                            销售
+                          </div>
+                        </TableHead>
+                      )}
                       {visibleColumns.includes('borrowerName') && (
                         <TableHead className="w-[250px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('borrowerName')}>
                           <div className="flex items-center gap-1">
@@ -2323,6 +2444,11 @@ export default function HSBCPanelPage() {
                         )}
                         {visibleColumns.includes('merchantId') && (
                           <TableCell className="font-mono">{loan.merchantId}</TableCell>
+                        )}
+                        {visibleColumns.includes('salesName') && (
+                          <TableCell>
+                            {merchantSalesMappings.find(m => m.merchantId === loan.merchantId)?.salesName || '-'}
+                          </TableCell>
                         )}
                         {visibleColumns.includes('borrowerName') && (
                           <TableCell className="max-w-[250px] truncate">{loan.borrowerName}</TableCell>
