@@ -1519,7 +1519,7 @@ export default function HSBCPanelPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-500">币种筛选:</span>
-                  <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                    <div className="flex rounded-lg border border-slate-200 overflow-hidden">
                     <button
                       onClick={() => setDashboardCurrency('CNY')}
                       className={`px-3 py-1.5 text-sm transition-colors ${
