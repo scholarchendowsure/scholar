@@ -1,26 +1,42 @@
 import { NextResponse } from 'next/server';
-import { successResponse, errorResponse } from '@/lib/auth';
-
-// Mock用户数据 - 与auth/route.ts保持一致
-let mockUsers = [
-  { id: '1', sequence: 1, name: '张三', username: 'zhangsan', email: 'zhangsan@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-20T09:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '2', sequence: 2, name: '李四', username: 'lisi', email: 'lisi@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-19T18:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '3', sequence: 3, name: '王五', username: 'wangwu', email: 'wangwu@example.com', password: 'admin123', department: '管理部', role: 'manager', status: 'active', lastLoginTime: '2024-01-20T08:30:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '4', sequence: 4, name: '管理员', username: 'days', email: 'admin@example.com', password: '9469832.qaz', department: '管理部', role: 'admin', status: 'active', lastLoginTime: '2024-01-20T10:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-];
+import { userStorage } from '@/storage/database/user-storage';
+import {
+  addSecurityHeaders,
+  createSecureJsonResponse,
+  errorResponse,
+  successResponse,
+  checkChangePasswordAttempts,
+  recordChangePasswordFailure,
+  clearChangePasswordAttempts,
+  validatePasswordStrength,
+  getClientIP
+} from '@/lib/security';
 
 // 修改密码
 export async function POST(request: Request) {
   try {
+    const ip = getClientIP(request);
+    
+    // 检查修改密码尝试限制
+    const attemptCheck = checkChangePasswordAttempts(ip);
+    if (!attemptCheck.allowed) {
+      const response = createSecureJsonResponse(errorResponse(attemptCheck.message || '修改密码尝试次数过多'), { status: 429 });
+      return addSecurityHeaders(response);
+    }
+
     const body = await request.json();
     const { currentPassword, newPassword, userId } = body;
 
     if (!currentPassword || !newPassword) {
-      return NextResponse.json(errorResponse('请输入当前密码和新密码'), { status: 400 });
+      const response = createSecureJsonResponse(errorResponse('请输入当前密码和新密码'), { status: 400 });
+      return addSecurityHeaders(response);
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json(errorResponse('新密码长度至少6位'), { status: 400 });
+    // 验证密码强度
+    const passwordCheck = validatePasswordStrength(newPassword);
+    if (!passwordCheck.valid) {
+      const response = createSecureJsonResponse(errorResponse(passwordCheck.message || '密码强度不足'), { status: 400 });
+      return addSecurityHeaders(response);
     }
 
     // 从Authorization header获取用户ID（如果没有提供userId）
@@ -28,33 +44,63 @@ export async function POST(request: Request) {
     if (!targetUserId) {
       const authHeader = request.headers.get('Authorization');
       if (!authHeader) {
-        return NextResponse.json(errorResponse('未授权'), { status: 401 });
+        const response = createSecureJsonResponse(errorResponse('未授权'), { status: 401 });
+        return addSecurityHeaders(response);
       }
+      
       try {
         const token = authHeader.replace('Bearer ', '');
         const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+        
+        // 验证token是否过期
+        if (decoded.exp && Date.now() > decoded.exp) {
+          const response = createSecureJsonResponse(errorResponse('token已过期'), { status: 401 });
+          return addSecurityHeaders(response);
+        }
+        
         targetUserId = decoded.userId;
       } catch {
-        return NextResponse.json(errorResponse('无效的token'), { status: 401 });
+        const response = createSecureJsonResponse(errorResponse('无效的token'), { status: 401 });
+        return addSecurityHeaders(response);
       }
     }
 
-    const user = mockUsers.find(u => u.id === targetUserId);
+    if (!targetUserId) {
+      const response = createSecureJsonResponse(errorResponse('用户ID缺失'), { status: 400 });
+      return addSecurityHeaders(response);
+    }
+
+    // 查找用户
+    const user = userStorage.findById(targetUserId as string);
     if (!user) {
-      return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
+      const response = createSecureJsonResponse(errorResponse('用户不存在'), { status: 404 });
+      return addSecurityHeaders(response);
     }
 
     // 验证当前密码
     if (user.password !== currentPassword) {
-      return NextResponse.json(errorResponse('当前密码错误'), { status: 400 });
+      recordChangePasswordFailure(ip);
+      const response = createSecureJsonResponse(errorResponse('当前密码错误'), { status: 400 });
+      return addSecurityHeaders(response);
+    }
+
+    // 检查新密码是否与当前密码相同
+    if (user.password === newPassword) {
+      const response = createSecureJsonResponse(errorResponse('新密码不能与当前密码相同'), { status: 400 });
+      return addSecurityHeaders(response);
     }
 
     // 更新密码
-    user.password = newPassword;
+    userStorage.update(targetUserId as string, { password: newPassword });
+    
+    // 清除尝试记录
+    clearChangePasswordAttempts(ip);
 
-    return NextResponse.json(successResponse({ message: '密码修改成功' }));
+    const response = createSecureJsonResponse(successResponse({ message: '密码修改成功' }));
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('Change password error:', error);
-    return NextResponse.json(errorResponse('密码修改失败'), { status: 500 });
+    const response = createSecureJsonResponse(errorResponse('密码修改失败'), { status: 500 });
+    return addSecurityHeaders(response);
   }
 }

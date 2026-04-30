@@ -13,11 +13,9 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [captchaLoading, setCaptchaLoading] = useState(false);
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: '',
-    captcha: '',
-  });
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [captcha, setCaptcha] = useState('');
   const [captchaData, setCaptchaData] = useState<{ id: string; image: string } | null>(null);
 
   // 获取验证码
@@ -44,12 +42,16 @@ export default function LoginPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (!credentials.username || !credentials.password) {
+    console.log('handleSubmit called, values:', { username, password, captcha });
+    console.log('captchaData:', captchaData);
+    
+    if (!username || !password) {
       toast.error('请输入用户名和密码');
       return;
     }
 
-    if (!credentials.captcha) {
+    if (!captcha) {
+      console.log('captcha is empty:', captcha);
       toast.error('请输入验证码');
       return;
     }
@@ -61,15 +63,18 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
+      const requestData = {
+        username,
+        password,
+        captcha,
+        captchaId: captchaData.id,
+      };
+      console.log('Sending login request with data:', requestData);
+      
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: credentials.username,
-          password: credentials.password,
-          captcha: credentials.captcha,
-          captchaId: captchaData.id,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       const json = await res.json();
@@ -84,7 +89,7 @@ export default function LoginPage() {
         // 登录失败时刷新验证码
         if (json.error?.includes('验证码')) {
           fetchCaptcha();
-          setCredentials({ ...credentials, captcha: '' });
+          setCaptcha('');
         }
       }
     } catch (error) {
@@ -95,7 +100,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-90 p-4">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
@@ -106,7 +111,7 @@ export default function LoginPage() {
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
             <Shield className="w-8 h-8 text-white" />
           </div>
-          <CardTitle className="text-2xl font-bold text-slate-900">
+          <CardTitle className="text-2xl font-bold text-slate-90">
             贷后案件管理系统
           </CardTitle>
           <p className="text-slate-500 text-sm">
@@ -126,8 +131,8 @@ export default function LoginPage() {
                   id="username"
                   type="text"
                   placeholder="请输入用户名"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                   autoComplete="username"
                 />
@@ -144,8 +149,8 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   placeholder="请输入密码"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                   autoComplete="current-password"
                 />
@@ -163,8 +168,11 @@ export default function LoginPage() {
                     id="captcha"
                     type="text"
                     placeholder="请输入验证码"
-                    value={credentials.captcha}
-                    onChange={(e) => setCredentials({ ...credentials, captcha: e.target.value })}
+                    value={captcha}
+                    onChange={(e) => {
+                      console.log('captcha input changed:', e.target.value);
+                      setCaptcha(e.target.value);
+                    }}
                     className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                     autoComplete="off"
                   />

@@ -1,15 +1,17 @@
 import { NextResponse } from 'next/server';
-import { successResponse } from '@/lib/auth';
+import { addSecurityHeaders, createSecureJsonResponse, successResponse } from '@/lib/security';
 
 // 注销登录
 export async function POST() {
   try {
-    // 这里可以清除服务端的token或session
-    // 由于我们使用的是客户端token，这里只需要返回成功响应
+    // 这里可以添加清理服务器端会话的逻辑
+    // 例如：删除token、清理缓存等
     
-    return NextResponse.json(successResponse({ message: '注销成功' }));
+    const response = createSecureJsonResponse(successResponse({ message: '注销成功' }));
+    return addSecurityHeaders(response);
   } catch (error) {
     console.error('Logout error:', error);
-    return NextResponse.json({ success: false, error: '注销失败' }, { status: 500 });
+    const response = createSecureJsonResponse({ success: false, message: '注销失败' }, { status: 500 });
+    return addSecurityHeaders(response);
   }
 }
