@@ -29,12 +29,35 @@ export default function ChangePasswordPage() {
     e.preventDefault();
 
     if (formData.newPassword !== formData.confirmPassword) {
-      toast.error('两次输入的新密码不一致');
+      toast.error(
+        <div className="space-y-2">
+          <div className="font-semibold">两次输入的新密码不一致</div>
+          <div className="text-sm text-muted-foreground">请确保确认密码与新密码完全相同</div>
+        </div>,
+        { duration: 4000 }
+      );
       return;
     }
 
     if (formData.newPassword.length < 6) {
-      toast.error('新密码长度至少为6位');
+      toast.error(
+        <div className="space-y-2">
+          <div className="font-semibold">新密码长度过短</div>
+          <div className="text-sm text-muted-foreground">密码长度必须在6-30位之间，当前长度：{formData.newPassword.length}位</div>
+        </div>,
+        { duration: 4000 }
+      );
+      return;
+    }
+
+    if (formData.newPassword.length > 30) {
+      toast.error(
+        <div className="space-y-2">
+          <div className="font-semibold">新密码长度过长</div>
+          <div className="text-sm text-muted-foreground">密码长度必须在6-30位之间，当前长度：{formData.newPassword.length}位</div>
+        </div>,
+        { duration: 4000 }
+      );
       return;
     }
 
@@ -65,7 +88,34 @@ export default function ChangePasswordPage() {
           confirmPassword: '',
         });
       } else {
-        toast.error(result.error || '密码修改失败');
+        let errorMessage = result.error || '密码修改失败';
+        let helpMessage = '';
+
+        // 根据错误类型提供更详细的帮助信息
+        if (errorMessage.includes('当前密码不正确')) {
+          helpMessage = '请检查输入的当前密码是否正确，如忘记密码请联系管理员重置';
+        } else if (errorMessage.includes('密码长度')) {
+          helpMessage = '请确保新密码长度在6-30位之间';
+        } else if (errorMessage.includes('密码必须包含')) {
+          helpMessage = '请确保新密码同时包含大写字母、小写字母、数字和特殊符号（如 !@#$%^&*）';
+        } else if (errorMessage.includes('使用过的密码')) {
+          helpMessage = '请使用新密码，禁止使用初始密码或最近3次使用过的密码';
+        } else if (errorMessage.includes('修改密码次数过多')) {
+          helpMessage = '请稍后再试，或联系管理员';
+        }
+
+        // 组合错误信息和帮助信息
+        if (helpMessage) {
+          toast.error(
+            <div className="space-y-2">
+              <div className="font-semibold">{errorMessage}</div>
+              <div className="text-sm text-muted-foreground">{helpMessage}</div>
+            </div>,
+            { duration: 6000 }
+          );
+        } else {
+          toast.error(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Change password error:', error);
@@ -111,6 +161,23 @@ export default function ChangePasswordPage() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-border">
+            <h3 className="font-semibold text-foreground mb-2">密码规则要求</h3>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li className="flex items-start">
+                <span className="text-primary mr-2">•</span>
+                <span>密码长度：6-30位字符</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary mr-2">•</span>
+                <span>必须包含：大写字母、小写字母、数字、特殊符号（如 !@#$%^&amp;*）</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary mr-2">•</span>
+                <span>禁止使用：初始密码、最近3次使用过的密码</span>
+              </li>
+            </ul>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">当前密码</Label>
@@ -147,7 +214,7 @@ export default function ChangePasswordPage() {
                   value={formData.newPassword}
                   onChange={handleChange}
                   className="pl-10 pr-10"
-                  placeholder="请输入新密码（至少6位）"
+                  placeholder="请输入新密码（6-30位，包含大小写字母、数字、特殊符号）"
                   required
                 />
                 <button
@@ -171,7 +238,7 @@ export default function ChangePasswordPage() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="pl-10 pr-10"
-                  placeholder="请再次输入新密码"
+                  placeholder="请再次输入新密码，确保与上面一致"
                   required
                 />
                 <button
