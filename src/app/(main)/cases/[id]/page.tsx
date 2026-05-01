@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,7 @@ export default function CaseDetailPage() {
   const router = useRouter();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('core');
 
   useEffect(() => {
     if (params.id) {
@@ -73,6 +74,127 @@ export default function CaseDetailPage() {
       toast.error('获取案件详情失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'core', label: '核心信息', color: 'bg-blue-600 text-white' },
+    { id: 'finance', label: '金额信息', color: 'bg-amber-500 text-white' },
+    { id: 'timeline', label: '贷款记录', color: 'bg-emerald-600 text-white' },
+    { id: 'borrower', label: '信息详情', color: 'bg-slate-600 text-white' },
+    { id: 'ownership', label: '案件归属', color: 'bg-purple-600 text-white' },
+  ];
+
+  const renderTabContent = () => {
+    if (!caseData) return null;
+
+    switch (activeTab) {
+      case 'core':
+        return (
+          <div className="p-6">
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Field label="用户ID" value={caseData.userId} highlight />
+              <Field label="借款人姓名" value={caseData.borrowerName} highlight />
+              <Field label="币种" value={caseData.currency} />
+              <Field label="在贷金额" value={formatMoney(caseData.outstandingBalance)} highlight />
+              <Field label="逾期金额" value={
+                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount)}
+                </span>
+              } highlight />
+              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
+              <Field label="资金方" value={caseData.funder} />
+              <Field label="支付公司" value={caseData.paymentCompany} />
+              <Field label="逾期天数" value={
+                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
+                  {caseData.overdueDays}天
+                </span>
+              } highlight />
+              <Field label="产品名称" value={caseData.productName} />
+              <Field label="所属销售" value={caseData.assignedSales} highlight />
+              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
+              <Field label="风险等级" value={caseData.riskLevel} highlight />
+            </dl>
+          </div>
+        );
+      
+      case 'finance':
+        return (
+          <div className="p-6">
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Field label="币种" value={caseData.currency} />
+              <Field label="贷款金额" value={formatMoney(caseData.loanAmount)} highlight />
+              <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount)} highlight />
+              <Field label="总在贷余额" value={formatMoney(caseData.totalOutstandingBalance)} highlight />
+              <Field label="已还款总额" value={formatMoney(caseData.totalRepaidAmount)} />
+              <Field label="在贷余额" value={formatMoney(caseData.outstandingBalance)} highlight />
+              <Field label="逾期金额" value={
+                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount)}
+                </span>
+              } highlight />
+              <Field label="逾期本金" value={formatMoney(caseData.overduePrincipal)} />
+              <Field label="逾期利息" value={formatMoney(caseData.overdueInterest)} />
+              <Field label="已还金额" value={formatMoney(caseData.repaidAmount)} />
+              <Field label="已还本金" value={formatMoney(caseData.repaidPrincipal)} />
+              <Field label="已还利息" value={formatMoney(caseData.repaidInterest)} />
+              <Field label="代偿总额" value={formatMoney(caseData.compensationAmount)} />
+            </dl>
+          </div>
+        );
+      
+      case 'timeline':
+        return (
+          <div className="p-6">
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Field label="贷款期限" value={`${caseData.loanTerm} ${caseData.loanTermUnit}`} />
+              <Field label="贷款日期" value={caseData.loanDate} />
+              <Field label="到期日" value={caseData.dueDate} />
+              <Field label="逾期天数" value={
+                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
+                  {caseData.overdueDays}天
+                </span>
+              } highlight />
+              <Field label="逾期开始时间" value={caseData.overdueStartTime} />
+              <Field label="首次逾期时间" value={caseData.firstOverdueTime} />
+              <Field label="代偿日期" value={caseData.compensationDate} />
+            </dl>
+          </div>
+        );
+      
+      case 'borrower':
+        return (
+          <div className="p-6">
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Field label="公司名称" value={caseData.companyName} />
+              <Field label="公司地址" value={caseData.companyAddress} />
+              <Field label="家庭地址" value={caseData.homeAddress} />
+              <Field label="户籍地址" value={caseData.householdAddress} />
+              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
+              <Field label="注册手机号" value={caseData.registeredPhone} />
+              <Field label="联系方式" value={caseData.contactInfo} />
+            </dl>
+          </div>
+        );
+      
+      case 'ownership':
+        return (
+          <div className="p-6">
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Field label="所属销售" value={caseData.assignedSales} highlight />
+              <Field label="所属风控" value={caseData.assignedRiskControl} highlight />
+              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
+            </dl>
+            <Separator className="my-6" />
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Field label="创建时间" value={new Date(caseData.createdAt).toLocaleString('zh-CN')} />
+              <Field label="更新时间" value={new Date(caseData.updatedAt).toLocaleString('zh-CN')} />
+            </dl>
+          </div>
+        );
+      
+      default:
+        return null;
     }
   };
 
@@ -137,147 +259,49 @@ export default function CaseDetailPage() {
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
-        {/* 案件核心信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">案件核心信息</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4 mb-6">
-              <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
-                {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
-              </Badge>
-              <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
-                {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
-              </Badge>
-              {caseData.isLocked && (
-                <Badge variant="destructive">已锁定</Badge>
-              )}
-              {caseData.isExtended && (
-                <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
-              )}
-            </div>
+      <div className="p-6">
+        {/* 顶部状态标签 */}
+        <div className="flex items-center gap-4 mb-6">
+          <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
+            {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+          </Badge>
+          <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
+            {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
+          </Badge>
+          {caseData.isLocked && (
+            <Badge variant="destructive">已锁定</Badge>
+          )}
+          {caseData.isExtended && (
+            <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
+          )}
+        </div>
 
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Field label="用户ID" value={caseData.userId} highlight />
-              <Field label="借款人姓名" value={caseData.borrowerName} highlight />
-              <Field label="币种" value={caseData.currency} />
-              <Field label="在贷金额" value={formatMoney(caseData.outstandingBalance)} highlight />
-              <Field label="逾期金额" value={
-                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
-                  {formatMoney(caseData.overdueAmount)}
-                </span>
-              } highlight />
-              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
-              <Field label="资金方" value={caseData.funder} />
-              <Field label="支付公司" value={caseData.paymentCompany} />
-              <Field label="逾期天数" value={
-                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
-                  {caseData.overdueDays}天
-                </span>
-              } highlight />
-              <Field label="产品名称" value={caseData.productName} />
-              <Field label="所属销售" value={caseData.assignedSales} highlight />
-              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
-              <Field label="风险等级" value={caseData.riskLevel} highlight />
-            </dl>
-          </CardContent>
-        </Card>
-
-        {/* 贷款金额信息 */}
+        {/* 折叠标签卡片 */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">贷款金额信息</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Field label="币种" value={caseData.currency} />
-              <Field label="贷款金额" value={formatMoney(caseData.loanAmount)} highlight />
-              <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount)} highlight />
-              <Field label="总在贷余额" value={formatMoney(caseData.totalOutstandingBalance)} highlight />
-              <Field label="已还款总额" value={formatMoney(caseData.totalRepaidAmount)} />
-              <Field label="在贷余额" value={formatMoney(caseData.outstandingBalance)} highlight />
-              <Field label="逾期金额" value={
-                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
-                  {formatMoney(caseData.overdueAmount)}
-                </span>
-              } highlight />
-              <Field label="逾期本金" value={formatMoney(caseData.overduePrincipal)} />
-              <Field label="逾期利息" value={formatMoney(caseData.overdueInterest)} />
-              <Field label="已还金额" value={formatMoney(caseData.repaidAmount)} />
-              <Field label="已还本金" value={formatMoney(caseData.repaidPrincipal)} />
-              <Field label="已还利息" value={formatMoney(caseData.repaidInterest)} />
-              <Field label="代偿总额" value={formatMoney(caseData.compensationAmount)} />
-            </dl>
-          </CardContent>
-        </Card>
+          {/* 标签栏 */}
+          <div className="flex flex-wrap border-b border-slate-200 bg-slate-50">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-4 text-sm font-medium transition-colors relative ${
+                  activeTab === tab.id
+                    ? `${tab.color} text-white`
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <ChevronDown className="w-4 h-4 inline ml-1" />
+                )}
+              </button>
+            ))}
+          </div>
 
-        {/* 贷款期限时间 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">贷款期限时间</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Field label="贷款期限" value={`${caseData.loanTerm} ${caseData.loanTermUnit}`} />
-              <Field label="贷款日期" value={caseData.loanDate} />
-              <Field label="到期日" value={caseData.dueDate} />
-              <Field label="逾期天数" value={
-                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
-                  {caseData.overdueDays}天
-                </span>
-              } highlight />
-              <Field label="逾期开始时间" value={caseData.overdueStartTime} />
-              <Field label="首次逾期时间" value={caseData.firstOverdueTime} />
-              <Field label="代偿日期" value={caseData.compensationDate} />
-            </dl>
-          </CardContent>
-        </Card>
-
-        {/* 借款人主体信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">借款人主体信息</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Field label="公司名称" value={caseData.companyName} />
-              <Field label="公司地址" value={caseData.companyAddress} />
-              <Field label="家庭地址" value={caseData.homeAddress} />
-              <Field label="户籍地址" value={caseData.householdAddress} />
-              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
-              <Field label="注册手机号" value={caseData.registeredPhone} />
-              <Field label="联系方式" value={caseData.contactInfo} />
-            </dl>
-          </CardContent>
-        </Card>
-
-        {/* 案件责任归属 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">案件责任归属</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Field label="所属销售" value={caseData.assignedSales} highlight />
-              <Field label="所属风控" value={caseData.assignedRiskControl} highlight />
-              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
-            </dl>
-          </CardContent>
-        </Card>
-
-        {/* 系统信息 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">系统信息</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Field label="创建时间" value={new Date(caseData.createdAt).toLocaleString('zh-CN')} />
-              <Field label="更新时间" value={new Date(caseData.updatedAt).toLocaleString('zh-CN')} />
-            </dl>
-          </CardContent>
+          {/* 内容区域 */}
+          <div className="bg-white border-t border-slate-200">
+            {renderTabContent()}
+          </div>
         </Card>
       </div>
     </div>
