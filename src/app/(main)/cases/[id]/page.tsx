@@ -54,6 +54,7 @@ export default function CaseDetailPage() {
   const [activeTab, setActiveTab] = useState<string>('core');
   const [relatedLoans, setRelatedLoans] = useState<Case[]>([]);
   const [relatedLoansLoading, setRelatedLoansLoading] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -329,11 +330,21 @@ export default function CaseDetailPage() {
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
-              <p className="text-sm text-slate-500 mt-1">
-                贷款单号：{caseData.loanNo}
-              </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
+                <p className="text-sm text-slate-500 mt-1">
+                  贷款单号：{caseData.loanNo}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                className="ml-4"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${headerCollapsed ? 'rotate-180' : ''}`} />
+              </Button>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -347,24 +358,29 @@ export default function CaseDetailPage() {
             </Button>
           </div>
         </div>
+
+        {/* 可折叠的状态标签 */}
+        {!headerCollapsed && (
+          <div className="pt-4 border-t border-slate-100 mt-4">
+            <div className="flex items-center gap-4">
+              <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
+                {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+              </Badge>
+              <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
+                {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
+              </Badge>
+              {caseData.isLocked && (
+                <Badge variant="destructive">已锁定</Badge>
+              )}
+              {caseData.isExtended && (
+                <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="p-6">
-        {/* 顶部状态标签 */}
-        <div className="flex items-center gap-4 mb-6">
-          <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
-            {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
-          </Badge>
-          <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
-            {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
-          </Badge>
-          {caseData.isLocked && (
-            <Badge variant="destructive">已锁定</Badge>
-          )}
-          {caseData.isExtended && (
-            <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
-          )}
-        </div>
 
         {/* 折叠标签卡片 */}
         <Card>
