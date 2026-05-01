@@ -108,7 +108,7 @@ export async function POST(request: Request) {
       user: {
         id: user.id,
         username: user.username,
-        realName: user.realName,
+        name: user.realName || user.name,
         role: user.role,
         email: user.email,
         phone: user.phone,

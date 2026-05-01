@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
   id: string;
@@ -9,75 +8,83 @@ interface User {
   username: string;
   role: string;
   department?: string;
+  realName?: string;
+  [key: string]: any;
 }
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  logout: () => Promise<void>;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (user: User, token: string) => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 添加客户端检测，确保只在浏览器端执行
-    const isClient = typeof window !== 'undefined';
-    if (!isClient) {
-      setLoading(false);
-      return;
-    }
-
-    const checkAuth = () => {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    
+    if (token && userStr) {
       try {
-        // 先检查localStorage
-        const token = localStorage.getItem('token');
-        const userStr = localStorage.getItem('user');
-        
-        if (token && userStr) {
-          const parsedUser = JSON.parse(userStr);
-          setUser(parsedUser);
+        const user = JSON.parse(userStr);
+        // 确保必要字段存在，增强容错性
+        if (user && user.id && user.username) {
+          // 如果没有name字段但有realName，兼容处理
+          if (!user.name && user.realName) {
+            user.name = user.realName;
+          }
+          // 如果还是没有name，使用username作为后备
+          if (!user.name) {
+            user.name = user.username;
+          }
+          setUser(user);
+          setIsAuthenticated(true);
         } else {
-          router.push('/login');
+          // 用户数据不完整，清除
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
         }
-      } catch {
-        router.push('/login');
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error('解析用户数据失败:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
-    };
-
-    checkAuth();
-  }, [router]);
-
-  const logout = async () => {
-    try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
     }
+    setIsLoading(false);
+  }, []);
+
+  const login = (userData: User, token: string) => {
+    // 确保userData有name字段
+    const processedUser = { ...userData };
+    if (!processedUser.name && processedUser.realName) {
+      processedUser.name = processedUser.realName;
+    }
+    if (!processedUser.name) {
+      processedUser.name = processedUser.username;
+    }
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(processedUser));
+    setUser(processedUser);
+    setIsAuthenticated(true);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-muted-foreground">加载中...</p>
-        </div>
-      </div>
-    );
-  }
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    setIsAuthenticated(false);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

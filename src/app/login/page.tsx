@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Lock, User, Loader2, Shield, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { useAuth } from '@/components/auth-provider';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [captchaLoading, setCaptchaLoading] = useState(false);
   const [username, setUsername] = useState('');
@@ -81,8 +83,8 @@ export default function LoginPage() {
 
       if (json.success) {
         toast.success('登录成功');
-        localStorage.setItem('token', json.data.token);
-        localStorage.setItem('user', JSON.stringify(json.data.user));
+        // 使用AuthProvider的login函数
+        login(json.data.user, json.data.token);
         router.push('/');
       } else {
         toast.error(json.error || '登录失败');
