@@ -40,7 +40,7 @@ export async function GET() {
     // 存储验证码（5分钟有效期）
     captchaStorage.saveCaptcha(id, answer, 5 * 60 * 1000);
 
-    const response = createSecureJsonResponse(successResponse({ captchaId: id, captchaImage: image }));
+    const response = createSecureJsonResponse(successResponse({ id, image }));
     return addSecurityHeaders(response);
   } catch (error) {
     console.error('Generate captcha error:', error);
