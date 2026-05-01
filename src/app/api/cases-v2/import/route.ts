@@ -53,6 +53,28 @@ const FIELD_MAP: Record<string, string> = {
   '是否展期': 'isExtended',
 };
 
+// 日期解析函数，处理多种格式
+const parseDate = (val: any): string => {
+  if (!val || val === '未找到') return '';
+  const strVal = String(val);
+  
+  // 格式：2024-12-03
+  if (/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
+    return strVal;
+  }
+  
+  // 格式：7/5/24
+  const slashMatch = strVal.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if (slashMatch) {
+    const month = String(parseInt(slashMatch[1])).padStart(2, '0');
+    const day = String(parseInt(slashMatch[2])).padStart(2, '0');
+    const year = '20' + slashMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  return strVal;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -102,41 +124,52 @@ export async function POST(req: NextRequest) {
       const parseNumber = (val: any): number => {
         if (typeof val === 'number') return val;
         if (typeof val === 'string') {
+          if (val === '未找到' || val === '') return 0;
           const parsed = parseFloat(val.replace(/,/g, ''));
           return isNaN(parsed) ? 0 : parsed;
         }
         return 0;
       };
 
-      const parseBoolean = (val: any): boolean => {
-        if (typeof val === 'boolean') return val;
-        if (typeof val === 'string') {
-          const lower = val.toLowerCase();
-          return lower === 'true' || lower === '1' || lower === '是' || lower === 'yes';
-        }
-        return false;
-      };
-
       // 风险等级映射（中文 -> 英文）
       const mapRiskLevel = (val: string): string => {
+        if (!val) return 'medium';
+        const lowerVal = String(val).toLowerCase();
         const riskMap: Record<string, string> = {
           '低': 'low',
+          '低风险': 'low',
           '中': 'medium',
+          '中风险': 'medium',
           '高': 'high',
+          '高风险': 'high',
+          '重': 'critical',
+          '重风险': 'critical',
           '极高': 'critical',
+          '极高风险': 'critical',
         };
-        return riskMap[val] || val || 'low';
+        return riskMap[lowerVal] || riskMap[val] || 'medium';
       };
 
       // 状态映射
       const mapStatus = (val: string): string => {
+        if (!val) return 'pending_visit';
         const statusMap: Record<string, string> = {
           '待分配': 'pending_assign',
           '待外访': 'pending_visit',
           '跟进中': 'following',
           '已结案': 'closed',
+          '逾期': 'following',
+          '代偿': 'following',
+          '结清': 'closed',
         };
-        return statusMap[val] || val || 'pending_visit';
+        return statusMap[val] || 'pending_visit';
+      };
+
+      // 锁定情况映射
+      const mapIsLocked = (val: any): boolean => {
+        if (typeof val === 'boolean') return val;
+        const strVal = String(val).toUpperCase();
+        return strVal === 'LOCK' || strVal === 'DOUBLE_LOCK' || strVal === '1' || strVal === 'TRUE' || strVal === '是';
       };
 
       validatedCases.push({
@@ -154,10 +187,12 @@ export async function POST(req: NextRequest) {
         // 案件核心状态
         status: mapStatus(String(convertedData.status || '')),
         loanStatus: String(convertedData.loanStatus || ''),
-        isLocked: parseBoolean(convertedData.isLocked),
+        isLocked: mapIsLocked(convertedData.isLocked),
         fiveLevelClassification: String(convertedData.fiveLevelClassification || ''),
         riskLevel: mapRiskLevel(String(convertedData.riskLevel || '')),
-        isExtended: parseBoolean(convertedData.isExtended),
+        isExtended: String(convertedData.isExtended || '').toLowerCase() === 'yes' || 
+                   String(convertedData.isExtended || '').toLowerCase() === '是' || 
+                   String(convertedData.isExtended || '') === '1',
 
         // 贷款核心金额
         currency: String(convertedData.currency || 'CNY'),
@@ -177,12 +212,12 @@ export async function POST(req: NextRequest) {
         // 贷款期限时间
         loanTerm: parseNumber(convertedData.loanTerm),
         loanTermUnit: String(convertedData.loanTermUnit || '月'),
-        loanDate: String(convertedData.loanDate || ''),
-        dueDate: String(convertedData.dueDate || ''),
+        loanDate: parseDate(convertedData.loanDate),
+        dueDate: parseDate(convertedData.dueDate),
         overdueDays: parseNumber(convertedData.overdueDays),
-        overdueStartTime: String(convertedData.overdueStartTime || ''),
-        firstOverdueTime: String(convertedData.firstOverdueTime || ''),
-        compensationDate: String(convertedData.compensationDate || ''),
+        overdueStartTime: parseDate(convertedData.overdueStartTime),
+        firstOverdueTime: parseDate(convertedData.firstOverdueTime),
+        compensationDate: parseDate(convertedData.compensationDate),
 
         // 借款人主体信息
         companyName: String(convertedData.companyName || ''),
