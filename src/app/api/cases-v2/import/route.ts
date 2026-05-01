@@ -53,215 +53,167 @@ const FIELD_MAP: Record<string, string> = {
   '是否展期': 'isExtended',
 };
 
-// 日期解析函数，处理多种格式
+// 宽松的日期解析
 const parseDate = (val: any): string => {
-  if (!val || val === '未找到') return '';
-  const strVal = String(val);
-  
-  // 格式：2024-12-03
-  if (/^\d{4}-\d{2}-\d{2}$/.test(strVal)) {
-    return strVal;
-  }
-  
-  // 格式：7/5/24
-  const slashMatch = strVal.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-  if (slashMatch) {
-    const month = String(parseInt(slashMatch[1])).padStart(2, '0');
-    const day = String(parseInt(slashMatch[2])).padStart(2, '0');
-    const year = '20' + slashMatch[3];
-    return `${year}-${month}-${day}`;
-  }
-  
-  return strVal;
+  if (!val || val === '未找到' || val === '-') return '';
+  return String(val);
 };
 
-export async function POST(req: NextRequest) {
+// 宽松的数字解析
+const parseNumber = (val: any): number => {
+  if (!val || val === '未找到' || val === '-' || val === '') return 0;
+  const strVal = String(val).replace(/[￥,¥]/g, '').trim();
+  const num = parseFloat(strVal);
+  return isNaN(num) ? 0 : num;
+};
+
+// 宽松的整数解析
+const parseIntValue = (val: any): number => {
+  if (!val || val === '未找到' || val === '-' || val === '') return 0;
+  const strVal = String(val).replace(/[￥,¥]/g, '').trim();
+  const num = parseInt(strVal);
+  return isNaN(num) ? 0 : num;
+};
+
+// 解析CSV文件
+function parseCSV(content: string) {
+  const lines = content.trim().split('\n');
+  if (lines.length < 2) {
+    return { headers: [], rows: [] };
+  }
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const rows = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const row: any = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] || '';
+    });
+    rows.push(row);
+  }
+  
+  return { headers, rows };
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const { cases } = body;
-
-    if (!cases || !Array.isArray(cases)) {
-      const response = NextResponse.json(
-        { success: false, error: '无效的案件数据' },
-        { status: 400 }
-      );
-      return addSecurityHeaders(response);
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    
+    if (!file) {
+      return addSecurityHeaders(NextResponse.json({ 
+        success: false, 
+        error: '请选择文件' 
+      }, { status: 400 }));
     }
-
-    // 数据验证和转换
-    const validatedCases: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>[] = [];
-    const errors: string[] = [];
-
-    cases.forEach((data: any, index: number) => {
-      const rowNumber = index + 2; // Excel行号从2开始
-
-      // 转换字段名（中文 -> 英文）
-      const convertedData: any = {};
-      Object.entries(data).forEach(([key, value]) => {
-        const newKey = FIELD_MAP[key] || key;
-        convertedData[newKey] = value;
-      });
-
-      // 必填字段验证
-      if (!convertedData.batchNo) {
-        errors.push(`第${rowNumber}行：批次号不能为空`);
-        return;
-      }
-      if (!convertedData.loanNo) {
-        errors.push(`第${rowNumber}行：贷款单号不能为空`);
-        return;
-      }
-      if (!convertedData.userId) {
-        errors.push(`第${rowNumber}行：用户ID不能为空`);
-        return;
-      }
-      if (!convertedData.borrowerName) {
-        errors.push(`第${rowNumber}行：借款人姓名不能为空`);
-        return;
-      }
-
-      // 数字字段转换
-      const parseNumber = (val: any): number => {
-        if (typeof val === 'number') return val;
-        if (typeof val === 'string') {
-          if (val === '未找到' || val === '') return 0;
-          const parsed = parseFloat(val.replace(/,/g, ''));
-          return isNaN(parsed) ? 0 : parsed;
-        }
-        return 0;
-      };
-
-      // 风险等级映射（中文 -> 英文）
-      const mapRiskLevel = (val: string): string => {
-        if (!val) return 'medium';
-        const lowerVal = String(val).toLowerCase();
-        const riskMap: Record<string, string> = {
-          '低': 'low',
-          '低风险': 'low',
-          '中': 'medium',
-          '中风险': 'medium',
-          '高': 'high',
-          '高风险': 'high',
-          '重': 'critical',
-          '重风险': 'critical',
-          '极高': 'critical',
-          '极高风险': 'critical',
-        };
-        return riskMap[lowerVal] || riskMap[val] || 'medium';
-      };
-
-      // 状态映射
-      const mapStatus = (val: string): string => {
-        if (!val) return 'pending_visit';
-        const statusMap: Record<string, string> = {
-          '待分配': 'pending_assign',
-          '待外访': 'pending_visit',
-          '跟进中': 'following',
-          '已结案': 'closed',
-          '逾期': 'following',
-          '代偿': 'following',
-          '结清': 'closed',
-        };
-        return statusMap[val] || 'pending_visit';
-      };
-
-      // 锁定情况映射
-      const mapIsLocked = (val: any): boolean => {
-        if (typeof val === 'boolean') return val;
-        const strVal = String(val).toUpperCase();
-        return strVal === 'LOCK' || strVal === 'DOUBLE_LOCK' || strVal === '1' || strVal === 'TRUE' || strVal === '是';
-      };
-
-      validatedCases.push({
-        // 案件基础标识
-        batchNo: String(convertedData.batchNo || ''),
-        loanNo: String(convertedData.loanNo || ''),
-        userId: String(convertedData.userId || ''),
-        borrowerName: String(convertedData.borrowerName || ''),
-        productName: String(convertedData.productName || ''),
-        platform: String(convertedData.platform || ''),
-        paymentCompany: String(convertedData.paymentCompany || ''),
-        funder: String(convertedData.funder || ''),
-        fundCategory: String(convertedData.fundCategory || ''),
-
-        // 案件核心状态
-        status: mapStatus(String(convertedData.status || '')),
-        loanStatus: String(convertedData.loanStatus || ''),
-        isLocked: mapIsLocked(convertedData.isLocked),
-        fiveLevelClassification: String(convertedData.fiveLevelClassification || ''),
-        riskLevel: mapRiskLevel(String(convertedData.riskLevel || '')),
-        isExtended: String(convertedData.isExtended || '').toLowerCase() === 'yes' || 
-                   String(convertedData.isExtended || '').toLowerCase() === '是' || 
-                   String(convertedData.isExtended || '') === '1',
-
-        // 贷款核心金额
-        currency: String(convertedData.currency || 'CNY'),
-        loanAmount: parseNumber(convertedData.loanAmount),
-        totalLoanAmount: parseNumber(convertedData.totalLoanAmount),
-        totalOutstandingBalance: parseNumber(convertedData.totalOutstandingBalance),
-        totalRepaidAmount: parseNumber(convertedData.totalRepaidAmount),
-        outstandingBalance: parseNumber(convertedData.outstandingBalance),
-        overdueAmount: parseNumber(convertedData.overdueAmount),
-        overduePrincipal: parseNumber(convertedData.overduePrincipal),
-        overdueInterest: parseNumber(convertedData.overdueInterest),
-        repaidAmount: parseNumber(convertedData.repaidAmount),
-        repaidPrincipal: parseNumber(convertedData.repaidPrincipal),
-        repaidInterest: parseNumber(convertedData.repaidInterest),
-        compensationAmount: parseNumber(convertedData.compensationAmount),
-
-        // 贷款期限时间
-        loanTerm: parseNumber(convertedData.loanTerm),
-        loanTermUnit: String(convertedData.loanTermUnit || '月'),
-        loanDate: parseDate(convertedData.loanDate),
-        dueDate: parseDate(convertedData.dueDate),
-        overdueDays: parseNumber(convertedData.overdueDays),
-        overdueStartTime: parseDate(convertedData.overdueStartTime),
-        firstOverdueTime: parseDate(convertedData.firstOverdueTime),
-        compensationDate: parseDate(convertedData.compensationDate),
-
-        // 借款人主体信息
-        companyName: String(convertedData.companyName || ''),
-        companyAddress: String(convertedData.companyAddress || ''),
-        homeAddress: String(convertedData.homeAddress || ''),
-        householdAddress: String(convertedData.householdAddress || ''),
-        borrowerPhone: String(convertedData.borrowerPhone || ''),
-        registeredPhone: String(convertedData.registeredPhone || ''),
-        contactInfo: String(convertedData.contactInfo || ''),
-
-        // 案件责任归属
-        assignedSales: String(convertedData.assignedSales || ''),
-        assignedRiskControl: String(convertedData.assignedRiskControl || ''),
-        assignedPostLoan: String(convertedData.assignedPostLoan || ''),
-
-        // 系统元数据
-        assigneeName: String(convertedData.assignedPostLoan || ''),
-      });
-    });
-
-    if (errors.length > 0) {
-      const response = NextResponse.json(
-        { success: false, error: '数据验证失败', details: errors },
-        { status: 400 }
-      );
-      return addSecurityHeaders(response);
+    
+    const content = await file.text();
+    const { headers, rows } = parseCSV(content);
+    
+    if (rows.length === 0) {
+      return addSecurityHeaders(NextResponse.json({ 
+        success: false, 
+        error: '文件中没有数据' 
+      }, { status: 400 }));
     }
-
-    const importedCases = await caseStorage.importCases(validatedCases);
-
-    const response = NextResponse.json({
+    
+    const successCases: string[] = [];
+    const failedCases: Array<{ row: number; reason: string }> = [];
+    const importedIds: string[] = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        const data = rows[i];
+        const rowNumber = i + 2;
+        
+        // 转换字段名
+        const convertedData: any = {};
+        Object.entries(data).forEach(([key, value]) => {
+          const englishKey = FIELD_MAP[key] || key;
+          convertedData[englishKey] = value;
+        });
+        
+        // 生成案件数据
+        const caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'> = {
+          batchNo: convertedData.batchNo || '',
+          loanNo: convertedData.loanNo || `AUTO-${Date.now()}-${i}`,
+          userId: convertedData.userId || '',
+          borrowerName: convertedData.borrowerName || '未知用户',
+          status: convertedData.status || '待分配',
+          currency: convertedData.currency || 'CNY',
+          overdueDays: parseIntValue(convertedData.overdueDays),
+          loanTerm: parseIntValue(convertedData.loanTerm),
+          loanTermUnit: convertedData.loanTermUnit || '月',
+          loanAmount: parseNumber(convertedData.loanAmount),
+          totalLoanAmount: parseNumber(convertedData.totalLoanAmount),
+          totalOutstandingBalance: parseNumber(convertedData.totalOutstandingBalance),
+          totalRepaidAmount: parseNumber(convertedData.totalRepaidAmount),
+          outstandingBalance: parseNumber(convertedData.outstandingBalance),
+          overdueAmount: parseNumber(convertedData.overdueAmount),
+          overduePrincipal: parseNumber(convertedData.overduePrincipal),
+          overdueInterest: parseNumber(convertedData.overdueInterest),
+          repaidAmount: parseNumber(convertedData.repaidAmount),
+          repaidPrincipal: parseNumber(convertedData.repaidPrincipal),
+          repaidInterest: parseNumber(convertedData.repaidInterest),
+          companyName: convertedData.companyName || '',
+          companyAddress: convertedData.companyAddress || '',
+          homeAddress: convertedData.homeAddress || '',
+          householdAddress: convertedData.householdAddress || '',
+          borrowerPhone: convertedData.borrowerPhone || '',
+          registeredPhone: convertedData.registeredPhone || '',
+          contactInfo: convertedData.contactInfo || '',
+          loanStatus: convertedData.loanStatus || '',
+          isLocked: convertedData.isLocked === '是' || convertedData.isLocked === 'true',
+          platform: convertedData.platform || '',
+          paymentCompany: convertedData.paymentCompany || '',
+          fiveLevelClassification: convertedData.fiveLevelClassification || '',
+          riskLevel: convertedData.riskLevel || '中',
+          assignedSales: convertedData.assignedSales || '',
+          assignedRiskControl: convertedData.assignedRiskControl || '',
+          assignedPostLoan: convertedData.assignedPostLoan || '',
+          funder: convertedData.funder || '',
+          loanDate: parseDate(convertedData.loanDate),
+          dueDate: parseDate(convertedData.dueDate),
+          productName: convertedData.productName || '',
+          overdueStartTime: parseDate(convertedData.overdueStartTime),
+          firstOverdueTime: parseDate(convertedData.firstOverdueTime),
+          fundCategory: convertedData.fundCategory || '',
+          compensationAmount: parseNumber(convertedData.compensationAmount),
+          compensationDate: parseDate(convertedData.compensationDate),
+          isExtended: convertedData.isExtended === '是' || convertedData.isExtended === 'true',
+          followUps: [],
+        };
+        
+        const newCase = await caseStorage.create(caseData);
+        importedIds.push(newCase.id);
+        successCases.push(`第${rowNumber}行`);
+      } catch (error) {
+        failedCases.push({
+          row: i + 2,
+          reason: error instanceof Error ? error.message : '未知错误'
+        });
+      }
+    }
+    
+    return addSecurityHeaders(NextResponse.json({
       success: true,
-      data: importedCases,
-      count: importedCases.length,
-      message: `成功导入 ${importedCases.length} 条案件`,
-    });
-
-    return addSecurityHeaders(response);
+      data: {
+        total: rows.length,
+        success: successCases.length,
+        failed: failedCases.length,
+        successCases,
+        failedCases,
+        importedIds
+      }
+    }));
   } catch (error) {
-    console.error('Import cases error:', error);
-    const response = NextResponse.json(
-      { success: false, error: '导入案件失败' },
-      { status: 500 }
-    );
-    return addSecurityHeaders(response);
+    console.error('Import error:', error);
+    return addSecurityHeaders(NextResponse.json({ 
+      success: false, 
+      error: '导入失败：' + (error instanceof Error ? error.message : '未知错误')
+    }, { status: 500 }));
   }
 }
