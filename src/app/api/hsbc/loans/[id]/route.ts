@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { HSBCLoanLog } from '@/lib/hsbc-loan';
 import { getHSBCLoanByReference } from '@/storage/database/hsbc-loan-storage';
+import { getHSBCLockedResponse } from '@/lib/hsbc-lock';
 
 // 操作日志存储 (内存中)
 const loanLogs: Map<string, HSBCLoanLog[]> = new Map();
 
-// 获取贷款详情
+// 获取贷款详情 (保持可用)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -35,47 +36,10 @@ export async function GET(
   }
 }
 
-// 更新贷款信息
+// 更新贷款信息 (已锁定)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params;
-    const body = await request.json();
-    
-    // 检查贷款是否存在
-    const existingLoan = await getHSBCLoanByReference(id);
-    if (!existingLoan) {
-      return NextResponse.json({ error: '贷款不存在' }, { status: 404 });
-    }
-
-    // 记录操作日志
-    const log: HSBCLoanLog = {
-      id: `log_${Date.now()}`,
-      loanId: id,
-      loanReference: existingLoan.loanReference,
-      action: body.action || 'update',
-      detail: body.details || '贷款信息已更新',
-      details: body.details || '贷款信息已更新',
-      operator: body.operator || 'System',
-      timestamp: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
-    const logs = loanLogs.get(id) || [];
-    logs.unshift(log);
-    loanLogs.set(id, logs.slice(0, 100));
-
-    return NextResponse.json({
-      success: true,
-      loan: existingLoan,
-      log,
-    });
-  } catch (error: any) {
-    console.error('Error updating loan:', error);
-    return NextResponse.json(
-      { error: '更新失败: ' + error.message },
-      { status: 500 }
-    );
-  }
+  return getHSBCLockedResponse();
 }

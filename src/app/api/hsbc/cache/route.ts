@@ -1,11 +1,6 @@
-import { NextResponse } from 'next/server';
-import { resetCache } from '@/lib/hsbc-data';
+import { NextRequest, NextResponse } from 'next/server';
+import { getHSBCLockedResponse } from '@/lib/hsbc-lock';
 
-export async function POST() {
-  try {
-    resetCache();
-    return NextResponse.json({ success: true, message: 'Cache reset successfully' });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
-  }
+export async function POST(request: NextRequest) {
+  return getHSBCLockedResponse();
 }
