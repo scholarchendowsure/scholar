@@ -108,6 +108,8 @@ export default function CaseDetailPage() {
     { id: 'finance', label: '金额信息', color: 'bg-amber-500 text-white' },
     { id: 'timeline', label: '贷款记录', color: 'bg-emerald-600 text-white' },
     { id: 'borrower', label: '信息详情', color: 'bg-slate-600 text-white' },
+    { id: 'repayment', label: '还款记录', color: 'bg-rose-600 text-white' },
+    { id: 'files', label: '文件信息', color: 'bg-cyan-600 text-white' },
     { id: 'ownership', label: '案件标签', color: 'bg-purple-600 text-white' },
   ];
 
@@ -265,6 +267,34 @@ export default function CaseDetailPage() {
               <Field label="注册手机号" value={caseData.registeredPhone} />
               <Field label="联系方式" value={caseData.contactInfo} />
             </dl>
+          </div>
+        );
+      
+      case 'repayment':
+        return (
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1 h-6 bg-rose-500 rounded"></div>
+              <h3 className="text-lg font-bold text-slate-900">还款记录</h3>
+              <span className="text-sm text-slate-500">(暂无记录)</span>
+            </div>
+            <div className="text-center py-12 text-slate-400">
+              暂无还款记录
+            </div>
+          </div>
+        );
+      
+      case 'files':
+        return (
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1 h-6 bg-cyan-500 rounded"></div>
+              <h3 className="text-lg font-bold text-slate-900">文件信息</h3>
+              <span className="text-sm text-slate-500">(暂无文件)</span>
+            </div>
+            <div className="text-center py-12 text-slate-400">
+              暂无文件信息
+            </div>
           </div>
         );
       
