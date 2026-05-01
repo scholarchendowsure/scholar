@@ -916,6 +916,8 @@ export default function CasesPage() {
                 <option value={20}>20条/页</option>
                 <option value={50}>50条/页</option>
                 <option value={100}>100条/页</option>
+                <option value={500}>500条/页</option>
+                <option value={1000}>1000条/页</option>
               </select>
             </div>
           </div>
