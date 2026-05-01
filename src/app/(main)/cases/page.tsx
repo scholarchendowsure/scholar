@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X, Settings, ChevronDown, CheckSquare, Square, Users, Trash, UserPlus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -113,6 +114,7 @@ const formatMoney = (amount: number): string => {
 };
 
 export default function CasesPage() {
+  const router = useRouter();
   // 尝试从sessionStorage恢复状态
   const getInitialState = () => {
     if (typeof window === 'undefined') return null;
@@ -635,14 +637,25 @@ export default function CasesPage() {
         return <span className="font-mono text-right">{formatMoney(caseItem.outstandingBalance || 0)}</span>;
       case 'overdueAmount':
         return (
-          <Link 
-            href={`/cases/${caseItem.id}`} 
+          <button 
+            onClick={() => {
+              // 保存导航状态
+              const allCaseIds = cases.map(c => c.id);
+              const currentIndex = allCaseIds.indexOf(caseItem.id);
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify({
+                  caseIds: allCaseIds,
+                  currentIndex,
+                }));
+              }
+              router.push(`/cases/${caseItem.id}`);
+            }}
             className={`hover:underline cursor-pointer ${(caseItem.overdueAmount || 0) > 0 ? 'text-red-600 hover:text-red-800' : 'text-blue-600 hover:text-blue-800'}`}
           >
             <span className={`font-mono text-right ${(caseItem.overdueAmount || 0) > 0 ? '' : ''}`}>
               {formatMoney(caseItem.overdueAmount || 0)}
             </span>
-          </Link>
+          </button>
         );
       case 'overduePrincipal':
         return <span className="font-mono text-right">{formatMoney(caseItem.overduePrincipal || 0)}</span>;
@@ -686,12 +699,23 @@ export default function CasesPage() {
         return <span className="max-w-xs truncate" title={caseItem.householdAddress}>{caseItem.householdAddress || '-'}</span>;
       case 'borrowerPhone':
         return (
-          <Link 
-            href={`/cases/${caseItem.id}`} 
+          <button 
+            onClick={() => {
+              // 保存导航状态
+              const allCaseIds = cases.map(c => c.id);
+              const currentIndex = allCaseIds.indexOf(caseItem.id);
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify({
+                  caseIds: allCaseIds,
+                  currentIndex,
+                }));
+              }
+              router.push(`/cases/${caseItem.id}`);
+            }}
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
           >
             <span className="font-mono">{caseItem.borrowerPhone || '-'}</span>
-          </Link>
+          </button>
         );
       case 'registeredPhone':
         return <span className="font-mono">{caseItem.registeredPhone || '-'}</span>;
@@ -712,11 +736,22 @@ export default function CasesPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/cases/${caseItem.id}`} className="cursor-pointer">
-                  <Eye className="w-4 h-4 mr-2" />
-                  查看详情
-                </Link>
+              <DropdownMenuItem
+                onClick={() => {
+                  // 保存导航状态
+                  const allCaseIds = cases.map(c => c.id);
+                  const currentIndex = allCaseIds.indexOf(caseItem.id);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify({
+                      caseIds: allCaseIds,
+                      currentIndex,
+                    }));
+                  }
+                  router.push(`/cases/${caseItem.id}`);
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                查看详情
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Edit className="w-4 h-4 mr-2" />
