@@ -22,7 +22,9 @@ import {
   Menu,
   MessageSquare,
   KeyRound,
-  LogOut
+  LogOut,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
@@ -113,6 +115,7 @@ export function LeftSidebar() {
   const { user, logout } = useAuth();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -195,48 +198,89 @@ export function LeftSidebar() {
         </ul>
       </nav>
 
-      {/* 底部区域 */}
-      <div className="border-t border-slate-200 p-4">
-        {/* 用户信息 */}
-        {isExpanded && user && (
-          <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-            <div className="text-sm font-medium text-slate-900">{user.name}</div>
-            <div className="text-xs text-slate-500">{user.department || ''}</div>
-            <div className="text-xs text-slate-400 mt-1">
-              {user.role === 'admin' ? '管理员' : user.role === 'manager' ? '经理' : '外访员'}
-            </div>
-          </div>
-        )}
-        
-        {/* 功能按钮 */}
-        <div className="space-y-2">
-          {/* 修改密码 */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            onClick={() => router.push('/change-password')}
-          >
-            <KeyRound className="h-4 w-4 mr-2" />
-            {isExpanded && <span>修改密码</span>}
-          </Button>
-          
-          {/* 注销登录 */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            {isExpanded && <span>{isLoggingOut ? '退出中...' : '注销登录'}</span>}
-          </Button>
-        </div>
-        
-        {isExpanded && (
-          <div className="mt-4 pt-4 border-t border-slate-200 text-xs text-slate-500 text-center">
-            贷后案件管理系统 v1.0
+      {/* 底部用户区域 */}
+      <div className="border-t border-slate-200">
+        {user && (
+          <div className="p-2">
+            {/* 用户菜单触发按钮 */}
+            <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className={cn(
+                "w-full flex items-center justify-between px-3 py-2 rounded-lg",
+                "hover:bg-slate-100 transition-colors",
+                isUserMenuOpen && "bg-slate-100"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-sm">
+                  {user.name?.charAt(0) || user.username?.charAt(0) || 'U'}
+                </div>
+                {isExpanded && (
+                  <div className="text-left">
+                    <div className="text-sm font-medium text-slate-900">{user.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {user.role === 'admin' ? '管理员' : user.role === 'manager' ? '经理' : '外访员'}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {isExpanded && (
+                <span className="text-slate-400">
+                  {isUserMenuOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </span>
+              )}
+            </button>
+
+            {/* 用户下拉菜单 */}
+            {isUserMenuOpen && isExpanded && (
+              <div className="mt-2 space-y-1">
+                {/* 用户详情 */}
+                <div className="px-3 py-2 bg-slate-50 rounded-lg">
+                  <div className="text-sm text-slate-700">
+                    <div className="flex items-center gap-2 mb-1">
+                      <User className="h-3 w-3 text-slate-400" />
+                      <span className="text-xs text-slate-500">部门</span>
+                      <span className="ml-auto text-xs">{user.department || '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <UserCog className="h-3 w-3 text-slate-400" />
+                      <span className="text-xs text-slate-500">用户名</span>
+                      <span className="ml-auto text-xs">{user.username}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 修改密码 */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    router.push('/change-password');
+                  }}
+                >
+                  <KeyRound className="h-4 w-4 mr-2" />
+                  <span>修改密码</span>
+                </Button>
+                
+                {/* 注销登录 */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  <span>{isLoggingOut ? '退出中...' : '注销登录'}</span>
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
