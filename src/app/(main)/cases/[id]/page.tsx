@@ -393,6 +393,60 @@ export default function CaseDetailPage() {
             {renderTabContent()}
           </div>
         </Card>
+
+        {/* 跟进记录卡片 */}
+        <Card className="mt-6">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-red-500 rounded-full" />
+                <h3 className="text-xl font-bold text-slate-900">贷后跟进记录</h3>
+                <span className="text-sm text-slate-500">(1条)</span>
+              </div>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                跟进记录
+              </Button>
+            </div>
+
+            {/* 跟进记录表格 */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">跟进类型</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">状态</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">部门</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">所属职能</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">名称</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">联系人</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">联络方式</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">案件状态</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">承诺还款</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">日期时间</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">文字记录</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">附件</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="py-4 px-4 text-sm">电话</td>
+                    <td className="py-4 px-4 text-sm"></td>
+                    <td className="py-4 px-4 text-sm">贷后管理部</td>
+                    <td className="py-4 px-4 text-sm">运营专员</td>
+                    <td className="py-4 px-4 text-sm">Scholar</td>
+                    <td className="py-4 px-4 text-sm">胡涵</td>
+                    <td className="py-4 px-4 text-sm font-mono">17796358701</td>
+                    <td className="py-4 px-4 text-sm">跟进中</td>
+                    <td className="py-4 px-4 text-sm">-</td>
+                    <td className="py-4 px-4 text-sm text-slate-600">2026-4-14 20:10:22</td>
+                    <td className="py-4 px-4 text-sm">未分配</td>
+                    <td className="py-4 px-4 text-sm">-</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
