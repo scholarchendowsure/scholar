@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X, Settings, ChevronDown, CheckSquare, Square, Users, Trash, UserPlus } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X, Settings, ChevronDown, CheckSquare, Square, Users, Trash, UserPlus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -98,6 +98,9 @@ const DEFAULT_VISIBLE_COLUMNS = [
   'actions',
 ];
 
+// sessionStorage key
+const STORAGE_KEY = 'cases-list-state';
+
 // 金额格式化
 const formatMoney = (amount: number): string => {
   return new Intl.NumberFormat('zh-CN', {
@@ -109,44 +112,167 @@ const formatMoney = (amount: number): string => {
 };
 
 export default function CasesPage() {
+  // 尝试从sessionStorage恢复状态
+  const getInitialState = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('Failed to restore state:', e);
+    }
+    return null;
+  };
+
+  const initialState = getInitialState();
+
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(initialState?.page || 1);
+  const [pageSize, setPageSize] = useState(initialState?.pageSize || 10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [search, setSearch] = useState('');
-  const [enableDedup, setEnableDedup] = useState(false); // 用户去重开关
+  const [search, setSearch] = useState(initialState?.search || '');
+  const [enableDedup, setEnableDedup] = useState(initialState?.enableDedup || false); // 用户去重开关
   
   // 筛选条件
-  const [status, setStatus] = useState<string>('all');
-  const [riskLevel, setRiskLevel] = useState<string>('all');
-  const [filterUserId, setFilterUserId] = useState('');
-  const [filterContactInfo, setFilterContactInfo] = useState('');
-  const [filterRiskLevelText, setFilterRiskLevelText] = useState('');
-  const [filterAssignedSales, setFilterAssignedSales] = useState('');
-  const [filterAssignedPostLoan, setFilterAssignedPostLoan] = useState('');
-  const [filterAssignedRiskControl, setFilterAssignedRiskControl] = useState('');
-  const [filterAddress, setFilterAddress] = useState('');
-  const [filterFunder, setFilterFunder] = useState('');
-  const [filterIsLocked, setFilterIsLocked] = useState('');
-  const [filterProductName, setFilterProductName] = useState('');
-  const [filterPlatform, setFilterPlatform] = useState('');
-  const [filterFundCategory, setFilterFundCategory] = useState('');
-  const [filterPaymentCompany, setFilterPaymentCompany] = useState('');
-  const [filterIsExtended, setFilterIsExtended] = useState('');
-  const [filterOverdueStage, setFilterOverdueStage] = useState('');
-  const [filterCurrency, setFilterCurrency] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterFollowupContent, setFilterFollowupContent] = useState('');
-  const [filterOverdueDaysMin, setFilterOverdueDaysMin] = useState('');
-  const [filterOverdueDaysMax, setFilterOverdueDaysMax] = useState('');
+  const [status, setStatus] = useState<string>(initialState?.status || 'all');
+  const [riskLevel, setRiskLevel] = useState<string>(initialState?.riskLevel || 'all');
+  const [filterUserId, setFilterUserId] = useState(initialState?.filterUserId || '');
+  const [filterContactInfo, setFilterContactInfo] = useState(initialState?.filterContactInfo || '');
+  const [filterRiskLevelText, setFilterRiskLevelText] = useState(initialState?.filterRiskLevelText || '');
+  const [filterAssignedSales, setFilterAssignedSales] = useState(initialState?.filterAssignedSales || '');
+  const [filterAssignedPostLoan, setFilterAssignedPostLoan] = useState(initialState?.filterAssignedPostLoan || '');
+  const [filterAssignedRiskControl, setFilterAssignedRiskControl] = useState(initialState?.filterAssignedRiskControl || '');
+  const [filterAddress, setFilterAddress] = useState(initialState?.filterAddress || '');
+  const [filterFunder, setFilterFunder] = useState(initialState?.filterFunder || '');
+  const [filterIsLocked, setFilterIsLocked] = useState(initialState?.filterIsLocked || '');
+  const [filterProductName, setFilterProductName] = useState(initialState?.filterProductName || '');
+  const [filterPlatform, setFilterPlatform] = useState(initialState?.filterPlatform || '');
+  const [filterFundCategory, setFilterFundCategory] = useState(initialState?.filterFundCategory || '');
+  const [filterPaymentCompany, setFilterPaymentCompany] = useState(initialState?.filterPaymentCompany || '');
+  const [filterIsExtended, setFilterIsExtended] = useState(initialState?.filterIsExtended || '');
+  const [filterOverdueStage, setFilterOverdueStage] = useState(initialState?.filterOverdueStage || '');
+  const [filterCurrency, setFilterCurrency] = useState(initialState?.filterCurrency || '');
+  const [filterCategory, setFilterCategory] = useState(initialState?.filterCategory || '');
+  const [filterFollowupContent, setFilterFollowupContent] = useState(initialState?.filterFollowupContent || '');
+  const [filterOverdueDaysMin, setFilterOverdueDaysMin] = useState(initialState?.filterOverdueDaysMin || '');
+  const [filterOverdueDaysMax, setFilterOverdueDaysMax] = useState(initialState?.filterOverdueDaysMax || '');
   
-  const [showFilters, setShowFilters] = useState(false);
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(initialState?.showFilters || false);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialState?.search || '');
   
   // 列选择状态
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(initialState?.visibleColumns || DEFAULT_VISIBLE_COLUMNS);
+
+  // 保存状态到sessionStorage
+  const saveState = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const state = {
+      page,
+      pageSize,
+      search,
+      enableDedup,
+      status,
+      riskLevel,
+      filterUserId,
+      filterContactInfo,
+      filterRiskLevelText,
+      filterAssignedSales,
+      filterAssignedPostLoan,
+      filterAssignedRiskControl,
+      filterAddress,
+      filterFunder,
+      filterIsLocked,
+      filterProductName,
+      filterPlatform,
+      filterFundCategory,
+      filterPaymentCompany,
+      filterIsExtended,
+      filterOverdueStage,
+      filterCurrency,
+      filterCategory,
+      filterFollowupContent,
+      filterOverdueDaysMin,
+      filterOverdueDaysMax,
+      showFilters,
+      visibleColumns,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [
+    page,
+    pageSize,
+    search,
+    enableDedup,
+    status,
+    riskLevel,
+    filterUserId,
+    filterContactInfo,
+    filterRiskLevelText,
+    filterAssignedSales,
+    filterAssignedPostLoan,
+    filterAssignedRiskControl,
+    filterAddress,
+    filterFunder,
+    filterIsLocked,
+    filterProductName,
+    filterPlatform,
+    filterFundCategory,
+    filterPaymentCompany,
+    filterIsExtended,
+    filterOverdueStage,
+    filterCurrency,
+    filterCategory,
+    filterFollowupContent,
+    filterOverdueDaysMin,
+    filterOverdueDaysMax,
+    showFilters,
+    visibleColumns,
+  ]);
+
+  // 清除保存的状态
+  const clearSavedState = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+    // 重置到默认状态
+    setPage(1);
+    setPageSize(10);
+    setSearch('');
+    setEnableDedup(false);
+    setStatus('all');
+    setRiskLevel('all');
+    setFilterUserId('');
+    setFilterContactInfo('');
+    setFilterRiskLevelText('');
+    setFilterAssignedSales('');
+    setFilterAssignedPostLoan('');
+    setFilterAssignedRiskControl('');
+    setFilterAddress('');
+    setFilterFunder('');
+    setFilterIsLocked('');
+    setFilterProductName('');
+    setFilterPlatform('');
+    setFilterFundCategory('');
+    setFilterPaymentCompany('');
+    setFilterIsExtended('');
+    setFilterOverdueStage('');
+    setFilterCurrency('');
+    setFilterCategory('');
+    setFilterFollowupContent('');
+    setFilterOverdueDaysMin('');
+    setFilterOverdueDaysMax('');
+    setShowFilters(false);
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    toast.success('已重置为初始状态');
+  };
+
+  // 每当状态变化时保存
+  useEffect(() => {
+    saveState();
+  }, [saveState]);
 
   // 复选框选择状态
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -446,13 +572,13 @@ export default function CasesPage() {
       case 'borrowerName':
         return <span className="font-medium">{caseItem.borrowerName}</span>;
       case 'productName':
-        return <span>{caseItem.productName}</span>;
+        return <span>{caseItem.productName || '-'}</span>;
       case 'platform':
         return <span>{caseItem.platform || '-'}</span>;
       case 'paymentCompany':
-        return <span>{caseItem.paymentCompany}</span>;
+        return <span>{caseItem.paymentCompany || '-'}</span>;
       case 'funder':
-        return <span>{caseItem.funder}</span>;
+        return <span>{caseItem.funder || '-'}</span>;
       case 'fundCategory':
         return <span>{caseItem.fundCategory || '-'}</span>;
       case 'status':
@@ -484,7 +610,7 @@ export default function CasesPage() {
           </Badge>
         );
       case 'currency':
-        return <span>{caseItem.currency}</span>;
+        return <span>{caseItem.currency || '-'}</span>;
       case 'loanAmount':
         return <span className="font-mono text-right">{formatMoney(caseItem.loanAmount || 0)}</span>;
       case 'totalLoanAmount':
@@ -499,10 +625,10 @@ export default function CasesPage() {
         return (
           <Link 
             href={`/cases/${caseItem.id}`} 
-            className={`hover:underline cursor-pointer ${caseItem.overdueAmount > 0 ? 'text-red-600 hover:text-red-800' : 'text-blue-600 hover:text-blue-800'}`}
+            className={`hover:underline cursor-pointer ${(caseItem.overdueAmount || 0) > 0 ? 'text-red-600 hover:text-red-800' : 'text-blue-600 hover:text-blue-800'}`}
           >
-            <span className={`font-mono text-right ${caseItem.overdueAmount > 0 ? '' : ''}`}>
-              {formatMoney(caseItem.overdueAmount)}
+            <span className={`font-mono text-right ${(caseItem.overdueAmount || 0) > 0 ? '' : ''}`}>
+              {formatMoney(caseItem.overdueAmount || 0)}
             </span>
           </Link>
         );
@@ -528,8 +654,8 @@ export default function CasesPage() {
         return <span>{caseItem.dueDate || '-'}</span>;
       case 'overdueDays':
         return (
-          <span className={caseItem.overdueDays > 0 ? 'text-red-600 font-medium' : ''}>
-            {caseItem.overdueDays > 0 ? `${caseItem.overdueDays}天` : '-'}
+          <span className={(caseItem.overdueDays || 0) > 0 ? 'text-red-600 font-medium' : ''}>
+            {(caseItem.overdueDays || 0) > 0 ? `${caseItem.overdueDays}天` : '-'}
           </span>
         );
       case 'overdueStartTime':
@@ -552,7 +678,7 @@ export default function CasesPage() {
             href={`/cases/${caseItem.id}`} 
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
           >
-            <span className="font-mono">{caseItem.borrowerPhone}</span>
+            <span className="font-mono">{caseItem.borrowerPhone || '-'}</span>
           </Link>
         );
       case 'registeredPhone':
@@ -560,11 +686,11 @@ export default function CasesPage() {
       case 'contactInfo':
         return <span className="max-w-xs truncate" title={caseItem.contactInfo}>{caseItem.contactInfo || '-'}</span>;
       case 'assignedSales':
-        return <span>{caseItem.assignedSales}</span>;
+        return <span>{caseItem.assignedSales || '-'}</span>;
       case 'assignedRiskControl':
         return <span>{caseItem.assignedRiskControl || '-'}</span>;
       case 'assignedPostLoan':
-        return <span>{caseItem.assignedPostLoan}</span>;
+        return <span>{caseItem.assignedPostLoan || '-'}</span>;
       case 'actions':
         return (
           <DropdownMenu>
@@ -618,9 +744,22 @@ export default function CasesPage() {
             <p className="text-sm text-slate-500">
               共 {total} 个案件
               {enableDedup && <span className="ml-2 text-amber-600 font-medium">(已按用户去重)</span>}
+              {initialState && <span className="ml-2 text-green-600 font-medium">(状态已恢复)</span>}
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* 重置状态按钮 */}
+            {initialState && (
+              <Button
+                variant="outline"
+                onClick={clearSavedState}
+                className="gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                重置
+              </Button>
+            )}
+            
             {/* 用户去重按钮 */}
             <Button
               variant={enableDedup ? "default" : "outline"}
@@ -1129,7 +1268,7 @@ export default function CasesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+              onClick={() => setPage((p: number) => Math.max(1, p - 1))}
               disabled={page <= 1}
             >
               上一页
@@ -1137,7 +1276,7 @@ export default function CasesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              onClick={() => setPage((p: number) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
             >
               下一页
