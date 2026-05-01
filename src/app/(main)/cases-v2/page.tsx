@@ -107,48 +107,39 @@ export default function CasesPage() {
     setPage(1);
   };
 
-  // 下载模板 - 前端直接生成
+  // 下载模板 - 超级简单可靠的方式
   const handleDownloadTemplate = () => {
-    try {
-      // 模板表头（匹配最新的案件管理总表顺序）
-      const headers = [
-        '批次号', '贷款单号', '用户ID', '借款人姓名', '产品名称', '平台', '支付公司', '资金方', 
-        '资金分类', '状态', '贷款状态', '锁定情况', '五级分类', '风险等级', '是否展期', 
-        '币种', '贷款金额', '总贷款金额', '总在贷余额', '已还款总额', '在贷余额', '逾期金额', 
-        '逾期本金', '逾期利息', '已还金额', '已还本金', '已还利息', '代偿总额', '贷款期限', 
-        '贷款期限单位', '贷款日期', '到期日', '逾期天数', '逾期开始时间', '首次逾期时间', '代偿日期', 
-        '公司名称', '公司地址', '家庭地址', '户籍地址', '借款人手机号', '注册手机号', '联系方式', 
-        '所属销售', '所属风控', '所属贷后'
-      ];
-      
-      // 示例数据
-      const exampleRow = [
-        '20260501001', 'LD20260501001', 'U001', '张三', '个人消费贷', '支付宝', '支付宝支付', 
-        '招商银行', '自有资金', '待分配', '正常', '否', '正常', '低', '否',
-        'CNY', '100000', '100000', '80000', '20000', '80000', '0', '0', '0', '20000', '20000',
-        '0', '0', '36', '月', '2024-01-01', '2027-01-01', '0', '', '', '', 
-        '示例公司', '北京市朝阳区', '北京市海淀区', '北京市西城区', '13800138000', '13900139000', 
-        '联系人：李四', '王五', '赵六', '钱七'
-      ];
-      
-      // 生成CSV内容
-      const csvContent = '\uFEFF' + headers.join(',') + '\n' + exampleRow.join(',');
-      
-      // 创建Blob并下载
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = '案件导入模板.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast.success('模板下载成功');
-    } catch (error) {
-      toast.error('下载模板失败');
-    }
+    // 直接生成CSV并触发下载
+    const headers = [
+      '批次号', '贷款单号', '用户ID', '借款人姓名', '产品名称', '平台', '支付公司', '资金方', 
+      '资金分类', '状态', '贷款状态', '锁定情况', '五级分类', '风险等级', '是否展期', 
+      '币种', '贷款金额', '总贷款金额', '总在贷余额', '已还款总额', '在贷余额', '逾期金额', 
+      '逾期本金', '逾期利息', '已还金额', '已还本金', '已还利息', '代偿总额', '贷款期限', 
+      '贷款期限单位', '贷款日期', '到期日', '逾期天数', '逾期开始时间', '首次逾期时间', '代偿日期', 
+      '公司名称', '公司地址', '家庭地址', '户籍地址', '借款人手机号', '注册手机号', '联系方式', 
+      '所属销售', '所属风控', '所属贷后'
+    ];
+    
+    const exampleRow = [
+      '20260501001', 'LD20260501001', 'U001', '张三', '个人消费贷', '支付宝', '支付宝支付', 
+      '招商银行', '自有资金', '待分配', '正常', '否', '正常', '低', '否',
+      'CNY', '100000', '100000', '80000', '20000', '80000', '0', '0', '0', '20000', '20000',
+      '0', '0', '36', '月', '2024-01-01', '2027-01-01', '0', '', '', '', 
+      '示例公司', '北京市朝阳区', '北京市海淀区', '北京市西城区', '13800138000', '13900139000', 
+      '联系人：李四', '王五', '赵六', '钱七'
+    ];
+    
+    const csv = '\uFEFF' + headers.join(',') + '\n' + exampleRow.join(',');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = '案件导入模板.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    toast.success('模板下载成功！');
   };
 
   // 选择文件
@@ -320,14 +311,43 @@ export default function CasesPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={handleDownloadTemplate}
-              className="gap-2"
+            {/* 简单直接的下载按钮 */}
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                const headers = [
+                  '批次号', '贷款单号', '用户ID', '借款人姓名', '产品名称', '平台', '支付公司', '资金方', 
+                  '资金分类', '状态', '贷款状态', '锁定情况', '五级分类', '风险等级', '是否展期', 
+                  '币种', '贷款金额', '总贷款金额', '总在贷余额', '已还款总额', '在贷余额', '逾期金额', 
+                  '逾期本金', '逾期利息', '已还金额', '已还本金', '已还利息', '代偿总额', '贷款期限', 
+                  '贷款期限单位', '贷款日期', '到期日', '逾期天数', '逾期开始时间', '首次逾期时间', '代偿日期', 
+                  '公司名称', '公司地址', '家庭地址', '户籍地址', '借款人手机号', '注册手机号', '联系方式', 
+                  '所属销售', '所属风控', '所属贷后'
+                ];
+                const exampleRow = [
+                  '20260501001', 'LD20260501001', 'U001', '张三', '个人消费贷', '支付宝', '支付宝支付', 
+                  '招商银行', '自有资金', '待分配', '正常', '否', '正常', '低', '否',
+                  'CNY', '100000', '100000', '80000', '20000', '80000', '0', '0', '0', '20000', '20000',
+                  '0', '0', '36', '月', '2024-01-01', '2027-01-01', '0', '', '', '', 
+                  '示例公司', '北京市朝阳区', '北京市海淀区', '北京市西城区', '13800138000', '13900139000', 
+                  '联系人：李四', '王五', '赵六', '钱七'
+                ];
+                const csv = '\uFEFF' + headers.join(',') + '\n' + exampleRow.join(',');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = '案件导入模板.csv';
+                link.click();
+                URL.revokeObjectURL(url);
+                toast.success('模板下载成功！');
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
             >
               <Download className="w-4 h-4" />
               下载模板
-            </Button>
+            </a>
             <Button
               variant="outline"
               onClick={() => setShowImportDialog(true)}
