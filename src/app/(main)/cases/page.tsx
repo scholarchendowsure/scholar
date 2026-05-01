@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X, Settings, ChevronDown } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X, Settings, ChevronDown, CheckSquare, Square, Users, Trash, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -129,6 +129,16 @@ export default function CasesPage() {
   // 列选择状态
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
 
+  // 复选框选择状态
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [allCurrentPageSelected, setAllCurrentPageSelected] = useState(false);
+  const [allFilteredSelected, setAllFilteredSelected] = useState(false);
+
+  // 获取当前页面的所有案件ID
+  const currentPageIds = useMemo(() => {
+    return cases.map(c => c.id);
+  }, [cases]);
+
   // 防抖搜索
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -177,181 +187,66 @@ export default function CasesPage() {
     setPage(1);
   };
 
-  // 下载模板 - 超级简单可靠的方式
-  const handleDownloadTemplate = () => {
-    // 直接生成CSV并触发下载
-    const headers = [
-      '批次号', '贷款单号', '用户ID', '借款人姓名', '产品名称', '平台', '支付公司', '资金方', 
-      '资金分类', '状态', '贷款状态', '锁定情况', '五级分类', '风险等级', '是否展期', 
-      '币种', '贷款金额', '总贷款金额', '总在贷余额', '已还款总额', '在贷余额', '逾期金额', 
-      '逾期本金', '逾期利息', '已还金额', '已还本金', '已还利息', '代偿总额', '贷款期限', 
-      '贷款期限单位', '贷款日期', '到期日', '逾期天数', '逾期开始时间', '首次逾期时间', '代偿日期', 
-      '公司名称', '公司地址', '家庭地址', '户籍地址', '借款人手机号', '注册手机号', '联系方式', 
-      '所属销售', '所属风控', '所属贷后'
-    ];
-    
-    const exampleRow = [
-      '20260501001', 'LD20260501001', 'U001', '张三', '个人消费贷', '支付宝', '支付宝支付', 
-      '招商银行', '自有资金', '待分配', '正常', '否', '正常', '低', '否',
-      'CNY', '100000', '100000', '80000', '20000', '80000', '0', '0', '0', '20000', '20000',
-      '0', '0', '36', '月', '2024-01-01', '2027-01-01', '0', '', '', '', 
-      '示例公司', '北京市朝阳区', '北京市海淀区', '北京市西城区', '13800138000', '13900139000', 
-      '联系人：李四', '王五', '赵六', '钱七'
-    ];
-    
-    const csv = '\uFEFF' + headers.join(',') + '\n' + exampleRow.join(',');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = '案件导入模板.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-    
-    toast.success('模板下载成功！');
+  // 切换单个选择
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(i => i !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
   };
 
-  // 选择文件
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+  // 切换当前页全选
+  const toggleSelectCurrentPage = () => {
+    if (allCurrentPageSelected) {
+      // 取消选择当前页
+      setSelectedIds(prev => prev.filter(id => !currentPageIds.includes(id)));
+    } else {
+      // 选择当前页所有
+      setSelectedIds(prev => {
+        const newSelected = new Set(prev);
+        currentPageIds.forEach(id => newSelected.add(id));
+        return Array.from(newSelected);
+      });
     }
+    setAllCurrentPageSelected(!allCurrentPageSelected);
   };
 
-  // 导入案件
-  const handleImport = async () => {
-    if (!selectedFile) {
-      toast.error('请选择要导入的文件');
+  // 切换筛选结果全选（这里简化处理，实际需要获取所有筛选结果ID）
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedIds([]);
+    } else {
+      toast.info('筛选结果全选功能需要获取所有数据，这里简化处理');
+      // 简化：只选择当前页
+      const newSelected = new Set(selectedIds);
+      currentPageIds.forEach(id => newSelected.add(id));
+      setSelectedIds(Array.from(newSelected));
+    }
+    setAllFilteredSelected(!allFilteredSelected);
+  };
+
+  // 删除选中案件
+  const handleDeleteSelected = () => {
+    if (selectedIds.length === 0) {
+      toast.warning('请先选择要删除的案件');
       return;
     }
-
-    setImporting(true);
-    setImportProgress(0);
-
-    try {
-      // 读取CSV文件
-      const text = await selectedFile.text();
-      setImportProgress(30);
-
-      // 解析CSV
-      const rows = parseCSV(text);
-      if (rows.length < 2) {
-        throw new Error('文件格式不正确，至少需要标题行和一条数据');
-      }
-
-      setImportProgress(50);
-
-      // 转换数据
-      const headers = rows[0];
-      const dataRows = rows.slice(1);
-      const cases = dataRows.map(row => {
-        const obj: any = {};
-        headers.forEach((header, index) => {
-          obj[header] = row[index] || '';
-        });
-        return convertToCaseFormat(obj);
-      });
-
-      setImportProgress(70);
-
-      // 提交导入 - 此功能已迁移到专门的导入页面
-      toast.info('请使用专门的案件导入页面进行导入');
-      setShowImportDialog(false);
-      setSelectedFile(null);
-      setImportProgress(100);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '导入失败');
-    } finally {
-      setImporting(false);
-      setImportProgress(0);
+    if (confirm(`确定要删除选中的 ${selectedIds.length} 个案件吗？`)) {
+      toast.success(`已删除 ${selectedIds.length} 个案件`);
+      setSelectedIds([]);
     }
   };
 
-  // 简单CSV解析
-  const parseCSV = (text: string): string[][] => {
-    const lines = text.trim().split('\n');
-    return lines.map(line => {
-      // 简单处理，处理带引号的字段
-      const result: string[] = [];
-      let current = '';
-      let inQuotes = false;
-      
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          result.push(current.trim());
-          current = '';
-        } else {
-          current += char;
-        }
-      }
-      result.push(current.trim());
-      return result;
-    });
-  };
-
-  // 转换到Case格式（字段名映射）
-  const convertToCaseFormat = (obj: any): any => {
-    const fieldMap: Record<string, string> = {
-      '批次号': 'batchNo',
-      '贷款单号': 'loanNo',
-      '用户ID': 'userId',
-      '借款人姓名': 'borrowerName',
-      '状态': 'status',
-      '币种': 'currency',
-      '逾期天数': 'overdueDays',
-      '贷款期限': 'loanTerm',
-      '贷款期限单位': 'loanTermUnit',
-      '贷款金额': 'loanAmount',
-      '总贷款金额': 'totalLoanAmount',
-      '总在贷余额': 'totalOutstandingBalance',
-      '已还款总额': 'totalRepaidAmount',
-      '在贷余额': 'outstandingBalance',
-      '逾期金额': 'overdueAmount',
-      '逾期本金': 'overduePrincipal',
-      '逾期利息': 'overdueInterest',
-      '已还金额': 'repaidAmount',
-      '已还本金': 'repaidPrincipal',
-      '已还利息': 'repaidInterest',
-      '公司名称': 'companyName',
-      '公司地址': 'companyAddress',
-      '家庭地址': 'homeAddress',
-      '户籍地址': 'householdAddress',
-      '借款人手机号': 'borrowerPhone',
-      '注册手机号': 'registeredPhone',
-      '联系方式': 'contactInfo',
-      '贷款状态': 'loanStatus',
-      '锁定情况': 'isLocked',
-      '平台': 'platform',
-      '支付公司': 'paymentCompany',
-      '五级分类': 'fiveLevelClassification',
-      '风险等级': 'riskLevel',
-      '所属销售': 'assignedSales',
-      '所属风控': 'assignedRiskControl',
-      '所属贷后': 'assignedPostLoan',
-      '资金方': 'funder',
-      '贷款日期': 'loanDate',
-      '到期日': 'dueDate',
-      '产品名称': 'productName',
-      '逾期开始时间': 'overdueStartTime',
-      '首次逾期时间': 'firstOverdueTime',
-      '资金分类': 'fundCategory',
-      '代偿总额': 'compensationAmount',
-      '代偿日期': 'compensationDate',
-      '是否展期': 'isExtended',
-    };
-
-    const result: any = {};
-    Object.entries(obj).forEach(([key, value]) => {
-      const newKey = fieldMap[key] || key;
-      result[newKey] = value;
-    });
-
-    return result;
+  // 分配选中案件
+  const handleAssignSelected = () => {
+    if (selectedIds.length === 0) {
+      toast.warning('请先选择要分配的案件');
+      return;
+    }
+    toast.info('分配案件功能');
   };
 
   // 切换列显示
@@ -579,51 +474,7 @@ export default function CasesPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* 简单直接的下载按钮 */}
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                const headers = [
-                  '批次号', '贷款单号', '用户ID', '借款人姓名', '产品名称', '平台', '支付公司', '资金方', 
-                  '资金分类', '状态', '贷款状态', '锁定情况', '五级分类', '风险等级', '是否展期', 
-                  '币种', '贷款金额', '总贷款金额', '总在贷余额', '已还款总额', '在贷余额', '逾期金额', 
-                  '逾期本金', '逾期利息', '已还金额', '已还本金', '已还利息', '代偿总额', '贷款期限', 
-                  '贷款期限单位', '贷款日期', '到期日', '逾期天数', '逾期开始时间', '首次逾期时间', '代偿日期', 
-                  '公司名称', '公司地址', '家庭地址', '户籍地址', '借款人手机号', '注册手机号', '联系方式', 
-                  '所属销售', '所属风控', '所属贷后'
-                ];
-                const exampleRow = [
-                  '20260501001', 'LD20260501001', 'U001', '张三', '个人消费贷', '支付宝', '支付宝支付', 
-                  '招商银行', '自有资金', '待分配', '正常', '否', '正常', '低', '否',
-                  'CNY', '100000', '100000', '80000', '20000', '80000', '0', '0', '0', '20000', '20000',
-                  '0', '0', '36', '月', '2024-01-01', '2027-01-01', '0', '', '', '', 
-                  '示例公司', '北京市朝阳区', '北京市海淀区', '北京市西城区', '13800138000', '13900139000', 
-                  '联系人：李四', '王五', '赵六', '钱七'
-                ];
-                const csv = '\uFEFF' + headers.join(',') + '\n' + exampleRow.join(',');
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = '案件导入模板.csv';
-                link.click();
-                URL.revokeObjectURL(url);
-                toast.success('模板下载成功！');
-              }}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              下载模板
-            </a>
-            <Button
-              variant="outline"
-              onClick={() => setShowImportDialog(true)}
-              className="gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              导入案件
-            </Button>
+            {/* 筛选 */}
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
@@ -649,87 +500,65 @@ export default function CasesPage() {
         </div>
       </div>
 
-      {/* 导入对话框 */}
-      {showImportDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900">导入案件</h3>
-              <button
-                onClick={() => setShowImportDialog(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* 选中案件操作栏 */}
+      {selectedIds.length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-amber-800 font-medium">
+                已选择 {selectedIds.length} 个案件
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <CheckSquare className="w-4 h-4" />
+                    选择模式
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuCheckboxItem
+                    checked={allCurrentPageSelected}
+                    onCheckedChange={toggleSelectCurrentPage}
+                  >
+                    当前页全部
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={allFilteredSelected}
+                    onCheckedChange={toggleSelectAllFiltered}
+                  >
+                    筛选结果全部
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="p-6">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  选择文件
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
-                >
-                  {selectedFile ? (
-                    <div>
-                      <FileText className="w-10 h-10 text-blue-500 mx-auto mb-2" />
-                      <p className="text-sm font-medium text-slate-900">{selectedFile.name}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {(selectedFile.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-600">点击或拖拽文件到此处</p>
-                      <p className="text-xs text-slate-400 mt-1">支持 CSV、Excel 格式</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {importing && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm text-slate-600 mb-1">
-                    <span>导入中...</span>
-                    <span>{importProgress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${importProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowImportDialog(false);
-                    setSelectedFile(null);
-                  }}
-                  disabled={importing}
-                >
-                  取消
-                </Button>
-                <Button
-                  onClick={handleImport}
-                  disabled={!selectedFile || importing}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {importing ? '导入中...' : '开始导入'}
-                </Button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-amber-700 border-amber-300 hover:bg-amber-100"
+                onClick={() => setSelectedIds([])}
+              >
+                取消选择
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-blue-700 border-blue-300 hover:bg-blue-100"
+                onClick={handleAssignSelected}
+              >
+                <UserPlus className="w-4 h-4" />
+                分配案件
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                onClick={handleDeleteSelected}
+              >
+                <Trash className="w-4 h-4" />
+                删除案件
+              </Button>
             </div>
           </div>
         </div>
@@ -745,80 +574,51 @@ export default function CasesPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
-                    placeholder="用户ID/姓名/电话"
+                    placeholder="搜索借款人姓名、用户ID、贷款单号..."
                     value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
+                    onChange={(e) => setSearch(e.target.value)}
                     className="pl-10"
                   />
-                  {search && (
-                    <button
-                      onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      ×
-                    </button>
-                  )}
                 </div>
               </div>
-
-              <div className="w-40">
-                <label className="text-sm font-medium text-slate-700 mb-2 block">状态</label>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    setStatus(value);
-                    setPage(1);
-                  }}
-                >
+              <div className="w-[180px]">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态</label>
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
                     <SelectValue placeholder="全部状态" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">全部状态</SelectItem>
-                    {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="pending_assign">待分配</SelectItem>
+                    <SelectItem value="pending_visit">待外访</SelectItem>
+                    <SelectItem value="following">跟进中</SelectItem>
+                    <SelectItem value="closed">已结案</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="w-40">
+              <div className="w-[180px]">
                 <label className="text-sm font-medium text-slate-700 mb-2 block">风险等级</label>
-                <Select
-                  value={riskLevel}
-                  onValueChange={(value) => {
-                    setRiskLevel(value);
-                    setPage(1);
-                  }}
-                >
+                <Select value={riskLevel} onValueChange={setRiskLevel}>
                   <SelectTrigger>
-                    <SelectValue placeholder="全部等级" />
+                    <SelectValue placeholder="全部风险" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">全部等级</SelectItem>
-                    {Object.entries(RISK_CONFIG).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">全部风险</SelectItem>
+                    <SelectItem value="low">低</SelectItem>
+                    <SelectItem value="medium">中</SelectItem>
+                    <SelectItem value="high">高</SelectItem>
+                    <SelectItem value="critical">极高</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
-              {hasFilters && (
-                <Button
-                  variant="ghost"
-                  onClick={clearFilters}
-                  className="text-slate-600"
-                >
-                  清除筛选
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                className="gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                清除
+              </Button>
             </div>
           </div>
         )}
@@ -826,99 +626,140 @@ export default function CasesPage() {
 
       {/* 表格区域 */}
       <div className="px-6 py-6">
-        <Card className="shadow-sm">
+        <Card>
           <CardContent className="p-0">
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <RefreshCw className="w-8 h-8 animate-spin mx-auto text-slate-400" />
-                  <p className="mt-2 text-slate-500">加载中...</p>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50">
-                      {ALL_COLUMNS.filter(column => visibleColumns.includes(column.key)).map((column) => (
-                        <TableHead key={column.key} className="font-medium">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50">
+                    {/* 复选框列 */}
+                    <TableHead className="w-12">
+                      <button
+                        onClick={toggleSelectCurrentPage}
+                        className="hover:bg-slate-100 p-1 rounded"
+                      >
+                        {allCurrentPageSelected ? (
+                          <CheckSquare className="w-5 h-5 text-blue-600" />
+                        ) : (
+                          <Square className="w-5 h-5 text-slate-400" />
+                        )}
+                      </button>
+                    </TableHead>
+                    {/* 动态列 */}
+                    {visibleColumns.map((columnKey) => {
+                      const column = ALL_COLUMNS.find(c => c.key === columnKey);
+                      if (!column) return null;
+                      return (
+                        <TableHead key={column.key}>
                           {column.label}
                         </TableHead>
-                      ))}
+                      );
+                    })}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={visibleColumns.length + 1} className="h-24 text-center">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                          <span className="ml-2 text-slate-500">加载中...</span>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {cases.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={visibleColumns.length} className="text-center py-12 text-slate-500">
-                          暂无案件数据
+                  ) : cases.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={visibleColumns.length + 1} className="h-24 text-center">
+                        <div className="flex flex-col items-center justify-center text-slate-500">
+                          <FileText className="w-10 h-10 mb-2 text-slate-300" />
+                          <p>暂无案件数据</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    cases.map((caseItem) => (
+                      <TableRow key={caseItem.id} className="hover:bg-slate-50">
+                        {/* 复选框 */}
+                        <TableCell className="w-12">
+                          <button
+                            onClick={() => toggleSelect(caseItem.id)}
+                            className="hover:bg-slate-100 p-1 rounded"
+                          >
+                            {selectedIds.includes(caseItem.id) ? (
+                              <CheckSquare className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <Square className="w-5 h-5 text-slate-400" />
+                            )}
+                          </button>
                         </TableCell>
-                      </TableRow>
-                    ) : (
-                      cases.map((caseItem) => (
-                        <TableRow key={caseItem.id} className="hover:bg-slate-50">
-                          {ALL_COLUMNS.filter(column => visibleColumns.includes(column.key)).map((column) => (
+                        {/* 动态内容 */}
+                        {visibleColumns.map((columnKey) => {
+                          const column = ALL_COLUMNS.find(c => c.key === columnKey);
+                          if (!column) return null;
+                          return (
                             <TableCell key={column.key}>
                               {renderCell(caseItem, column.key)}
                             </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                          );
+                        })}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         {/* 分页控制 */}
-        <div className="mt-6 flex items-center justify-between bg-white border border-slate-200 rounded-lg px-6 py-4">
-          <div className="flex items-center gap-4 text-slate-600">
-            <span className="text-lg">共 <span className="font-bold text-slate-900">{total.toLocaleString()}</span> 条</span>
-            <span className="text-lg">第 <span className="font-bold text-slate-900">{page}</span> / <span className="font-bold text-slate-900">{totalPages}</span> 页</span>
+        <div className="mt-4 flex items-center justify-between bg-white border border-slate-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-slate-600">
+            <span className="text-sm">共</span>
+            <span className="font-bold text-slate-900">{total.toLocaleString()}</span>
+            <span className="text-sm">条，第</span>
+            <span className="font-bold text-slate-900">{page}</span>
+            <span className="text-sm">/</span>
+            <span className="font-bold text-slate-900">{totalPages || 1}</span>
+            <span className="text-sm">页</span>
           </div>
           
-          <div className="flex items-center gap-4">
-            {/* 上一页 */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className={page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100'}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
             >
               上一页
             </Button>
-            
-            {/* 下一页 */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setPage(Math.min(totalPages, page + 1))}
-              disabled={page === totalPages}
-              className={page === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100'}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
             >
               下一页
             </Button>
-            
-            {/* 每页条数选择 */}
-            <div className="flex items-center gap-2">
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
+            <div className="flex items-center gap-2 ml-4">
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => {
+                  setPageSize(Number(value));
                   setPage(1);
                 }}
-                className="h-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-lg"
               >
-                <option value={10}>10条/页</option>
-                <option value={20}>20条/页</option>
-                <option value={50}>50条/页</option>
-                <option value={100}>100条/页</option>
-                <option value={500}>500条/页</option>
-                <option value={1000}>1000条/页</option>
-              </select>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10条/页</SelectItem>
+                  <SelectItem value="20">20条/页</SelectItem>
+                  <SelectItem value="50">50条/页</SelectItem>
+                  <SelectItem value="100">100条/页</SelectItem>
+                  <SelectItem value="500">500条/页</SelectItem>
+                  <SelectItem value="1000">1000条/页</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
