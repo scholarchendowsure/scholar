@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X, Settings, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { Case } from '@/types/case';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -28,6 +28,75 @@ const RISK_CONFIG: Record<string, { label: string; color: string }> = {
   high: { label: '高', color: 'bg-orange-100 text-orange-800' },
   critical: { label: '极高', color: 'bg-red-100 text-red-800' },
 };
+
+// 所有可选列配置
+const ALL_COLUMNS = [
+  { key: 'batchNo', label: '批次号' },
+  { key: 'loanNo', label: '贷款单号' },
+  { key: 'userId', label: '用户ID' },
+  { key: 'borrowerName', label: '借款人姓名' },
+  { key: 'productName', label: '产品名称' },
+  { key: 'platform', label: '平台' },
+  { key: 'paymentCompany', label: '支付公司' },
+  { key: 'funder', label: '资金方' },
+  { key: 'fundCategory', label: '资金分类' },
+  { key: 'status', label: '状态' },
+  { key: 'loanStatus', label: '贷款状态' },
+  { key: 'isLocked', label: '锁定情况' },
+  { key: 'fiveLevelClassification', label: '五级分类' },
+  { key: 'riskLevel', label: '风险等级' },
+  { key: 'isExtended', label: '是否展期' },
+  { key: 'currency', label: '币种' },
+  { key: 'loanAmount', label: '贷款金额' },
+  { key: 'totalLoanAmount', label: '总贷款金额' },
+  { key: 'totalOutstandingBalance', label: '总在贷余额' },
+  { key: 'totalRepaidAmount', label: '已还款总额' },
+  { key: 'outstandingBalance', label: '在贷余额' },
+  { key: 'overdueAmount', label: '逾期金额' },
+  { key: 'overduePrincipal', label: '逾期本金' },
+  { key: 'overdueInterest', label: '逾期利息' },
+  { key: 'repaidAmount', label: '已还金额' },
+  { key: 'repaidPrincipal', label: '已还本金' },
+  { key: 'repaidInterest', label: '已还利息' },
+  { key: 'compensationAmount', label: '代偿总额' },
+  { key: 'loanTerm', label: '贷款期限' },
+  { key: 'loanTermUnit', label: '贷款期限单位' },
+  { key: 'loanDate', label: '贷款日期' },
+  { key: 'dueDate', label: '到期日' },
+  { key: 'overdueDays', label: '逾期天数' },
+  { key: 'overdueStartTime', label: '逾期开始时间' },
+  { key: 'firstOverdueTime', label: '首次逾期时间' },
+  { key: 'compensationDate', label: '代偿日期' },
+  { key: 'companyName', label: '公司名称' },
+  { key: 'companyAddress', label: '公司地址' },
+  { key: 'homeAddress', label: '家庭地址' },
+  { key: 'householdAddress', label: '户籍地址' },
+  { key: 'borrowerPhone', label: '借款人手机号' },
+  { key: 'registeredPhone', label: '注册手机号' },
+  { key: 'contactInfo', label: '联系方式' },
+  { key: 'assignedSales', label: '所属销售' },
+  { key: 'assignedRiskControl', label: '所属风控' },
+  { key: 'assignedPostLoan', label: '所属贷后' },
+  { key: 'actions', label: '操作' },
+];
+
+// 默认显示的列
+const DEFAULT_VISIBLE_COLUMNS = [
+  'userId',
+  'borrowerName',
+  'currency',
+  'totalOutstandingBalance',
+  'overdueAmount',
+  'borrowerPhone',
+  'funder',
+  'paymentCompany',
+  'overdueDays',
+  'productName',
+  'assignedSales',
+  'assignedPostLoan',
+  'riskLevel',
+  'actions',
+];
 
 // 金额格式化
 const formatMoney = (amount: number): string => {
@@ -55,8 +124,10 @@ export default function CasesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importProgress, setImportProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  
+  // 列选择状态
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
 
   // 防抖搜索
   useEffect(() => {
@@ -283,6 +354,189 @@ export default function CasesPage() {
     return result;
   };
 
+  // 切换列显示
+  const toggleColumn = (columnKey: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
+  };
+
+  // 重置列
+  const resetColumns = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+  };
+
+  // 渲染单元格
+  const renderCell = (caseItem: Case, columnKey: string) => {
+    switch (columnKey) {
+      case 'batchNo':
+        return <span className="font-mono text-sm">{caseItem.batchNo || '-'}</span>;
+      case 'loanNo':
+        return <span className="font-mono text-sm">{caseItem.loanNo || '-'}</span>;
+      case 'userId':
+        return (
+          <Link 
+            href={`/cases/${caseItem.id}`} 
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+          >
+            <span className="font-mono">{caseItem.userId}</span>
+          </Link>
+        );
+      case 'borrowerName':
+        return <span className="font-medium">{caseItem.borrowerName}</span>;
+      case 'productName':
+        return <span>{caseItem.productName}</span>;
+      case 'platform':
+        return <span>{caseItem.platform || '-'}</span>;
+      case 'paymentCompany':
+        return <span>{caseItem.paymentCompany}</span>;
+      case 'funder':
+        return <span>{caseItem.funder}</span>;
+      case 'fundCategory':
+        return <span>{caseItem.fundCategory || '-'}</span>;
+      case 'status':
+        return caseItem.status && (
+          <Badge className={STATUS_CONFIG[caseItem.status]?.color || ''}>
+            {STATUS_CONFIG[caseItem.status]?.label || caseItem.status}
+          </Badge>
+        );
+      case 'loanStatus':
+        return <span>{caseItem.loanStatus || '-'}</span>;
+      case 'isLocked':
+        return (
+          <Badge className={caseItem.isLocked ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-600'}>
+            {caseItem.isLocked ? '已锁定' : '未锁定'}
+          </Badge>
+        );
+      case 'fiveLevelClassification':
+        return <span>{caseItem.fiveLevelClassification || '-'}</span>;
+      case 'riskLevel':
+        return caseItem.riskLevel && (
+          <Badge className={RISK_CONFIG[caseItem.riskLevel]?.color || ''}>
+            {RISK_CONFIG[caseItem.riskLevel]?.label || caseItem.riskLevel}
+          </Badge>
+        );
+      case 'isExtended':
+        return (
+          <Badge className={caseItem.isExtended ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'}>
+            {caseItem.isExtended ? '已展期' : '未展期'}
+          </Badge>
+        );
+      case 'currency':
+        return <span>{caseItem.currency}</span>;
+      case 'loanAmount':
+        return <span className="font-mono text-right">{formatMoney(caseItem.loanAmount || 0)}</span>;
+      case 'totalLoanAmount':
+        return <span className="font-mono text-right">{formatMoney(caseItem.totalLoanAmount || 0)}</span>;
+      case 'totalOutstandingBalance':
+        return <span className="font-mono text-right">{formatMoney(caseItem.totalOutstandingBalance)}</span>;
+      case 'totalRepaidAmount':
+        return <span className="font-mono text-right">{formatMoney(caseItem.totalRepaidAmount || 0)}</span>;
+      case 'outstandingBalance':
+        return <span className="font-mono text-right">{formatMoney(caseItem.outstandingBalance || 0)}</span>;
+      case 'overdueAmount':
+        return (
+          <Link 
+            href={`/cases/${caseItem.id}`} 
+            className={`hover:underline cursor-pointer ${caseItem.overdueAmount > 0 ? 'text-red-600 hover:text-red-800' : 'text-blue-600 hover:text-blue-800'}`}
+          >
+            <span className={`font-mono text-right ${caseItem.overdueAmount > 0 ? '' : ''}`}>
+              {formatMoney(caseItem.overdueAmount)}
+            </span>
+          </Link>
+        );
+      case 'overduePrincipal':
+        return <span className="font-mono text-right">{formatMoney(caseItem.overduePrincipal || 0)}</span>;
+      case 'overdueInterest':
+        return <span className="font-mono text-right">{formatMoney(caseItem.overdueInterest || 0)}</span>;
+      case 'repaidAmount':
+        return <span className="font-mono text-right">{formatMoney(caseItem.repaidAmount || 0)}</span>;
+      case 'repaidPrincipal':
+        return <span className="font-mono text-right">{formatMoney(caseItem.repaidPrincipal || 0)}</span>;
+      case 'repaidInterest':
+        return <span className="font-mono text-right">{formatMoney(caseItem.repaidInterest || 0)}</span>;
+      case 'compensationAmount':
+        return <span className="font-mono text-right">{formatMoney(caseItem.compensationAmount || 0)}</span>;
+      case 'loanTerm':
+        return <span>{caseItem.loanTerm || '-'}</span>;
+      case 'loanTermUnit':
+        return <span>{caseItem.loanTermUnit || '-'}</span>;
+      case 'loanDate':
+        return <span>{caseItem.loanDate || '-'}</span>;
+      case 'dueDate':
+        return <span>{caseItem.dueDate || '-'}</span>;
+      case 'overdueDays':
+        return (
+          <span className={caseItem.overdueDays > 0 ? 'text-red-600 font-medium' : ''}>
+            {caseItem.overdueDays > 0 ? `${caseItem.overdueDays}天` : '-'}
+          </span>
+        );
+      case 'overdueStartTime':
+        return <span>{caseItem.overdueStartTime || '-'}</span>;
+      case 'firstOverdueTime':
+        return <span>{caseItem.firstOverdueTime || '-'}</span>;
+      case 'compensationDate':
+        return <span>{caseItem.compensationDate || '-'}</span>;
+      case 'companyName':
+        return <span>{caseItem.companyName || '-'}</span>;
+      case 'companyAddress':
+        return <span className="max-w-xs truncate" title={caseItem.companyAddress}>{caseItem.companyAddress || '-'}</span>;
+      case 'homeAddress':
+        return <span className="max-w-xs truncate" title={caseItem.homeAddress}>{caseItem.homeAddress || '-'}</span>;
+      case 'householdAddress':
+        return <span className="max-w-xs truncate" title={caseItem.householdAddress}>{caseItem.householdAddress || '-'}</span>;
+      case 'borrowerPhone':
+        return (
+          <Link 
+            href={`/cases/${caseItem.id}`} 
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+          >
+            <span className="font-mono">{caseItem.borrowerPhone}</span>
+          </Link>
+        );
+      case 'registeredPhone':
+        return <span className="font-mono">{caseItem.registeredPhone || '-'}</span>;
+      case 'contactInfo':
+        return <span className="max-w-xs truncate" title={caseItem.contactInfo}>{caseItem.contactInfo || '-'}</span>;
+      case 'assignedSales':
+        return <span>{caseItem.assignedSales}</span>;
+      case 'assignedRiskControl':
+        return <span>{caseItem.assignedRiskControl || '-'}</span>;
+      case 'assignedPostLoan':
+        return <span>{caseItem.assignedPostLoan}</span>;
+      case 'actions':
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/cases/${caseItem.id}`} className="cursor-pointer">
+                  <Eye className="w-4 h-4 mr-2" />
+                  查看详情
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Edit className="w-4 h-4 mr-2" />
+                编辑
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600">
+                <Trash2 className="w-4 h-4 mr-2" />
+                删除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      default:
+        return <span>-</span>;
+    }
+  };
+
   const hasFilters = search || status !== 'all' || riskLevel !== 'all';
 
   return (
@@ -297,6 +551,34 @@ export default function CasesPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* 列选择按钮 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Settings className="w-4 h-4" />
+                  列选择
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 max-h-[400px] overflow-y-auto">
+                <DropdownMenuLabel>显示列设置</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {ALL_COLUMNS.map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.key}
+                    checked={visibleColumns.includes(column.key)}
+                    onCheckedChange={() => toggleColumn(column.key)}
+                  >
+                    {column.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={resetColumns}>
+                  重置为默认
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* 简单直接的下载按钮 */}
             <a
               href="#"
@@ -558,101 +840,28 @@ export default function CasesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      <TableHead className="font-medium">用户ID</TableHead>
-                      <TableHead className="font-medium">借款人姓名</TableHead>
-                      <TableHead className="font-medium">币种</TableHead>
-                      <TableHead className="font-medium text-right">总在贷金额</TableHead>
-                      <TableHead className="font-medium text-right">逾期金额</TableHead>
-                      <TableHead className="font-medium">借款人手机号</TableHead>
-                      <TableHead className="font-medium">资金方</TableHead>
-                      <TableHead className="font-medium">支付公司</TableHead>
-                      <TableHead className="font-medium">逾期天数</TableHead>
-                      <TableHead className="font-medium">产品名称</TableHead>
-                      <TableHead className="font-medium">所属销售</TableHead>
-                      <TableHead className="font-medium">所属贷后</TableHead>
-                      <TableHead className="font-medium">风险等级</TableHead>
-                      <TableHead className="font-medium w-24">操作</TableHead>
+                      {ALL_COLUMNS.filter(column => visibleColumns.includes(column.key)).map((column) => (
+                        <TableHead key={column.key} className="font-medium">
+                          {column.label}
+                        </TableHead>
+                      ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cases.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={14} className="text-center py-12 text-slate-500">
+                        <TableCell colSpan={visibleColumns.length} className="text-center py-12 text-slate-500">
                           暂无案件数据
                         </TableCell>
                       </TableRow>
                     ) : (
                       cases.map((caseItem) => (
                         <TableRow key={caseItem.id} className="hover:bg-slate-50">
-                          <TableCell className="font-mono text-sm">
-                            <Link 
-                              href={`/cases/${caseItem.id}`} 
-                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                            >
-                              {caseItem.userId}
-                            </Link>
-                          </TableCell>
-                          <TableCell className="font-medium">{caseItem.borrowerName}</TableCell>
-                          <TableCell>{caseItem.currency}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatMoney(caseItem.totalOutstandingBalance)}
-                          </TableCell>
-                          <TableCell className={`text-right font-mono ${caseItem.overdueAmount > 0 ? 'text-red-600' : ''}`}>
-                            <Link 
-                              href={`/cases/${caseItem.id}`} 
-                              className={`hover:underline cursor-pointer ${caseItem.overdueAmount > 0 ? 'text-red-600 hover:text-red-800' : 'text-blue-600 hover:text-blue-800'}`}
-                            >
-                              {formatMoney(caseItem.overdueAmount)}
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <Link 
-                              href={`/cases/${caseItem.id}`} 
-                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                            >
-                              {caseItem.borrowerPhone}
-                            </Link>
-                          </TableCell>
-                          <TableCell>{caseItem.funder}</TableCell>
-                          <TableCell>{caseItem.paymentCompany}</TableCell>
-                          <TableCell className={caseItem.overdueDays > 0 ? 'text-red-600 font-medium' : ''}>
-                            {caseItem.overdueDays > 0 ? `${caseItem.overdueDays}天` : '-'}
-                          </TableCell>
-                          <TableCell>{caseItem.productName}</TableCell>
-                          <TableCell>{caseItem.assignedSales}</TableCell>
-                          <TableCell>{caseItem.assignedPostLoan}</TableCell>
-                          <TableCell>
-                            {caseItem.riskLevel && (
-                              <Badge className={RISK_CONFIG[caseItem.riskLevel]?.color || ''}>
-                                {RISK_CONFIG[caseItem.riskLevel]?.label || caseItem.riskLevel}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/cases/${caseItem.id}`} className="cursor-pointer">
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    查看详情
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  编辑
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600">
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  删除
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+                          {ALL_COLUMNS.filter(column => visibleColumns.includes(column.key)).map((column) => (
+                            <TableCell key={column.key}>
+                              {renderCell(caseItem, column.key)}
+                            </TableCell>
+                          ))}
                         </TableRow>
                       ))
                     )}
