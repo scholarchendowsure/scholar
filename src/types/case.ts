@@ -1,0 +1,130 @@
+// 重构后的案件数据类型定义
+// 基于业务模块划分的完整字段体系
+
+export interface Case {
+  id: string;
+
+  // ===== 案件基础标识 =====
+  batchNo: string; // 批次号
+  loanNo: string; // 贷款单号
+  userId: string; // 用户ID
+  borrowerName: string; // 借款人姓名
+  productName: string; // 产品名称
+  platform: string; // 平台
+  paymentCompany: string; // 支付公司
+  funder: string; // 资金方
+  fundCategory: string; // 资金分类
+
+  // ===== 案件核心状态 =====
+  status: string; // 状态
+  loanStatus: string; // 贷款状态
+  isLocked: boolean; // 锁定情况
+  fiveLevelClassification: string; // 五级分类
+  riskLevel: string; // 风险等级
+  isExtended: boolean; // 是否展期
+
+  // ===== 贷款核心金额 =====
+  currency: string; // 币种
+  loanAmount: number; // 贷款金额
+  totalLoanAmount: number; // 总贷款金额
+  totalOutstandingBalance: number; // 总在贷余额
+  totalRepaidAmount: number; // 已还款总额
+  outstandingBalance: number; // 在贷余额
+  overdueAmount: number; // 逾期金额
+  overduePrincipal: number; // 逾期本金
+  overdueInterest: number; // 逾期利息
+  repaidAmount: number; // 已还金额
+  repaidPrincipal: number; // 已还本金
+  repaidInterest: number; // 已还利息
+  compensationAmount: number; // 代偿总额
+
+  // ===== 贷款期限时间 =====
+  loanTerm: number; // 贷款期限
+  loanTermUnit: string; // 贷款期限单位
+  loanDate: string; // 贷款日期
+  dueDate: string; // 到期日
+  overdueDays: number; // 逾期天数
+  overdueStartTime: string; // 逾期开始时间
+  firstOverdueTime: string; // 首次逾期时间
+  compensationDate: string; // 代偿日期
+
+  // ===== 借款人主体信息 =====
+  companyName: string; // 公司名称
+  companyAddress: string; // 公司地址
+  homeAddress: string; // 家庭地址
+  householdAddress: string; // 户籍地址
+  borrowerPhone: string; // 借款人手机号
+  registeredPhone: string; // 注册手机号
+  contactInfo: string; // 联系方式
+
+  // ===== 案件责任归属 =====
+  assignedSales: string; // 所属销售
+  assignedRiskControl: string; // 所属风控
+  assignedPostLoan: string; // 所属贷后
+
+  // ===== 系统元数据 =====
+  assigneeName: string | null; // 当前跟进人
+  createdAt: string; // 创建时间
+  updatedAt: string; // 更新时间
+}
+
+// 导入时的字段映射（用于Excel导入）
+export const CASE_IMPORT_FIELDS = {
+  // 案件基础标识
+  batchNo: { label: '批次号', required: true },
+  loanNo: { label: '贷款单号', required: true },
+  userId: { label: '用户ID', required: true },
+  borrowerName: { label: '借款人姓名', required: true },
+  productName: { label: '产品名称', required: false },
+  platform: { label: '平台', required: false },
+  paymentCompany: { label: '支付公司', required: false },
+  funder: { label: '资金方', required: false },
+  fundCategory: { label: '资金分类', required: false },
+
+  // 案件核心状态
+  status: { label: '状态', required: true },
+  loanStatus: { label: '贷款状态', required: false },
+  isLocked: { label: '锁定情况', required: false },
+  fiveLevelClassification: { label: '五级分类', required: false },
+  riskLevel: { label: '风险等级', required: false },
+  isExtended: { label: '是否展期', required: false },
+
+  // 贷款核心金额
+  currency: { label: '币种', required: false },
+  loanAmount: { label: '贷款金额', required: false },
+  totalLoanAmount: { label: '总贷款金额', required: false },
+  totalOutstandingBalance: { label: '总在贷余额', required: false },
+  totalRepaidAmount: { label: '已还款总额', required: false },
+  outstandingBalance: { label: '在贷余额', required: false },
+  overdueAmount: { label: '逾期金额', required: false },
+  overduePrincipal: { label: '逾期本金', required: false },
+  overdueInterest: { label: '逾期利息', required: false },
+  repaidAmount: { label: '已还金额', required: false },
+  repaidPrincipal: { label: '已还本金', required: false },
+  repaidInterest: { label: '已还利息', required: false },
+  compensationAmount: { label: '代偿总额', required: false },
+
+  // 贷款期限时间
+  loanTerm: { label: '贷款期限', required: false },
+  loanTermUnit: { label: '贷款期限单位', required: false },
+  loanDate: { label: '贷款日期', required: false },
+  dueDate: { label: '到期日', required: false },
+  overdueDays: { label: '逾期天数', required: false },
+  overdueStartTime: { label: '逾期开始时间', required: false },
+  firstOverdueTime: { label: '首次逾期时间', required: false },
+  compensationDate: { label: '代偿日期', required: false },
+
+  // 借款人主体信息
+  companyName: { label: '公司名称', required: false },
+  companyAddress: { label: '公司地址', required: false },
+  homeAddress: { label: '家庭地址', required: false },
+  householdAddress: { label: '户籍地址', required: false },
+  borrowerPhone: { label: '借款人手机号', required: false },
+  registeredPhone: { label: '注册手机号', required: false },
+  contactInfo: { label: '联系方式', required: false },
+
+  // 案件责任归属
+  assignedSales: { label: '所属销售', required: false },
+  assignedRiskControl: { label: '所属风控', required: false },
+  assignedPostLoan: { label: '所属贷后', required: false },
+};
