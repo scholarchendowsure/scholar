@@ -271,6 +271,25 @@ export default function CaseDetailPage() {
       case 'ownership':
         return (
           <div className="p-6">
+            {/* 状态标签区域 */}
+            <div className="mb-8">
+              <h4 className="text-sm font-semibold text-slate-600 mb-4">案件状态</h4>
+              <div className="flex items-center gap-4">
+                <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
+                  {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+                </Badge>
+                <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
+                  {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
+                </Badge>
+                {caseData.isLocked && (
+                  <Badge variant="destructive">已锁定</Badge>
+                )}
+                {caseData.isExtended && (
+                  <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
+                )}
+              </div>
+            </div>
+            
             <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Field label="所属销售" value={caseData.assignedSales} highlight />
               <Field label="所属风控" value={caseData.assignedRiskControl} highlight />
@@ -318,63 +337,51 @@ export default function CaseDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* 头部 */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
-                <p className="text-sm text-slate-500 mt-1">
-                  贷款单号：{caseData.loanNo}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setHeaderCollapsed(!headerCollapsed)}
-                className="ml-4"
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${headerCollapsed ? 'rotate-180' : ''}`} />
-              </Button>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="gap-2">
-              <Eye className="w-4 h-4" />
-              查看历史
-            </Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-              <Edit className="w-4 h-4" />
-              编辑
-            </Button>
-          </div>
+    <div className="min-h-screen bg-slate-50">
+      {/* 头部 - 可折叠 */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        {/* 折叠切换按钮条 */}
+        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setHeaderCollapsed(!headerCollapsed)}
+            className="gap-2 text-slate-600 hover:text-slate-900"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${headerCollapsed ? '' : 'rotate-180'}`} />
+            {headerCollapsed ? '展开标题' : '收起标题'}
+          </Button>
         </div>
 
-        {/* 可折叠的状态标签 */}
+        {/* 可折叠的头部内容 */}
         {!headerCollapsed && (
-          <div className="pt-4 border-t border-slate-100 mt-4">
-            <div className="flex items-center gap-4">
-              <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
-                {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
-              </Badge>
-              <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
-                {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
-              </Badge>
-              {caseData.isLocked && (
-                <Badge variant="destructive">已锁定</Badge>
-              )}
-              {caseData.isExtended && (
-                <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
-              )}
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => router.back()}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
+                  <p className="text-sm text-slate-500 mt-1">
+                    贷款单号：{caseData.loanNo}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" className="gap-2">
+                  <Eye className="w-4 h-4" />
+                  查看历史
+                </Button>
+                <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+                  <Edit className="w-4 h-4" />
+                  编辑
+                </Button>
+              </div>
             </div>
           </div>
         )}
