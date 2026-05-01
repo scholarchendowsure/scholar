@@ -48,11 +48,6 @@ const navItems: NavItem[] = [
     icon: <Briefcase className="h-5 w-5" />
   },
   {
-    title: '案件管理V2',
-    href: '/cases-v2',
-    icon: <Briefcase className="h-5 w-5" />
-  },
-  {
     title: '案件分配',
     href: '/assignment',
     icon: <Users className="h-5 w-5" />

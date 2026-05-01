@@ -1,95 +1,87 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, RefreshCw, Edit, Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
-import { CASE_STATUS_CONFIG, RISK_LEVEL_CONFIG, CLOSURE_TYPE_CONFIG } from '@/lib/constants';
-import {
-  ArrowLeft,
-  User,
-  Phone,
-  MapPin,
-  DollarSign,
-  Calendar,
-  FileText,
-  MessageSquare,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
-} from 'lucide-react';
-import Link from 'next/link';
+import { Case } from '@/types/case';
+import { toast } from 'sonner';
 
-interface CaseDetail {
-  id: string;
-  caseNo: string;
-  borrowerName: string;
-  borrowerPhone: string;
-  address: string;
-  debtAmount: string;
-  loanAmount: string;
-  loanBalance: string;
-  overdueAmount: string;
-  loanOrderNo: string;
-  companyName: string;
-  status: string;
-  riskLevel: string;
-  fundingSource: string;
-  assigneeName: string | null;
-  createdAt: string;
-  followups: Array<{
-    id: string;
-    visitTime: string;
-    visitResult: string;
-    communicationContent: string;
-    repaymentIntention: string;
-    nextPlan: string;
-    visitUser: string;
-  }>;
-  riskAssessments: Array<{
-    id: string;
-    riskLevel: string;
-    shopStatusTags: string[];
-    assetTags: string[];
-    repaymentTags: string[];
-    createdAt: string;
-  }>;
-}
+// 状态标签配置
+const STATUS_CONFIG = {
+  pending_assign: { label: '待分配', color: 'bg-yellow-100 text-yellow-800' },
+  pending_visit: { label: '待外访', color: 'bg-blue-100 text-blue-800' },
+  following: { label: '跟进中', color: 'bg-blue-600 text-white' },
+  closed: { label: '已结案', color: 'bg-green-100 text-green-800' },
+};
+
+// 风险等级配置
+const RISK_CONFIG = {
+  low: { label: '低', color: 'bg-green-100 text-green-800' },
+  medium: { label: '中', color: 'bg-yellow-100 text-yellow-800' },
+  high: { label: '高', color: 'bg-orange-100 text-orange-800' },
+  critical: { label: '极高', color: 'bg-red-100 text-red-800' },
+};
+
+// 金额格式化
+const formatMoney = (amount: number): string => {
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+// 字段显示组件
+const Field = ({ label, value, highlight = false }: { label: string; value: string | number | React.ReactNode; highlight?: boolean }) => (
+  <div className="space-y-1">
+    <dt className="text-sm font-medium text-slate-500">{label}</dt>
+    <dd className={`text-sm ${highlight ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>
+      {value !== undefined && value !== null && value !== '' ? value : '-'}
+    </dd>
+  </div>
+);
 
 export default function CaseDetailPage() {
   const params = useParams();
-  const [caseData, setCaseData] = useState<CaseDetail | null>(null);
+  const router = useRouter();
+  const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCase = async () => {
-      try {
-        const res = await fetch(`/api/cases/${params.id}`);
-        const json = await res.json();
-        if (json.success) {
-          setCaseData(json.data);
-        }
-      } catch (error) {
-        console.error('获取案件详情失败:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCase();
+    if (params.id) {
+      fetchCase(params.id as string);
+    }
   }, [params.id]);
+
+  const fetchCase = async (id: string) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/cases/${id}`);
+      const json: { success: boolean; data: Case } = await res.json();
+
+      if (json.success) {
+        setCaseData(json.data);
+      } else {
+        toast.error('获取案件详情失败');
+      }
+    } catch (error) {
+      toast.error('获取案件详情失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-        <div className="max-w-5xl mx-auto space-y-6">
-          <Skeleton className="h-12 w-64" />
-          <Skeleton className="h-64" />
-          <Skeleton className="h-96" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-slate-400" />
+          <p className="mt-2 text-slate-500">加载中...</p>
         </div>
       </div>
     );
@@ -97,203 +89,186 @@ export default function CaseDetailPage() {
 
   if (!caseData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
-        <p className="text-slate-500">案件不存在</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-500">案件不存在</p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => router.back()}
+          >
+            返回
+          </Button>
+        </div>
       </div>
     );
   }
 
-  const statusConfig = CASE_STATUS_CONFIG[caseData.status as keyof typeof CASE_STATUS_CONFIG];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* 头部 */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/cases">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+            >
+              <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                {caseData.caseNo}
-              </h1>
-              <Badge className={`mt-1 ${statusConfig?.color}`}>
-                {statusConfig?.label}
-              </Badge>
+              <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
+              <p className="text-sm text-slate-500 mt-1">
+                贷款单号：{caseData.loanNo}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline">编辑</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700">新建跟进</Button>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" className="gap-2">
+              <Eye className="w-4 h-4" />
+              查看历史
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+              <Edit className="w-4 h-4" />
+              编辑
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-        {/* 基本信息 */}
-        <Card className="border-slate-200 shadow-sm">
+      <div className="p-6 space-y-6">
+        {/* 案件核心信息 */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <User className="w-5 h-5 text-slate-400" />
-              基本信息
-            </CardTitle>
+            <CardTitle className="text-lg">案件核心信息</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">借款人</p>
-                <p className="font-medium">{caseData.borrowerName}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">联系电话</p>
-                <p className="font-mono">{caseData.borrowerPhone}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">贷款单号</p>
-                <p className="font-mono text-sm">{caseData.loanOrderNo}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">外访员</p>
-                <p className="font-medium">{caseData.assigneeName || '-'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">公司名称</p>
-                <p className="text-sm">{caseData.companyName}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">资金来源</p>
-                <p className="text-sm">{caseData.fundingSource}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">风险等级</p>
-                <Badge className={RISK_LEVEL_CONFIG[caseData.riskLevel as keyof typeof RISK_LEVEL_CONFIG]?.color}>
-                  {RISK_LEVEL_CONFIG[caseData.riskLevel as keyof typeof RISK_LEVEL_CONFIG]?.label}
-                </Badge>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-slate-500">创建时间</p>
-                <p className="text-sm">{formatDate(caseData.createdAt)}</p>
-              </div>
+            <div className="flex items-center gap-4 mb-6">
+              <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
+                {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+              </Badge>
+              <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
+                {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
+              </Badge>
+              {caseData.isLocked && (
+                <Badge variant="destructive">已锁定</Badge>
+              )}
+              {caseData.isExtended && (
+                <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
+              )}
             </div>
-            <Separator className="my-6" />
-            <div className="space-y-1">
-              <p className="text-sm text-slate-500">联系地址</p>
-              <p className="text-sm flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                {caseData.address}
-              </p>
-            </div>
+
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Field label="批次号" value={caseData.batchNo} highlight />
+              <Field label="贷款单号" value={caseData.loanNo} highlight />
+              <Field label="用户ID" value={caseData.userId} highlight />
+              <Field label="借款人姓名" value={caseData.borrowerName} highlight />
+              <Field label="产品名称" value={caseData.productName} />
+              <Field label="平台" value={caseData.platform} />
+              <Field label="支付公司" value={caseData.paymentCompany} />
+              <Field label="资金方" value={caseData.funder} />
+              <Field label="资金分类" value={caseData.fundCategory} />
+              <Field label="贷款状态" value={caseData.loanStatus} />
+              <Field label="五级分类" value={caseData.fiveLevelClassification} />
+            </dl>
           </CardContent>
         </Card>
 
-        {/* 财务信息 */}
-        <Card className="border-slate-200 shadow-sm">
+        {/* 贷款金额信息 */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-slate-400" />
-              财务信息
-            </CardTitle>
+            <CardTitle className="text-lg">贷款金额信息</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="p-4 bg-slate-50 rounded-lg text-center">
-                <p className="text-sm text-slate-500">贷款金额</p>
-                <p className="text-xl font-bold font-mono mt-1">{formatCurrency(caseData.loanAmount)}</p>
-              </div>
-              <div className="p-4 bg-slate-50 rounded-lg text-center">
-                <p className="text-sm text-slate-500">贷款余额</p>
-                <p className="text-xl font-bold font-mono mt-1">{formatCurrency(caseData.loanBalance)}</p>
-              </div>
-              <div className="p-4 bg-red-50 rounded-lg text-center">
-                <p className="text-sm text-red-500">逾期金额</p>
-                <p className="text-xl font-bold font-mono text-red-600 mt-1">{formatCurrency(caseData.overdueAmount)}</p>
-              </div>
-              <div className="p-4 bg-amber-50 rounded-lg text-center">
-                <p className="text-sm text-amber-500">欠款总额</p>
-                <p className="text-xl font-bold font-mono text-amber-600 mt-1">{formatCurrency(caseData.debtAmount)}</p>
-              </div>
-            </div>
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Field label="币种" value={caseData.currency} />
+              <Field label="贷款金额" value={formatMoney(caseData.loanAmount)} highlight />
+              <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount)} highlight />
+              <Field label="总在贷余额" value={formatMoney(caseData.totalOutstandingBalance)} highlight />
+              <Field label="已还款总额" value={formatMoney(caseData.totalRepaidAmount)} />
+              <Field label="在贷余额" value={formatMoney(caseData.outstandingBalance)} highlight />
+              <Field label="逾期金额" value={
+                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount)}
+                </span>
+              } highlight />
+              <Field label="逾期本金" value={formatMoney(caseData.overduePrincipal)} />
+              <Field label="逾期利息" value={formatMoney(caseData.overdueInterest)} />
+              <Field label="已还金额" value={formatMoney(caseData.repaidAmount)} />
+              <Field label="已还本金" value={formatMoney(caseData.repaidPrincipal)} />
+              <Field label="已还利息" value={formatMoney(caseData.repaidInterest)} />
+              <Field label="代偿总额" value={formatMoney(caseData.compensationAmount)} />
+            </dl>
           </CardContent>
         </Card>
 
-        {/* 跟进记录 */}
-        <Card className="border-slate-200 shadow-sm">
+        {/* 贷款期限时间 */}
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-slate-400" />
-              跟进记录 ({caseData.followups?.length || 0})
-            </CardTitle>
+            <CardTitle className="text-lg">贷款期限时间</CardTitle>
           </CardHeader>
           <CardContent>
-            {caseData.followups && caseData.followups.length > 0 ? (
-              <div className="space-y-4">
-                {caseData.followups.map((followup, index) => (
-                  <div key={followup.id} className="relative pl-6 pb-4 border-l-2 border-slate-200 last:pb-0">
-                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-blue-500 border-2 border-white" />
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="font-medium">{followup.visitUser}</span>
-                        <span className="text-slate-400">{formatDateTime(followup.visitTime)}</span>
-                        <Badge variant="outline" className="text-xs">{followup.visitResult}</Badge>
-                      </div>
-                      <p className="text-sm text-slate-600">{followup.communicationContent}</p>
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
-                        <span>还款意向: {followup.repaymentIntention}</span>
-                        <span>下一步: {followup.nextPlan}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                <MessageSquare className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-                <p>暂无跟进记录</p>
-              </div>
-            )}
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Field label="贷款期限" value={`${caseData.loanTerm} ${caseData.loanTermUnit}`} />
+              <Field label="贷款日期" value={caseData.loanDate} />
+              <Field label="到期日" value={caseData.dueDate} />
+              <Field label="逾期天数" value={
+                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
+                  {caseData.overdueDays}天
+                </span>
+              } highlight />
+              <Field label="逾期开始时间" value={caseData.overdueStartTime} />
+              <Field label="首次逾期时间" value={caseData.firstOverdueTime} />
+              <Field label="代偿日期" value={caseData.compensationDate} />
+            </dl>
           </CardContent>
         </Card>
 
-        {/* 风险评定 */}
-        {caseData.riskAssessments && caseData.riskAssessments.length > 0 && (
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-slate-400" />
-                风险评定
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {caseData.riskAssessments.map((assessment) => (
-                  <div key={assessment.id} className="p-4 bg-slate-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <Badge className={RISK_LEVEL_CONFIG[assessment.riskLevel as keyof typeof RISK_LEVEL_CONFIG]?.color}>
-                        {RISK_LEVEL_CONFIG[assessment.riskLevel as keyof typeof RISK_LEVEL_CONFIG]?.label}
-                      </Badge>
-                      <span className="text-xs text-slate-500">{formatDate(assessment.createdAt)}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {assessment.shopStatusTags?.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                      {assessment.assetTags?.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                      {assessment.repaymentTags?.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* 借款人主体信息 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">借款人主体信息</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Field label="公司名称" value={caseData.companyName} />
+              <Field label="公司地址" value={caseData.companyAddress} />
+              <Field label="家庭地址" value={caseData.homeAddress} />
+              <Field label="户籍地址" value={caseData.householdAddress} />
+              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
+              <Field label="注册手机号" value={caseData.registeredPhone} />
+              <Field label="联系方式" value={caseData.contactInfo} />
+            </dl>
+          </CardContent>
+        </Card>
+
+        {/* 案件责任归属 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">案件责任归属</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Field label="所属销售" value={caseData.assignedSales} highlight />
+              <Field label="所属风控" value={caseData.assignedRiskControl} highlight />
+              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
+            </dl>
+          </CardContent>
+        </Card>
+
+        {/* 系统信息 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">系统信息</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Field label="创建时间" value={new Date(caseData.createdAt).toLocaleString('zh-CN')} />
+              <Field label="更新时间" value={new Date(caseData.updatedAt).toLocaleString('zh-CN')} />
+            </dl>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

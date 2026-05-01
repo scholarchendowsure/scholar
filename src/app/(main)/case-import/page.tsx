@@ -74,7 +74,7 @@ export default function CaseImport() {
       const formData = new FormData();
       formData.append('file', selectedFile);
       
-      const response = await fetch('/api/cases-v2/preview', {
+      const response = await fetch('/api/cases/preview', {
         method: 'POST',
         body: formData,
       });
@@ -108,7 +108,7 @@ export default function CaseImport() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch('/api/cases-v2/import', {
+      const response = await fetch('/api/cases/import', {
         method: 'POST',
         body: formData,
       });
@@ -306,7 +306,7 @@ export default function CaseImport() {
 
               {importResult.successCases.length > 0 && (
                 <div className="mt-4">
-                  <Button variant="ghost" onClick={() => window.location.href = '/cases-v2'}>
+                  <Button variant="ghost" onClick={() => window.location.href = '/cases'}>
                     查看案件列表
                   </Button>
                 </div>
