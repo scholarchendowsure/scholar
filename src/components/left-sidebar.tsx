@@ -53,11 +53,6 @@ const navItems: NavItem[] = [
     icon: <Users className="h-5 w-5" />
   },
   {
-    title: '结清案件',
-    href: '/cases/closed',
-    icon: <CheckCircle2 className="h-5 w-5" />
-  },
-  {
     title: '还款记录',
     href: '/repayment-records',
     icon: <DollarSign className="h-5 w-5" />
