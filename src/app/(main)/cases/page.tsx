@@ -116,14 +116,32 @@ export default function CasesPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [search, setSearch] = useState('');
+  
+  // 筛选条件
   const [status, setStatus] = useState<string>('all');
   const [riskLevel, setRiskLevel] = useState<string>('all');
+  const [filterUserId, setFilterUserId] = useState('');
+  const [filterContactInfo, setFilterContactInfo] = useState('');
+  const [filterRiskLevelText, setFilterRiskLevelText] = useState('');
+  const [filterAssignedSales, setFilterAssignedSales] = useState('');
+  const [filterAssignedPostLoan, setFilterAssignedPostLoan] = useState('');
+  const [filterAssignedRiskControl, setFilterAssignedRiskControl] = useState('');
+  const [filterAddress, setFilterAddress] = useState('');
+  const [filterFunder, setFilterFunder] = useState('');
+  const [filterIsLocked, setFilterIsLocked] = useState('');
+  const [filterProductName, setFilterProductName] = useState('');
+  const [filterPlatform, setFilterPlatform] = useState('');
+  const [filterFundCategory, setFilterFundCategory] = useState('');
+  const [filterPaymentCompany, setFilterPaymentCompany] = useState('');
+  const [filterIsExtended, setFilterIsExtended] = useState('');
+  const [filterOverdueStage, setFilterOverdueStage] = useState('');
+  const [filterCurrency, setFilterCurrency] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterFollowupContent, setFilterFollowupContent] = useState('');
+  const [filterOverdueDaysMin, setFilterOverdueDaysMin] = useState('');
+  const [filterOverdueDaysMax, setFilterOverdueDaysMax] = useState('');
+  
   const [showFilters, setShowFilters] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [importProgress, setImportProgress] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
   // 列选择状态
@@ -158,6 +176,26 @@ export default function CasesPage() {
         ...(status !== 'all' && { status }),
         ...(riskLevel !== 'all' && { riskLevel }),
         ...(debouncedSearch && { search: debouncedSearch }),
+        ...(filterUserId && { filterUserId }),
+        ...(filterContactInfo && { filterContactInfo }),
+        ...(filterRiskLevelText && { filterRiskLevelText }),
+        ...(filterAssignedSales && { filterAssignedSales }),
+        ...(filterAssignedPostLoan && { filterAssignedPostLoan }),
+        ...(filterAssignedRiskControl && { filterAssignedRiskControl }),
+        ...(filterAddress && { filterAddress }),
+        ...(filterFunder && { filterFunder }),
+        ...(filterIsLocked && { filterIsLocked }),
+        ...(filterProductName && { filterProductName }),
+        ...(filterPlatform && { filterPlatform }),
+        ...(filterFundCategory && { filterFundCategory }),
+        ...(filterPaymentCompany && { filterPaymentCompany }),
+        ...(filterIsExtended && { filterIsExtended }),
+        ...(filterOverdueStage && { filterOverdueStage }),
+        ...(filterCurrency && { filterCurrency }),
+        ...(filterCategory && { filterCategory }),
+        ...(filterFollowupContent && { filterFollowupContent }),
+        ...(filterOverdueDaysMin && { filterOverdueDaysMin }),
+        ...(filterOverdueDaysMax && { filterOverdueDaysMax }),
       });
 
       const res = await fetch(`/api/cases?${params}`);
@@ -173,7 +211,33 @@ export default function CasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, status, riskLevel, debouncedSearch]);
+  }, [
+    page, 
+    pageSize, 
+    status, 
+    riskLevel, 
+    debouncedSearch,
+    filterUserId,
+    filterContactInfo,
+    filterRiskLevelText,
+    filterAssignedSales,
+    filterAssignedPostLoan,
+    filterAssignedRiskControl,
+    filterAddress,
+    filterFunder,
+    filterIsLocked,
+    filterProductName,
+    filterPlatform,
+    filterFundCategory,
+    filterPaymentCompany,
+    filterIsExtended,
+    filterOverdueStage,
+    filterCurrency,
+    filterCategory,
+    filterFollowupContent,
+    filterOverdueDaysMin,
+    filterOverdueDaysMax,
+  ]);
 
   useEffect(() => {
     fetchCases();
@@ -184,6 +248,26 @@ export default function CasesPage() {
     setSearch('');
     setStatus('all');
     setRiskLevel('all');
+    setFilterUserId('');
+    setFilterContactInfo('');
+    setFilterRiskLevelText('');
+    setFilterAssignedSales('');
+    setFilterAssignedPostLoan('');
+    setFilterAssignedRiskControl('');
+    setFilterAddress('');
+    setFilterFunder('');
+    setFilterIsLocked('');
+    setFilterProductName('');
+    setFilterPlatform('');
+    setFilterFundCategory('');
+    setFilterPaymentCompany('');
+    setFilterIsExtended('');
+    setFilterOverdueStage('');
+    setFilterCurrency('');
+    setFilterCategory('');
+    setFilterFollowupContent('');
+    setFilterOverdueDaysMin('');
+    setFilterOverdueDaysMax('');
     setPage(1);
   };
 
@@ -492,11 +576,54 @@ export default function CasesPage() {
             >
               <Filter className="w-4 h-4" />
               筛选
-              {(status !== 'all' || riskLevel !== 'all') && (
+              {[
+                status !== 'all',
+                riskLevel !== 'all',
+                filterUserId,
+                filterContactInfo,
+                filterRiskLevelText,
+                filterAssignedSales,
+                filterAssignedPostLoan,
+                filterAssignedRiskControl,
+                filterAddress,
+                filterFunder,
+                filterIsLocked,
+                filterProductName,
+                filterPlatform,
+                filterFundCategory,
+                filterPaymentCompany,
+                filterIsExtended,
+                filterOverdueStage,
+                filterCurrency,
+                filterCategory,
+                filterFollowupContent,
+                filterOverdueDaysMin,
+                filterOverdueDaysMax,
+              ].filter(Boolean).length > 0 && (
                 <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700">
                   {[
-                    status !== 'all' && '状态',
-                    riskLevel !== 'all' && '风险',
+                    status !== 'all',
+                    riskLevel !== 'all',
+                    filterUserId,
+                    filterContactInfo,
+                    filterRiskLevelText,
+                    filterAssignedSales,
+                    filterAssignedPostLoan,
+                    filterAssignedRiskControl,
+                    filterAddress,
+                    filterFunder,
+                    filterIsLocked,
+                    filterProductName,
+                    filterPlatform,
+                    filterFundCategory,
+                    filterPaymentCompany,
+                    filterIsExtended,
+                    filterOverdueStage,
+                    filterCurrency,
+                    filterCategory,
+                    filterFollowupContent,
+                    filterOverdueDaysMin,
+                    filterOverdueDaysMax,
                   ].filter(Boolean).length}
                 </Badge>
               )}
@@ -577,45 +704,223 @@ export default function CasesPage() {
       <div className="px-6">
         {showFilters && (
           <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in slide-in-from-top-2">
-            <div className="flex flex-wrap items-end gap-4">
-              <div className="w-[180px]">
-                <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态</label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="全部状态" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部状态</SelectItem>
-                    <SelectItem value="pending_assign">待分配</SelectItem>
-                    <SelectItem value="pending_visit">待外访</SelectItem>
-                    <SelectItem value="following">跟进中</SelectItem>
-                    <SelectItem value="closed">已结案</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 第一行 */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">用户ID</label>
+                <Input
+                  placeholder="多个ID用空格分隔"
+                  value={filterUserId}
+                  onChange={(e) => { setFilterUserId(e.target.value); setPage(1); }}
+                />
               </div>
-              <div className="w-[180px]">
-                <label className="text-sm font-medium text-slate-700 mb-2 block">风险等级</label>
-                <Select value={riskLevel} onValueChange={setRiskLevel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="全部风险" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部风险</SelectItem>
-                    <SelectItem value="low">低</SelectItem>
-                    <SelectItem value="medium">中</SelectItem>
-                    <SelectItem value="high">高</SelectItem>
-                    <SelectItem value="critical">极高</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">联系方式</label>
+                <Input
+                  placeholder="请输入联系方式"
+                  value={filterContactInfo}
+                  onChange={(e) => { setFilterContactInfo(e.target.value); setPage(1); }}
+                />
               </div>
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="gap-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                清除
-              </Button>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">客户风险等级</label>
+                <Input
+                  placeholder="请输入风险等级"
+                  value={filterRiskLevelText}
+                  onChange={(e) => { setFilterRiskLevelText(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">所属销售</label>
+                <Input
+                  placeholder="请输入销售姓名"
+                  value={filterAssignedSales}
+                  onChange={(e) => { setFilterAssignedSales(e.target.value); setPage(1); }}
+                />
+              </div>
+              
+              {/* 第二行 */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">所属贷后</label>
+                <Input
+                  placeholder="请输入贷后人员"
+                  value={filterAssignedPostLoan}
+                  onChange={(e) => { setFilterAssignedPostLoan(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">所属风控</label>
+                <Input
+                  placeholder="请输入风控人员"
+                  value={filterAssignedRiskControl}
+                  onChange={(e) => { setFilterAssignedRiskControl(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">地址</label>
+                <Input
+                  placeholder="请输入地址"
+                  value={filterAddress}
+                  onChange={(e) => { setFilterAddress(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">资金方</label>
+                <Input
+                  placeholder="请输入资金方"
+                  value={filterFunder}
+                  onChange={(e) => { setFilterFunder(e.target.value); setPage(1); }}
+                />
+              </div>
+              
+              {/* 第三行 */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">锁定情况</label>
+                <Input
+                  placeholder="请输入锁定情况"
+                  value={filterIsLocked}
+                  onChange={(e) => { setFilterIsLocked(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">产品名称</label>
+                <Input
+                  placeholder="请输入产品名称"
+                  value={filterProductName}
+                  onChange={(e) => { setFilterProductName(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">平台</label>
+                <Input
+                  placeholder="请输入平台"
+                  value={filterPlatform}
+                  onChange={(e) => { setFilterPlatform(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">资金分类</label>
+                <Input
+                  placeholder="请输入资金分类"
+                  value={filterFundCategory}
+                  onChange={(e) => { setFilterFundCategory(e.target.value); setPage(1); }}
+                />
+              </div>
+              
+              {/* 第四行 */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">支付公司</label>
+                <Input
+                  placeholder="请输入支付公司"
+                  value={filterPaymentCompany}
+                  onChange={(e) => { setFilterPaymentCompany(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">是否展期</label>
+                <Input
+                  placeholder="请输入是否展期"
+                  value={filterIsExtended}
+                  onChange={(e) => { setFilterIsExtended(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">逾期阶段</label>
+                <Input
+                  placeholder="请输入逾期阶段"
+                  value={filterOverdueStage}
+                  onChange={(e) => { setFilterOverdueStage(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">币种</label>
+                <Input
+                  placeholder="请输入币种"
+                  value={filterCurrency}
+                  onChange={(e) => { setFilterCurrency(e.target.value); setPage(1); }}
+                />
+              </div>
+              
+              {/* 第五行 */}
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">分类</label>
+                <Input
+                  placeholder="请输入分类"
+                  value={filterCategory}
+                  onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">跟进记录内容</label>
+                <Input
+                  placeholder="请输入跟进记录"
+                  value={filterFollowupContent}
+                  onChange={(e) => { setFilterFollowupContent(e.target.value); setPage(1); }}
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">逾期天数区间</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="最小"
+                    value={filterOverdueDaysMin}
+                    onChange={(e) => { setFilterOverdueDaysMin(e.target.value); setPage(1); }}
+                    type="number"
+                  />
+                  <span className="text-slate-400">-</span>
+                  <Input
+                    placeholder="最大"
+                    value={filterOverdueDaysMax}
+                    onChange={(e) => { setFilterOverdueDaysMax(e.target.value); setPage(1); }}
+                    type="number"
+                  />
+                </div>
+              </div>
+              
+              {/* 操作按钮 */}
+              <div className="lg:col-span-4 flex items-end gap-2 mt-2">
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  className="gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  清除
+                </Button>
+                
+                <div className="ml-auto">
+                  <div className="w-[180px]">
+                    <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态</label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="全部状态" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全部状态</SelectItem>
+                        <SelectItem value="pending_assign">待分配</SelectItem>
+                        <SelectItem value="pending_visit">待外访</SelectItem>
+                        <SelectItem value="following">跟进中</SelectItem>
+                        <SelectItem value="closed">已结案</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="w-[180px]">
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">风险等级</label>
+                  <Select value={riskLevel} onValueChange={setRiskLevel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="全部风险" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部风险</SelectItem>
+                      <SelectItem value="low">低</SelectItem>
+                      <SelectItem value="medium">中</SelectItem>
+                      <SelectItem value="high">高</SelectItem>
+                      <SelectItem value="critical">极高</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           </div>
         )}

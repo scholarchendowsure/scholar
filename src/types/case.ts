@@ -9,61 +9,66 @@ export interface Case {
   loanNo: string; // 贷款单号
   userId: string; // 用户ID
   borrowerName: string; // 借款人姓名
-  productName: string; // 产品名称
-  platform: string; // 平台
-  paymentCompany: string; // 支付公司
-  funder: string; // 资金方
-  fundCategory: string; // 资金分类
+  productName?: string; // 产品名称（可选）
+  platform?: string; // 平台（可选）
+  paymentCompany?: string; // 支付公司（可选）
+  funder?: string; // 资金方（可选）
+  fundCategory?: string; // 资金分类（可选）
+  category?: string; // 分类（新增，可选）
+  overdueStage?: string; // 逾期阶段（新增，可选）
 
   // ===== 案件核心状态 =====
   status: string; // 状态
-  loanStatus: string; // 贷款状态
-  isLocked: boolean; // 锁定情况
-  fiveLevelClassification: string; // 五级分类
-  riskLevel: string; // 风险等级
-  isExtended: boolean; // 是否展期
+  loanStatus?: string; // 贷款状态（可选）
+  isLocked?: boolean; // 锁定情况（可选）
+  fiveLevelClassification?: string; // 五级分类（可选）
+  riskLevel?: string; // 风险等级（可选）
+  isExtended?: boolean; // 是否展期（可选）
+  
+  // ===== 跟进记录 =====
+  followUps?: any[]; // 跟进记录（新增，可选）
 
   // ===== 贷款核心金额 =====
-  currency: string; // 币种
-  loanAmount: number; // 贷款金额
-  totalLoanAmount: number; // 总贷款金额
+  currency?: string; // 币种（可选）
+  loanAmount?: number; // 贷款金额（可选）
+  totalLoanAmount?: number; // 总贷款金额（可选）
   totalOutstandingBalance: number; // 总在贷余额
-  totalRepaidAmount: number; // 已还款总额
-  outstandingBalance: number; // 在贷余额
+  totalRepaidAmount?: number; // 已还款总额（可选）
+  outstandingBalance?: number; // 在贷余额（可选）
   overdueAmount: number; // 逾期金额
-  overduePrincipal: number; // 逾期本金
-  overdueInterest: number; // 逾期利息
-  repaidAmount: number; // 已还金额
-  repaidPrincipal: number; // 已还本金
-  repaidInterest: number; // 已还利息
-  compensationAmount: number; // 代偿总额
+  overduePrincipal?: number; // 逾期本金（可选）
+  overdueInterest?: number; // 逾期利息（可选）
+  repaidAmount?: number; // 已还金额（可选）
+  repaidPrincipal?: number; // 已还本金（可选）
+  repaidInterest?: number; // 已还利息（可选）
+  compensationAmount?: number; // 代偿总额（可选）
 
   // ===== 贷款期限时间 =====
-  loanTerm: number; // 贷款期限
-  loanTermUnit: string; // 贷款期限单位
-  loanDate: string; // 贷款日期
-  dueDate: string; // 到期日
+  loanTerm?: number; // 贷款期限（可选）
+  loanTermUnit?: string; // 贷款期限单位（可选）
+  loanDate?: string; // 贷款日期（可选）
+  dueDate?: string; // 到期日（可选）
   overdueDays: number; // 逾期天数
-  overdueStartTime: string; // 逾期开始时间
-  firstOverdueTime: string; // 首次逾期时间
-  compensationDate: string; // 代偿日期
+  overdueStartTime?: string; // 逾期开始时间（可选）
+  firstOverdueTime?: string; // 首次逾期时间（可选）
+  compensationDate?: string; // 代偿日期（可选）
 
   // ===== 借款人主体信息 =====
-  companyName: string; // 公司名称
-  companyAddress: string; // 公司地址
-  homeAddress: string; // 家庭地址
-  householdAddress: string; // 户籍地址
-  borrowerPhone: string; // 借款人手机号
-  registeredPhone: string; // 注册手机号
-  contactInfo: string; // 联系方式
+  companyName?: string; // 公司名称（可选）
+  companyAddress?: string; // 公司地址（可选）
+  homeAddress?: string; // 家庭地址（可选）
+  householdAddress?: string; // 户籍地址（可选）
+  borrowerPhone?: string; // 借款人手机号（可选）
+  registeredPhone?: string; // 注册手机号（可选）
+  contactInfo?: string; // 联系方式（可选）
 
   // ===== 案件责任归属 =====
-  assignedSales: string; // 所属销售
-  assignedRiskControl: string; // 所属风控
-  assignedPostLoan: string; // 所属贷后
+  assignedSales?: string; // 所属销售（可选）
+  assignedRiskControl?: string; // 所属风控（可选）
+  assignedPostLoan?: string; // 所属贷后（可选）
 
   // ===== 系统元数据 =====
-  assigneeName: string | null; // 当前跟进人
+  assigneeName?: string | null; // 当前跟进人（可选）
   createdAt: string; // 创建时间
   updatedAt: string; // 更新时间
 }

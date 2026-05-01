@@ -137,7 +137,9 @@ export const caseStorage = {
 
     cases.forEach(c => {
       byStatus[c.status] = (byStatus[c.status] || 0) + 1;
-      byRiskLevel[c.riskLevel] = (byRiskLevel[c.riskLevel] || 0) + 1;
+      if (c.riskLevel) {
+        byRiskLevel[c.riskLevel] = (byRiskLevel[c.riskLevel] || 0) + 1;
+      }
     });
 
     return {

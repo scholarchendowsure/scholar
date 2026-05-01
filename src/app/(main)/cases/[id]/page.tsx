@@ -123,25 +123,25 @@ export default function CaseDetailPage() {
             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Field label="用户ID" value={caseData.userId} highlight />
               <Field label="借款人姓名" value={caseData.borrowerName} highlight />
-              <Field label="币种" value={caseData.currency} />
-              <Field label="在贷金额" value={formatMoney(caseData.outstandingBalance)} highlight />
+              <Field label="币种" value={caseData.currency || '-'} />
+              <Field label="在贷金额" value={formatMoney(caseData.outstandingBalance || 0)} highlight />
               <Field label="逾期金额" value={
-                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
-                  {formatMoney(caseData.overdueAmount)}
+                <span className={(caseData.overdueAmount || 0) > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount || 0)}
                 </span>
               } highlight />
-              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
-              <Field label="资金方" value={caseData.funder} />
-              <Field label="支付公司" value={caseData.paymentCompany} />
+              <Field label="借款人手机号" value={caseData.borrowerPhone || '-'} highlight />
+              <Field label="资金方" value={caseData.funder || '-'} />
+              <Field label="支付公司" value={caseData.paymentCompany || '-'} />
               <Field label="逾期天数" value={
-                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
-                  {caseData.overdueDays}天
+                <span className={(caseData.overdueDays || 0) > 90 ? 'text-red-600 font-semibold' : (caseData.overdueDays || 0) > 0 ? 'text-orange-600' : ''}>
+                  {caseData.overdueDays || 0}天
                 </span>
               } highlight />
-              <Field label="产品名称" value={caseData.productName} />
-              <Field label="所属销售" value={caseData.assignedSales} highlight />
-              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
-              <Field label="风险等级" value={caseData.riskLevel} highlight />
+              <Field label="产品名称" value={caseData.productName || '-'} />
+              <Field label="所属销售" value={caseData.assignedSales || '-'} highlight />
+              <Field label="所属贷后" value={caseData.assignedPostLoan || '-'} highlight />
+              <Field label="风险等级" value={caseData.riskLevel || '-'} highlight />
             </dl>
           </div>
         );
@@ -177,23 +177,23 @@ export default function CaseDetailPage() {
           <div className="p-6">
             {/* 原有的金额信息字段 */}
             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Field label="币种" value={caseData.currency} />
-              <Field label="贷款金额" value={formatMoney(caseData.loanAmount)} highlight />
-              <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount)} highlight />
+              <Field label="币种" value={caseData.currency || '-'} />
+              <Field label="贷款金额" value={formatMoney(caseData.loanAmount || 0)} highlight />
+              <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount || 0)} highlight />
               <Field label="总在贷余额" value={formatMoney(caseData.totalOutstandingBalance)} highlight />
-              <Field label="已还款总额" value={formatMoney(caseData.totalRepaidAmount)} />
-              <Field label="在贷余额" value={formatMoney(caseData.outstandingBalance)} highlight />
+              <Field label="已还款总额" value={formatMoney(caseData.totalRepaidAmount || 0)} />
+              <Field label="在贷余额" value={formatMoney(caseData.outstandingBalance || 0)} highlight />
               <Field label="逾期金额" value={
-                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
-                  {formatMoney(caseData.overdueAmount)}
+                <span className={(caseData.overdueAmount || 0) > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount || 0)}
                 </span>
               } highlight />
-              <Field label="逾期本金" value={formatMoney(caseData.overduePrincipal)} />
-              <Field label="逾期利息" value={formatMoney(caseData.overdueInterest)} />
-              <Field label="已还金额" value={formatMoney(caseData.repaidAmount)} />
-              <Field label="已还本金" value={formatMoney(caseData.repaidPrincipal)} />
-              <Field label="已还利息" value={formatMoney(caseData.repaidInterest)} />
-              <Field label="代偿总额" value={formatMoney(caseData.compensationAmount)} />
+              <Field label="逾期本金" value={formatMoney(caseData.overduePrincipal || 0)} />
+              <Field label="逾期利息" value={formatMoney(caseData.overdueInterest || 0)} />
+              <Field label="已还金额" value={formatMoney(caseData.repaidAmount || 0)} />
+              <Field label="已还本金" value={formatMoney(caseData.repaidPrincipal || 0)} />
+              <Field label="已还利息" value={formatMoney(caseData.repaidInterest || 0)} />
+              <Field label="代偿总额" value={formatMoney(caseData.compensationAmount || 0)} />
             </dl>
             
             {/* 金额统计表 */}
@@ -322,7 +322,7 @@ export default function CaseDetailPage() {
                         <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedPostLoan || '-'}</td>
                         <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedSales || '-'}</td>
                         <td className="px-6 py-4 text-sm text-red-600 font-bold">
-                          {formatMoney(loan.outstandingBalance)}
+                          {formatMoney(loan.outstandingBalance || 0)}
                         </td>
                         <td className="px-6 py-4">
                           <button
