@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2, RefreshCw, Download, Upload, FileText, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 // 状态标签配置
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   pending_assign: { label: '待分配', color: 'bg-yellow-100 text-yellow-800' },
   pending_visit: { label: '待外访', color: 'bg-blue-100 text-blue-800' },
   following: { label: '跟进中', color: 'bg-blue-600 text-white' },
@@ -23,7 +23,7 @@ const STATUS_CONFIG = {
 };
 
 // 风险等级配置
-const RISK_CONFIG = {
+const RISK_CONFIG: Record<string, { label: string; color: string }> = {
   low: { label: '低', color: 'bg-green-100 text-green-800' },
   medium: { label: '中', color: 'bg-yellow-100 text-yellow-800' },
   high: { label: '高', color: 'bg-orange-100 text-orange-800' },
@@ -51,6 +51,11 @@ export default function CasesPage() {
   const [status, setStatus] = useState<string>('all');
   const [riskLevel, setRiskLevel] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importProgress, setImportProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -102,6 +107,183 @@ export default function CasesPage() {
     setPage(1);
   };
 
+  // 下载模板
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch('/api/cases-v2/template');
+      if (!res.ok) throw new Error('下载失败');
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '案件导入模板.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success('模板下载成功');
+    } catch (error) {
+      toast.error('下载模板失败');
+    }
+  };
+
+  // 选择文件
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  // 导入案件
+  const handleImport = async () => {
+    if (!selectedFile) {
+      toast.error('请选择要导入的文件');
+      return;
+    }
+
+    setImporting(true);
+    setImportProgress(0);
+
+    try {
+      // 读取CSV文件
+      const text = await selectedFile.text();
+      setImportProgress(30);
+
+      // 解析CSV
+      const rows = parseCSV(text);
+      if (rows.length < 2) {
+        throw new Error('文件格式不正确，至少需要标题行和一条数据');
+      }
+
+      setImportProgress(50);
+
+      // 转换数据
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
+      const cases = dataRows.map(row => {
+        const obj: any = {};
+        headers.forEach((header, index) => {
+          obj[header] = row[index] || '';
+        });
+        return convertToCaseFormat(obj);
+      });
+
+      setImportProgress(70);
+
+      // 提交导入
+      const res = await fetch('/api/cases-v2/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cases }),
+      });
+
+      const result = await res.json();
+      setImportProgress(100);
+
+      if (result.success) {
+        toast.success(`成功导入 ${result.count} 条案件`);
+        setShowImportDialog(false);
+        setSelectedFile(null);
+        fetchCases();
+      } else {
+        throw new Error(result.error || '导入失败');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '导入失败');
+    } finally {
+      setImporting(false);
+      setImportProgress(0);
+    }
+  };
+
+  // 简单CSV解析
+  const parseCSV = (text: string): string[][] => {
+    const lines = text.trim().split('\n');
+    return lines.map(line => {
+      // 简单处理，处理带引号的字段
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    });
+  };
+
+  // 转换到Case格式（字段名映射）
+  const convertToCaseFormat = (obj: any): any => {
+    const fieldMap: Record<string, string> = {
+      '批次号': 'batchNo',
+      '贷款单号': 'loanNo',
+      '用户ID': 'userId',
+      '借款人姓名': 'borrowerName',
+      '状态': 'status',
+      '币种': 'currency',
+      '逾期天数': 'overdueDays',
+      '贷款期限': 'loanTerm',
+      '贷款期限单位': 'loanTermUnit',
+      '贷款金额': 'loanAmount',
+      '总贷款金额': 'totalLoanAmount',
+      '总在贷余额': 'totalOutstandingBalance',
+      '已还款总额': 'totalRepaidAmount',
+      '在贷余额': 'outstandingBalance',
+      '逾期金额': 'overdueAmount',
+      '逾期本金': 'overduePrincipal',
+      '逾期利息': 'overdueInterest',
+      '已还金额': 'repaidAmount',
+      '已还本金': 'repaidPrincipal',
+      '已还利息': 'repaidInterest',
+      '公司名称': 'companyName',
+      '公司地址': 'companyAddress',
+      '家庭地址': 'homeAddress',
+      '户籍地址': 'householdAddress',
+      '借款人手机号': 'borrowerPhone',
+      '注册手机号': 'registeredPhone',
+      '联系方式': 'contactInfo',
+      '贷款状态': 'loanStatus',
+      '锁定情况': 'isLocked',
+      '平台': 'platform',
+      '支付公司': 'paymentCompany',
+      '五级分类': 'fiveLevelClassification',
+      '风险等级': 'riskLevel',
+      '所属销售': 'assignedSales',
+      '所属风控': 'assignedRiskControl',
+      '所属贷后': 'assignedPostLoan',
+      '资金方': 'funder',
+      '贷款日期': 'loanDate',
+      '到期日': 'dueDate',
+      '产品名称': 'productName',
+      '逾期开始时间': 'overdueStartTime',
+      '首次逾期时间': 'firstOverdueTime',
+      '资金分类': 'fundCategory',
+      '代偿总额': 'compensationAmount',
+      '代偿日期': 'compensationDate',
+      '是否展期': 'isExtended',
+    };
+
+    const result: any = {};
+    Object.entries(obj).forEach(([key, value]) => {
+      const newKey = fieldMap[key] || key;
+      result[newKey] = value;
+    });
+
+    return result;
+  };
+
   const hasFilters = search || status !== 'all' || riskLevel !== 'all';
 
   return (
@@ -116,6 +298,22 @@ export default function CasesPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleDownloadTemplate}
+              className="gap-2"
+            >
+              <Download className="w-4 h-4" />
+              下载模板
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowImportDialog(true)}
+              className="gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              导入案件
+            </Button>
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
@@ -140,6 +338,92 @@ export default function CasesPage() {
           </div>
         </div>
       </div>
+
+      {/* 导入对话框 */}
+      {showImportDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h3 className="text-lg font-semibold text-slate-900">导入案件</h3>
+              <button
+                onClick={() => setShowImportDialog(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  选择文件
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                >
+                  {selectedFile ? (
+                    <div>
+                      <FileText className="w-10 h-10 text-blue-500 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-slate-900">{selectedFile.name}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {(selectedFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm text-slate-600">点击或拖拽文件到此处</p>
+                      <p className="text-xs text-slate-400 mt-1">支持 CSV、Excel 格式</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {importing && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm text-slate-600 mb-1">
+                    <span>导入中...</span>
+                    <span>{importProgress}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${importProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowImportDialog(false);
+                    setSelectedFile(null);
+                  }}
+                  disabled={importing}
+                >
+                  取消
+                </Button>
+                <Button
+                  onClick={handleImport}
+                  disabled={!selectedFile || importing}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {importing ? '导入中...' : '开始导入'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 筛选面板 */}
       <div className="px-6">
@@ -248,87 +532,85 @@ export default function CasesPage() {
                     <TableRow className="bg-slate-50">
                       <TableHead className="font-medium">用户ID</TableHead>
                       <TableHead className="font-medium">借款人姓名</TableHead>
-                      <TableHead className="font-medium">产品名称</TableHead>
                       <TableHead className="font-medium">币种</TableHead>
                       <TableHead className="font-medium text-right">总在贷金额</TableHead>
                       <TableHead className="font-medium text-right">逾期金额</TableHead>
-                      <TableHead className="font-medium">逾期天数</TableHead>
                       <TableHead className="font-medium">借款人手机号</TableHead>
                       <TableHead className="font-medium">资金方</TableHead>
                       <TableHead className="font-medium">支付公司</TableHead>
+                      <TableHead className="font-medium">逾期天数</TableHead>
+                      <TableHead className="font-medium">产品名称</TableHead>
                       <TableHead className="font-medium">所属销售</TableHead>
                       <TableHead className="font-medium">所属贷后</TableHead>
                       <TableHead className="font-medium">风险等级</TableHead>
-                      <TableHead className="font-medium">状态</TableHead>
-                      <TableHead className="font-medium w-[80px]">操作</TableHead>
+                      <TableHead className="font-medium w-24">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cases.map((caseItem) => (
-                      <TableRow key={caseItem.id} className="hover:bg-slate-50 transition-colors">
-                        <TableCell className="font-mono text-sm">{caseItem.userId}</TableCell>
-                        <TableCell className="font-medium">{caseItem.borrowerName}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{caseItem.productName}</TableCell>
-                        <TableCell className="text-sm">{caseItem.currency}</TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">{formatMoney(caseItem.totalOutstandingBalance)}</TableCell>
-                        <TableCell className={`text-right font-mono tabular-nums ${caseItem.overdueAmount > 0 ? 'text-red-600' : ''}`}>
-                          {formatMoney(caseItem.overdueAmount)}
-                        </TableCell>
-                        <TableCell className={`font-mono tabular-nums ${caseItem.overdueDays > 90 ? 'text-red-600 font-medium' : caseItem.overdueDays > 0 ? 'text-orange-600' : ''}`}>
-                          {caseItem.overdueDays}天
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">{caseItem.borrowerPhone}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{caseItem.funder}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{caseItem.paymentCompany}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{caseItem.assignedSales}</TableCell>
-                        <TableCell className="text-sm text-slate-600">{caseItem.assignedPostLoan}</TableCell>
-                        <TableCell>
-                          <Badge className={RISK_CONFIG[caseItem.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
-                            {RISK_CONFIG[caseItem.riskLevel as keyof typeof RISK_CONFIG]?.label || caseItem.riskLevel}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={STATUS_CONFIG[caseItem.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
-                            {STATUS_CONFIG[caseItem.status as keyof typeof STATUS_CONFIG]?.label || caseItem.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/cases-v2/${caseItem.id}`} className="flex items-center gap-2 cursor-pointer">
-                                  <Eye className="w-4 h-4" />
-                                  查看详情
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-2">
-                                <Edit className="w-4 h-4" />
-                                编辑
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-2 text-red-600">
-                                <Trash2 className="w-4 h-4" />
-                                删除
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {cases.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={14} className="text-center py-12 text-slate-500">
+                          暂无案件数据
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      cases.map((caseItem) => (
+                        <TableRow key={caseItem.id} className="hover:bg-slate-50">
+                          <TableCell className="font-mono text-sm">{caseItem.userId}</TableCell>
+                          <TableCell className="font-medium">{caseItem.borrowerName}</TableCell>
+                          <TableCell>{caseItem.currency}</TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatMoney(caseItem.totalOutstandingBalance)}
+                          </TableCell>
+                          <TableCell className={`text-right font-mono ${caseItem.overdueAmount > 0 ? 'text-red-600' : ''}`}>
+                            {formatMoney(caseItem.overdueAmount)}
+                          </TableCell>
+                          <TableCell>{caseItem.borrowerPhone}</TableCell>
+                          <TableCell>{caseItem.funder}</TableCell>
+                          <TableCell>{caseItem.paymentCompany}</TableCell>
+                          <TableCell className={caseItem.overdueDays > 0 ? 'text-red-600 font-medium' : ''}>
+                            {caseItem.overdueDays > 0 ? `${caseItem.overdueDays}天` : '-'}
+                          </TableCell>
+                          <TableCell>{caseItem.productName}</TableCell>
+                          <TableCell>{caseItem.assignedSales}</TableCell>
+                          <TableCell>{caseItem.assignedPostLoan}</TableCell>
+                          <TableCell>
+                            {caseItem.riskLevel && (
+                              <Badge className={RISK_CONFIG[caseItem.riskLevel]?.color || 'bg-slate-100 text-slate-800'}>
+                                {RISK_CONFIG[caseItem.riskLevel]?.label || caseItem.riskLevel}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/cases-v2/${caseItem.id}`} className="cursor-pointer">
+                                    <Eye className="w-4 h-4 mr-2" />
+                                    查看详情
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  编辑
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600">
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  删除
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
-
-                {cases.length === 0 && !loading && (
-                  <div className="flex items-center justify-center h-64">
-                    <div className="text-center">
-                      <p className="text-slate-500">暂无案件数据</p>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>
@@ -341,11 +623,10 @@ export default function CasesPage() {
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
-                    onClick={() => page > 1 && setPage(page - 1)}
-                    className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                   />
                 </PaginationItem>
-
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum = i + 1;
                   if (totalPages > 5) {
@@ -357,24 +638,21 @@ export default function CasesPage() {
                       pageNum = page - 2 + i;
                     }
                   }
-
                   return (
                     <PaginationItem key={pageNum}>
                       <PaginationLink
                         onClick={() => setPage(pageNum)}
                         isActive={page === pageNum}
-                        className="cursor-pointer"
                       >
                         {pageNum}
                       </PaginationLink>
                     </PaginationItem>
                   );
                 })}
-
                 <PaginationItem>
                   <PaginationNext
-                    onClick={() => page < totalPages && setPage(page + 1)}
-                    className={page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                    className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                   />
                 </PaginationItem>
               </PaginationContent>
