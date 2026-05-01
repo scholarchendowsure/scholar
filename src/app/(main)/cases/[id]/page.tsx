@@ -52,6 +52,8 @@ export default function CaseDetailPage() {
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('core');
+  const [relatedLoans, setRelatedLoans] = useState<Case[]>([]);
+  const [relatedLoansLoading, setRelatedLoansLoading] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -76,6 +78,29 @@ export default function CaseDetailPage() {
       setLoading(false);
     }
   };
+
+  const fetchRelatedLoans = async (userId: string | number) => {
+    try {
+      setRelatedLoansLoading(true);
+      const res = await fetch(`/api/cases/user/${userId}`);
+      const json: { success: boolean; data: Case[] } = await res.json();
+
+      if (json.success) {
+        setRelatedLoans(json.data);
+      }
+    } catch (error) {
+      console.error('获取相关贷款失败:', error);
+    } finally {
+      setRelatedLoansLoading(false);
+    }
+  };
+
+  // 当activeTab切换到timeline且有caseData时，获取相关贷款
+  useEffect(() => {
+    if (activeTab === 'timeline' && caseData?.userId) {
+      fetchRelatedLoans(caseData.userId);
+    }
+  }, [activeTab, caseData?.userId]);
 
   const tabs = [
     { id: 'core', label: '核心信息', color: 'bg-blue-600 text-white' },
@@ -145,20 +170,85 @@ export default function CaseDetailPage() {
       
       case 'timeline':
         return (
-          <div className="p-6">
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Field label="贷款期限" value={`${caseData.loanTerm} ${caseData.loanTermUnit}`} />
-              <Field label="贷款日期" value={caseData.loanDate} />
-              <Field label="到期日" value={caseData.dueDate} />
-              <Field label="逾期天数" value={
-                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
-                  {caseData.overdueDays}天
+          <div className="p-0">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 bg-red-500 rounded"></div>
+                <h3 className="text-lg font-bold text-slate-900">相关贷款记录</h3>
+                <span className="text-sm text-slate-500">
+                  ({relatedLoans.length}条)
                 </span>
-              } highlight />
-              <Field label="逾期开始时间" value={caseData.overdueStartTime} />
-              <Field label="首次逾期时间" value={caseData.firstOverdueTime} />
-              <Field label="代偿日期" value={caseData.compensationDate} />
-            </dl>
+              </div>
+            </div>
+            
+            {relatedLoansLoading ? (
+              <div className="p-8 text-center">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400" />
+                <p className="mt-2 text-slate-500">加载中...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-left text-sm font-medium text-slate-600">
+                      <th className="px-6 py-4">贷款编号</th>
+                      <th className="px-6 py-4">用户ID</th>
+                      <th className="px-6 py-4">资金方</th>
+                      <th className="px-6 py-4">产品名称</th>
+                      <th className="px-6 py-4">借款人姓名</th>
+                      <th className="px-6 py-4">逾期金额</th>
+                      <th className="px-6 py-4">币种</th>
+                      <th className="px-6 py-4">逾期天数</th>
+                      <th className="px-6 py-4">所属贷后</th>
+                      <th className="px-6 py-4">所属销售</th>
+                      <th className="px-6 py-4 text-red-600 font-bold">在贷金额</th>
+                      <th className="px-6 py-4">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {relatedLoans.map((loan) => (
+                      <tr key={loan.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-slate-900 font-mono">{loan.loanNo}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{loan.userId}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.funder || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.productName || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{loan.borrowerName}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={loan.overdueAmount > 0 ? 'text-red-600 font-semibold' : 'text-slate-700'}>
+                            {formatMoney(loan.overdueAmount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.currency || '-'}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={loan.overdueDays > 0 ? 'text-orange-600' : 'text-slate-700'}>
+                            {loan.overdueDays}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedPostLoan || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedSales || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-red-600 font-bold">
+                          {formatMoney(loan.outstandingBalance)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => router.push(`/cases/${loan.id}`)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            查看详情
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {relatedLoans.length === 0 && (
+                  <div className="p-8 text-center text-slate-500">
+                    暂无相关贷款记录
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       
