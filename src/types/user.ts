@@ -1,7 +1,18 @@
 // 用户管理系统完整类型定义
 
 export type UserStatus = 'active' | 'inactive' | 'locked';
-export type UserRole = 'super_admin' | 'admin' | 'manager' | 'agent';
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'agent' | string;
+
+export interface Role {
+  id: string;
+  name: string;               // 角色名称
+  code: string;               // 角色编码（唯一）
+  description?: string;       // 角色描述
+  permissions: string[];       // 权限列表
+  isSystem: boolean;          // 是否为系统内置角色（不可删除）
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface User {
   id: string;
@@ -97,3 +108,77 @@ export const USER_PERMISSIONS: Record<UserRole, string[]> = {
     'case:read', 'case:update',
   ],
 };
+
+// 预定义系统角色
+export const SYSTEM_ROLES: Role[] = [
+  {
+    id: 'role_super_admin',
+    name: '超级管理员',
+    code: 'super_admin',
+    description: '拥有所有系统权限',
+    permissions: ['*'],
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'role_admin',
+    name: '系统管理员',
+    code: 'admin',
+    description: '管理用户和案件',
+    permissions: [
+      'user:create', 'user:read', 'user:update', 'user:delete',
+      'user:reset_password', 'user:unlock',
+      'case:create', 'case:read', 'case:update', 'case:delete',
+      'case:export', 'log:read',
+    ],
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'role_manager',
+    name: '经理',
+    code: 'manager',
+    description: '查看用户和管理案件',
+    permissions: [
+      'user:read',
+      'case:create', 'case:read', 'case:update', 'case:export',
+    ],
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'role_agent',
+    name: '外访员',
+    code: 'agent',
+    description: '查看和更新案件',
+    permissions: [
+      'case:read', 'case:update',
+    ],
+    isSystem: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+// 所有可用的权限选项
+export const ALL_PERMISSION_OPTIONS = [
+  { key: 'user:create', label: '创建用户' },
+  { key: 'user:read', label: '查看用户' },
+  { key: 'user:update', label: '编辑用户' },
+  { key: 'user:delete', label: '删除用户' },
+  { key: 'user:reset_password', label: '重置用户密码' },
+  { key: 'user:unlock', label: '解锁用户' },
+  { key: 'case:create', label: '创建案件' },
+  { key: 'case:read', label: '查看案件' },
+  { key: 'case:update', label: '编辑案件' },
+  { key: 'case:delete', label: '删除案件' },
+  { key: 'case:export', label: '导出案件' },
+  { key: 'log:read', label: '查看操作日志' },
+  { key: 'role:create', label: '创建角色' },
+  { key: 'role:read', label: '查看角色' },
+  { key: 'role:update', label: '编辑角色' },
+  { key: 'role:delete', label: '删除角色' },
+];

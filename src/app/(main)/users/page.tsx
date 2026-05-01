@@ -38,10 +38,12 @@ import {
   User,
   UserRole,
   UserStatus,
+  Role,
   USER_ROLE_LABELS,
   USER_STATUS_LABELS,
   INITIAL_PASSWORD,
   DEFAULT_PASSWORD_RULE,
+  ALL_PERMISSION_OPTIONS,
 } from '@/types/user';
 import {
   Plus,
@@ -58,6 +60,8 @@ import {
   Download,
   Shield,
   Clock,
+  UserCheck,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -98,6 +102,19 @@ export default function UsersPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  // 角色管理状态
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [roleCreateDialogOpen, setRoleCreateDialogOpen] = useState(false);
+  const [roleEditDialogOpen, setRoleEditDialogOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [roleFormData, setRoleFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    permissions: [] as string[],
+  });
 
   // Form states
   const [formData, setFormData] = useState({
@@ -134,9 +151,28 @@ export default function UsersPage() {
     }
   }, [page, filters]);
 
+  const fetchRoles = useCallback(async () => {
+    setRolesLoading(true);
+    try {
+      const res = await fetch('/api/roles');
+      const result = await res.json();
+      if (result.success) {
+        setRoles(result.data);
+      }
+    } catch (error) {
+      toast.error('获取角色列表失败');
+    } finally {
+      setRolesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    if (activeTab === 'users') {
+      fetchUsers();
+    } else {
+      fetchRoles();
+    }
+  }, [activeTab, fetchUsers, fetchRoles]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -384,6 +420,107 @@ export default function UsersPage() {
     setViewDialogOpen(true);
   };
 
+  // ===== 角色管理函数 =====
+  const handleRoleCreate = async () => {
+    if (!roleFormData.name || !roleFormData.code || roleFormData.permissions.length === 0) {
+      toast.error('请填写必填字段并选择至少一个权限');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roleFormData),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        toast.success('角色创建成功');
+        setRoleCreateDialogOpen(false);
+        resetRoleForm();
+        fetchRoles();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || '创建失败');
+      }
+    } catch (error) {
+      toast.error('创建失败');
+    }
+  };
+
+  const handleRoleUpdate = async () => {
+    if (!selectedRole) return;
+    if (!roleFormData.name || !roleFormData.code || roleFormData.permissions.length === 0) {
+      toast.error('请填写必填字段并选择至少一个权限');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/roles/${selectedRole.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(roleFormData),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        toast.success('角色更新成功');
+        setRoleEditDialogOpen(false);
+        resetRoleForm();
+        fetchRoles();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || '更新失败');
+      }
+    } catch (error) {
+      toast.error('更新失败');
+    }
+  };
+
+  const handleRoleDelete = async (role: Role) => {
+    if (role.isSystem) {
+      toast.error('系统内置角色不能删除');
+      return;
+    }
+    if (!confirm('确定要删除该角色吗？此操作不可恢复！')) return;
+
+    try {
+      const res = await fetch(`/api/roles/${role.id}`, { method: 'DELETE' });
+
+      if (res.ok) {
+        toast.success('角色已删除');
+        fetchRoles();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || '删除失败');
+      }
+    } catch (error) {
+      toast.error('删除失败');
+    }
+  };
+
+  const openRoleEditDialog = (role: Role) => {
+    setSelectedRole(role);
+    setRoleFormData({
+      name: role.name,
+      code: role.code,
+      description: role.description || '',
+      permissions: [...role.permissions],
+    });
+    setRoleEditDialogOpen(true);
+  };
+
+  const resetRoleForm = () => {
+    setRoleFormData({
+      name: '',
+      code: '',
+      description: '',
+      permissions: [],
+    });
+    setSelectedRole(null);
+  };
+
   const resetForm = () => {
     setFormData({
       realName: '',
@@ -432,6 +569,10 @@ export default function UsersPage() {
           <TabsTrigger value="users">
             <Users className="h-4 w-4 mr-2" />
             用户列表
+          </TabsTrigger>
+          <TabsTrigger value="roles">
+            <ShieldCheck className="h-4 w-4 mr-2" />
+            角色管理
           </TabsTrigger>
           <TabsTrigger value="security">
             <Shield className="h-4 w-4 mr-2" />
@@ -674,6 +815,97 @@ export default function UsersPage() {
               </div>
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="roles" className="space-y-4">
+          {/* 角色管理头部 */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">角色管理</h2>
+              <p className="text-sm text-muted-foreground">管理系统角色和权限配置</p>
+            </div>
+            <Button onClick={() => { resetRoleForm(); setRoleCreateDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              新建角色
+            </Button>
+          </div>
+
+          {/* 角色列表 */}
+          <Card>
+            <CardContent className="pt-6">
+              {rolesLoading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>角色名称</TableHead>
+                      <TableHead>角色编码</TableHead>
+                      <TableHead>描述</TableHead>
+                      <TableHead>权限数量</TableHead>
+                      <TableHead>类型</TableHead>
+                      <TableHead>创建时间</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {roles.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                          暂无角色数据
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      roles.map((role) => (
+                        <TableRow key={role.id}>
+                          <TableCell className="font-medium">{role.name}</TableCell>
+                          <TableCell><code className="text-xs bg-muted px-2 py-1 rounded">{role.code}</code></TableCell>
+                          <TableCell className="text-muted-foreground max-w-xs truncate">{role.description || '-'}</TableCell>
+                          <TableCell>{role.permissions.includes('*') ? '全部' : role.permissions.length} 项</TableCell>
+                          <TableCell>
+                            {role.isSystem ? (
+                              <Badge variant="secondary">系统内置</Badge>
+                            ) : (
+                              <Badge variant="outline">自定义</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{formatDateTime(role.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openRoleEditDialog(role)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  编辑
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  disabled={role.isSystem}
+                                  onClick={() => handleRoleDelete(role)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  删除
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-4">
@@ -1007,6 +1239,139 @@ export default function UsersPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewDialogOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 创建角色 Dialog */}
+      <Dialog open={roleCreateDialogOpen} onOpenChange={setRoleCreateDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>新建角色</DialogTitle>
+            <DialogDescription>创建新的系统角色</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>角色名称 *</Label>
+                <Input
+                  value={roleFormData.name}
+                  onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
+                  placeholder="请输入角色名称"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>角色编码 *</Label>
+                <Input
+                  value={roleFormData.code}
+                  onChange={(e) => setRoleFormData({ ...roleFormData, code: e.target.value })}
+                  placeholder="例如: custom_role"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>角色描述</Label>
+              <Input
+                value={roleFormData.description}
+                onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
+                placeholder="请输入角色描述"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>权限配置 *</Label>
+              <div className="border rounded-md p-4 bg-muted/30">
+                <div className="flex flex-wrap gap-3">
+                  {ALL_PERMISSION_OPTIONS.map((perm) => (
+                    <label key={perm.key} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={roleFormData.permissions.includes(perm.key)}
+                        onChange={(e) => {
+                          const newPerms = e.target.checked
+                            ? [...roleFormData.permissions, perm.key]
+                            : roleFormData.permissions.filter((p) => p !== perm.key);
+                          setRoleFormData({ ...roleFormData, permissions: newPerms });
+                        }}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">{perm.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoleCreateDialogOpen(false)}>取消</Button>
+            <Button onClick={handleRoleCreate}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 编辑角色 Dialog */}
+      <Dialog open={roleEditDialogOpen} onOpenChange={setRoleEditDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>编辑角色</DialogTitle>
+            <DialogDescription>修改角色信息</DialogDescription>
+          </DialogHeader>
+          {selectedRole && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>角色名称 *</Label>
+                  <Input
+                    value={roleFormData.name}
+                    onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>角色编码</Label>
+                  <Input
+                    value={roleFormData.code}
+                    onChange={(e) => setRoleFormData({ ...roleFormData, code: e.target.value })}
+                    disabled={selectedRole.isSystem}
+                  />
+                  {selectedRole.isSystem && (
+                    <p className="text-xs text-muted-foreground">系统内置角色不能修改编码</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>角色描述</Label>
+                <Input
+                  value={roleFormData.description}
+                  onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>权限配置 *</Label>
+                <div className="border rounded-md p-4 bg-muted/30">
+                  <div className="flex flex-wrap gap-3">
+                    {ALL_PERMISSION_OPTIONS.map((perm) => (
+                      <label key={perm.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={roleFormData.permissions.includes(perm.key)}
+                          onChange={(e) => {
+                            const newPerms = e.target.checked
+                              ? [...roleFormData.permissions, perm.key]
+                              : roleFormData.permissions.filter((p) => p !== perm.key);
+                            setRoleFormData({ ...roleFormData, permissions: newPerms });
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">{perm.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRoleEditDialogOpen(false)}>取消</Button>
+            <Button onClick={handleRoleUpdate}>保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
