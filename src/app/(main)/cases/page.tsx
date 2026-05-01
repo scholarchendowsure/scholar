@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Case } from '@/types/case';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -624,7 +623,7 @@ export default function CasesPage() {
                           <TableCell>{caseItem.assignedPostLoan}</TableCell>
                           <TableCell>
                             {caseItem.riskLevel && (
-                              <Badge className={RISK_CONFIG[caseItem.riskLevel]?.color || 'bg-slate-100 text-slate-800'}>
+                              <Badge className={RISK_CONFIG[caseItem.riskLevel]?.color || ''}>
                                 {RISK_CONFIG[caseItem.riskLevel]?.label || caseItem.riskLevel}
                               </Badge>
                             )}
@@ -632,8 +631,8 @@ export default function CasesPage() {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="w-4 h-4" />
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -664,49 +663,54 @@ export default function CasesPage() {
           </CardContent>
         </Card>
 
-        {/* 分页 */}
-        {totalPages > 1 && (
-          <div className="mt-6">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setPage(Math.max(1, page - 1))}
-                    className={page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
-                </PaginationItem>
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum = i + 1;
-                  if (totalPages > 5) {
-                    if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-                  }
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
-                        onClick={() => setPage(pageNum)}
-                        isActive={page === pageNum}
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                })}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => setPage(Math.min(totalPages, page + 1))}
-                    className={page === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+        {/* 分页控制 */}
+        <div className="mt-6 flex items-center justify-between bg-white border border-slate-200 rounded-lg px-6 py-4">
+          <div className="flex items-center gap-4 text-slate-600">
+            <span className="text-lg">共 <span className="font-bold text-slate-900">{total.toLocaleString()}</span> 条</span>
+            <span className="text-lg">第 <span className="font-bold text-slate-900">{page}</span> / <span className="font-bold text-slate-900">{totalPages}</span> 页</span>
           </div>
-        )}
+          
+          <div className="flex items-center gap-4">
+            {/* 上一页 */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              className={page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100'}
+            >
+              上一页
+            </Button>
+            
+            {/* 下一页 */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              className={page === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-100'}
+            >
+              下一页
+            </Button>
+            
+            {/* 每页条数选择 */}
+            <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="h-10 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-lg"
+              >
+                <option value={10}>10条/页</option>
+                <option value={20}>20条/页</option>
+                <option value={50}>50条/页</option>
+                <option value={100}>100条/页</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
