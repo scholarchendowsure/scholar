@@ -7,18 +7,17 @@ import {
   errorResponse,
   successResponse,
   checkLoginAttempts,
-  recordLoginFailure,
   clearLoginAttempts,
   checkCaptchaAttempts,
   recordCaptchaFailure,
   clearCaptchaAttempts,
-  getClientIP
 } from '@/lib/security';
 
 // 登录认证
 export async function POST(request: Request) {
   try {
-    const ip = getClientIP(request);
+    const forwarded = request.headers.get('x-forwarded-for');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
     
     // 检查登录尝试限制
     const attemptCheck = checkLoginAttempts(ip);
@@ -75,25 +74,43 @@ export async function POST(request: Request) {
     // 验证用户
     const user = userStorage.findByUsername(username);
     if (!user) {
-      recordLoginFailure(ip);
+      userStorage.recordLoginFailure(username);
       const response = createSecureJsonResponse(errorResponse('用户名或密码错误'), { status: 401 });
       return addSecurityHeaders(response);
     }
 
-    if (user.password !== password) {
-      recordLoginFailure(ip);
-      const response = createSecureJsonResponse(errorResponse('用户名或密码错误'), { status: 401 });
+    // 检查账号是否锁定
+    if (userStorage.isLocked(user)) {
+      const response = createSecureJsonResponse(errorResponse('账号已被锁定，请1小时后重试或联系管理员解锁'), { status: 403 });
       return addSecurityHeaders(response);
     }
 
-    if (!user.isActive) {
-      recordLoginFailure(ip);
-      const response = createSecureJsonResponse(errorResponse('账户已被禁用'), { status: 403 });
+    // 检查账号状态
+    if (user.status === 'inactive') {
+      const response = createSecureJsonResponse(errorResponse('账户已被停用'), { status: 403 });
+      return addSecurityHeaders(response);
+    }
+
+    // 检查IP是否允许
+    if (!userStorage.checkIpAllowed(user, ip)) {
+      const response = createSecureJsonResponse(errorResponse('当前IP不允许登录'), { status: 403 });
+      return addSecurityHeaders(response);
+    }
+
+    // 验证密码
+    if (!userStorage.verifyPassword(user, password)) {
+      const result = userStorage.recordLoginFailure(username);
+      if (result.locked) {
+        const response = createSecureJsonResponse(errorResponse('密码连续错误5次，账号已锁定1小时'), { status: 403 });
+        return addSecurityHeaders(response);
+      }
+      const response = createSecureJsonResponse(errorResponse(`用户名或密码错误，剩余${5 - user.loginAttempts - 1}次尝试`), { status: 401 });
       return addSecurityHeaders(response);
     }
 
     // 登录成功，清除尝试记录
     clearLoginAttempts(ip);
+    userStorage.recordLoginSuccess(user.id, ip, request.headers.get('user-agent') || '');
 
     // 生成简单的token（实际项目中应使用JWT）
     const token = Buffer.from(JSON.stringify({
@@ -105,14 +122,15 @@ export async function POST(request: Request) {
 
     const response = createSecureJsonResponse(successResponse({
       token,
+      mustChangePassword: user.mustChangePassword,
       user: {
         id: user.id,
         username: user.username,
-        name: user.realName || user.name,
+        realName: user.realName,
         role: user.role,
         email: user.email,
         phone: user.phone,
-        department: user.department
+        department: user.department,
       }
     }));
     return addSecurityHeaders(response);

@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/auth';
+import { userStorage } from '@/storage/database/user-storage';
+import { INITIAL_PASSWORD, USER_ROLE_LABELS } from '@/types/user';
 import { formatDateTime } from '@/lib/utils';
-
-// Mock用户数据
-let mockUsers = [
-  { id: '1', sequence: 1, name: '张三', username: 'zhangsan', email: 'zhangsan@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-20T09:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '2', sequence: 2, name: '李四', username: 'lisi', email: 'lisi@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-19T18:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '3', sequence: 3, name: '王五', username: 'wangwu', email: 'wangwu@example.com', password: 'admin123', department: '管理部', role: 'manager', status: 'active', lastLoginTime: '2024-01-20T08:30:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '4', sequence: 4, name: '管理员', username: 'admin', email: 'admin@example.com', password: 'admin123', department: '管理部', role: 'admin', status: 'active', lastLoginTime: '2024-01-20T10:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-];
 
 // 获取用户列表
 export async function GET(request: Request) {
@@ -17,40 +11,46 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
     const keyword = searchParams.get('keyword') || '';
-    const role = searchParams.get('role');
-    const status = searchParams.get('status');
+    const username = searchParams.get('username') || '';
+    const realName = searchParams.get('realName') || '';
+    const position = searchParams.get('position') || '';
+    const department = searchParams.get('department') || '';
+    const status = searchParams.get('status') || '';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+    const exportFlag = searchParams.get('export') === 'true';
 
-    let filteredUsers = [...mockUsers];
+    const filters = {
+      keyword,
+      username,
+      realName,
+      position,
+      department,
+      status,
+      startDate,
+      endDate,
+    };
 
-    if (keyword) {
-      filteredUsers = filteredUsers.filter(u =>
-        u.name.includes(keyword) ||
-        u.username.includes(keyword) ||
-        (u.email && u.email.includes(keyword))
-      );
-    }
-    if (role) {
-      filteredUsers = filteredUsers.filter(u => u.role === role);
-    }
-    if (status) {
-      filteredUsers = filteredUsers.filter(u => u.status === status);
+    if (exportFlag) {
+      // 导出用户数据
+      const users = userStorage.exportUsers(filters);
+      return NextResponse.json(successResponse({
+        data: users,
+        exportedAt: new Date().toISOString(),
+      }));
     }
 
-    const total = filteredUsers.length;
-    const totalPages = Math.ceil(total / pageSize);
-    const offset = (page - 1) * pageSize;
-    const paginatedUsers = filteredUsers.slice(offset, offset + pageSize);
+    const result = userStorage.paginate(page, pageSize, filters);
 
     return NextResponse.json(successResponse({
-      data: paginatedUsers.map(u => ({
+      data: result.data.map(u => ({
         ...u,
-        lastLoginTime: u.lastLoginTime ? formatDateTime(u.lastLoginTime) : null,
-        createdAt: formatDateTime(u.createdAt),
+        roleLabel: USER_ROLE_LABELS[u.role],
       })),
-      total,
+      total: result.total,
       page,
       pageSize,
-      totalPages,
+      totalPages: result.totalPages,
     }));
   } catch (error) {
     console.error('Get users error:', error);
@@ -63,32 +63,32 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    if (!body.name || !body.username || !body.password) {
+    if (!body.realName || !body.username) {
       return NextResponse.json(errorResponse('请填写必填字段'), { status: 400 });
     }
 
     // 检查用户名是否已存在
-    if (mockUsers.some(u => u.username === body.username)) {
+    if (userStorage.findByUsername(body.username)) {
       return NextResponse.json(errorResponse('用户名已存在'), { status: 400 });
     }
 
-    const newUser = {
-      id: String(mockUsers.length + 1),
-      sequence: mockUsers.length + 1,
-      name: body.name,
+    const newUser = userStorage.create({
       username: body.username,
-      email: (body.email || '') as string,
-      password: body.password,
-      department: (body.department || '') as string,
+      realName: body.realName,
+      email: body.email || '',
+      phone: body.phone || '',
+      department: body.department || '',
+      position: body.position || '',
       role: body.role || 'agent',
       status: 'active',
-      lastLoginTime: '',
-      createdAt: new Date().toISOString(),
-    };
-    
-    mockUsers.push(newUser);
+      allowedIps: body.allowedIps || [],
+    });
 
-    return NextResponse.json(successResponse(newUser));
+    return NextResponse.json(successResponse({
+      ...newUser,
+      initialPassword: INITIAL_PASSWORD,
+      message: `用户创建成功，初始密码为 ${INITIAL_PASSWORD}`,
+    }));
   } catch (error) {
     console.error('Create user error:', error);
     return NextResponse.json(errorResponse('创建用户失败'), { status: 500 });

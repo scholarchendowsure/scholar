@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 import { successResponse, errorResponse } from '@/lib/auth';
-
-// Mock用户数据
-let mockUsers = [
-  { id: '1', sequence: 1, name: '张三', username: 'zhangsan', email: 'zhangsan@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-20T09:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '2', sequence: 2, name: '李四', username: 'lisi', email: 'lisi@example.com', password: 'admin123', department: '外访部', role: 'agent', status: 'active', lastLoginTime: '2024-01-19T18:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '3', sequence: 3, name: '王五', username: 'wangwu', email: 'wangwu@example.com', password: 'admin123', department: '管理部', role: 'manager', status: 'active', lastLoginTime: '2024-01-20T08:30:00Z', createdAt: '2024-01-01T00:00:00Z' },
-  { id: '4', sequence: 4, name: '管理员', username: 'admin', email: 'admin@example.com', password: 'admin123', department: '管理部', role: 'admin', status: 'active', lastLoginTime: '2024-01-20T10:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
-];
+import { userStorage } from '@/storage/database/user-storage';
+import { INITIAL_PASSWORD } from '@/types/user';
 
 // 获取用户详情
 export async function GET(
@@ -16,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const user = mockUsers.find(u => u.id === id);
+    const user = userStorage.findById(id);
 
     if (!user) {
       return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
@@ -37,23 +31,59 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const index = mockUsers.findIndex(u => u.id === id);
+    
+    // 如果是重置密码
+    if (body.action === 'reset_password') {
+      const result = userStorage.resetPassword(id);
+      if (!result.success) {
+        return NextResponse.json(errorResponse(result.message || '重置密码失败'), { status: 400 });
+      }
+      return NextResponse.json(successResponse({
+        message: result.message,
+        initialPassword: INITIAL_PASSWORD,
+      }));
+    }
+    
+    // 如果是解锁
+    if (body.action === 'unlock') {
+      const success = userStorage.unlockUser(id);
+      if (!success) {
+        return NextResponse.json(errorResponse('解锁失败'), { status: 400 });
+      }
+      return NextResponse.json(successResponse({ message: '用户已解锁' }));
+    }
+    
+    // 如果是启用/停用
+    if (body.action === 'toggle_status') {
+      const user = userStorage.findById(id);
+      if (!user) {
+        return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
+      }
+      const newStatus = user.status === 'active' ? 'inactive' : 'active';
+      userStorage.update(id, { status: newStatus });
+      return NextResponse.json(successResponse({ 
+        message: newStatus === 'active' ? '用户已启用' : '用户已停用',
+        status: newStatus,
+      }));
+    }
 
-    if (index === -1) {
+    // 普通更新
+    const updateData: Record<string, unknown> = {};
+    if (body.realName !== undefined) updateData.realName = body.realName;
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.department !== undefined) updateData.department = body.department;
+    if (body.position !== undefined) updateData.position = body.position;
+    if (body.role !== undefined) updateData.role = body.role;
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.allowedIps !== undefined) updateData.allowedIps = body.allowedIps;
+
+    const updatedUser = userStorage.update(id, updateData);
+    if (!updatedUser) {
       return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
     }
 
-    mockUsers[index] = {
-      ...mockUsers[index],
-      name: body.name ?? mockUsers[index].name,
-      email: body.email ?? mockUsers[index].email,
-      department: body.department ?? mockUsers[index].department,
-      role: body.role ?? mockUsers[index].role,
-      status: body.status ?? mockUsers[index].status,
-      password: body.password ?? mockUsers[index].password,
-    };
-
-    return NextResponse.json(successResponse(mockUsers[index]));
+    return NextResponse.json(successResponse(updatedUser));
   } catch (error) {
     console.error('Update user error:', error);
     return NextResponse.json(errorResponse('更新用户失败'), { status: 500 });
@@ -67,13 +97,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const index = mockUsers.findIndex(u => u.id === id);
-
-    if (index === -1) {
+    const success = userStorage.delete(id);
+    
+    if (!success) {
       return NextResponse.json(errorResponse('用户不存在'), { status: 404 });
     }
-
-    mockUsers.splice(index, 1);
 
     return NextResponse.json(successResponse({ message: '删除成功' }));
   } catch (error) {
