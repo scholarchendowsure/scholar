@@ -59,6 +59,22 @@ export async function GET(request: NextRequest) {
           return searchTerms.some(term => c.userId.toLowerCase().includes(term));
         }
       });
+
+      // 多个搜索词时，按搜索词顺序排序
+      if (searchTerms.length > 1) {
+        cases = cases.sort((a, b) => {
+          // 找到a和b在searchTerms中的位置
+          const getPriority = (c: any) => {
+            for (let i = 0; i < searchTerms.length; i++) {
+              if (c.userId.toLowerCase().includes(searchTerms[i])) {
+                return i;
+              }
+            }
+            return searchTerms.length;
+          };
+          return getPriority(a) - getPriority(b);
+        });
+      }
     }
     
     // 新增筛选条件 - 全部支持部分匹配

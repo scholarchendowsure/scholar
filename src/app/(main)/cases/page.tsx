@@ -791,7 +791,6 @@ export default function CasesPage() {
             <p className="text-sm text-slate-500">
               共 {total} 个案件
               {enableDedup && <span className="ml-2 text-amber-600 font-medium">(已按用户去重)</span>}
-              {initialState && <span className="ml-2 text-green-600 font-medium">(状态已恢复)</span>}
             </p>
           </div>
           <div className="flex items-center gap-3">
