@@ -147,9 +147,36 @@ export default function CaseDetailPage() {
         );
       
       case 'finance':
+        // 计算金额统计
+        const stats = relatedLoans.reduce((acc, loan) => {
+          const key = `${loan.funder || '-'}-${loan.currency || '-'}`;
+          if (!acc[key]) {
+            acc[key] = {
+              funder: loan.funder || '-',
+              currency: loan.currency || '-',
+              loanCount: 0,
+              totalLoanAmount: 0,
+              totalOutstandingBalance: 0,
+              totalOverdueAmount: 0,
+              totalRepaidAmount: 0,
+              totalCompensationAmount: 0
+            };
+          }
+          acc[key].loanCount++;
+          acc[key].totalLoanAmount += loan.totalLoanAmount || 0;
+          acc[key].totalOutstandingBalance += loan.totalOutstandingBalance || 0;
+          acc[key].totalOverdueAmount += loan.overdueAmount || 0;
+          acc[key].totalRepaidAmount += loan.totalRepaidAmount || 0;
+          acc[key].totalCompensationAmount += loan.compensationAmount || 0;
+          return acc;
+        }, {} as Record<string, any>);
+        
+        const statsList = Object.values(stats);
+        
         return (
           <div className="p-6">
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 原有的金额信息字段 */}
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Field label="币种" value={caseData.currency} />
               <Field label="贷款金额" value={formatMoney(caseData.loanAmount)} highlight />
               <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount)} highlight />
@@ -168,6 +195,71 @@ export default function CaseDetailPage() {
               <Field label="已还利息" value={formatMoney(caseData.repaidInterest)} />
               <Field label="代偿总额" value={formatMoney(caseData.compensationAmount)} />
             </dl>
+            
+            {/* 金额统计表 */}
+            <Separator className="mb-8" />
+            <div className="mb-4 flex items-center gap-3">
+              <div className="w-1 h-6 bg-amber-500 rounded"></div>
+              <h3 className="text-lg font-bold text-slate-900">金额统计</h3>
+              <span className="text-sm text-slate-500">
+                ({statsList.length}组)
+              </span>
+            </div>
+            
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full">
+                <thead className="bg-slate-50">
+                  <tr className="text-left text-sm font-medium text-slate-600">
+                    <th className="px-4 py-3">贷款单号数量</th>
+                    <th className="px-4 py-3">资金方</th>
+                    <th className="px-4 py-3">币种</th>
+                    <th className="px-4 py-3">总贷款金额</th>
+                    <th className="px-4 py-3">总在贷金额</th>
+                    <th className="px-4 py-3">总逾期金额</th>
+                    <th className="px-4 py-3">总已还金额</th>
+                    <th className="px-4 py-3">总代偿金额</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {statsList.map((stat, index) => (
+                    <tr key={index} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-slate-900 font-medium">
+                        {stat.loanCount}条
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        {stat.funder}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        {stat.currency}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900 font-mono">
+                        {formatMoney(stat.totalLoanAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-red-600 font-semibold font-mono">
+                        {formatMoney(stat.totalOutstandingBalance)}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={stat.totalOverdueAmount > 0 ? 'text-red-600 font-semibold' : 'text-slate-700'}>
+                          {formatMoney(stat.totalOverdueAmount)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900 font-mono">
+                        {formatMoney(stat.totalRepaidAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900 font-mono">
+                        {formatMoney(stat.totalCompensationAmount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {statsList.length === 0 && (
+                <div className="p-8 text-center text-slate-500">
+                  暂无金额统计数据
+                </div>
+              )}
+            </div>
           </div>
         );
       
