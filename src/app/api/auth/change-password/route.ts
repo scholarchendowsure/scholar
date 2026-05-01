@@ -7,15 +7,13 @@ import {
   successResponse,
   checkChangePasswordAttempts,
   recordChangePasswordFailure,
-  clearChangePasswordAttempts,
-  validatePasswordStrength,
-  getClientIP
+  clearChangePasswordAttempts
 } from '@/lib/security';
 
 // 修改密码
 export async function POST(request: Request) {
   try {
-    const ip = getClientIP(request);
+    const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
     
     // 检查修改密码尝试限制
     const attemptCheck = checkChangePasswordAttempts(ip);
@@ -32,13 +30,6 @@ export async function POST(request: Request) {
       return addSecurityHeaders(response);
     }
 
-    // 验证密码强度
-    const passwordCheck = validatePasswordStrength(newPassword);
-    if (!passwordCheck.valid) {
-      const response = createSecureJsonResponse(errorResponse(passwordCheck.message || '密码强度不足'), { status: 400 });
-      return addSecurityHeaders(response);
-    }
-
     // 从Authorization header获取用户ID（如果没有提供userId）
     let targetUserId = userId;
     if (!targetUserId) {
@@ -47,7 +38,7 @@ export async function POST(request: Request) {
         const response = createSecureJsonResponse(errorResponse('未授权'), { status: 401 });
         return addSecurityHeaders(response);
       }
-      
+        
       try {
         const token = authHeader.replace('Bearer ', '');
         const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
@@ -77,21 +68,14 @@ export async function POST(request: Request) {
       return addSecurityHeaders(response);
     }
 
-    // 验证当前密码
-    if (user.password !== currentPassword) {
+    // 使用userStorage的changePassword方法
+    const result = userStorage.changePassword(targetUserId as string, currentPassword, newPassword);
+    
+    if (!result.success) {
       recordChangePasswordFailure(ip);
-      const response = createSecureJsonResponse(errorResponse('当前密码错误'), { status: 400 });
+      const response = createSecureJsonResponse(errorResponse(result.message || '密码修改失败'), { status: 400 });
       return addSecurityHeaders(response);
     }
-
-    // 检查新密码是否与当前密码相同
-    if (user.password === newPassword) {
-      const response = createSecureJsonResponse(errorResponse('新密码不能与当前密码相同'), { status: 400 });
-      return addSecurityHeaders(response);
-    }
-
-    // 更新密码
-    userStorage.update(targetUserId as string, { password: newPassword });
     
     // 清除尝试记录
     clearChangePasswordAttempts(ip);
