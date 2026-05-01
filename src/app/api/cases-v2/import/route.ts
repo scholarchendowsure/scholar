@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { caseStorage } from '@/storage/database/case-storage';
 import { addSecurityHeaders } from '@/lib/security';
 import { Case } from '@/types/case';
+import jschardet from 'jschardet';
+import iconv from 'iconv-lite';
 
 // 中文表头到英文字段的映射
 const FIELD_MAP: Record<string, string> = {
@@ -75,8 +77,42 @@ const parseIntValue = (val: any): number => {
   return isNaN(num) ? 0 : num;
 };
 
-// 解析CSV文件
-function parseCSV(content: string) {
+// 解析CSV文件，支持多种编码
+function parseCSVWithEncoding(contentBuffer: Buffer) {
+  // 检测编码
+  const detection = jschardet.detect(contentBuffer);
+  let encoding = 'utf-8';
+  
+  if (detection.encoding) {
+    const detectedEncoding = detection.encoding.toLowerCase();
+    if (detectedEncoding.includes('gb') || detectedEncoding.includes('big5')) {
+      encoding = 'gb18030';
+    } else if (detectedEncoding.includes('utf-8') || detectedEncoding.includes('utf8')) {
+      encoding = 'utf-8';
+    }
+  }
+  
+  // 解码内容
+  let content: string;
+  try {
+    if (encoding === 'gb18030') {
+      content = iconv.decode(contentBuffer, 'gb18030');
+    } else {
+      content = contentBuffer.toString('utf-8');
+      // 如果UTF-8解码还是乱码，尝试GB18030
+      if (content.includes('���') || content.includes('?')) {
+        content = iconv.decode(contentBuffer, 'gb18030');
+      }
+    }
+  } catch {
+    content = contentBuffer.toString('utf-8');
+  }
+  
+  // 移除BOM
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  
   const lines = content.trim().split('\n');
   if (lines.length < 2) {
     return { headers: [], rows: [] };
@@ -110,8 +146,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 }));
     }
     
-    const content = await file.text();
-    const { headers, rows } = parseCSV(content);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const { headers, rows } = parseCSVWithEncoding(buffer);
     
     if (rows.length === 0) {
       return addSecurityHeaders(NextResponse.json({ 
@@ -123,6 +160,8 @@ export async function POST(request: NextRequest) {
     const successCases: string[] = [];
     const failedCases: Array<{ row: number; reason: string }> = [];
     const importedIds: string[] = [];
+    
+    console.log('Starting import, rows:', rows.length);
     
     for (let i = 0; i < rows.length; i++) {
       try {
@@ -187,16 +226,26 @@ export async function POST(request: NextRequest) {
           followUps: [],
         };
         
+        console.log('Creating case:', caseData.loanNo);
         const newCase = await caseStorage.create(caseData);
+        console.log('Case created with ID:', newCase.id);
+        
         importedIds.push(newCase.id);
         successCases.push(`第${rowNumber}行`);
       } catch (error) {
+        console.error('Error importing row', i + 2, error);
         failedCases.push({
           row: i + 2,
           reason: error instanceof Error ? error.message : '未知错误'
         });
       }
     }
+    
+    console.log('Import completed. Success:', successCases.length, 'Failed:', failedCases.length);
+    
+    // 验证存储的数据
+    const allCases = await caseStorage.getAll();
+    console.log('Total cases in storage now:', allCases.length);
     
     return addSecurityHeaders(NextResponse.json({
       success: true,

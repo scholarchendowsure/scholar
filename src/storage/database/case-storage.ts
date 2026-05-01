@@ -1,103 +1,57 @@
 import { Case } from '@/types/case';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
 
-const STORAGE_FILE = '/tmp/cases-v2.json';
+// 存储文件路径
+const STORAGE_FILE = path.join('/tmp', 'cases-v2.json');
 
-// Mock数据生成
-const generateMockCases = (): Case[] => {
-  const cases: Case[] = [];
-  const statuses = ['pending_assign', 'pending_visit', 'following', 'closed'];
-  const riskLevels = ['low', 'medium', 'high', 'critical'];
-  const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八'];
-  const products = ['个人消费贷', '企业经营贷', '房屋抵押贷', '汽车消费贷'];
-  const platforms = ['微信', '支付宝', '京东', '美团'];
-  const paymentCompanies = ['支付宝', '微信支付', '银联'];
-  const funders = ['银行A', '银行B', '银行C', '信托A'];
-  const sales = ['销售A', '销售B', '销售C'];
-  const postLoans = ['贷后A', '贷后B', '贷后C'];
-
-  for (let i = 0; i < 20; i++) {
-    const id = uuidv4();
-    const name = names[i % names.length];
-    const overdueDays = Math.floor(Math.random() * 365);
-    const loanAmount = 100000 + Math.random() * 900000;
-
-    cases.push({
-      id,
-      // 案件基础标识
-      batchNo: `BATCH-${new Date().getFullYear()}${String(i + 1).padStart(4, '0')}`,
-      loanNo: `LN${String(20240000 + i).padStart(8, '0')}`,
-      userId: `UID${String(100000 + i).padStart(6, '0')}`,
-      borrowerName: name,
-      productName: products[i % products.length],
-      platform: platforms[i % platforms.length],
-      paymentCompany: paymentCompanies[i % paymentCompanies.length],
-      funder: funders[i % funders.length],
-      fundCategory: i % 3 === 0 ? '自有资金' : '合作资金',
-
-      // 案件核心状态
-      status: statuses[i % statuses.length],
-      loanStatus: i % 2 === 0 ? '正常' : '逾期',
-      isLocked: i % 5 === 0,
-      fiveLevelClassification: ['正常', '关注', '次级', '可疑', '损失'][i % 5],
-      riskLevel: riskLevels[i % riskLevels.length],
-      isExtended: i % 4 === 0,
-
-      // 贷款核心金额
-      currency: 'CNY',
-      loanAmount: Math.round(loanAmount),
-      totalLoanAmount: Math.round(loanAmount * 1.1),
-      totalOutstandingBalance: Math.round(loanAmount * 0.6),
-      totalRepaidAmount: Math.round(loanAmount * 0.4),
-      outstandingBalance: Math.round(loanAmount * 0.6),
-      overdueAmount: Math.round(loanAmount * 0.3 * (overdueDays / 365)),
-      overduePrincipal: Math.round(loanAmount * 0.2 * (overdueDays / 365)),
-      overdueInterest: Math.round(loanAmount * 0.1 * (overdueDays / 365)),
-      repaidAmount: Math.round(loanAmount * 0.4),
-      repaidPrincipal: Math.round(loanAmount * 0.35),
-      repaidInterest: Math.round(loanAmount * 0.05),
-      compensationAmount: i % 6 === 0 ? Math.round(loanAmount * 0.1) : 0,
-
-      // 贷款期限时间
-      loanTerm: 12 + (i % 24),
-      loanTermUnit: '月',
-      loanDate: new Date(2023, i % 12, 15).toISOString().split('T')[0],
-      dueDate: new Date(2024 + Math.floor(i / 12), (i + 12) % 12, 15).toISOString().split('T')[0],
-      overdueDays,
-      overdueStartTime: overdueDays > 0 ? new Date(2024, 0, 1).toISOString().split('T')[0] : '',
-      firstOverdueTime: overdueDays > 0 ? new Date(2024, 0, 1).toISOString().split('T')[0] : '',
-      compensationDate: i % 6 === 0 ? new Date(2024, i % 12, 1).toISOString().split('T')[0] : '',
-
-      // 借款人主体信息
-      companyName: i % 3 === 0 ? `某某科技有限公司${i + 1}` : '',
-      companyAddress: i % 3 === 0 ? `北京市朝阳区路${i + 1}号` : '',
-      homeAddress: `上海市浦东新区路${i + 1}号小区${i + 1}栋`,
-      householdAddress: `浙江省杭州市西湖区路${i + 1}号`,
-      borrowerPhone: `138${String(10000000 + i).slice(-8)}`,
-      registeredPhone: `139${String(10000000 + i).slice(-8)}`,
-      contactInfo: `联系人${i + 1}：186${String(10000000 + i).slice(-8)}`,
-
-      // 案件责任归属
-      assignedSales: sales[i % sales.length],
-      assignedRiskControl: `风控${(i % 3) + 1}`,
-      assignedPostLoan: postLoans[i % postLoans.length],
-
-      // 系统元数据
-      assigneeName: postLoans[i % postLoans.length],
-      createdAt: new Date(2024, 0, 1 + i).toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+// 确保存储目录存在
+function ensureStorageDir() {
+  const dir = path.dirname(STORAGE_FILE);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
+}
 
-  return cases;
-};
+// 从文件读取数据
+function readFromFile(): Case[] {
+  ensureStorageDir();
+  try {
+    if (fs.existsSync(STORAGE_FILE)) {
+      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
+      const data = JSON.parse(content);
+      console.log('Read from file, cases count:', data.length);
+      return data;
+    }
+  } catch (error) {
+    console.error('Error reading from file:', error);
+  }
+  return [];
+}
 
+// 写入数据到文件
+function writeToFile(cases: Case[]) {
+  ensureStorageDir();
+  try {
+    fs.writeFileSync(STORAGE_FILE, JSON.stringify(cases, null, 2), 'utf-8');
+    console.log('Written to file, cases count:', cases.length);
+  } catch (error) {
+    console.error('Error writing to file:', error);
+  }
+}
+
+// 内存缓存
 let cachedCases: Case[] | null = null;
 
 export const caseStorage = {
   async getAll(): Promise<Case[]> {
     if (!cachedCases) {
-      cachedCases = generateMockCases();
+      cachedCases = readFromFile();
+      // 如果文件为空，初始化空数组
+      if (cachedCases.length === 0) {
+        writeToFile([]);
+      }
     }
     return cachedCases;
   },
@@ -115,9 +69,21 @@ export const caseStorage = {
       updatedAt: new Date().toISOString(),
     };
 
-    if (cachedCases) {
-      cachedCases.unshift(newCase);
-    }
+    console.log('Creating new case:', newCase.loanNo);
+    
+    // 获取当前数据
+    const cases = await this.getAll();
+    
+    // 添加新案件到开头
+    cases.unshift(newCase);
+    
+    // 更新缓存
+    cachedCases = [...cases];
+    
+    // 保存到文件
+    writeToFile(cases);
+    
+    console.log('Case created and saved, total cases now:', cases.length);
 
     return newCase;
   },
@@ -134,6 +100,7 @@ export const caseStorage = {
     };
 
     cachedCases = [...cases];
+    writeToFile(cases);
     return cases[index];
   },
 
@@ -144,6 +111,7 @@ export const caseStorage = {
 
     cases.splice(index, 1);
     cachedCases = [...cases];
+    writeToFile(cases);
     return true;
   },
 
@@ -160,11 +128,9 @@ export const caseStorage = {
       importedCases.push(newCase);
     }
 
-    if (cachedCases) {
-      cachedCases = [...importedCases, ...cachedCases];
-    } else {
-      cachedCases = importedCases;
-    }
+    const cases = await this.getAll();
+    cachedCases = [...importedCases, ...cases];
+    writeToFile(cachedCases);
 
     return importedCases;
   },

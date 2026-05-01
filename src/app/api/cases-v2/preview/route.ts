@@ -1,8 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addSecurityHeaders } from '@/lib/security';
+import jschardet from 'jschardet';
+import iconv from 'iconv-lite';
 
-// 解析CSV文件
-function parseCSV(content: string) {
+// 解析CSV文件，支持多种编码
+function parseCSVWithEncoding(contentBuffer: Buffer) {
+  // 检测编码
+  const detection = jschardet.detect(contentBuffer);
+  let encoding = 'utf-8';
+  
+  if (detection.encoding) {
+    const detectedEncoding = detection.encoding.toLowerCase();
+    if (detectedEncoding.includes('gb') || detectedEncoding.includes('big5')) {
+      encoding = 'gb18030';
+    } else if (detectedEncoding.includes('utf-8') || detectedEncoding.includes('utf8')) {
+      encoding = 'utf-8';
+    }
+  }
+  
+  // 解码内容
+  let content: string;
+  try {
+    if (encoding === 'gb18030') {
+      content = iconv.decode(contentBuffer, 'gb18030');
+    } else {
+      content = contentBuffer.toString('utf-8');
+      // 如果UTF-8解码还是乱码，尝试GB18030
+      if (content.includes('���') || content.includes('?')) {
+        content = iconv.decode(contentBuffer, 'gb18030');
+      }
+    }
+  } catch {
+    content = contentBuffer.toString('utf-8');
+  }
+  
+  // 移除BOM
+  if (content.charCodeAt(0) === 0xFEFF) {
+    content = content.slice(1);
+  }
+  
   const lines = content.trim().split('\n');
   if (lines.length < 2) {
     return { headers: [], rows: [] };
@@ -23,7 +59,7 @@ function parseCSV(content: string) {
     rows.push(row);
   }
   
-  return { headers, rows };
+  return { headers, rows, totalLines: lines.length - 1 };
 }
 
 export async function POST(request: NextRequest) {
@@ -38,14 +74,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 }));
     }
     
-    const content = await file.text();
-    const { headers, rows } = parseCSV(content);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const { headers, rows, totalLines } = parseCSVWithEncoding(buffer);
     
     return addSecurityHeaders(NextResponse.json({
       success: true,
       data: {
         filename: file.name,
-        totalRows: content.trim().split('\n').length - 1,
+        totalRows: totalLines,
         headers,
         previewRows: rows
       }
