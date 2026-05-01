@@ -160,17 +160,27 @@ export default function CaseDetailPage() {
             </div>
 
             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Field label="批次号" value={caseData.batchNo} highlight />
-              <Field label="贷款单号" value={caseData.loanNo} highlight />
               <Field label="用户ID" value={caseData.userId} highlight />
               <Field label="借款人姓名" value={caseData.borrowerName} highlight />
-              <Field label="产品名称" value={caseData.productName} />
-              <Field label="平台" value={caseData.platform} />
-              <Field label="支付公司" value={caseData.paymentCompany} />
+              <Field label="币种" value={caseData.currency} />
+              <Field label="在贷金额" value={formatMoney(caseData.outstandingBalance)} highlight />
+              <Field label="逾期金额" value={
+                <span className={caseData.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount)}
+                </span>
+              } highlight />
+              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
               <Field label="资金方" value={caseData.funder} />
-              <Field label="资金分类" value={caseData.fundCategory} />
-              <Field label="贷款状态" value={caseData.loanStatus} />
-              <Field label="五级分类" value={caseData.fiveLevelClassification} />
+              <Field label="支付公司" value={caseData.paymentCompany} />
+              <Field label="逾期天数" value={
+                <span className={caseData.overdueDays > 90 ? 'text-red-600 font-semibold' : caseData.overdueDays > 0 ? 'text-orange-600' : ''}>
+                  {caseData.overdueDays}天
+                </span>
+              } highlight />
+              <Field label="产品名称" value={caseData.productName} />
+              <Field label="所属销售" value={caseData.assignedSales} highlight />
+              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
+              <Field label="风险等级" value={caseData.riskLevel} highlight />
             </dl>
           </CardContent>
         </Card>
