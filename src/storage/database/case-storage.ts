@@ -41,19 +41,14 @@ function writeToFile(cases: Case[]) {
   }
 }
 
-// 内存缓存
-let cachedCases: Case[] | null = null;
-
 export const caseStorage = {
   async getAll(): Promise<Case[]> {
-    if (!cachedCases) {
-      cachedCases = readFromFile();
-      // 如果文件为空，初始化空数组
-      if (cachedCases.length === 0) {
-        writeToFile([]);
-      }
+    const cases = readFromFile();
+    // 如果文件为空，初始化空数组
+    if (cases.length === 0) {
+      writeToFile([]);
     }
-    return cachedCases;
+    return cases;
   },
 
   async getById(id: string): Promise<Case | null> {
@@ -77,9 +72,6 @@ export const caseStorage = {
     // 添加新案件到开头
     cases.unshift(newCase);
     
-    // 更新缓存
-    cachedCases = [...cases];
-    
     // 保存到文件
     writeToFile(cases);
     
@@ -99,7 +91,6 @@ export const caseStorage = {
       updatedAt: new Date().toISOString(),
     };
 
-    cachedCases = [...cases];
     writeToFile(cases);
     return cases[index];
   },
@@ -110,7 +101,6 @@ export const caseStorage = {
     if (index === -1) return false;
 
     cases.splice(index, 1);
-    cachedCases = [...cases];
     writeToFile(cases);
     return true;
   },
@@ -129,8 +119,8 @@ export const caseStorage = {
     }
 
     const cases = await this.getAll();
-    cachedCases = [...importedCases, ...cases];
-    writeToFile(cachedCases);
+    const allCases = [...importedCases, ...cases];
+    writeToFile(allCases);
 
     return importedCases;
   },

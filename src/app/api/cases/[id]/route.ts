@@ -4,10 +4,11 @@ import { addSecurityHeaders } from '@/lib/security';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const caseData = await caseStorage.getById(params.id);
+    const { id } = await params;
+    const caseData = await caseStorage.getById(id);
 
     if (!caseData) {
       const response = NextResponse.json(
@@ -35,11 +36,12 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
-    const updatedCase = await caseStorage.update(params.id, body);
+    const updatedCase = await caseStorage.update(id, body);
 
     if (!updatedCase) {
       const response = NextResponse.json(
@@ -67,10 +69,11 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const success = await caseStorage.delete(params.id);
+    const { id } = await params;
+    const success = await caseStorage.delete(id);
 
     if (!success) {
       const response = NextResponse.json(
