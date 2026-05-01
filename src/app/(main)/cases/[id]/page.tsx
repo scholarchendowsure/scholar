@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const NAVIGATION_KEY = 'cases-navigation-state';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -55,6 +57,69 @@ export default function CaseDetailPage() {
   const [relatedLoans, setRelatedLoans] = useState<Case[]>([]);
   const [relatedLoansLoading, setRelatedLoansLoading] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+
+  // 导航状态
+  const [navigationState, setNavigationState] = useState<{
+    caseIds: string[];
+    currentIndex: number;
+  } | null>(null);
+
+  // 读取导航状态
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem(NAVIGATION_KEY);
+      if (saved) {
+        try {
+          const state = JSON.parse(saved);
+          setNavigationState(state);
+        } catch {
+          console.error('解析导航状态失败');
+        }
+      }
+    }
+  }, []);
+
+  // 当前案件在导航列表中的位置
+  const { hasPrev, hasNext, prevCaseId, nextCaseId } = useMemo(() => {
+    if (!navigationState) {
+      return { hasPrev: false, hasNext: false, prevCaseId: null, nextCaseId: null };
+    }
+    const { caseIds, currentIndex } = navigationState;
+    return {
+      hasPrev: currentIndex > 0,
+      hasNext: currentIndex < caseIds.length - 1,
+      prevCaseId: caseIds[currentIndex - 1] || null,
+      nextCaseId: caseIds[currentIndex + 1] || null,
+    };
+  }, [navigationState]);
+
+  // 导航到上一个案件
+  const goToPrev = () => {
+    if (prevCaseId && navigationState) {
+      // 更新导航状态
+      const newState = {
+        ...navigationState,
+        currentIndex: navigationState.currentIndex - 1,
+      };
+      sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify(newState));
+      setNavigationState(newState);
+      router.push(`/cases/${prevCaseId}`);
+    }
+  };
+
+  // 导航到下一个案件
+  const goToNext = () => {
+    if (nextCaseId && navigationState) {
+      // 更新导航状态
+      const newState = {
+        ...navigationState,
+        currentIndex: navigationState.currentIndex + 1,
+      };
+      sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify(newState));
+      setNavigationState(newState);
+      router.push(`/cases/${nextCaseId}`);
+    }
+  };
 
   useEffect(() => {
     if (params.id) {
@@ -326,7 +391,18 @@ export default function CaseDetailPage() {
                         </td>
                         <td className="px-6 py-4">
                           <button
-                            onClick={() => router.push(`/cases/${loan.id}`)}
+                            onClick={() => {
+                              // 保存导航状态
+                              const allCaseIds = relatedLoans.map(c => c.id);
+                              const currentIndex = allCaseIds.indexOf(loan.id);
+                              if (typeof window !== 'undefined') {
+                                sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify({
+                                  caseIds: allCaseIds,
+                                  currentIndex,
+                                }));
+                              }
+                              router.push(`/cases/${loan.id}`);
+                            }}
                             className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                           >
                             查看详情
@@ -494,6 +570,33 @@ export default function CaseDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* 上下案件导航 */}
+              {navigationState && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToPrev}
+                    disabled={!hasPrev}
+                    title="上一个案件"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <div className="text-sm text-slate-500 px-2 min-w-[120px] text-center">
+                    {navigationState.currentIndex + 1} / {navigationState.caseIds.length}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToNext}
+                    disabled={!hasNext}
+                    title="下一个案件"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Separator orientation="vertical" className="h-8" />
+                </>
+              )}
               <Button variant="outline" className="gap-2">
                 <Eye className="w-4 h-4" />
                 查看历史

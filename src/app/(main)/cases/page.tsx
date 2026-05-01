@@ -100,6 +100,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
 
 // sessionStorage key
 const STORAGE_KEY = 'cases-list-state';
+const NAVIGATION_KEY = 'cases-navigation-state';
 
 // 金额格式化
 const formatMoney = (amount: number): string => {
@@ -565,6 +566,17 @@ export default function CasesPage() {
           <Link 
             href={`/cases/${caseItem.id}`} 
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+            onClick={() => {
+              // 保存导航状态
+              const allCaseIds = cases.map(c => c.id);
+              const currentIndex = allCaseIds.indexOf(caseItem.id);
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify({
+                  caseIds: allCaseIds,
+                  currentIndex,
+                }));
+              }
+            }}
           >
             <span className="font-mono">{caseItem.userId}</span>
           </Link>
