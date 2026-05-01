@@ -234,9 +234,13 @@ export default function UsersPage() {
 
     try {
       const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-      if (res.ok) {
+      const json = await res.json();
+      
+      if (json.success) {
         toast.success('用户已删除');
         fetchUsers();
+      } else {
+        toast.error(json.error || '删除失败');
       }
     } catch (error) {
       toast.error('删除失败');

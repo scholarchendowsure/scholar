@@ -122,7 +122,6 @@ export async function POST(request: Request) {
 
     const response = createSecureJsonResponse(successResponse({
       token,
-      mustChangePassword: user.mustChangePassword,
       user: {
         id: user.id,
         username: user.username,
@@ -131,6 +130,7 @@ export async function POST(request: Request) {
         email: user.email,
         phone: user.phone,
         department: user.department,
+        mustChangePassword: user.mustChangePassword,
       }
     }));
     return addSecurityHeaders(response);

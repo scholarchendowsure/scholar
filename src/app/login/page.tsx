@@ -85,7 +85,13 @@ export default function LoginPage() {
         toast.success('登录成功');
         // 使用AuthProvider的login函数
         login(json.data.user, json.data.token);
-        router.push('/');
+        
+        // 检查是否需要首次修改密码
+        if (json.data.user.mustChangePassword) {
+          router.push('/change-password');
+        } else {
+          router.push('/');
+        }
       } else {
         toast.error(json.error || '登录失败');
         // 登录失败时刷新验证码
