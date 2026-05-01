@@ -187,7 +187,7 @@ export default function CasesPage() {
       setImportProgress(70);
 
       // 提交导入
-      const res = await fetch('/api/cases-v2/import', {
+      // 这个导入功能已迁移到专门的导入页面，这里暂时保留
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cases }),
@@ -632,7 +632,7 @@ export default function CasesPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link href={`/cases-v2/${caseItem.id}`} className="cursor-pointer">
+                                  <Link href={`/cases/${caseItem.id}`} className="cursor-pointer">
                                     <Eye className="w-4 h-4 mr-2" />
                                     查看详情
                                   </Link>
