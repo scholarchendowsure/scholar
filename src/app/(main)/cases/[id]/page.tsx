@@ -340,51 +340,49 @@ export default function CaseDetailPage() {
     <div className="min-h-screen bg-slate-50">
       {/* 头部 - 可折叠 */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        {/* 折叠切换按钮条 */}
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setHeaderCollapsed(!headerCollapsed)}
-            className="gap-2 text-slate-600 hover:text-slate-900"
-          >
-            <ChevronDown className={`w-4 h-4 transition-transform ${headerCollapsed ? '' : 'rotate-180'}`} />
-            {headerCollapsed ? '展开标题' : '收起标题'}
-          </Button>
-        </div>
-
-        {/* 可折叠的头部内容 */}
-        {!headerCollapsed && (
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => router.back()}
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <div>
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.back()}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+              <div>
+                <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
+                  {/* 折叠按钮 - 放在标题旁边 */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                    className="ml-2"
+                  >
+                    <ChevronDown className={`w-5 h-5 transition-transform ${headerCollapsed ? '' : 'rotate-180'}`} />
+                  </Button>
+                </div>
+                {/* 可折叠的贷款单号 */}
+                {!headerCollapsed && (
                   <p className="text-sm text-slate-500 mt-1">
                     贷款单号：{caseData.loanNo}
                   </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" className="gap-2">
-                  <Eye className="w-4 h-4" />
-                  查看历史
-                </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                  <Edit className="w-4 h-4" />
-                  编辑
-                </Button>
+                )}
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" className="gap-2">
+                <Eye className="w-4 h-4" />
+                查看历史
+              </Button>
+              <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+                <Edit className="w-4 h-4" />
+                编辑
+              </Button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="p-6">
