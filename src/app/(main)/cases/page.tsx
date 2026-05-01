@@ -186,24 +186,11 @@ export default function CasesPage() {
 
       setImportProgress(70);
 
-      // 提交导入
-      // 这个导入功能已迁移到专门的导入页面，这里暂时保留
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cases }),
-      });
-
-      const result = await res.json();
+      // 提交导入 - 此功能已迁移到专门的导入页面
+      toast.info('请使用专门的案件导入页面进行导入');
+      setShowImportDialog(false);
+      setSelectedFile(null);
       setImportProgress(100);
-
-      if (result.success) {
-        toast.success(`成功导入 ${result.count} 条案件`);
-        setShowImportDialog(false);
-        setSelectedFile(null);
-        fetchCases();
-      } else {
-        throw new Error(result.error || '导入失败');
-      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '导入失败');
     } finally {
