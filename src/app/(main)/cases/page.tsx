@@ -432,16 +432,26 @@ export default function CasesPage() {
     }
   };
 
-  const hasFilters = search || status !== 'all' || riskLevel !== 'all';
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* 头部 */}
       <div className="bg-white border-b border-slate-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1 flex items-center gap-4">
             <h1 className="text-2xl font-bold text-slate-900">案件列表</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            {/* 搜索框 - 直接放在头部 */}
+            <div className="flex-1 max-w-xl">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="搜索借款人姓名、用户ID、贷款单号... (多个用户ID用空格隔开)"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <p className="text-sm text-slate-500">
               共 {total} 个案件
             </p>
           </div>
@@ -482,10 +492,9 @@ export default function CasesPage() {
             >
               <Filter className="w-4 h-4" />
               筛选
-              {hasFilters && (
+              {(status !== 'all' || riskLevel !== 'all') && (
                 <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700">
                   {[
-                    search && '搜索',
                     status !== 'all' && '状态',
                     riskLevel !== 'all' && '风险',
                   ].filter(Boolean).length}
@@ -569,18 +578,6 @@ export default function CasesPage() {
         {showFilters && (
           <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 animate-in slide-in-from-top-2">
             <div className="flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium text-slate-700 mb-2 block">搜索</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    placeholder="搜索借款人姓名、用户ID、贷款单号..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
               <div className="w-[180px]">
                 <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态</label>
                 <Select value={status} onValueChange={setStatus}>

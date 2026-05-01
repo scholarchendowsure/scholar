@@ -22,11 +22,21 @@ export async function GET(request: NextRequest) {
     }
     if (search) {
       const searchLower = search.toLowerCase();
-      cases = cases.filter(c => 
-        c.borrowerName.toLowerCase().includes(searchLower) ||
-        c.loanNo.toLowerCase().includes(searchLower) ||
-        c.userId.toLowerCase().includes(searchLower)
-      );
+      // 支持多用户ID搜索（空格分隔）
+      const searchTerms = searchLower.trim().split(/\s+/).filter(Boolean);
+      
+      cases = cases.filter(c => {
+        // 如果只有一个搜索词，搜索所有字段
+        if (searchTerms.length === 1) {
+          const singleTerm = searchTerms[0];
+          return c.borrowerName.toLowerCase().includes(singleTerm) ||
+                 c.loanNo.toLowerCase().includes(singleTerm) ||
+                 c.userId.toLowerCase().includes(singleTerm);
+        } else {
+          // 多个搜索词，只匹配用户ID（任一匹配）
+          return searchTerms.some(term => c.userId.toLowerCase().includes(term));
+        }
+      });
     }
 
     const total = cases.length;
