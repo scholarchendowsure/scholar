@@ -107,7 +107,7 @@ export default function CaseDetailPage() {
     { id: 'finance', label: '金额信息', color: 'bg-amber-500 text-white' },
     { id: 'timeline', label: '贷款记录', color: 'bg-emerald-600 text-white' },
     { id: 'borrower', label: '信息详情', color: 'bg-slate-600 text-white' },
-    { id: 'ownership', label: '案件归属', color: 'bg-purple-600 text-white' },
+    { id: 'ownership', label: '案件标签', color: 'bg-purple-600 text-white' },
   ];
 
   const renderTabContent = () => {
