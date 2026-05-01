@@ -585,16 +585,35 @@ export default function CasesPage() {
                     ) : (
                       cases.map((caseItem) => (
                         <TableRow key={caseItem.id} className="hover:bg-slate-50">
-                          <TableCell className="font-mono text-sm">{caseItem.userId}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            <Link 
+                              href={`/cases/${caseItem.id}`} 
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            >
+                              {caseItem.userId}
+                            </Link>
+                          </TableCell>
                           <TableCell className="font-medium">{caseItem.borrowerName}</TableCell>
                           <TableCell>{caseItem.currency}</TableCell>
                           <TableCell className="text-right font-mono">
                             {formatMoney(caseItem.totalOutstandingBalance)}
                           </TableCell>
                           <TableCell className={`text-right font-mono ${caseItem.overdueAmount > 0 ? 'text-red-600' : ''}`}>
-                            {formatMoney(caseItem.overdueAmount)}
+                            <Link 
+                              href={`/cases/${caseItem.id}`} 
+                              className={`hover:underline cursor-pointer ${caseItem.overdueAmount > 0 ? 'text-red-600 hover:text-red-800' : 'text-blue-600 hover:text-blue-800'}`}
+                            >
+                              {formatMoney(caseItem.overdueAmount)}
+                            </Link>
                           </TableCell>
-                          <TableCell>{caseItem.borrowerPhone}</TableCell>
+                          <TableCell>
+                            <Link 
+                              href={`/cases/${caseItem.id}`} 
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            >
+                              {caseItem.borrowerPhone}
+                            </Link>
+                          </TableCell>
                           <TableCell>{caseItem.funder}</TableCell>
                           <TableCell>{caseItem.paymentCompany}</TableCell>
                           <TableCell className={caseItem.overdueDays > 0 ? 'text-red-600 font-medium' : ''}>
