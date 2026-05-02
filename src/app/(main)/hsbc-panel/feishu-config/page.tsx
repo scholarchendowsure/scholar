@@ -13,9 +13,9 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { 
-  Loader2, RefreshCw, Save, Users, Settings, Link, Trash2, 
+  Loader2, RefreshCw, Save, Users, Settings, Link as LinkIcon, Trash2, 
   MessageSquare, Search, Send, Database, ArrowRightLeft, 
-  Cloud, Download, Upload, Activity, Bell 
+  Cloud, Download, Upload, Activity, Bell, Key, CheckCircle 
 } from 'lucide-react';
 import { FeishuBitableConfig, BitableSyncRecord, DEFAULT_BITABLE_FIELDS } from '@/types/feishu-bitable';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
@@ -112,6 +112,13 @@ export default function FeishuConfigPage() {
   const [cozeCustomerName, setCozeCustomerName] = useState('');
   const [cozeOverdueAmount, setCozeOverdueAmount] = useState('');
   const [cozeOverdueDays, setCozeOverdueDays] = useState('');
+
+  // lark-cli 授权状态
+  const [authVerificationUrl, setAuthVerificationUrl] = useState<string | null>(null);
+  const [authStatus, setAuthStatus] = useState<string>('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [startingAuth, setStartingAuth] = useState(false);
+  const [checkingAuthStatus, setCheckingAuthStatus] = useState(false);
 
   // 加载配置
   useEffect(() => {
@@ -489,6 +496,56 @@ export default function FeishuConfigPage() {
     }
   };
 
+  // 启动 lark-cli 授权
+  const startAuth = async () => {
+    setStartingAuth(true);
+    try {
+      const response = await fetch('/api/feishu-personal/auth-init', {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        if (data.verificationUrl) {
+          setAuthVerificationUrl(data.verificationUrl);
+          toast.success('请在浏览器中打开链接完成授权');
+        } else if (data.alreadyLoggedIn) {
+          setIsLoggedIn(true);
+          setAuthStatus('已登录');
+          toast.success('您已经登录了！');
+        }
+      } else {
+        toast.error(data.error || '获取验证链接失败');
+      }
+    } catch (error) {
+      toast.error('获取验证链接失败');
+    } finally {
+      setStartingAuth(false);
+    }
+  };
+
+  // 检查授权状态
+  const checkAuthStatus = async () => {
+    setCheckingAuthStatus(true);
+    try {
+      const response = await fetch('/api/feishu-personal/auth-status');
+      const data = await response.json();
+      
+      if (data.success) {
+        setAuthStatus(data.status);
+        setIsLoggedIn(data.isLoggedIn);
+        
+        if (data.isLoggedIn) {
+          toast.success('授权成功！');
+        }
+      }
+    } catch (error) {
+      toast.error('检查授权状态失败');
+    } finally {
+      setCheckingAuthStatus(false);
+    }
+  };
+
   // 同步飞书用户
   const syncFeishuUsers = async () => {
     if (!appId) {
@@ -777,7 +834,7 @@ export default function FeishuConfigPage() {
             用户管理
           </TabsTrigger>
           <TabsTrigger value="mappings">
-            <Link className="w-4 h-4 mr-2" />
+            <LinkIcon className="w-4 h-4 mr-2" />
             映射配置
           </TabsTrigger>
           <TabsTrigger value="message-test">
@@ -1394,8 +1451,114 @@ export default function FeishuConfigPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* CLI配置 */}
+                {/* 授权引导 */}
                 <div className="space-y-4">
+                  <h3 className="text-sm font-medium">步骤 1：完成授权</h3>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-blue-100 rounded-full p-2">
+                        <Key className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-blue-900 mb-1">飞书账号授权</h4>
+                        <p className="text-sm text-blue-700 mb-3">
+                          点击下方按钮，获取验证链接，在浏览器中完成授权
+                        </p>
+                        
+                        {authVerificationUrl ? (
+                          <div className="space-y-3">
+                            <div className="bg-white border rounded p-3">
+                              <p className="text-sm font-medium mb-2">请在浏览器中打开此链接：</p>
+                              <a 
+                                href={authVerificationUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline break-all text-sm"
+                              >
+                                {authVerificationUrl}
+                              </a>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                onClick={checkAuthStatus} 
+                                disabled={checkingAuthStatus}
+                                variant="secondary"
+                              >
+                                {checkingAuthStatus ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    检查中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    检查授权状态
+                                  </>
+                                )}
+                              </Button>
+                              <Button 
+                                onClick={startAuth} 
+                                disabled={startingAuth}
+                              >
+                                {startingAuth ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    重新获取链接
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 mr-2" />
+                                    重新获取链接
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {authStatus && (
+                              <div className={`p-3 rounded ${isLoggedIn ? 'bg-green-100 border border-green-300' : 'bg-yellow-50 border border-yellow-200'}`}>
+                                <p className={`text-sm ${isLoggedIn ? 'text-green-800' : 'text-yellow-800'}`}>
+                                  当前状态：{authStatus}
+                                </p>
+                              </div>
+                            )}
+                            <Button 
+                              onClick={startAuth} 
+                              disabled={startingAuth}
+                              className="w-full"
+                            >
+                              {startingAuth ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  获取验证链接中...
+                                </>
+                              ) : (
+                                <>
+                                  <LinkIcon className="w-4 h-4 mr-2" />
+                                  获取验证链接
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {isLoggedIn && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <p className="text-green-800 font-medium">✓ 授权成功！您现在可以发送私人消息了</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* CLI配置 */}
+                <div className="space-y-4 pt-4 border-t">
                   <h3 className="text-sm font-medium">CLI 配置</h3>
                   
                   <div className="space-y-2">

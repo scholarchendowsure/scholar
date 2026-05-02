@@ -48,7 +48,7 @@ export class CozeApiService {
         // 如果有额外消息，添加到 additional_messages 数组
         requestBody.additional_messages = [
           ...requestBody.additional_messages,
-          ...request.additionalMessages
+          ...(request.additionalMessages as any[])
         ];
       }
 
