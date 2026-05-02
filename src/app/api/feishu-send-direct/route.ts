@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendFeishuPrivateMessage } from '@/lib/feishu-api';
-
-const TEST_APP_ID = 'cli_a9652497d7389bd6';
-const TEST_APP_SECRET = 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
+import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +21,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 获取保存的凭证
+    const credentials = await getFeishuAppCredentials();
+    const appId = credentials.appId || 'cli_a9652497d7389bd6';
+    const appSecret = credentials.appSecret || 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
+
     console.log('📤 直接发送消息给用户:', userId);
     console.log('🆔 ID类型:', idType);
     console.log('💬 消息内容:', message);
     
     const result = await sendFeishuPrivateMessage(
-      TEST_APP_ID,
-      TEST_APP_SECRET,
+      appId,
+      appSecret,
       userId,
       message,
       idType as 'user_id' | 'open_id' | 'union_id'
