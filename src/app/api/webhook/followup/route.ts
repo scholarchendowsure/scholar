@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { caseStorage } from '@/storage/database/case-storage';
+import { saveFollowupWebhookRecord } from './records/route';
 
 export async function POST(request: NextRequest) {
+  let body: any;
+  
   try {
-    const body = await request.json();
+    body = await request.json();
     
     // 从请求体中获取数据
     const {
@@ -16,7 +19,7 @@ export async function POST(request: NextRequest) {
       记录内容: followRecord,
       文件信息: fileInfo
     } = body;
-
+    
     // 验证必填字段
     if (!userId) {
       return NextResponse.json(
@@ -24,14 +27,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    
     if (!loanNumber) {
       return NextResponse.json(
         { success: false, error: '贷款单号不能为空' },
         { status: 400 }
       );
     }
-
+    
     // 获取所有案件
     const allCases = await caseStorage.getAll();
     
@@ -39,25 +42,25 @@ export async function POST(request: NextRequest) {
     const matchingCases = allCases.filter(c => 
       c.userId === userId && c.loanNo === loanNumber
     );
-
+    
     if (matchingCases.length === 0) {
       return NextResponse.json(
         { success: false, error: '未找到匹配的案件' },
         { status: 404 }
       );
     }
-
+    
     // 自动生成记录时间（当前时间）
     const followTime = new Date().toISOString();
-
+    
     // 转换枚举值为英文（如果是中文的话）
     const followTypeEn = convertFollowTypeToEn(followType);
     const contactEn = convertContactToEn(contact);
     const followResultEn = convertFollowResultToEn(followResult);
-
+    
     // 处理文件信息
     const processedFileInfo = processFileInfo(fileInfo);
-
+    
     // 创建跟进记录
     const followupRecord = {
       id: Date.now().toString(),
@@ -70,22 +73,31 @@ export async function POST(request: NextRequest) {
       fileInfo: processedFileInfo,
       createdBy: '飞书Webhook'
     };
-
-    // 为所有匹配的案件添加跟进记录
+    
+    // 为每个匹配的案件添加跟进记录
     for (const caseItem of matchingCases) {
       const updatedCase: any = {
-        ...caseItem,
-        followups: [...(caseItem.followups || []), followupRecord]
+        followups: [...(caseItem.followups || []), followupRecord],
+        updatedAt: new Date().toISOString()
       };
-
+      
       // 如果有文件信息，同步更新到案件的文件信息
       if (processedFileInfo.length > 0) {
-        updatedCase.files = [...(caseItem.files || []), ...processedFileInfo];
+        updatedCase.files = [...((caseItem as any).files || []), ...processedFileInfo];
       }
-
-      await caseStorage.update(caseItem.id, updatedCase as any);
+      
+      await caseStorage.update(caseItem.id, updatedCase);
     }
-
+    
+    const processResult = {
+      success: true,
+      message: `已成功为 ${matchingCases.length} 个案件添加跟进记录`,
+      updatedCases: matchingCases.length
+    };
+    
+    // 保存记录
+    saveFollowupWebhookRecord(body, processResult);
+    
     return NextResponse.json({
       success: true,
       message: `已成功为 ${matchingCases.length} 个案件添加跟进记录`,
@@ -93,6 +105,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Webhook接收跟进记录错误:', error);
+    
+    const processResult = {
+      success: false,
+      message: 'Webhook处理失败',
+      error: error instanceof Error ? error.message : '未知错误'
+    };
+    
+    // 保存记录
+    if (body) {
+      saveFollowupWebhookRecord(body, processResult);
+    }
+    
     return NextResponse.json(
       { success: false, error: 'Webhook处理失败' },
       { status: 500 }
@@ -138,22 +162,25 @@ function processFileInfo(fileInfo: any): any[] {
   if (Array.isArray(fileInfo)) {
     return fileInfo.map(file => {
       if (typeof file === 'string') {
+        // 如果只是文件名
         return {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: file,
-          type: 'file',
-          uploadTime: new Date().toISOString(),
-          uploadedBy: '飞书Webhook'
+          type: file.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? 'image' : 'file',
+          data: '',
+          createdAt: new Date().toISOString()
+        };
+      } else if (file && file.name) {
+        // 如果是对象
+        return {
+          id: file.id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: file.name,
+          type: file.type || (file.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? 'image' : 'file'),
+          data: file.data || '',
+          createdAt: new Date().toISOString()
         };
       }
-      return {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        name: file.name || '未命名文件',
-        type: file.type || 'file',
-        data: file.data || '',
-        uploadTime: new Date().toISOString(),
-        uploadedBy: '飞书Webhook'
-      };
+      return file;
     });
   }
   

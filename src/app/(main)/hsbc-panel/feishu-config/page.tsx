@@ -91,6 +91,10 @@ export default function FeishuConfigPage() {
   // Webhook接收记录状态
   const [webhookRecords, setWebhookRecords] = useState<any[]>([]);
   const [loadingWebhookRecords, setLoadingWebhookRecords] = useState(false);
+  
+  // 跟进记录Webhook接收记录状态
+  const [followupWebhookRecords, setFollowupWebhookRecords] = useState<any[]>([]);
+  const [loadingFollowupWebhookRecords, setLoadingFollowupWebhookRecords] = useState(false);
 
   // 个人账号绑定状态
   const [personalAccounts, setPersonalAccounts] = useState<FeishuPersonalAccount[]>([]);
@@ -152,6 +156,38 @@ export default function FeishuConfigPage() {
       toast.error('清空记录失败');
     }
   };
+  
+  // 加载跟进记录webhook记录
+  const loadFollowupWebhookRecords = async () => {
+    setLoadingFollowupWebhookRecords(true);
+    try {
+      const response = await fetch('/api/webhook/followup/records?limit=20');
+      const data = await response.json();
+      if (data.success) {
+        setFollowupWebhookRecords(data.records || []);
+      }
+    } catch (error) {
+      console.error('加载跟进记录webhook记录失败:', error);
+    } finally {
+      setLoadingFollowupWebhookRecords(false);
+    }
+  };
+  
+  // 清空跟进记录webhook记录
+  const clearFollowupWebhookRecords = async () => {
+    try {
+      const response = await fetch('/api/webhook/followup/records', {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('记录已清空');
+        loadFollowupWebhookRecords();
+      }
+    } catch (error) {
+      toast.error('清空记录失败');
+    }
+  };
 
   useEffect(() => {
     loadConfig();
@@ -163,10 +199,12 @@ export default function FeishuConfigPage() {
     loadPersonalAccounts();
     loadCozeConfig();
     loadWebhookRecords();
+    loadFollowupWebhookRecords();
     
     // 定时刷新webhook记录，每5秒刷新一次
     const interval = setInterval(() => {
       loadWebhookRecords();
+      loadFollowupWebhookRecords();
     }, 5000);
     
     return () => clearInterval(interval);
@@ -836,6 +874,10 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="bitable-sync">
             <Database className="w-4 h-4 mr-2" />
             多维表格同步
+          </TabsTrigger>
+          <TabsTrigger value="followup-sync">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            跟进记录同步
           </TabsTrigger>
           <TabsTrigger value="personal-account">
             <Users className="w-4 h-4 mr-2" />
@@ -1572,6 +1614,179 @@ export default function FeishuConfigPage() {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 跟进记录同步 */}
+        <TabsContent value="followup-sync" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>跟进记录同步配置</CardTitle>
+              <CardDescription>
+                配置飞书多维表格Webhook，自动接收跟进记录并同步到案件系统
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Webhook配置说明 */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Webhook 配置</h3>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-blue-100 rounded-full p-2">
+                      <Terminal className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-blue-900 mb-1">飞书多维表格Webhook</h4>
+                      <p className="text-sm text-blue-700 mb-3">
+                        请在飞书多维表格中配置Webhook，将以下信息填入：
+                      </p>
+                      
+                      <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm space-y-3">
+                        <div className="text-gray-400"># 请求地址 (URL)</div>
+                        <div className="mb-2 break-all">
+                          {process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'}/api/webhook/followup
+                        </div>
+                        
+                        <div className="text-gray-400 mt-4"># 请求方法</div>
+                        <div className="mb-2">POST</div>
+                        
+                        <div className="text-gray-400 mt-4"># Content-Type</div>
+                        <div className="mb-2">application/json</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 请求体示例 */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">请求体示例</h4>
+                  <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-xs overflow-auto">
+                    <pre>{JSON.stringify({
+                      "用户ID": "202600501DCDR",
+                      "贷款单号": "DSL1720438526638",
+                      "记录人": "张三",
+                      "跟进类型": "线上",
+                      "联系人": "法人",
+                      "跟进结果": "正常还款",
+                      "记录内容": "这是一条跟进记录",
+                      "文件信息": ["example.jpg", "document.pdf"]
+                    }, null, 2)}</pre>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 接收记录展示 */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">
+                    共接收到 {followupWebhookRecords.length} 条记录（最新在前）
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadFollowupWebhookRecords}
+                      disabled={loadingFollowupWebhookRecords}
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${loadingFollowupWebhookRecords ? 'animate-spin' : ''}`} />
+                      刷新
+                    </Button>
+                    {followupWebhookRecords.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={clearFollowupWebhookRecords}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        清空
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {loadingFollowupWebhookRecords ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">加载中...</p>
+                  </div>
+                ) : followupWebhookRecords.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>暂无记录</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-auto">
+                    {followupWebhookRecords.map((record, index) => (
+                      <div 
+                        key={index} 
+                        className="p-4 bg-muted rounded-lg border border-border"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {index + 1}
+                            </Badge>
+                            <span className="text-sm font-medium">
+                              {new Date(record.receivedAt).toLocaleString('zh-CN')}
+                            </span>
+                          </div>
+                          
+                          {/* 处理结果标签 */}
+                          {record.processResult && (
+                            <Badge 
+                              className={
+                                record.processResult.success 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }
+                            >
+                              {record.processResult.updatedCases && record.processResult.updatedCases > 0 
+                                ? `已同步${record.processResult.updatedCases}个案件` 
+                                : '处理完成'}
+                              {record.processResult.success ? '成功' : '失败'}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* 处理结果展示 */}
+                        {record.processResult && (
+                          <div className="mb-3 p-3 bg-background rounded-lg border">
+                            <div className="text-sm">
+                              <div className="font-medium">
+                                {record.processResult.message}
+                              </div>
+                              {record.processResult.updatedCases && (
+                                <div className="text-muted-foreground mt-1">
+                                  同步案件数: {record.processResult.updatedCases}
+                                </div>
+                              )}
+                              {record.processResult.error && (
+                                <div className="text-red-600 mt-1">
+                                  错误: {record.processResult.error}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="mt-2">
+                          <details>
+                            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                              点击查看接收内容
+                            </summary>
+                            <pre className="mt-2 p-3 bg-background rounded-lg text-xs overflow-auto max-h-96 border">
+                              {JSON.stringify(record.payload, null, 2)}
+                            </pre>
+                          </details>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
