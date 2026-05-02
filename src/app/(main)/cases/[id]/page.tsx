@@ -1134,19 +1134,28 @@ export default function CaseDetailPage() {
                       }
                     };
                     
-                    // 文件信息简化（只发送文件名和类型，不发送长base64内容）
-                    const formatFileInfo = (files: any) => {
+                    // 文件信息生成短链接
+                    const formatFileInfo = (files: any, caseId: string) => {
                       if (!files || files.length === 0) return [];
                       return (files as any[]).map((file: any) => {
+                        let fileName = '';
+                        let fileType = 'file';
+                        
                         if (file.name) {
-                          return { 
-                            name: file.name, 
-                            type: file.type || 'file'
-                          };
+                          fileName = file.name;
+                          fileType = file.type || 'file';
                         } else if (typeof file === 'string') {
-                          return { name: file, type: 'file' };
+                          fileName = file;
                         }
-                        return { name: file, type: 'file' };
+                        
+                        // 生成短链接：/api/files/[caseId]/[fileName]
+                        const shortUrl = `/api/files/${caseId}/${encodeURIComponent(fileName)}`;
+                        
+                        return { 
+                          name: fileName, 
+                          type: fileType,
+                          url: shortUrl
+                        };
                       });
                     };
                     
@@ -1168,7 +1177,7 @@ export default function CaseDetailPage() {
                           contact: getContactText(followup.contact),
                           follow_result: getFollowResultText(followup.followResult),
                           follow_record: followup.followRecord,
-                          file_info: formatFileInfo(followup.fileInfo)
+                          file_info: formatFileInfo(followup.fileInfo, params.id as string)
                         }
                       })
                     }).catch((webhookError) => {
