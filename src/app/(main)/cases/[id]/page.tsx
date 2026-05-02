@@ -755,7 +755,7 @@ export default function CaseDetailPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-8 bg-red-500 rounded-full" />
-                <h3 className="text-xl font-bold text-slate-900">贷后跟进记录</h3>
+                <h3 className="text-xl font-bold text-slate-900">跟进记录</h3>
                 <span className="text-sm text-slate-500">({caseData?.followups?.length || 0}条)</span>
               </div>
               <Button 
@@ -1091,6 +1091,7 @@ export default function CaseDetailPage() {
                     }
                     
                     if (updatedCount > 0) {
+                      setShowFollowupDialog(false);
                       setShowFollowupDialog(false);
                       setUploadedCaseFiles([]);
                       toast.success(`跟进记录添加成功，已同步到 ${updatedCount} 个案件`);
