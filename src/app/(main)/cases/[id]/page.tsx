@@ -1134,26 +1134,19 @@ export default function CaseDetailPage() {
                       }
                     };
                     
-                    // 文件信息转下载链接（简化处理，因为是base64数据）
+                    // 文件信息简化（只发送文件名和类型，不发送长base64内容）
                     const formatFileInfo = (files: any) => {
                       if (!files || files.length === 0) return [];
                       return (files as any[]).map((file: any) => {
-                        if (file.type === 'image' && file.data) {
-                          // 图片类型直接返回base64链接，可以点击放大查看
-                          return {
-                            name: file.name,
-                            type: file.type,
-                            url: file.data.startsWith('data:') ? file.data : `data:image/jpeg;base64,${file.data}`
+                        if (file.name) {
+                          return { 
+                            name: file.name, 
+                            type: file.type || 'file'
                           };
-                        } else if (file.type === 'file' && file.data) {
-                          // 文件类型返回base64下载链接
-                          return {
-                            name: file.name,
-                            type: file.type,
-                            url: file.data.startsWith('data:') ? file.data : `data:application/octet-stream;base64,${file.data}`
-                          };
+                        } else if (typeof file === 'string') {
+                          return { name: file, type: 'file' };
                         }
-                        return file;
+                        return { name: file, type: 'file' };
                       });
                     };
                     
