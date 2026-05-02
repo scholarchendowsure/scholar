@@ -95,6 +95,9 @@ export default function CaseDetailPage() {
   const handleCameraUpload = () => {
     toast.info('拍照功能正在开发中');
   };
+  
+  // 图片预览状态
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // 读取导航状态
   useEffect(() => {
@@ -750,8 +753,9 @@ export default function CaseDetailPage() {
               <div className="space-y-3">
                 {caseData.followups.map((followup) => (
                   <div key={followup.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                    {/* 一行显示所有字段 */}
+                    {/* 所有内容都在一行显示 */}
                     <div className="flex flex-wrap items-center gap-3 text-sm">
+                      {/* 基本字段 */}
                       <div className="flex items-center gap-1">
                         <span className="text-slate-500">跟进人:</span>
                         <span className="font-medium">{followup.follower}</span>
@@ -782,53 +786,56 @@ export default function CaseDetailPage() {
                           {FOLLOWUP_RESULT_OPTIONS.find(opt => opt.value === followup.followResult)?.label}
                         </span>
                       </div>
-                    </div>
-                    
-                    {/* 跟进记录 */}
-                    <div className="mt-2">
-                      <div className="text-sm text-slate-500 mb-1">跟进记录:</div>
-                      <div className="p-2 bg-white border border-slate-200 rounded-md text-sm">
-                        {followup.followRecord}
-                      </div>
-                    </div>
-                    
-                    {/* 文件信息 - 图片显示预览，文件提供下载 */}
-                    {followup.fileInfo && followup.fileInfo.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-sm text-slate-500 mb-1">文件信息:</div>
-                        <div className="flex flex-wrap gap-2">
-                          {followup.fileInfo.map((file, idx) => {
-                            const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(file);
-                            return (
-                              <div key={idx} className="flex items-center gap-1">
-                                {isImage ? (
-                                  // 图片类型：直接显示（用占位图演示）
-                                  <div className="relative group">
-                                    <div className="w-20 h-20 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs">
-                                      图片预览
-                                    </div>
-                                    <div className="absolute -top-1 -right-1 bg-black bg-opacity-70 text-white text-xs px-1 rounded hidden group-hover:block">
-                                      {file}
-                                    </div>
+                      
+                      {/* 跟进记录（在一行显示） */}
+                      {followup.followRecord && (
+                        <>
+                          <div className="text-slate-300">|</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-500">记录:</span>
+                            <span className="max-w-xs truncate" title={followup.followRecord}>{followup.followRecord}</span>
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* 文件信息（在一行显示，图片可点击放大） */}
+                      {followup.fileInfo && followup.fileInfo.length > 0 && (
+                        <>
+                          <div className="text-slate-300">|</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-500">文件:</span>
+                            <div className="flex gap-1">
+                              {followup.fileInfo.map((file, idx) => {
+                                const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(file);
+                                return (
+                                  <div key={idx} className="flex items-center gap-1">
+                                    {isImage ? (
+                                      // 图片类型：显示缩略图，可点击放大
+                                      <button
+                                        onClick={() => setPreviewImage(file)}
+                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                                        title={`点击放大: ${file}`}
+                                      >
+                                        图片
+                                      </button>
+                                    ) : (
+                                      // 文件类型：提供下载
+                                      <button
+                                        onClick={() => toast.info(`正在下载: ${file}`)}
+                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
+                                        title={`下载: ${file}`}
+                                      >
+                                        {file.length > 8 ? `${file.substring(0, 6)}...` : file}
+                                      </button>
+                                    )}
                                   </div>
-                                ) : (
-                                  // 文件类型：提供下载按钮
-                                  <button
-                                    onClick={() => {
-                                      toast.info(`正在下载: ${file}`);
-                                    }}
-                                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm hover:bg-blue-200 flex items-center gap-1"
-                                  >
-                                    <span>{file}</span>
-                                    <span className="text-xs">下载</span>
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1030,6 +1037,44 @@ export default function CaseDetailPage() {
                 保存
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 图片预览弹窗 */}
+        <Dialog open={previewImage !== null} onOpenChange={(open) => !open && setPreviewImage(null)}>
+          <DialogContent className="sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>图片预览</DialogTitle>
+            </DialogHeader>
+            {previewImage && (
+              <div className="flex flex-col items-center">
+                <div className="w-full max-h-[60vh] overflow-hidden flex items-center justify-center bg-slate-100 rounded-lg">
+                  <div className="p-8 text-center">
+                    <div className="w-32 h-32 bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 mb-4 mx-auto">
+                      图片预览
+                    </div>
+                    <p className="text-slate-600 font-medium">{previewImage}</p>
+                    <p className="text-slate-400 text-sm mt-2">
+                      （此处仅为演示，实际项目中会显示真实图片）
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button 
+                    onClick={() => toast.info('正在下载图片')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    下载图片
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setPreviewImage(null)}
+                  >
+                    关闭
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
