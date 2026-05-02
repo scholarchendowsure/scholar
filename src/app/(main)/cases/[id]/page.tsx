@@ -1097,19 +1097,20 @@ export default function CaseDetailPage() {
                         'Content-Type': 'application/json',
                       },
                       body: JSON.stringify({
-                        event_type: 'follow_up_created',
-                        case_data: caseData,
-                        follow_up_data: {
-                          id: followup.id,
-                          follower: followup.follower,
-                          followTime: followup.followTime,
-                          followType: followup.followType,
-                          contact: followup.contact,
-                          followResult: followup.followResult,
-                          followRecord: followup.followRecord,
-                          fileInfo: followup.fileInfo
+                        事件类型: 'follow_up_created',
+                        案件数据: {
+                          用户ID: caseData.userId,
+                          贷款单号: caseData.loanNo
                         },
-                        synchronized_cases: updatedCount + 1
+                        跟进记录数据: {
+                          跟进人: followup.follower,
+                          跟进时间: followup.followTime,
+                          跟进类型: followup.followType,
+                          联系人: followup.contact,
+                          跟进结果: followup.followResult,
+                          跟进记录: followup.followRecord,
+                          文件信息: followup.fileInfo
+                        }
                       })
                     }).catch((webhookError) => {
                       console.error('Webhook调用失败:', webhookError);
