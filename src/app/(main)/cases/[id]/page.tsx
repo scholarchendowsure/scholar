@@ -1090,33 +1090,31 @@ export default function CaseDetailPage() {
                       }
                     }
                     
-                    // 调用飞书Webhook同步跟进记录
-                    try {
-                      await fetch('https://dowsure88.feishu.cn/base/workflow/webhook/event/SgG6arWhQwJXR2hovzIcQJubnfg', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
+                    // 调用后端API同步到飞书Webhook（避免CORS问题）
+                    fetch('/api/webhook/feishu', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        event_type: 'follow_up_created',
+                        case_data: caseData,
+                        follow_up_data: {
+                          id: followup.id,
+                          follower: followup.follower,
+                          followTime: followup.followTime,
+                          followType: followup.followType,
+                          contact: followup.contact,
+                          followResult: followup.followResult,
+                          followRecord: followup.followRecord,
+                          fileInfo: followup.fileInfo
                         },
-                        body: JSON.stringify({
-                          event_type: 'follow_up_created',
-                          case_data: caseData,
-                          follow_up_data: {
-                            id: followup.id,
-                            follower: followup.follower,
-                            followTime: followup.followTime,
-                            followType: followup.followType,
-                            contact: followup.contact,
-                            followResult: followup.followResult,
-                            followRecord: followup.followRecord,
-                            fileInfo: followup.fileInfo
-                          },
-                          synchronized_cases: updatedCount + 1
-                        })
-                      });
-                    } catch (webhookError) {
+                        synchronized_cases: updatedCount + 1
+                      })
+                    }).catch((webhookError) => {
                       console.error('Webhook调用失败:', webhookError);
                       // 不影响主流程，只记录日志
-                    }
+                    });
                     
                     // 不管更新了几个案件，只要没出错就关闭弹窗
                     setShowFollowupDialog(false);
