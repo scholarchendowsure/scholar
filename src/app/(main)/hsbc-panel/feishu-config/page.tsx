@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,10 +15,11 @@ import { toast } from 'sonner';
 import { 
   Loader2, RefreshCw, Save, Users, Settings, Link, Trash2, 
   MessageSquare, Search, Send, Database, ArrowRightLeft, 
-  Cloud, Download, Upload, Activity 
+  Cloud, Download, Upload, Activity, Bell 
 } from 'lucide-react';
 import { FeishuBitableConfig, BitableSyncRecord, DEFAULT_BITABLE_FIELDS } from '@/types/feishu-bitable';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
+import { CozeApiConfig } from '@/types/coze-api';
 
 // 类型定义
 interface FeishuUser {
@@ -97,6 +99,20 @@ export default function FeishuConfigPage() {
   const [personalSendingMessage, setPersonalSendingMessage] = useState(false);
   const [personalDirectUserId, setPersonalDirectUserId] = useState('');
 
+  // Coze API 状态
+  const [cozeConfig, setCozeConfig] = useState<CozeApiConfig | null>(null);
+  const [cozeApiKey, setCozeApiKey] = useState('');
+  const [cozeBotId, setCozeBotId] = useState('');
+  const [cozeEnabled, setCozeEnabled] = useState(false);
+  const [cozeReceiveId, setCozeReceiveId] = useState('');
+  const [cozeMessage, setCozeMessage] = useState('');
+  const [cozeSending, setCozeSending] = useState(false);
+  const [cozeCaseId, setCozeCaseId] = useState('');
+  const [cozeReminderType, setCozeReminderType] = useState<'overdue' | 'due' | 'followup' | 'custom'>('overdue');
+  const [cozeCustomerName, setCozeCustomerName] = useState('');
+  const [cozeOverdueAmount, setCozeOverdueAmount] = useState('');
+  const [cozeOverdueDays, setCozeOverdueDays] = useState('');
+
   // 加载配置
   useEffect(() => {
     loadConfig();
@@ -106,6 +122,7 @@ export default function FeishuConfigPage() {
     loadBitableConfigs();
     loadPersonalConfig();
     loadPersonalAccounts();
+    loadCozeConfig();
   }, []);
 
   // 加载应用配置
@@ -349,6 +366,126 @@ export default function FeishuConfigPage() {
       toast.error('发送消息失败');
     } finally {
       setPersonalSendingMessage(false);
+    }
+  };
+
+  // 加载 Coze API 配置
+  const loadCozeConfig = async () => {
+    try {
+      const response = await fetch('/api/coze-api/config');
+      const data = await response.json();
+      if (data.success) {
+        setCozeConfig(data.config);
+        setCozeApiKey(data.config.apiKey || '');
+        setCozeBotId(data.config.botId || '');
+        setCozeEnabled(data.config.isEnabled || false);
+      }
+    } catch (error) {
+      console.error('加载Coze API配置失败:', error);
+    }
+  };
+
+  // 保存 Coze API 配置
+  const saveCozeConfig = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/coze-api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: cozeApiKey,
+          botId: cozeBotId,
+          isEnabled: cozeEnabled
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Coze API 配置保存成功');
+        setCozeConfig(data.config);
+      } else {
+        toast.error(data.message || '保存失败');
+      }
+    } catch (error) {
+      toast.error('保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 发送 Coze 消息
+  const sendCozeMessage = async () => {
+    if (!cozeReceiveId || !cozeMessage) {
+      toast.error('接收人ID和消息内容不能为空');
+      return;
+    }
+
+    setCozeSending(true);
+    try {
+      const response = await fetch('/api/coze-api/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiveId: cozeReceiveId,
+          message: cozeMessage
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('消息发送成功');
+        setCozeMessage('');
+      } else {
+        toast.error(data.error || '发送失败');
+      }
+    } catch (error) {
+      toast.error('发送消息失败');
+    } finally {
+      setCozeSending(false);
+    }
+  };
+
+  // 发送 Coze 提醒
+  const sendCozeReminder = async () => {
+    if (!cozeReceiveId) {
+      toast.error('接收人ID不能为空');
+      return;
+    }
+
+    setCozeSending(true);
+    try {
+      const requestBody: any = {
+        receiveId: cozeReceiveId,
+        reminderType: cozeReminderType === 'custom' ? undefined : cozeReminderType
+      };
+      
+      if (cozeCaseId) requestBody.caseId = cozeCaseId;
+      if (cozeCustomerName) requestBody.customerName = cozeCustomerName;
+      if (cozeOverdueAmount) requestBody.overdueAmount = parseFloat(cozeOverdueAmount);
+      if (cozeOverdueDays) requestBody.overdueDays = parseInt(cozeOverdueDays);
+      if (cozeReminderType === 'custom' && cozeMessage) {
+        requestBody.customMessage = cozeMessage;
+      }
+      
+      const response = await fetch('/api/coze-api/send-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('提醒发送成功');
+        if (cozeReminderType === 'custom') {
+          setCozeMessage('');
+        }
+      } else {
+        toast.error(data.error || '发送失败');
+      }
+    } catch (error) {
+      toast.error('发送提醒失败');
+    } finally {
+      setCozeSending(false);
     }
   };
 
@@ -1247,159 +1384,403 @@ export default function FeishuConfigPage() {
 
         {/* 个人账号绑定 */}
         <TabsContent value="personal-account" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>飞书个人账号绑定</CardTitle>
-              <CardDescription>
-                使用飞书官方CLI工具（lark-cli），通过您的个人账号发送私人消息
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* CLI配置 */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium">CLI 配置</h3>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="cliPath">lark-cli 路径</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="cliPath"
-                      value={cliPath}
-                      onChange={(e) => setCliPath(e.target.value)}
-                      placeholder="请输入 lark-cli 路径（默认为 lark）"
-                    />
-                    <Button onClick={testCli} disabled={testingCli}>
-                      {testingCli ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          测试中...
-                        </>
-                      ) : (
-                        <>
-                          <Activity className="w-4 h-4 mr-2" />
-                          测试CLI
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {cliAvailable && (
-                    <div className="text-sm text-green-600">
-                      ✓ lark-cli 可用
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="personalSendMode">发送模式</Label>
-                  <Select value={personalSendMode} onValueChange={(v: PersonalSendMode) => setPersonalSendMode(v)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cli">lark-cli 发送</SelectItem>
-                      <SelectItem value="personal-app">个人自建应用（开发中）</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button onClick={savePersonalConfig} disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      保存中...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      保存配置
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <div className="pt-6 border-t">
-                <h3 className="text-sm font-medium mb-4">消息测试</h3>
-                
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 左侧：飞书个人账号绑定 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>飞书个人账号绑定</CardTitle>
+                <CardDescription>
+                  使用飞书官方CLI工具（lark-cli），通过您的个人账号发送私人消息
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* CLI配置 */}
                 <div className="space-y-4">
+                  <h3 className="text-sm font-medium">CLI 配置</h3>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="personalDirectUserId">接收人 Open ID / User ID</Label>
-                    <Input
-                      id="personalDirectUserId"
-                      value={personalDirectUserId}
-                      onChange={(e) => setPersonalDirectUserId(e.target.value)}
-                      placeholder="请输入接收人的 Open ID（例如：ou_a6c1929d297c616fbdff10da8472e263）"
-                    />
+                    <Label htmlFor="cliPath">lark-cli 路径</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="cliPath"
+                        value={cliPath}
+                        onChange={(e) => setCliPath(e.target.value)}
+                        placeholder="请输入 lark-cli 路径（默认为 lark）"
+                      />
+                      <Button onClick={testCli} disabled={testingCli}>
+                        {testingCli ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            测试中...
+                          </>
+                        ) : (
+                          <>
+                            <Activity className="w-4 h-4 mr-2" />
+                            测试CLI
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {cliAvailable && (
+                      <div className="text-sm text-green-600">
+                        ✓ lark-cli 可用
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="personalTestMessage">测试消息内容</Label>
-                    <Input
-                      id="personalTestMessage"
-                      value={personalTestMessage}
-                      onChange={(e) => setPersonalTestMessage(e.target.value)}
-                      placeholder="请输入测试消息内容"
-                    />
+                    <Label htmlFor="personalSendMode">发送模式</Label>
+                    <Select value={personalSendMode} onValueChange={(v: PersonalSendMode) => setPersonalSendMode(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cli">lark-cli 发送</SelectItem>
+                        <SelectItem value="personal-app">个人自建应用（开发中）</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <Button 
-                    onClick={sendPersonalMessage} 
-                    disabled={personalSendingMessage || !personalDirectUserId || !personalTestMessage}
-                  >
-                    {personalSendingMessage ? (
+                  <Button onClick={savePersonalConfig} disabled={loading}>
+                    {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        发送中...
+                        保存中...
                       </>
                     ) : (
                       <>
-                        <Send className="w-4 h-4 mr-2" />
-                        发送测试消息
+                        <Save className="w-4 h-4 mr-2" />
+                        保存配置
                       </>
                     )}
                   </Button>
                 </div>
-              </div>
 
-              {/* 个人账号列表 */}
-              <div className="pt-6 border-t">
-                <h3 className="text-sm font-medium mb-4">已绑定账号</h3>
-                {personalAccounts.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    暂无绑定的个人账号
+                <div className="pt-6 border-t">
+                  <h3 className="text-sm font-medium mb-4">消息测试</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="personalDirectUserId">接收人 Open ID / User ID</Label>
+                      <Input
+                        id="personalDirectUserId"
+                        value={personalDirectUserId}
+                        onChange={(e) => setPersonalDirectUserId(e.target.value)}
+                        placeholder="请输入接收人的 Open ID（例如：ou_a6c1929d297c616fbdff10da8472e263）"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="personalTestMessage">测试消息内容</Label>
+                      <Input
+                        id="personalTestMessage"
+                        value={personalTestMessage}
+                        onChange={(e) => setPersonalTestMessage(e.target.value)}
+                        placeholder="请输入测试消息内容"
+                      />
+                    </div>
+
+                    <Button 
+                      onClick={sendPersonalMessage} 
+                      disabled={personalSendingMessage || !personalDirectUserId || !personalTestMessage}
+                    >
+                      {personalSendingMessage ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          发送中...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-2" />
+                          发送测试消息
+                        </>
+                      )}
+                    </Button>
                   </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>系统用户</TableHead>
-                        <TableHead>飞书昵称</TableHead>
-                        <TableHead>状态</TableHead>
-                        <TableHead>绑定时间</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {personalAccounts.map((account) => (
-                        <TableRow key={account.id}>
-                          <TableCell className="font-medium">{account.userId}</TableCell>
-                          <TableCell>{account.feishuName || '-'}</TableCell>
-                          <TableCell>
-                            <Badge 
-                              className={account.isBound ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-                            >
-                              {account.isBound ? '已绑定' : '未绑定'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(account.createdAt).toLocaleString()}
-                          </TableCell>
+                </div>
+
+                {/* 个人账号列表 */}
+                <div className="pt-6 border-t">
+                  <h3 className="text-sm font-medium mb-4">已绑定账号</h3>
+                  {personalAccounts.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      暂无绑定的个人账号
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>系统用户</TableHead>
+                          <TableHead>飞书昵称</TableHead>
+                          <TableHead>状态</TableHead>
+                          <TableHead>绑定时间</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {personalAccounts.map((account) => (
+                          <TableRow key={account.id}>
+                            <TableCell className="font-medium">{account.userId}</TableCell>
+                            <TableCell>{account.feishuName || '-'}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                className={account.isBound ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+                              >
+                                {account.isBound ? '已绑定' : '未绑定'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(account.createdAt).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 右侧：扣子AI消息发送 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>扣子AI API 消息发送</CardTitle>
+                <CardDescription>
+                  通过 Coze API 调用发送消息，支持贷后系统主动推送提醒
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Coze API 配置 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">API 配置</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="cozeApiKey">API Key</Label>
+                    <Input
+                      id="cozeApiKey"
+                      type="password"
+                      value={cozeApiKey}
+                      onChange={(e) => setCozeApiKey(e.target.value)}
+                      placeholder="请输入 Coze API Key"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cozeBotId">Bot ID</Label>
+                    <Input
+                      id="cozeBotId"
+                      value={cozeBotId}
+                      onChange={(e) => setCozeBotId(e.target.value)}
+                      placeholder="请输入 Coze Bot ID"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Switch 
+                      id="cozeEnabled"
+                      checked={cozeEnabled}
+                      onCheckedChange={setCozeEnabled}
+                    />
+                    <Label htmlFor="cozeEnabled">启用 Coze API</Label>
+                  </div>
+
+                  <Button onClick={saveCozeConfig} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        保存中...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        保存配置
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* 消息测试 */}
+                <div className="pt-6 border-t">
+                  <h3 className="text-sm font-medium mb-4">消息测试</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cozeReceiveId">接收人 ID</Label>
+                      <Input
+                        id="cozeReceiveId"
+                        value={cozeReceiveId}
+                        onChange={(e) => setCozeReceiveId(e.target.value)}
+                        placeholder="请输入接收人的 ID"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cozeMessage">消息内容</Label>
+                      <Textarea
+                        id="cozeMessage"
+                        value={cozeMessage}
+                        onChange={(e) => setCozeMessage(e.target.value)}
+                        placeholder="请输入消息内容"
+                        rows={3}
+                      />
+                    </div>
+
+                    <Button 
+                      onClick={sendCozeMessage} 
+                      disabled={cozeSending || !cozeReceiveId || !cozeMessage}
+                    >
+                      {cozeSending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          发送中...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-2" />
+                          发送消息
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 提醒测试 */}
+                <div className="pt-6 border-t">
+                  <h3 className="text-sm font-medium mb-4">贷后提醒测试</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cozeReceiveId2">接收人 ID</Label>
+                      <Input
+                        id="cozeReceiveId2"
+                        value={cozeReceiveId}
+                        onChange={(e) => setCozeReceiveId(e.target.value)}
+                        placeholder="请输入接收人的 ID"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="cozeReminderType">提醒类型</Label>
+                      <Select 
+                        value={cozeReminderType} 
+                        onValueChange={(value) => setCozeReminderType(value as 'overdue' | 'due' | 'followup' | 'custom')}
+                      >
+                        <SelectTrigger id="cozeReminderType">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="overdue">逾期催收提醒</SelectItem>
+                          <SelectItem value="due">还款到期提醒</SelectItem>
+                          <SelectItem value="followup">跟进任务提醒</SelectItem>
+                          <SelectItem value="custom">自定义消息</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {cozeReminderType !== 'custom' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="cozeCaseId">案件 ID</Label>
+                          <Input
+                            id="cozeCaseId"
+                            value={cozeCaseId}
+                            onChange={(e) => setCozeCaseId(e.target.value)}
+                            placeholder="案件 ID"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cozeCustomerName">客户姓名</Label>
+                          <Input
+                            id="cozeCustomerName"
+                            value={cozeCustomerName}
+                            onChange={(e) => setCozeCustomerName(e.target.value)}
+                            placeholder="客户姓名"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cozeOverdueAmount">逾期金额</Label>
+                          <Input
+                            id="cozeOverdueAmount"
+                            value={cozeOverdueAmount}
+                            onChange={(e) => setCozeOverdueAmount(e.target.value)}
+                            placeholder="逾期金额"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cozeOverdueDays">逾期天数</Label>
+                          <Input
+                            id="cozeOverdueDays"
+                            value={cozeOverdueDays}
+                            onChange={(e) => setCozeOverdueDays(e.target.value)}
+                            placeholder="逾期天数"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {cozeReminderType === 'custom' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="cozeMessage2">自定义消息</Label>
+                        <Textarea
+                          id="cozeMessage2"
+                          value={cozeMessage}
+                          onChange={(e) => setCozeMessage(e.target.value)}
+                          placeholder="请输入自定义消息内容"
+                          rows={3}
+                        />
+                      </div>
+                    )}
+
+                    <Button 
+                      onClick={sendCozeReminder} 
+                      disabled={cozeSending || !cozeReceiveId}
+                    >
+                      {cozeSending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          发送中...
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="w-4 h-4 mr-2" />
+                          发送提醒
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* API 文档 */}
+                <div className="pt-6 border-t">
+                  <h3 className="text-sm font-medium mb-4">API 调用文档</h3>
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <div className="text-sm font-mono space-y-2">
+                      <p><strong>发送提醒 API：</strong></p>
+                      <p className="text-muted-foreground">POST /api/coze-api/send-reminder</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        请求示例：
+                        <br/>
+                        {'{'}
+                        <br/>
+                        &nbsp;&nbsp;"receiveId": "接收人ID",
+                        <br/>
+                        &nbsp;&nbsp;"reminderType": "overdue",
+                        <br/>
+                        &nbsp;&nbsp;"caseId": "CASE001",
+                        <br/>
+                        &nbsp;&nbsp;"customerName": "张三",
+                        <br/>
+                        &nbsp;&nbsp;"overdueAmount": 5000,
+                        <br/>
+                        &nbsp;&nbsp;"overdueDays": 30
+                        <br/>
+                        {'}'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
