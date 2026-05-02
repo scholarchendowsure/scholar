@@ -73,6 +73,9 @@ export default function CaseDetailPage() {
     fileInfo: [],
   });
 
+  // 单独存上传的CaseFile[]
+  const [uploadedCaseFiles, setUploadedCaseFiles] = useState<CaseFile[]>([]);
+
   // 导航状态
   const [navigationState, setNavigationState] = useState<{
     caseIds: string[];
@@ -83,20 +86,21 @@ export default function CaseDetailPage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      const fileNames = files.map(file => file.name);
-      setNewFollowup({
-        ...newFollowup,
-        fileInfo: [...(newFollowup.fileInfo || []), ...fileNames]
-      });
-      
-      // 保存文件内容
-      const newUploadingFiles = { ...uploadingFiles };
       files.forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const result = e.target?.result as string;
-          newUploadingFiles[file.name] = result;
-          setUploadingFiles({ ...newUploadingFiles });
+          const caseFile: CaseFile = {
+            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            type: isImageFile(file.name) ? 'image' : 
+                  isDocumentFile(file.name) ? 'document' : 'other',
+            data: result,
+            uploadTime: new Date().toISOString(),
+            uploadBy: '未登记人',
+          };
+          
+          setUploadedCaseFiles(prev => [...prev, caseFile]);
         };
         reader.readAsDataURL(file);
       });
@@ -117,6 +121,13 @@ export default function CaseDetailPage() {
   
   // 保存文件上传，包含数据
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: string }>({});
+
+  // 监听对话框打开，清空上传文件
+  useEffect(() => {
+    if (showFollowupDialog) {
+      setUploadedCaseFiles([]);
+    }
+  }, [showFollowupDialog]);
 
   // 读取导航状态
   useEffect(() => {
@@ -810,17 +821,13 @@ export default function CaseDetailPage() {
                         </span>
                       </div>
                       
-                      {/* 跟进记录（在一行显示） */}
+                      {/* 跟进记录（在一行显示，全部显示） */}
                       {followup.followRecord && (
                         <>
                           <div className="text-slate-300">|</div>
                           <div className="flex items-center gap-1">
                             <span className="text-slate-500">记录:</span>
-                            <span 
-                              className="max-w-xs truncate cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
-                              onClick={() => setViewFullRecord(followup.followRecord)}
-                              title="点击查看完整记录"
-                            >
+                            <span className="text-slate-800">
                               {followup.followRecord}
                             </span>
                           </div>
@@ -834,22 +841,22 @@ export default function CaseDetailPage() {
                           <div className="flex items-center gap-1">
                             <span className="text-slate-500">文件:</span>
                             <div className="flex gap-1">
-                              {followup.fileInfo.map((file, idx) => {
-                                // 现在 fileInfo 是 CaseFile[]，不是 string[]
-                                const caseFile = typeof file === 'string' 
-                                  ? { id: idx.toString(), name: file, type: isImageFile(file) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人' } as CaseFile
-                                  : file;
+                              {followup.fileInfo.map((caseFile) => {
+                                // caseFile 现在已经是 CaseFile 类型
+                                const file = typeof caseFile === 'string' 
+                                  ? { id: Math.random().toString(), name: caseFile, type: isImageFile(caseFile) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人' } as CaseFile
+                                  : caseFile;
                                 return (
-                                  <div key={caseFile.id} className="flex items-center gap-1">
-                                    {caseFile.type === 'image' ? (
+                                  <div key={file.id} className="flex items-center gap-1">
+                                    {file.type === 'image' ? (
                                       // 图片类型：显示缩略图，可点击放大
                                       <button
-                                        onClick={() => setPreviewImage(caseFile.data || caseFile.url || null)}
+                                        onClick={() => setPreviewImage(file.data || file.url || null)}
                                         className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
-                                        title={`点击放大: ${caseFile.name}`}
+                                        title={`点击放大: ${file.name}`}
                                       >
-                                        {caseFile.data ? (
-                                          <img src={caseFile.data} alt={caseFile.name} className="w-full h-full object-cover" />
+                                        {file.data ? (
+                                          <img src={file.data} alt={file.name} className="w-full h-full object-cover" />
                                         ) : (
                                           '图'
                                         )}
@@ -857,11 +864,21 @@ export default function CaseDetailPage() {
                                     ) : (
                                       // 文件类型：提供下载
                                       <button
-                                        onClick={() => toast.info(`正在下载: ${caseFile.name}`)}
+                                        onClick={() => {
+                                          if (file.data) {
+                                            // 有data的话，直接下载
+                                            const link = document.createElement('a');
+                                            link.href = file.data;
+                                            link.download = file.name;
+                                            link.click();
+                                          } else {
+                                            toast.info(`正在下载: ${file.name}`);
+                                          }
+                                        }}
                                         className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
-                                        title={`下载: ${caseFile.name}`}
+                                        title={`下载: ${file.name}`}
                                       >
-                                        {caseFile.name.length > 8 ? `${caseFile.name.substring(0, 6)}...` : caseFile.name}
+                                        {file.name.length > 8 ? `${file.name.substring(0, 6)}...` : file.name}
                                       </button>
                                     )}
                                   </div>
@@ -988,16 +1005,13 @@ export default function CaseDetailPage() {
                     拍照上传
                   </Button>
                 </div>
-                {newFollowup.fileInfo && newFollowup.fileInfo.length > 0 && (
+                {uploadedCaseFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {newFollowup.fileInfo.map((file, idx) => (
-                      <div key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
-                        {file}
+                    {uploadedCaseFiles.map((file, idx) => (
+                      <div key={file.id} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
+                        {file.name}
                         <button 
-                          onClick={() => setNewFollowup({
-                            ...newFollowup,
-                            fileInfo: newFollowup.fileInfo?.filter((_, i) => i !== idx)
-                          })}
+                          onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx))}
                           className="text-blue-600 hover:text-blue-800"
                         >
                           ×
@@ -1022,26 +1036,22 @@ export default function CaseDetailPage() {
                   try {
                     const followup: FollowUp = {
                       id: Date.now().toString(),
-                      follower: newFollowup.follower,
+                      follower: newFollowup.follower || '未登记人',
                       followTime: newFollowup.followTime || new Date().toISOString(),
                       followType: newFollowup.followType as any,
                       contact: newFollowup.contact as any,
                       followResult: newFollowup.followResult as any,
-                      followRecord: newFollowup.followRecord,
-                      fileInfo: newFollowup.fileInfo,
+                      followRecord: newFollowup.followRecord || '',
+                      fileInfo: uploadedCaseFiles,
                       createdAt: new Date().toISOString(),
-                      createdBy: newFollowup.follower,
+                      createdBy: newFollowup.follower || '未登记人',
                     };
                     
                     // 同步保存文件信息到案件中
                     const currentFiles = caseData?.files || [];
-                    const newFiles: CaseFile[] = (newFollowup.fileInfo || []).map(fileName => ({
-                      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                      name: fileName,
-                      type: isImageFile(fileName) ? 'image' : 
-                            isDocumentFile(fileName) ? 'document' : 'other',
-                      uploadTime: new Date().toISOString(),
-                      uploadBy: newFollowup.follower || '未登记人',
+                    const newFiles: CaseFile[] = uploadedCaseFiles.map(file => ({
+                      ...file,
+                      id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     }));
                     
                     const updatedCase: Case = {
@@ -1061,6 +1071,7 @@ export default function CaseDetailPage() {
                     if (json.success) {
                       setCaseData(updatedCase);
                       setShowFollowupDialog(false);
+                      setUploadedCaseFiles([]); // 清空上传文件
                       toast.success('跟进记录添加成功');
                     } else {
                       toast.error('跟进记录添加失败');

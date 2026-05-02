@@ -87,7 +87,7 @@ export interface FollowUp {
   contact: 'legal_representative' | 'actual_controller'; // 联系人：法人/实控人
   followResult: 'normal_repayment' | 'warning_rise' | 'overdue_promise'; // 跟进结果：正常还款/预警上升/逾期承诺
   followRecord: string; // 跟进记录内容
-  fileInfo?: string[]; // 文件信息：文件列表
+  fileInfo?: (string | CaseFile)[]; // 文件信息：文件列表或CaseFile列表
   // ===== 系统元数据 =====
   createdAt: string; // 创建时间
   createdBy: string; // 创建人
