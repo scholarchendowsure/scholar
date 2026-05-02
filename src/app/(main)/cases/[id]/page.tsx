@@ -1033,6 +1033,8 @@ export default function CaseDetailPage() {
                     toast.error('请填写跟进人和跟进记录');
                     return;
                   }
+                  // 先关闭弹窗！
+                  setShowFollowupDialog(false);
                   try {
                     const followup: FollowUp = {
                       id: Date.now().toString(),
@@ -1117,11 +1119,10 @@ export default function CaseDetailPage() {
                       // 不影响主流程，只记录日志
                     });
                     
-                    // 不管更新了几个案件，只要没出错就关闭弹窗
-                    setShowFollowupDialog(false);
                     setUploadedCaseFiles([]);
                     toast.success(`跟进记录添加成功，已同步到 ${updatedCount + 1} 个案件`);
                   } catch (error) {
+                    console.error('保存跟进记录失败:', error);
                     toast.error('跟进记录添加失败');
                   }
                 }}
