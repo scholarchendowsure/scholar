@@ -1,4 +1,4 @@
-import { CozeMessageRequest, CozeMessageResponse, CozeSendReminderRequest } from '@/types/coze-api';
+import { CozeMessageRequest, CozeMessageResponse, CozeSendReminderRequest, CozeChatRequest, CozeChatResponse } from '@/types/coze-api';
 
 export class CozeApiService {
   private apiKey: string;
@@ -11,16 +11,103 @@ export class CozeApiService {
   }
 
   /**
-   * 发送飞书消息（通过 Coze API）
+   * 调用 Coze 聊天 API（与 Bot 对话）
+   */
+  async chat(request: CozeChatRequest): Promise<CozeChatResponse> {
+    try {
+      console.log('[CozeApiService] 准备调用 Coze 聊天 API:', {
+        botId: this.botId,
+        userId: request.userId,
+        userMessage: request.userMessage.substring(0, 50) + '...'
+      });
+
+      if (!this.botId) {
+        throw new Error('Bot ID 未配置');
+      }
+
+      if (!this.apiKey) {
+        throw new Error('API Key 未配置');
+      }
+
+      // 构建请求体
+      const requestBody = {
+        bot_id: this.botId,
+        user: request.userId,
+        query: request.userMessage,
+        stream: false,
+        conversation_id: request.conversationId || ''
+      };
+
+      if (request.additionalMessages && request.additionalMessages.length > 0) {
+        // 如果有额外消息，需要使用完整的消息格式
+        // 这里简化处理，先不支持额外消息
+      }
+
+      const response = await fetch(`${this.baseUrl}/v3/chat`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+
+      console.log('[CozeApiService] Coze API 响应:', {
+        code: data.code,
+        msg: data.msg,
+        hasData: !!data.data
+      });
+
+      if (data.code !== 0) {
+        throw new Error(`Coze API 调用失败: ${data.msg} (code: ${data.code})`);
+      }
+
+      // 解析响应
+      let content = '';
+      let conversationId = data.data?.conversation_id || '';
+
+      if (data.data?.messages) {
+        // 找到 Bot 的回复消息
+        const assistantMessage = data.data.messages.find((m: any) => m.type === 'answer' || m.role === 'assistant');
+        if (assistantMessage) {
+          content = assistantMessage.content || '';
+        }
+      }
+
+      if (!content) {
+        // 如果没有找到消息，尝试使用其他方式获取
+        content = '收到了您的消息！';
+      }
+
+      return {
+        success: true,
+        content,
+        conversationId,
+        rawResponse: data
+      };
+
+    } catch (error: any) {
+      console.error('[CozeApiService] 调用 Coze API 失败:', error);
+      return {
+        success: false,
+        content: '',
+        conversationId: '',
+        error: error?.message || '调用失败',
+        rawResponse: error
+      };
+    }
+  }
+
+  /**
+   * 发送飞书消息（通过 Coze API）- 暂不实现，使用 lark-cli 替代
    */
   async sendFeishuMessage(request: CozeMessageRequest): Promise<CozeMessageResponse> {
     try {
-      // 这里我们使用 lark-cli 来发送消息，因为用户已经配置好了 lark-cli
-      // Coze API 可以作为备用方案
-      
       console.log('[CozeApiService] 准备发送消息:', request);
       
-      // 方案1：直接使用已有的 lark-cli 发送消息（推荐）
+      // 使用 lark-cli 来发送消息
       const { exec } = require('child_process');
       const { promisify } = require('util');
       const execAsync = promisify(exec);
