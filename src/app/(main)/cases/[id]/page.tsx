@@ -78,6 +78,23 @@ export default function CaseDetailPage() {
     caseIds: string[];
     currentIndex: number;
   } | null>(null);
+  
+  // 文件上传处理
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const fileNames = files.map(file => file.name);
+      setNewFollowup({
+        ...newFollowup,
+        fileInfo: [...(newFollowup.fileInfo || []), ...fileNames]
+      });
+      toast.success(`已选择 ${files.length} 个文件`);
+    }
+  };
+  
+  const handleCameraUpload = () => {
+    toast.info('拍照功能正在开发中');
+  };
 
   // 读取导航状态
   useEffect(() => {
@@ -835,11 +852,18 @@ export default function CaseDetailPage() {
               <div className="space-y-2 col-span-2">
                 <Label>文件信息</Label>
                 <div className="flex gap-2">
-                  <Button variant="outline" type="button">
+                  <input 
+                    type="file" 
+                    id="file-upload" 
+                    multiple 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                  />
+                  <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload')?.click()}>
                     <Upload className="w-4 h-4 mr-2" />
                     选择文件上传
                   </Button>
-                  <Button variant="outline" type="button">
+                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
                     <Camera className="w-4 h-4 mr-2" />
                     拍照上传
                   </Button>
