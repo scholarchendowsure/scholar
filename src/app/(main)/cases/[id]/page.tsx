@@ -1054,25 +1054,46 @@ export default function CaseDetailPage() {
                       id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     }));
                     
-                    const updatedCase: Case = {
-                      ...caseData!,
-                      followups: [...(caseData?.followups || []), followup],
-                      files: [...currentFiles, ...newFiles], // 同步保存文件
-                      updatedAt: new Date().toISOString(),
-                    };
+                    // 获取所有相同用户ID的案件
+                    const userId = caseData?.userId;
+                    let relatedCases: Case[] = [];
+                    if (userId) {
+                      const relatedRes = await fetch(`/api/cases/user/${userId}`);
+                      const relatedJson = await relatedRes.json();
+                      if (relatedJson.success) {
+                        relatedCases = relatedJson.data;
+                      }
+                    }
                     
-                    const res = await fetch(`/api/cases/${params.id}`, {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(updatedCase),
-                    });
+                    // 对每个相同用户ID的案件都添加跟进记录
+                    let updatedCount = 0;
+                    for (const relatedCase of relatedCases) {
+                      const updatedCase: Case = {
+                        ...relatedCase,
+                        followups: [...(relatedCase.followups || []), followup],
+                        files: [...(relatedCase.files || []), ...newFiles],
+                        updatedAt: new Date().toISOString(),
+                      };
+                      
+                      const res = await fetch(`/api/cases/${relatedCase.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedCase),
+                      });
+                      
+                      if (res.ok) {
+                        updatedCount++;
+                        // 如果是当前案件，更新本地状态
+                        if (relatedCase.id === params.id) {
+                          setCaseData(updatedCase);
+                        }
+                      }
+                    }
                     
-                    const json = await res.json();
-                    if (json.success) {
-                      setCaseData(updatedCase);
+                    if (updatedCount > 0) {
                       setShowFollowupDialog(false);
-                      setUploadedCaseFiles([]); // 清空上传文件
-                      toast.success('跟进记录添加成功');
+                      setUploadedCaseFiles([]);
+                      toast.success(`跟进记录添加成功，已同步到 ${updatedCount} 个案件`);
                     } else {
                       toast.error('跟进记录添加失败');
                     }
