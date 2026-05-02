@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
     
     console.log('执行命令:', command);
     
+    console.log('执行命令:', command);
+    
     const { stdout, stderr } = await execAsync(command);
     
     console.log('命令输出:', stdout);
