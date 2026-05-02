@@ -1515,7 +1515,49 @@ export default function FeishuConfigPage() {
                             {new Date(record.receivedAt).toLocaleString()}
                           </span>
                         </div>
+                        {/* 处理结果标签 */}
+                        {record.processResult && (
+                          <Badge 
+                            className={
+                              record.processResult.success 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }
+                          >
+                            {record.processResult.action === 'created' ? '新建案件' :
+                             record.processResult.action === 'updated' ? '更新案件' :
+                             record.processResult.action === 'skipped' ? '跳过' : '处理'}
+                            {record.processResult.success ? '成功' : '失败'}
+                          </Badge>
+                        )}
                       </div>
+                      
+                      {/* 处理结果展示 */}
+                      {record.processResult && (
+                        <div className="mb-3 p-3 bg-muted rounded-lg">
+                          <div className="text-sm">
+                            <div className="font-medium">
+                              {record.processResult.message}
+                            </div>
+                            {record.processResult.loanNo && (
+                              <div className="text-muted-foreground mt-1">
+                                贷款单号: {record.processResult.loanNo}
+                              </div>
+                            )}
+                            {record.processResult.caseId && (
+                              <div className="text-muted-foreground">
+                                案件ID: {record.processResult.caseId}
+                              </div>
+                            )}
+                            {record.processResult.error && (
+                              <div className="text-red-600 mt-1">
+                                错误: {record.processResult.error}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="mt-2">
                         <details>
                           <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">

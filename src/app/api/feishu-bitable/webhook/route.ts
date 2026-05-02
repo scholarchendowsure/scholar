@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { feishuBitableWebhookStorage } from '@/storage/database/feishu-bitable-webhook-storage';
+import { processFeishuBitableRecord } from '@/lib/feishu-bitable-processor';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,8 +16,37 @@ export async function POST(request: NextRequest) {
 
     console.log('[飞书多维表格Webhook] 收到请求:', payload);
 
-    // 保存接收到的记录
-    const record = feishuBitableWebhookStorage.addRecord(payload);
+    // 自动处理：尝试创建/更新案件
+    let processResult = null;
+    let recordData = payload;
+    
+    try {
+      // 提取记录数据 - 支持多种格式
+      if (payload.data && payload.data.fields) {
+        recordData = payload.data.fields;
+      } else if (payload.fields) {
+        recordData = payload.fields;
+      } else if (payload.data && payload.data.record) {
+        recordData = payload.data.record;
+      } else if (payload.record) {
+        recordData = payload.record;
+      }
+      
+      console.log('[飞书多维表格Webhook] 开始处理记录数据:', recordData);
+      
+      processResult = await processFeishuBitableRecord(recordData);
+      console.log('[飞书多维表格Webhook] 处理结果:', processResult);
+      
+    } catch (processError) {
+      console.error('[飞书多维表格Webhook] 自动处理失败:', processError);
+      processResult = {
+        success: false,
+        error: processError instanceof Error ? processError.message : '未知错误'
+      };
+    }
+
+    // 保存接收到的记录（包含处理结果）
+    const record = feishuBitableWebhookStorage.addRecord(payload, processResult);
 
     console.log('[飞书多维表格Webhook] 记录已保存:', record.id);
 
@@ -31,7 +61,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Webhook接收成功',
       recordId: record.id,
-      receivedAt: record.receivedAt
+      receivedAt: record.receivedAt,
+      processResult
     });
   } catch (error) {
     console.error('[飞书多维表格Webhook] 处理失败:', error);

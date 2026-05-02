@@ -31,11 +31,12 @@ class FeishuBitableWebhookStorage {
     }
   }
 
-  addRecord(payload: any): FeishuBitableWebhookRecord {
+  addRecord(payload: any, processResult?: any): FeishuBitableWebhookRecord {
     const record: FeishuBitableWebhookRecord = {
       id: Date.now().toString(),
       receivedAt: new Date().toISOString(),
-      payload
+      payload,
+      processResult
     };
     
     // 最多保存100条记录，超过则删除最早的
@@ -46,6 +47,16 @@ class FeishuBitableWebhookStorage {
     this.records.unshift(record);
     this.saveToFile();
     return record;
+  }
+
+  updateRecordProcessResult(id: string, processResult: any): void {
+    const record = this.records.find(r => r.id === id);
+    if (record) {
+      record.processResult = processResult;
+      record.processed = true;
+      record.processedAt = new Date().toISOString();
+      this.saveToFile();
+    }
   }
 
   getRecords(limit: number = 50): FeishuBitableWebhookRecord[] {

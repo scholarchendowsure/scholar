@@ -4,6 +4,7 @@ export interface FeishuBitableWebhookRecord {
   payload: any;
   processed?: boolean;
   processedAt?: string;
+  processResult?: any;
 }
 
 export interface FeishuBitableWebhookPayload {

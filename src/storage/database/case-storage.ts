@@ -61,6 +61,11 @@ export const caseStorage = {
     return cases.filter(c => String(c.userId) === String(userId));
   },
 
+  async getByLoanNo(loanNo: string): Promise<Case | null> {
+    const cases = await this.getAll();
+    return cases.find(c => c.loanNo === loanNo) || null;
+  },
+
   async create(data: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>): Promise<Case> {
     const newCase: Case = {
       ...data,
