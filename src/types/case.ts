@@ -27,6 +27,9 @@ export interface Case {
   
   // ===== 跟进记录 =====
   followups?: FollowUp[]; // 跟进记录（新增，可选）
+  
+  // ===== 文件信息 =====
+  files?: CaseFile[]; // 文件列表（新增，可选）
 
   // ===== 贷款核心金额 =====
   currency?: string; // 币种（可选）
@@ -167,4 +170,24 @@ export const CASE_IMPORT_FIELDS = {
   assignedRiskControl: { label: '所属风控', required: false },
   assignedPostLoan: { label: '所属贷后', required: false },
 };
+
+// ===== 文件类型定义
+export interface CaseFile {
+  id: string;
+  name: string;
+  type: 'image' | 'document' | 'other';
+  url?: string;
+  uploadTime: string;
+  uploadBy: string;
+}
+
+export function isImageFile(fileName: string): boolean {
+  const ext = fileName.toLowerCase().split('.').pop();
+  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext || '');
+}
+
+export function isDocumentFile(fileName: string): boolean {
+  const ext = fileName.toLowerCase().split('.').pop();
+  return ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext || '');
+}
 

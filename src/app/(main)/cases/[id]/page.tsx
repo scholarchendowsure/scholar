@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { FOLLOWUP_TYPE_OPTIONS, CONTACT_OPTIONS, FOLLOWUP_RESULT_OPTIONS, FollowUp } from '@/types/case';
+import { FOLLOWUP_TYPE_OPTIONS, CONTACT_OPTIONS, FOLLOWUP_RESULT_OPTIONS, FollowUp, CaseFile, isImageFile, isDocumentFile } from '@/types/case';
 import { Button } from '@/components/ui/button';
 
 const NAVIGATION_KEY = 'cases-navigation-state';
@@ -485,16 +485,60 @@ export default function CaseDetailPage() {
         );
       
       case 'files':
+        const files = caseData?.files || [];
         return (
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-1 h-6 bg-cyan-500 rounded"></div>
               <h3 className="text-lg font-bold text-slate-900">文件信息</h3>
-              <span className="text-sm text-slate-500">(暂无文件)</span>
+              {files.length > 0 && (
+                <span className="text-sm text-slate-500">({files.length} 个文件)</span>
+              )}
             </div>
-            <div className="text-center py-12 text-slate-400">
-              暂无文件信息
-            </div>
+            
+            {files.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {files.map((file) => (
+                  <div key={file.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-8 h-8 rounded flex items-center justify-center text-xs font-medium ${
+                        file.type === 'image' ? 'bg-green-100 text-green-800' :
+                        file.type === 'document' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {file.type === 'image' ? '图' :
+                         file.type === 'document' ? '文' : '其'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{file.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {new Date(file.uploadTime).toLocaleString('zh-CN')} · {file.uploadBy}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {file.type === 'image' && (
+                      <div className="mt-2">
+                        <div className="w-full h-32 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                          图片预览
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => toast.info(`正在下载: ${file.name}`)}
+                      className="mt-3 w-full px-3 py-1.5 bg-cyan-100 text-cyan-800 rounded text-sm hover:bg-cyan-200"
+                    >
+                      下载文件
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-400">
+                暂无文件信息，在跟进记录中上传文件后会显示在这里
+              </div>
+            )}
           </div>
         );
       
@@ -703,52 +747,85 @@ export default function CaseDetailPage() {
 
             {/* 跟进记录列表 */}
             {caseData?.followups && caseData.followups.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {caseData.followups.map((followup) => (
-                  <div key={followup.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <Label className="text-sm text-slate-500">跟进人</Label>
-                        <div className="font-medium">{followup.follower}</div>
+                  <div key={followup.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                    {/* 一行显示所有字段 */}
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进人:</span>
+                        <span className="font-medium">{followup.follower}</span>
                       </div>
-                      <div>
-                        <Label className="text-sm text-slate-500">跟进时间</Label>
-                        <div className="font-medium">{new Date(followup.followTime).toLocaleString('zh-CN')}</div>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进时间:</span>
+                        <span className="font-medium">{new Date(followup.followTime).toLocaleString('zh-CN')}</span>
                       </div>
-                      <div>
-                        <Label className="text-sm text-slate-500">跟进类型</Label>
-                        <div className="font-medium">
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进类型:</span>
+                        <span className="font-medium">
                           {FOLLOWUP_TYPE_OPTIONS.find(opt => opt.value === followup.followType)?.label}
-                        </div>
+                        </span>
                       </div>
-                      <div>
-                        <Label className="text-sm text-slate-500">联系人</Label>
-                        <div className="font-medium">
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">联系人:</span>
+                        <span className="font-medium">
                           {CONTACT_OPTIONS.find(opt => opt.value === followup.contact)?.label}
-                        </div>
+                        </span>
+                      </div>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进结果:</span>
+                        <span className="font-medium">
+                          {FOLLOWUP_RESULT_OPTIONS.find(opt => opt.value === followup.followResult)?.label}
+                        </span>
                       </div>
                     </div>
-                    <div className="mb-4">
-                      <Label className="text-sm text-slate-500">跟进结果</Label>
-                      <div className="font-medium">
-                        {FOLLOWUP_RESULT_OPTIONS.find(opt => opt.value === followup.followResult)?.label}
-                      </div>
-                    </div>
-                    <div className="mb-4">
-                      <Label className="text-sm text-slate-500">跟进记录</Label>
-                      <div className="mt-1 p-3 bg-white border border-slate-200 rounded-md text-sm whitespace-pre-wrap">
+                    
+                    {/* 跟进记录 */}
+                    <div className="mt-2">
+                      <div className="text-sm text-slate-500 mb-1">跟进记录:</div>
+                      <div className="p-2 bg-white border border-slate-200 rounded-md text-sm">
                         {followup.followRecord}
                       </div>
                     </div>
+                    
+                    {/* 文件信息 - 图片显示预览，文件提供下载 */}
                     {followup.fileInfo && followup.fileInfo.length > 0 && (
-                      <div>
-                        <Label className="text-sm text-slate-500">文件信息</Label>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {followup.fileInfo.map((file, idx) => (
-                            <div key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                              {file}
-                            </div>
-                          ))}
+                      <div className="mt-2">
+                        <div className="text-sm text-slate-500 mb-1">文件信息:</div>
+                        <div className="flex flex-wrap gap-2">
+                          {followup.fileInfo.map((file, idx) => {
+                            const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(file);
+                            return (
+                              <div key={idx} className="flex items-center gap-1">
+                                {isImage ? (
+                                  // 图片类型：直接显示（用占位图演示）
+                                  <div className="relative group">
+                                    <div className="w-20 h-20 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs">
+                                      图片预览
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 bg-black bg-opacity-70 text-white text-xs px-1 rounded hidden group-hover:block">
+                                      {file}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  // 文件类型：提供下载按钮
+                                  <button
+                                    onClick={() => {
+                                      toast.info(`正在下载: ${file}`);
+                                    }}
+                                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm hover:bg-blue-200 flex items-center gap-1"
+                                  >
+                                    <span>{file}</span>
+                                    <span className="text-xs">下载</span>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -913,9 +990,21 @@ export default function CaseDetailPage() {
                       createdBy: newFollowup.follower,
                     };
                     
-                    const updatedCase = {
+                    // 同步保存文件信息到案件中
+                    const currentFiles = caseData?.files || [];
+                    const newFiles: CaseFile[] = (newFollowup.fileInfo || []).map(fileName => ({
+                      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      name: fileName,
+                      type: isImageFile(fileName) ? 'image' : 
+                            isDocumentFile(fileName) ? 'document' : 'other',
+                      uploadTime: new Date().toISOString(),
+                      uploadBy: newFollowup.follower || '未登记人',
+                    }));
+                    
+                    const updatedCase: Case = {
                       ...caseData!,
                       followups: [...(caseData?.followups || []), followup],
+                      files: [...currentFiles, ...newFiles], // 同步保存文件
                       updatedAt: new Date().toISOString(),
                     };
                     
