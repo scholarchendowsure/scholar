@@ -44,7 +44,7 @@ export class FeishuService {
       this.tokenExpireTime = now + data.expire * 1000;
       
       console.log('✅ 获取飞书Token成功');
-      return this.tokenCache;
+      return this.tokenCache as string;
     } catch (error) {
       console.error('❌ 获取飞书Token失败:', error);
       throw error;

@@ -17,6 +17,7 @@ import {
   Cloud, Download, Upload, Activity 
 } from 'lucide-react';
 import { FeishuBitableConfig, BitableSyncRecord, DEFAULT_BITABLE_FIELDS } from '@/types/feishu-bitable';
+import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 
 // 类型定义
 interface FeishuUser {
@@ -84,6 +85,18 @@ export default function FeishuConfigPage() {
   const [syncRecords, setSyncRecords] = useState<BitableSyncRecord[]>([]);
   const [selectedBitableConfig, setSelectedBitableConfig] = useState<FeishuBitableConfig | null>(null);
 
+  // 个人账号绑定状态
+  const [personalAccounts, setPersonalAccounts] = useState<FeishuPersonalAccount[]>([]);
+  const [personalConfig, setPersonalConfig] = useState<FeishuPersonalConfig | null>(null);
+  const [cliPath, setCliPath] = useState('lark');
+  const [personalSendMode, setPersonalSendMode] = useState<PersonalSendMode>('cli');
+  const [testingCli, setTestingCli] = useState(false);
+  const [cliAvailable, setCliAvailable] = useState(false);
+  const [personalColleagueSearch, setPersonalColleagueSearch] = useState('');
+  const [personalTestMessage, setPersonalTestMessage] = useState('');
+  const [personalSendingMessage, setPersonalSendingMessage] = useState(false);
+  const [personalDirectUserId, setPersonalDirectUserId] = useState('');
+
   // 加载配置
   useEffect(() => {
     loadConfig();
@@ -91,6 +104,8 @@ export default function FeishuConfigPage() {
     loadMappings();
     loadMerchantMappings();
     loadBitableConfigs();
+    loadPersonalConfig();
+    loadPersonalAccounts();
   }, []);
 
   // 加载应用配置
@@ -219,6 +234,121 @@ export default function FeishuConfigPage() {
       toast.error('保存配置失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 加载个人账号配置
+  const loadPersonalConfig = async () => {
+    try {
+      const response = await fetch('/api/feishu-personal/config');
+      const data = await response.json();
+      if (data.success) {
+        setPersonalConfig(data.config);
+        setCliPath(data.config.cliPath || 'lark');
+        setPersonalSendMode(data.config.sendMode || 'cli');
+      }
+    } catch (error) {
+      console.error('加载个人账号配置失败:', error);
+    }
+  };
+
+  // 加载个人账号列表
+  const loadPersonalAccounts = async () => {
+    try {
+      const response = await fetch('/api/feishu-personal/accounts');
+      const data = await response.json();
+      if (data.success) {
+        setPersonalAccounts(data.accounts);
+      }
+    } catch (error) {
+      console.error('加载个人账号列表失败:', error);
+    }
+  };
+
+  // 保存个人账号配置
+  const savePersonalConfig = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/feishu-personal/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliPath,
+          sendMode: personalSendMode
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('个人账号配置保存成功');
+        setPersonalConfig(data.config);
+      } else {
+        toast.error(data.message || '保存失败');
+      }
+    } catch (error) {
+      toast.error('保存配置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 测试lark-cli
+  const testCli = async () => {
+    setTestingCli(true);
+    try {
+      const response = await fetch('/api/feishu-personal/test-cli', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cliPath }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || 'lark-cli可用');
+        setCliAvailable(true);
+      } else {
+        toast.error(data.error || 'lark-cli不可用');
+        setCliAvailable(false);
+      }
+    } catch (error) {
+      toast.error('测试lark-cli失败');
+      setCliAvailable(false);
+    } finally {
+      setTestingCli(false);
+    }
+  };
+
+  // 发送个人消息
+  const sendPersonalMessage = async () => {
+    if (!personalDirectUserId || !personalTestMessage) {
+      toast.error('请填写接收人ID和消息内容');
+      return;
+    }
+
+    setPersonalSendingMessage(true);
+    try {
+      const response = await fetch('/api/feishu-personal/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiveId: personalDirectUserId,
+          text: personalTestMessage
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || '消息发送成功');
+        if (data.note) {
+          toast.info(data.note);
+        }
+      } else {
+        toast.error(data.error || '消息发送失败');
+      }
+    } catch (error) {
+      toast.error('发送消息失败');
+    } finally {
+      setPersonalSendingMessage(false);
     }
   };
 
@@ -520,6 +650,10 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="bitable-sync">
             <Database className="w-4 h-4 mr-2" />
             多维表格同步
+          </TabsTrigger>
+          <TabsTrigger value="personal-account">
+            <Users className="w-4 h-4 mr-2" />
+            个人账号绑定
           </TabsTrigger>
         </TabsList>
 
@@ -1107,6 +1241,163 @@ export default function FeishuConfigPage() {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 个人账号绑定 */}
+        <TabsContent value="personal-account" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>飞书个人账号绑定</CardTitle>
+              <CardDescription>
+                使用飞书官方CLI工具（lark-cli），通过您的个人账号发送私人消息
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* CLI配置 */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">CLI 配置</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="cliPath">lark-cli 路径</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="cliPath"
+                      value={cliPath}
+                      onChange={(e) => setCliPath(e.target.value)}
+                      placeholder="请输入 lark-cli 路径（默认为 lark）"
+                    />
+                    <Button onClick={testCli} disabled={testingCli}>
+                      {testingCli ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          测试中...
+                        </>
+                      ) : (
+                        <>
+                          <Activity className="w-4 h-4 mr-2" />
+                          测试CLI
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {cliAvailable && (
+                    <div className="text-sm text-green-600">
+                      ✓ lark-cli 可用
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="personalSendMode">发送模式</Label>
+                  <Select value={personalSendMode} onValueChange={(v: PersonalSendMode) => setPersonalSendMode(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cli">lark-cli 发送</SelectItem>
+                      <SelectItem value="personal-app">个人自建应用（开发中）</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button onClick={savePersonalConfig} disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      保存中...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      保存配置
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="pt-6 border-t">
+                <h3 className="text-sm font-medium mb-4">消息测试</h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="personalDirectUserId">接收人 Open ID / User ID</Label>
+                    <Input
+                      id="personalDirectUserId"
+                      value={personalDirectUserId}
+                      onChange={(e) => setPersonalDirectUserId(e.target.value)}
+                      placeholder="请输入接收人的 Open ID（例如：ou_a6c1929d297c616fbdff10da8472e263）"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="personalTestMessage">测试消息内容</Label>
+                    <Input
+                      id="personalTestMessage"
+                      value={personalTestMessage}
+                      onChange={(e) => setPersonalTestMessage(e.target.value)}
+                      placeholder="请输入测试消息内容"
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={sendPersonalMessage} 
+                    disabled={personalSendingMessage || !personalDirectUserId || !personalTestMessage}
+                  >
+                    {personalSendingMessage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        发送中...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        发送测试消息
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* 个人账号列表 */}
+              <div className="pt-6 border-t">
+                <h3 className="text-sm font-medium mb-4">已绑定账号</h3>
+                {personalAccounts.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    暂无绑定的个人账号
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>系统用户</TableHead>
+                        <TableHead>飞书昵称</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead>绑定时间</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {personalAccounts.map((account) => (
+                        <TableRow key={account.id}>
+                          <TableCell className="font-medium">{account.userId}</TableCell>
+                          <TableCell>{account.feishuName || '-'}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              className={account.isBound ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+                            >
+                              {account.isBound ? '已绑定' : '未绑定'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(account.createdAt).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
