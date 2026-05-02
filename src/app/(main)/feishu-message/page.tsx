@@ -32,6 +32,12 @@ export default function FeishuMessagePage() {
   const [personalTestMessage, setPersonalTestMessage] = useState('');
   const [personalSendingMessage, setPersonalSendingMessage] = useState(false);
   const [personalDirectUserId, setPersonalDirectUserId] = useState('');
+  
+  // 用户搜索状态
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   // Coze API 状态
   const [cozeConfig, setCozeConfig] = useState<CozeApiConfig | null>(null);
@@ -133,6 +139,51 @@ export default function FeishuMessagePage() {
     } finally {
       setTestingCli(false);
     }
+  };
+
+  // 搜索飞书用户
+  const searchFeishuUser = async () => {
+    if (!searchQuery.trim()) {
+      toast.error('请输入要搜索的同事名称');
+      return;
+    }
+
+    setSearching(true);
+    setShowSearchResults(false);
+    try {
+      const response = await fetch('/api/feishu-personal/search-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchQuery.trim() }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSearchResults(data.users || []);
+        setShowSearchResults(true);
+        if (data.users && data.users.length > 0) {
+          toast.success(`找到 ${data.users.length} 个用户`);
+        } else {
+          toast.info('未找到匹配的用户');
+        }
+      } else {
+        toast.error(data.error || '搜索失败');
+        setSearchResults([]);
+      }
+    } catch (error) {
+      toast.error('搜索用户失败');
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // 选择搜索结果中的用户
+  const selectUser = (user: any) => {
+    setPersonalDirectUserId(user.open_id);
+    setSearchQuery(user.localized_name || user.name || '');
+    setShowSearchResults(false);
+    toast.success(`已选择: ${user.localized_name || user.name}`);
   };
 
   // 发送个人消息
@@ -402,17 +453,72 @@ export default function FeishuMessagePage() {
                     消息测试
                   </CardTitle>
                   <CardDescription>
-                    发送私人消息给飞书同事
+                    输入飞书同事名称，自动搜索找到对应的 Open ID
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="search-query">搜索同事</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="search-query"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="请输入同事名称（如：晨忻、木槿）"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            searchFeishuUser();
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={searchFeishuUser}
+                        disabled={searching || !searchQuery.trim()}
+                      >
+                        {searching ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Users className="w-4 h-4 mr-2" />
+                        )}
+                        搜索
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 搜索结果 */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="border rounded-lg p-3 bg-muted/50">
+                      <div className="text-sm font-medium mb-2">搜索结果（点击选择）</div>
+                      <div className="space-y-2">
+                        {searchResults.map((user, index) => (
+                          <div
+                            key={index}
+                            onClick={() => selectUser(user)}
+                            className="p-3 bg-card border rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+                          >
+                            <div className="font-medium">{user.localized_name || user.name}</div>
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              {user.department && (
+                                <div>部门：{user.department}</div>
+                              )}
+                              {user.enterprise_email && (
+                                <div>邮箱：{user.enterprise_email}</div>
+                              )}
+                              <div className="font-mono text-xs">Open ID: {user.open_id}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="personal-direct-user-id">接收人 Open ID</Label>
                     <Input
                       id="personal-direct-user-id"
                       value={personalDirectUserId}
                       onChange={(e) => setPersonalDirectUserId(e.target.value)}
-                      placeholder="请输入接收人的 Open ID"
+                      placeholder="搜索后自动填充，或手动输入 Open ID"
                     />
                   </div>
 
