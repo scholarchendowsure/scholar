@@ -1,67 +1,129 @@
 import { Case } from '@/types/case';
 import { caseStorage } from '@/storage/database/case-storage';
 
-// 飞书多维表格字段映射到案件字段
-interface FeishuBitableRecord {
+// 飞书多维表格记录类型（支持中文名和英文名）
+export interface FeishuBitableRecord {
   // 案件基础标识
   批次号?: string;
+  batch_no?: string;
   贷款单号?: string;
+  loan_number?: string;
   用户ID?: string;
+  user_id?: string;
   借款人姓名?: string;
+  borrower_name?: string;
   产品名称?: string;
+  product_name?: string;
   平台?: string;
+  platform?: string;
   支付公司?: string;
+  payment_company?: string;
   资金方?: string;
+  funder?: string;
   资金分类?: string;
+  fund_category?: string;
+  
+  // 案件核心状态
   状态?: string;
+  status?: string;
   贷款状态?: string;
-  锁定情况?: string | boolean;
+  loan_status?: string;
+  锁定情况?: string;
+  is_locked?: string;
   五级分类?: string;
+  five_level_classification?: string;
   风险等级?: string;
-  是否展期?: string | boolean;
+  risk_level?: string;
+  是否展期?: string;
+  is_extended?: string;
+  
+  // 贷款核心金额
   币种?: string;
-  贷款金额?: string | number;
-  总贷款金额?: string | number;
-  总在贷余额?: string | number;
-  已还款总额?: string | number;
-  在贷余额?: string | number;
-  逾期金额?: string | number;
-  逾期本金?: string | number;
-  逾期利息?: string | number;
-  已还金额?: string | number;
-  已还本金?: string | number;
-  已还利息?: string | number;
-  代偿总额?: string | number;
-  贷款期限?: string | number;
+  currency?: string;
+  贷款金额?: number | string;
+  loan_amount?: number | string;
+  总贷款金额?: number | string;
+  total_loan_amount?: number | string;
+  总在贷余额?: number | string;
+  total_outstanding_balance?: number | string;
+  已还款总额?: number | string;
+  total_repaid_amount?: number | string;
+  在贷余额?: number | string;
+  outstanding_balance?: number | string;
+  逾期金额?: number | string;
+  overdue_amount?: number | string;
+  逾期本金?: number | string;
+  overdue_principal?: number | string;
+  逾期利息?: number | string;
+  overdue_interest?: number | string;
+  已还金额?: number | string;
+  repaid_amount?: number | string;
+  已还本金?: number | string;
+  repaid_principal?: number | string;
+  已还利息?: number | string;
+  repaid_interest?: number | string;
+  代偿总额?: number | string;
+  compensation_amount?: number | string;
+  
+  // 贷款期限时间
+  贷款期限?: number | string;
+  loan_term?: number | string;
   贷款期限单位?: string;
+  loan_term_unit?: string;
   贷款日期?: string;
+  loan_date?: string;
   到期日?: string;
-  逾期天数?: string | number;
+  due_date?: string;
+  逾期天数?: number | string;
+  overdue_days?: number | string;
   逾期开始时间?: string;
+  overdue_start_time?: string;
   首次逾期时间?: string;
+  first_overdue_time?: string;
   代偿日期?: string;
+  compensation_date?: string;
+  
+  // 借款人主体信息
   公司名称?: string;
+  company_name?: string;
   公司地址?: string;
+  company_address?: string;
   家庭地址?: string;
+  home_address?: string;
   户籍地址?: string;
+  registered_address?: string;
   借款人手机号?: string;
+  borrower_phone?: string;
   注册手机号?: string;
+  registered_phone?: string;
   联系方式?: string;
+  contact?: string;
+  
+  // 案件归属
   所属销售?: string;
+  assigned_sales?: string;
   所属风控?: string;
+  assigned_risk?: string;
   所属贷后?: string;
+  assigned_post_loan?: string;
   
   // 跟进记录信息
   信息操作?: string;
+  info_action?: string;
   记录时间?: string;
+  record_time?: string;
   记录人?: string;
+  recorder?: string;
   记录内容?: string;
+  record_content?: string;
   
   // 文件信息
   文件信息?: string;
+  file_info?: string;
   
   // 其他字段
   是否记录?: string | boolean;
+  is_recorded?: string | boolean;
   [key: string]: any;
 }
 
@@ -73,6 +135,19 @@ export interface ProcessResult {
   loanNo?: string;
   message: string;
   error?: string;
+}
+
+// 工具函数：获取字段值（支持中文和英文下划线两种格式）
+function getFieldValue(record: any, chineseName: string, englishName?: string): any {
+  // 先尝试中文名
+  if (record[chineseName] !== undefined && record[chineseName] !== null && record[chineseName] !== '') {
+    return record[chineseName];
+  }
+  // 再尝试英文名（下划线格式）
+  if (englishName && record[englishName] !== undefined && record[englishName] !== null && record[englishName] !== '') {
+    return record[englishName];
+  }
+  return undefined;
 }
 
 // 工具函数：转换为数字
@@ -103,184 +178,259 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   const caseData: Partial<Case> = {};
 
   // 案件基础标识
-  if (isNotEmpty(record.批次号)) caseData.batchNo = String(record.批次号);
-  if (isNotEmpty(record.贷款单号)) caseData.loanNo = String(record.贷款单号);
-  if (isNotEmpty(record.用户ID)) caseData.userId = String(record.用户ID);
-  if (isNotEmpty(record.借款人姓名)) caseData.borrowerName = String(record.借款人姓名);
-  if (isNotEmpty(record.产品名称)) caseData.productName = String(record.产品名称);
-  if (isNotEmpty(record.平台)) caseData.platform = String(record.平台);
-  if (isNotEmpty(record.支付公司)) caseData.paymentCompany = String(record.支付公司);
-  if (isNotEmpty(record.资金方)) caseData.funder = String(record.资金方);
-  if (isNotEmpty(record.资金分类)) caseData.fundCategory = String(record.资金分类);
+  const batchNo = getFieldValue(record, '批次号', 'batch_no');
+  const loanNo = getFieldValue(record, '贷款单号', 'loan_number');
+  const userId = getFieldValue(record, '用户ID', 'user_id');
+  const borrowerName = getFieldValue(record, '借款人姓名', 'borrower_name');
+  const productName = getFieldValue(record, '产品名称', 'product_name');
+  const platform = getFieldValue(record, '平台', 'platform');
+  const paymentCompany = getFieldValue(record, '支付公司', 'payment_company');
+  const funder = getFieldValue(record, '资金方', 'funder');
+  const fundCategory = getFieldValue(record, '资金分类', 'fund_category');
+
+  if (isNotEmpty(batchNo)) caseData.batchNo = String(batchNo);
+  if (isNotEmpty(loanNo)) caseData.loanNo = String(loanNo);
+  if (isNotEmpty(userId)) caseData.userId = String(userId);
+  if (isNotEmpty(borrowerName)) caseData.borrowerName = String(borrowerName);
+  if (isNotEmpty(productName)) caseData.productName = String(productName);
+  if (isNotEmpty(platform)) caseData.platform = String(platform);
+  if (isNotEmpty(paymentCompany)) caseData.paymentCompany = String(paymentCompany);
+  if (isNotEmpty(funder)) caseData.funder = String(funder);
+  if (isNotEmpty(fundCategory)) caseData.fundCategory = String(fundCategory);
 
   // 案件核心状态
-  if (isNotEmpty(record.状态)) caseData.status = String(record.状态);
-  if (isNotEmpty(record.贷款状态)) caseData.loanStatus = String(record.贷款状态);
-  if (isNotEmpty(record.锁定情况)) caseData.isLocked = toBoolean(record.锁定情况);
-  if (isNotEmpty(record.五级分类)) caseData.fiveLevelClassification = String(record.五级分类);
-  if (isNotEmpty(record.风险等级)) caseData.riskLevel = String(record.风险等级);
-  if (isNotEmpty(record.是否展期)) caseData.isExtended = toBoolean(record.是否展期);
+  const status = getFieldValue(record, '状态', 'status');
+  const loanStatus = getFieldValue(record, '贷款状态', 'loan_status');
+  const isLocked = getFieldValue(record, '锁定情况', 'is_locked');
+  const fiveLevelClassification = getFieldValue(record, '五级分类', 'five_level_classification');
+  const riskLevel = getFieldValue(record, '风险等级', 'risk_level');
+  const isExtended = getFieldValue(record, '是否展期', 'is_extended');
+
+  if (isNotEmpty(status)) caseData.status = String(status);
+  if (isNotEmpty(loanStatus)) caseData.loanStatus = String(loanStatus);
+  if (isNotEmpty(isLocked)) caseData.isLocked = toBoolean(isLocked);
+  if (isNotEmpty(fiveLevelClassification)) caseData.fiveLevelClassification = String(fiveLevelClassification);
+  if (isNotEmpty(riskLevel)) caseData.riskLevel = String(riskLevel);
+  if (isNotEmpty(isExtended)) caseData.isExtended = toBoolean(isExtended);
 
   // 贷款核心金额
-  if (isNotEmpty(record.币种)) caseData.currency = String(record.币种);
-  if (isNotEmpty(record.贷款金额)) caseData.loanAmount = toNumber(record.贷款金额);
-  if (isNotEmpty(record.总贷款金额)) caseData.totalLoanAmount = toNumber(record.总贷款金额);
-  if (isNotEmpty(record.总在贷余额)) caseData.totalOutstandingBalance = toNumber(record.总在贷余额) || 0;
-  if (isNotEmpty(record.已还款总额)) caseData.totalRepaidAmount = toNumber(record.已还款总额);
-  if (isNotEmpty(record.在贷余额)) caseData.outstandingBalance = toNumber(record.在贷余额);
-  if (isNotEmpty(record.逾期金额)) caseData.overdueAmount = toNumber(record.逾期金额) || 0;
-  if (isNotEmpty(record.逾期本金)) caseData.overduePrincipal = toNumber(record.逾期本金);
-  if (isNotEmpty(record.逾期利息)) caseData.overdueInterest = toNumber(record.逾期利息);
-  if (isNotEmpty(record.已还金额)) caseData.repaidAmount = toNumber(record.已还金额);
-  if (isNotEmpty(record.已还本金)) caseData.repaidPrincipal = toNumber(record.已还本金);
-  if (isNotEmpty(record.已还利息)) caseData.repaidInterest = toNumber(record.已还利息);
-  if (isNotEmpty(record.代偿总额)) caseData.compensationAmount = toNumber(record.代偿总额);
+  const currency = getFieldValue(record, '币种', 'currency');
+  const loanAmount = getFieldValue(record, '贷款金额', 'loan_amount');
+  const totalLoanAmount = getFieldValue(record, '总贷款金额', 'total_loan_amount');
+  const totalOutstandingBalance = getFieldValue(record, '总在贷余额', 'total_outstanding_balance');
+  const totalRepaidAmount = getFieldValue(record, '已还款总额', 'total_repaid_amount');
+  const outstandingBalance = getFieldValue(record, '在贷余额', 'outstanding_balance');
+  const overdueAmount = getFieldValue(record, '逾期金额', 'overdue_amount');
+  const overduePrincipal = getFieldValue(record, '逾期本金', 'overdue_principal');
+  const overdueInterest = getFieldValue(record, '逾期利息', 'overdue_interest');
+  const repaidAmount = getFieldValue(record, '已还金额', 'repaid_amount');
+  const repaidPrincipal = getFieldValue(record, '已还本金', 'repaid_principal');
+  const repaidInterest = getFieldValue(record, '已还利息', 'repaid_interest');
+  const compensationAmount = getFieldValue(record, '代偿总额', 'compensation_amount');
+
+  if (isNotEmpty(currency)) caseData.currency = String(currency);
+  if (isNotEmpty(loanAmount)) caseData.loanAmount = toNumber(loanAmount);
+  if (isNotEmpty(totalLoanAmount)) caseData.totalLoanAmount = toNumber(totalLoanAmount);
+  if (isNotEmpty(totalOutstandingBalance)) caseData.totalOutstandingBalance = toNumber(totalOutstandingBalance) || 0;
+  if (isNotEmpty(totalRepaidAmount)) caseData.totalRepaidAmount = toNumber(totalRepaidAmount);
+  if (isNotEmpty(outstandingBalance)) caseData.outstandingBalance = toNumber(outstandingBalance);
+  if (isNotEmpty(overdueAmount)) caseData.overdueAmount = toNumber(overdueAmount) || 0;
+  if (isNotEmpty(overduePrincipal)) caseData.overduePrincipal = toNumber(overduePrincipal);
+  if (isNotEmpty(overdueInterest)) caseData.overdueInterest = toNumber(overdueInterest);
+  if (isNotEmpty(repaidAmount)) caseData.repaidAmount = toNumber(repaidAmount);
+  if (isNotEmpty(repaidPrincipal)) caseData.repaidPrincipal = toNumber(repaidPrincipal);
+  if (isNotEmpty(repaidInterest)) caseData.repaidInterest = toNumber(repaidInterest);
+  if (isNotEmpty(compensationAmount)) caseData.compensationAmount = toNumber(compensationAmount);
 
   // 贷款期限时间
-  if (isNotEmpty(record.贷款期限)) caseData.loanTerm = toNumber(record.贷款期限);
-  if (isNotEmpty(record.贷款期限单位)) caseData.loanTermUnit = String(record.贷款期限单位);
-  if (isNotEmpty(record.贷款日期)) caseData.loanDate = String(record.贷款日期);
-  if (isNotEmpty(record.到期日)) caseData.dueDate = String(record.到期日);
-  if (isNotEmpty(record.逾期天数)) caseData.overdueDays = toNumber(record.逾期天数) || 0;
-  if (isNotEmpty(record.逾期开始时间)) caseData.overdueStartTime = String(record.逾期开始时间);
-  if (isNotEmpty(record.首次逾期时间)) caseData.firstOverdueTime = String(record.首次逾期时间);
-  if (isNotEmpty(record.代偿日期)) caseData.compensationDate = String(record.代偿日期);
+  const loanTerm = getFieldValue(record, '贷款期限', 'loan_term');
+  const loanTermUnit = getFieldValue(record, '贷款期限单位', 'loan_term_unit');
+  const loanDate = getFieldValue(record, '贷款日期', 'loan_date');
+  const dueDate = getFieldValue(record, '到期日', 'due_date');
+  const overdueDays = getFieldValue(record, '逾期天数', 'overdue_days');
+  const overdueStartTime = getFieldValue(record, '逾期开始时间', 'overdue_start_time');
+  const firstOverdueTime = getFieldValue(record, '首次逾期时间', 'first_overdue_time');
+  const compensationDate = getFieldValue(record, '代偿日期', 'compensation_date');
+
+  if (isNotEmpty(loanTerm)) caseData.loanTerm = toNumber(loanTerm);
+  if (isNotEmpty(loanTermUnit)) caseData.loanTermUnit = String(loanTermUnit);
+  if (isNotEmpty(loanDate)) caseData.loanDate = String(loanDate);
+  if (isNotEmpty(dueDate)) caseData.dueDate = String(dueDate);
+  if (isNotEmpty(overdueDays)) caseData.overdueDays = toNumber(overdueDays) || 0;
+  if (isNotEmpty(overdueStartTime)) caseData.overdueStartTime = String(overdueStartTime);
+  if (isNotEmpty(firstOverdueTime)) caseData.firstOverdueTime = String(firstOverdueTime);
+  if (isNotEmpty(compensationDate)) caseData.compensationDate = String(compensationDate);
 
   // 借款人主体信息
-  if (isNotEmpty(record.公司名称)) caseData.companyName = String(record.公司名称);
-  if (isNotEmpty(record.公司地址)) caseData.companyAddress = String(record.公司地址);
-  if (isNotEmpty(record.家庭地址)) caseData.homeAddress = String(record.家庭地址);
-  if (isNotEmpty(record.户籍地址)) caseData.householdAddress = String(record.户籍地址);
-  if (isNotEmpty(record.借款人手机号)) caseData.borrowerPhone = String(record.借款人手机号);
-  if (isNotEmpty(record.注册手机号)) caseData.registeredPhone = String(record.注册手机号);
-  if (isNotEmpty(record.联系方式)) caseData.contactInfo = String(record.联系方式);
+  const companyName = getFieldValue(record, '公司名称', 'company_name');
+  const companyAddress = getFieldValue(record, '公司地址', 'company_address');
+  const homeAddress = getFieldValue(record, '家庭地址', 'home_address');
+  const registeredAddress = getFieldValue(record, '户籍地址', 'registered_address');
+  const borrowerPhone = getFieldValue(record, '借款人手机号', 'borrower_phone');
+  const registeredPhone = getFieldValue(record, '注册手机号', 'registered_phone');
+  const contact = getFieldValue(record, '联系方式', 'contact');
 
-  // 案件责任归属
-  if (isNotEmpty(record.所属销售)) caseData.assignedSales = String(record.所属销售);
-  if (isNotEmpty(record.所属风控)) caseData.assignedRiskControl = String(record.所属风控);
-  if (isNotEmpty(record.所属贷后)) caseData.assignedPostLoan = String(record.所属贷后);
+  if (isNotEmpty(companyName)) caseData.companyName = String(companyName);
+  if (isNotEmpty(companyAddress)) caseData.companyAddress = String(companyAddress);
+  if (isNotEmpty(homeAddress)) caseData.homeAddress = String(homeAddress);
+  if (isNotEmpty(registeredAddress)) caseData.registeredAddress = String(registeredAddress);
+  if (isNotEmpty(borrowerPhone)) caseData.borrowerPhone = String(borrowerPhone);
+  if (isNotEmpty(registeredPhone)) caseData.registeredPhone = String(registeredPhone);
+  if (isNotEmpty(contact)) caseData.contact = String(contact);
+
+  // 案件归属
+  const assignedSales = getFieldValue(record, '所属销售', 'assigned_sales');
+  const assignedRisk = getFieldValue(record, '所属风控', 'assigned_risk');
+  const assignedPostLoan = getFieldValue(record, '所属贷后', 'assigned_post_loan');
+
+  if (isNotEmpty(assignedSales)) caseData.assignedSales = String(assignedSales);
+  if (isNotEmpty(assignedRisk)) caseData.assignedRisk = String(assignedRisk);
+  if (isNotEmpty(assignedPostLoan)) caseData.assignedPostLoan = String(assignedPostLoan);
 
   return caseData;
 }
 
-// 过滤掉空值，只保留非空字段用于更新
-function filterEmptyFields(data: Partial<Case>): Partial<Case> {
-  const filtered: Partial<Case> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (isNotEmpty(value)) {
-      (filtered as any)[key] = value;
-    }
-  }
-  return filtered;
+// 提取跟进记录信息
+function extractFollowup(record: FeishuBitableRecord): { action?: string; time?: string; recorder?: string; content?: string } {
+  const infoAction = getFieldValue(record, '信息操作', 'info_action');
+  const recordTime = getFieldValue(record, '记录时间', 'record_time');
+  const recorder = getFieldValue(record, '记录人', 'recorder');
+  const recordContent = getFieldValue(record, '记录内容', 'record_content');
+
+  return {
+    action: infoAction ? String(infoAction) : undefined,
+    time: recordTime ? String(recordTime) : undefined,
+    recorder: recorder ? String(recorder) : undefined,
+    content: recordContent ? String(recordContent) : undefined,
+  };
 }
 
 // 主处理函数
 export async function processFeishuBitableRecord(record: FeishuBitableRecord): Promise<ProcessResult> {
   try {
-    // 验证必要字段
-    const loanNo = record.贷款单号;
-    if (!loanNo) {
+    // 1. 首先获取贷款单号
+    const loanNo = getFieldValue(record, '贷款单号', 'loan_number');
+    
+    if (!loanNo || String(loanNo).trim() === '') {
       return {
         success: false,
         action: 'skipped',
-        message: '缺少贷款单号，跳过处理',
-        error: '贷款单号不能为空'
+        message: '贷款单号不能为空',
+        error: '贷款单号字段缺失或为空',
       };
     }
 
-    console.log('[飞书多维表格处理] 开始处理贷款单号:', loanNo);
+    const loanNoStr = String(loanNo).trim();
 
-    // 映射字段
+    // 2. 查找是否已存在该贷款单号的案件
+    const existingCase = await caseStorage.getByLoanNo(loanNoStr);
+
+    // 3. 映射案件数据
     const caseData = mapFeishuToCase(record);
-    
-    // 检查案件是否已存在
-    const existingCase = await caseStorage.getByLoanNo(loanNo);
+
+    // 4. 提取跟进记录信息
+    const followupInfo = extractFollowup(record);
 
     if (existingCase) {
-      // 案件已存在，执行更新操作
-      console.log('[飞书多维表格处理] 案件已存在，执行更新:', loanNo);
-      
-      // 过滤掉空值，只更新非空字段
-      const updateData = filterEmptyFields(caseData);
-      
-      if (Object.keys(updateData).length === 0) {
-        return {
-          success: true,
-          action: 'skipped',
-          loanNo,
-          message: '没有需要更新的字段'
-        };
+      // 已存在案件：执行更新（只更新非空值）
+      let updateCount = 0;
+      const updateData: Partial<Case> = { id: existingCase.id };
+
+      // 遍历所有字段，只更新非空值
+      Object.entries(caseData).forEach(([key, value]) => {
+        if (key !== 'id' && isNotEmpty(value)) {
+          (updateData as any)[key] = value;
+          updateCount++;
+        }
+      });
+
+      // 执行更新
+      if (updateCount > 0) {
+        await caseStorage.update(existingCase.id, updateData);
       }
 
-      const updatedCase = await caseStorage.update(existingCase.id, updateData);
-      
+      // 如果有跟进记录信息，添加跟进记录
+      if (followupInfo.content || followupInfo.action) {
+        const followupContent = [
+          followupInfo.action ? `操作：${followupInfo.action}` : '',
+          followupInfo.recorder ? `记录人：${followupInfo.recorder}` : '',
+          followupInfo.time ? `时间：${followupInfo.time}` : '',
+          followupInfo.content ? `内容：${followupInfo.content}` : '',
+        ].filter(Boolean).join('\n');
+
+        if (followupContent) {
+          const existingFollowups = existingCase.followups || [];
+          await caseStorage.update(existingCase.id, {
+            followups: [
+              ...existingFollowups,
+              {
+                id: crypto.randomUUID(),
+                content: followupContent,
+                createdAt: new Date().toISOString(),
+                createdBy: followupInfo.recorder || '系统',
+              },
+            ],
+          });
+        }
+      }
+
       return {
         success: true,
         action: 'updated',
-        caseId: updatedCase?.id,
-        loanNo,
-        message: `案件更新成功，更新了 ${Object.keys(updateData).length} 个字段`
+        caseId: existingCase.id,
+        loanNo: loanNoStr,
+        message: updateCount > 0 
+          ? `案件更新成功，更新了 ${updateCount} 个字段` 
+          : '案件已存在，无需更新',
       };
     } else {
-      // 案件不存在，执行创建操作
-      console.log('[飞书多维表格处理] 案件不存在，执行创建:', loanNo);
-      
-      // 验证必要字段
-      if (!caseData.userId) {
-        return {
-          success: false,
-          action: 'skipped',
-          loanNo,
-          message: '缺少用户ID，无法创建案件',
-          error: '用户ID不能为空'
-        };
-      }
-      
-      if (!caseData.borrowerName) {
-        return {
-          success: false,
-          action: 'skipped',
-          loanNo,
-          message: '缺少借款人姓名，无法创建案件',
-          error: '借款人姓名不能为空'
-        };
-      }
-      
-      if (!caseData.status) {
-        caseData.status = 'pending_assign'; // 默认状态
-      }
-
-      // 设置默认值
-      const fullCaseData = {
+      // 不存在案件：创建新案件
+      // 确保有必要的默认值
+      const newCaseData: Partial<Case> = {
         ...caseData,
-        batchNo: caseData.batchNo || '',
-        loanNo: loanNo,
-        userId: caseData.userId!,
-        borrowerName: caseData.borrowerName!,
-        status: caseData.status!,
-        totalOutstandingBalance: caseData.totalOutstandingBalance || 0,
-        overdueAmount: caseData.overdueAmount || 0,
-        overdueDays: caseData.overdueDays || 0,
-      } as Omit<Case, 'id' | 'createdAt' | 'updatedAt'>;
+        loanNo: loanNoStr,
+        status: caseData.status || 'pending_assign',
+        followups: [],
+      };
 
-      const newCase = await caseStorage.create(fullCaseData);
-      
+      // 如果有跟进记录信息，添加到初始跟进记录
+      if (followupInfo.content || followupInfo.action) {
+        const followupContent = [
+          followupInfo.action ? `操作：${followupInfo.action}` : '',
+          followupInfo.recorder ? `记录人：${followupInfo.recorder}` : '',
+          followupInfo.time ? `时间：${followupInfo.time}` : '',
+          followupInfo.content ? `内容：${followupInfo.content}` : '',
+        ].filter(Boolean).join('\n');
+
+        if (followupContent) {
+          newCaseData.followups = [
+            {
+              id: crypto.randomUUID(),
+              content: followupContent,
+              createdAt: new Date().toISOString(),
+              createdBy: followupInfo.recorder || '系统',
+            },
+          ];
+        }
+      }
+
+      const newCase = await caseStorage.create(newCaseData);
+
       return {
         success: true,
         action: 'created',
         caseId: newCase.id,
-        loanNo,
-        message: '案件创建成功'
+        loanNo: loanNoStr,
+        message: '案件创建成功',
       };
     }
-  } catch (error: any) {
-    console.error('[飞书多维表格处理] 处理失败:', error);
+  } catch (error) {
+    console.error('处理飞书多维表格记录失败:', error);
     return {
       success: false,
       action: 'skipped',
-      loanNo: record.贷款单号,
       message: '处理失败',
-      error: error?.message || '未知错误'
+      error: error instanceof Error ? error.message : '未知错误',
     };
   }
 }
