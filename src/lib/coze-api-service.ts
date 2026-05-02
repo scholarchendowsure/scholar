@@ -29,18 +29,27 @@ export class CozeApiService {
         throw new Error('API Key 未配置');
       }
 
-      // 构建请求体
+      // 构建请求体 - 使用正确的 Coze API 格式
       const requestBody = {
         bot_id: this.botId,
-        user: request.userId,
-        query: request.userMessage,
+        user_id: request.userId,
         stream: false,
+        additional_messages: [
+          {
+            role: 'user',
+            content: request.userMessage,
+            content_type: 'text'
+          }
+        ],
         conversation_id: request.conversationId || ''
       };
 
       if (request.additionalMessages && request.additionalMessages.length > 0) {
-        // 如果有额外消息，需要使用完整的消息格式
-        // 这里简化处理，先不支持额外消息
+        // 如果有额外消息，添加到 additional_messages 数组
+        requestBody.additional_messages = [
+          ...requestBody.additional_messages,
+          ...request.additionalMessages
+        ];
       }
 
       const response = await fetch(`${this.baseUrl}/v3/chat`, {
