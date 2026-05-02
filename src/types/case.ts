@@ -97,17 +97,20 @@ export interface FollowUp {
 export const FOLLOWUP_TYPE_OPTIONS = [
   { value: 'online', label: '线上' },
   { value: 'offline', label: '线下' },
+  { value: 'other', label: '其他' },
 ];
 
 export const CONTACT_OPTIONS = [
   { value: 'legal_representative', label: '法人' },
   { value: 'actual_controller', label: '实控人' },
+  { value: 'other', label: '其他' },
 ];
 
 export const FOLLOWUP_RESULT_OPTIONS = [
   { value: 'normal_repayment', label: '正常还款' },
   { value: 'warning_rise', label: '预警上升' },
   { value: 'overdue_promise', label: '逾期承诺' },
+  { value: 'other', label: '其他' },
 ];
 
 // 导入时的字段映射（用于Excel导入）
