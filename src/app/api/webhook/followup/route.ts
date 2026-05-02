@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
       // 提取字段 - 支持中文和英文
       const userId = body['用户ID'] || body.userId || body.user_id;
       const loanNumber = body['贷款单号'] || body.loanNumber || body.loan_number;
-      const follower = body['记录人'] || body.follower || '未登记人';
-      const followTypeInput = body['跟进类型'] || body.followType || body.follow_type || 'other';
-      const contactInput = body['联系人'] || body.contact || 'other';
-      const followResultInput = body['跟进结果'] || body.followResult || body.follow_result || 'other';
-      const followRecordInput = body['记录内容'] || body.followRecord || body.follow_record || '';
+      const follower = body['记录人'] || body.recorder || '未登记人';
+      const followTypeInput = body['跟进类型'] || body.followUpType || body.follow_up_type || 'other';
+      const contactInput = body['联系人'] || body.contactPerson || body.contact_person || 'other';
+      const followResultInput = body['跟进结果'] || body.followUpResult || body.follow_up_result || 'other';
+      const followRecordInput = body['记录内容'] || body.recordContent || body.record_content || '';
       const fileInfoInput = body['文件信息'] || body.fileInfo || body.file_info || [];
 
       if (!userId || !loanNumber) {
