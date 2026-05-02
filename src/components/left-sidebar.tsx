@@ -88,6 +88,11 @@ const navItems: NavItem[] = [
     icon: <MessageSquare className="h-5 w-5" />
   },
   {
+    title: '飞书消息',
+    href: '/feishu-message',
+    icon: <MessageSquare className="h-5 w-5" />
+  },
+  {
     title: 'MCP数据仓库',
     href: '/mcp-warehouse',
     icon: <Database className="h-5 w-5" />
