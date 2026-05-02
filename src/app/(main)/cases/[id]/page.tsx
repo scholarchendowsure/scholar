@@ -1090,14 +1090,10 @@ export default function CaseDetailPage() {
                       }
                     }
                     
-                    if (updatedCount > 0) {
-                      setShowFollowupDialog(false);
-                      setShowFollowupDialog(false);
-                      setUploadedCaseFiles([]);
-                      toast.success(`跟进记录添加成功，已同步到 ${updatedCount} 个案件`);
-                    } else {
-                      toast.error('跟进记录添加失败');
-                    }
+                    // 不管更新了几个案件，只要没出错就关闭弹窗
+                    setShowFollowupDialog(false);
+                    setUploadedCaseFiles([]);
+                    toast.success(`跟进记录添加成功，已同步到 ${updatedCount + 1} 个案件`);
                   } catch (error) {
                     toast.error('跟进记录添加失败');
                   }
