@@ -1127,7 +1127,7 @@ export default function CaseDetailPage() {
                     const getFollowResultText = (result: string) => {
                       switch(result) {
                         case 'normal_repayment': return '正常还款';
-                        case 'warning_increase': return '预警上升';
+                        case 'warning_rise': return '预警上升';
                         case 'overdue_promise': return '逾期承诺';
                         case 'other': return '其他';
                         default: return result;
