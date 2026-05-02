@@ -1093,6 +1093,70 @@ export default function CaseDetailPage() {
                     }
                     
                     // 调用后端API同步到飞书Webhook（避免CORS问题）
+                    // 时间格式化
+                    const formatDateTime = (dateStr: string) => {
+                      const date = new Date(dateStr);
+                      const year = date.getFullYear();
+                      const month = date.getMonth() + 1;
+                      const day = date.getDate();
+                      const hours = String(date.getHours()).padStart(2, '0');
+                      const minutes = String(date.getMinutes()).padStart(2, '0');
+                      const seconds = String(date.getSeconds()).padStart(2, '0');
+                      return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+                    };
+                    
+                    // 枚举值转中文
+                    const getFollowTypeText = (type: string) => {
+                      switch(type) {
+                        case 'online': return '线上';
+                        case 'offline': return '线下';
+                        case 'other': return '其他';
+                        default: return type;
+                      }
+                    };
+                    
+                    const getContactText = (contact: string) => {
+                      switch(contact) {
+                        case 'legal_representative': return '法人';
+                        case 'actual_controller': return '实控人';
+                        case 'other': return '其他';
+                        default: return contact;
+                      }
+                    };
+                    
+                    const getFollowResultText = (result: string) => {
+                      switch(result) {
+                        case 'normal_repayment': return '正常还款';
+                        case 'warning_increase': return '预警上升';
+                        case 'overdue_promise': return '逾期承诺';
+                        case 'other': return '其他';
+                        default: return result;
+                      }
+                    };
+                    
+                    // 文件信息转下载链接（简化处理，因为是base64数据）
+                    const formatFileInfo = (files: any) => {
+                      if (!files || files.length === 0) return [];
+                      return (files as any[]).map((file: any) => {
+                        if (file.type === 'image' && file.data) {
+                          // 图片类型直接返回base64链接，可以点击放大查看
+                          return {
+                            name: file.name,
+                            type: file.type,
+                            url: file.data.startsWith('data:') ? file.data : `data:image/jpeg;base64,${file.data}`
+                          };
+                        } else if (file.type === 'file' && file.data) {
+                          // 文件类型返回base64下载链接
+                          return {
+                            name: file.name,
+                            type: file.type,
+                            url: file.data.startsWith('data:') ? file.data : `data:application/octet-stream;base64,${file.data}`
+                          };
+                        }
+                        return file;
+                      });
+                    };
+                    
                     fetch('/api/webhook/feishu', {
                       method: 'POST',
                       headers: {
@@ -1106,12 +1170,12 @@ export default function CaseDetailPage() {
                         },
                         followup_data: {
                           follower: followup.follower,
-                          follow_time: followup.followTime,
-                          follow_type: followup.followType,
-                          contact: followup.contact,
-                          follow_result: followup.followResult,
+                          follow_time: formatDateTime(followup.followTime),
+                          follow_type: getFollowTypeText(followup.followType),
+                          contact: getContactText(followup.contact),
+                          follow_result: getFollowResultText(followup.followResult),
                           follow_record: followup.followRecord,
-                          file_info: followup.fileInfo
+                          file_info: formatFileInfo(followup.fileInfo)
                         }
                       })
                     }).catch((webhookError) => {
