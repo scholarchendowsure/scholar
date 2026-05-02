@@ -1646,7 +1646,9 @@ export default function FeishuConfigPage() {
                       <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm space-y-3">
                         <div className="text-gray-400"># 请求地址 (URL)</div>
                         <div className="mb-2 break-all">
-                          {process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'}/api/webhook/followup
+                          {typeof window !== 'undefined' 
+                            ? `${window.location.origin}/api/webhook/followup` 
+                            : '/api/webhook/followup'}
                         </div>
                         
                         <div className="text-gray-400 mt-4"># 请求方法</div>
