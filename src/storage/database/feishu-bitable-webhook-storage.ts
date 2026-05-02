@@ -1,0 +1,74 @@
+import { FeishuBitableWebhookRecord } from '@/types/feishu-bitable-webhook';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const STORAGE_FILE = path.join('/tmp', 'feishu-bitable-webhook-records.json');
+
+class FeishuBitableWebhookStorage {
+  private records: FeishuBitableWebhookRecord[] = [];
+
+  constructor() {
+    this.loadFromFile();
+  }
+
+  private loadFromFile() {
+    try {
+      if (fs.existsSync(STORAGE_FILE)) {
+        const data = fs.readFileSync(STORAGE_FILE, 'utf-8');
+        this.records = JSON.parse(data);
+      }
+    } catch (error) {
+      console.error('加载webhook记录失败:', error);
+      this.records = [];
+    }
+  }
+
+  private saveToFile() {
+    try {
+      fs.writeFileSync(STORAGE_FILE, JSON.stringify(this.records, null, 2));
+    } catch (error) {
+      console.error('保存webhook记录失败:', error);
+    }
+  }
+
+  addRecord(payload: any): FeishuBitableWebhookRecord {
+    const record: FeishuBitableWebhookRecord = {
+      id: Date.now().toString(),
+      receivedAt: new Date().toISOString(),
+      payload
+    };
+    
+    // 最多保存100条记录，超过则删除最早的
+    if (this.records.length >= 100) {
+      this.records.shift();
+    }
+    
+    this.records.unshift(record);
+    this.saveToFile();
+    return record;
+  }
+
+  getRecords(limit: number = 50): FeishuBitableWebhookRecord[] {
+    return this.records.slice(0, limit);
+  }
+
+  getRecord(id: string): FeishuBitableWebhookRecord | undefined {
+    return this.records.find(r => r.id === id);
+  }
+
+  clearRecords(): void {
+    this.records = [];
+    this.saveToFile();
+  }
+
+  markProcessed(id: string): void {
+    const record = this.records.find(r => r.id === id);
+    if (record) {
+      record.processed = true;
+      record.processedAt = new Date().toISOString();
+      this.saveToFile();
+    }
+  }
+}
+
+export const feishuBitableWebhookStorage = new FeishuBitableWebhookStorage();

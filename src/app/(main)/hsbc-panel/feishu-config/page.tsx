@@ -87,6 +87,10 @@ export default function FeishuConfigPage() {
   const [syncingBitable, setSyncingBitable] = useState(false);
   const [syncRecords, setSyncRecords] = useState<BitableSyncRecord[]>([]);
   const [selectedBitableConfig, setSelectedBitableConfig] = useState<FeishuBitableConfig | null>(null);
+  
+  // Webhook接收记录状态
+  const [webhookRecords, setWebhookRecords] = useState<any[]>([]);
+  const [loadingWebhookRecords, setLoadingWebhookRecords] = useState(false);
 
   // 个人账号绑定状态
   const [personalAccounts, setPersonalAccounts] = useState<FeishuPersonalAccount[]>([]);
@@ -117,6 +121,38 @@ export default function FeishuConfigPage() {
   // 不需要 lark-cli 授权状态了
 
   // 加载配置
+  // 加载webhook记录
+  const loadWebhookRecords = async () => {
+    setLoadingWebhookRecords(true);
+    try {
+      const response = await fetch('/api/feishu-bitable/webhook?limit=20');
+      const data = await response.json();
+      if (data.success) {
+        setWebhookRecords(data.records || []);
+      }
+    } catch (error) {
+      console.error('加载webhook记录失败:', error);
+    } finally {
+      setLoadingWebhookRecords(false);
+    }
+  };
+
+  // 清空webhook记录
+  const clearWebhookRecords = async () => {
+    try {
+      const response = await fetch('/api/feishu-bitable/webhook', {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('记录已清空');
+        loadWebhookRecords();
+      }
+    } catch (error) {
+      toast.error('清空记录失败');
+    }
+  };
+
   useEffect(() => {
     loadConfig();
     loadFeishuUsers();
@@ -126,6 +162,14 @@ export default function FeishuConfigPage() {
     loadPersonalConfig();
     loadPersonalAccounts();
     loadCozeConfig();
+    loadWebhookRecords();
+    
+    // 定时刷新webhook记录，每5秒刷新一次
+    const interval = setInterval(() => {
+      loadWebhookRecords();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // 加载应用配置
@@ -1381,6 +1425,109 @@ export default function FeishuConfigPage() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Webhook接收信息展示 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Activity className="w-5 h-5 mr-2 text-purple-600" />
+                  Webhook接收信息
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={loadWebhookRecords}
+                    disabled={loadingWebhookRecords}
+                  >
+                    {loadingWebhookRecords ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    刷新
+                  </Button>
+                  {webhookRecords.length > 0 && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={clearWebhookRecords}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      清空
+                    </Button>
+                  )}
+                </div>
+              </CardTitle>
+              <CardDescription>
+                展示从飞书多维表格接收到的Webhook信息（自动每5秒刷新）
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Webhook配置说明 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="text-sm font-medium text-blue-900 mb-2">
+                  📋 飞书多维表格Webhook配置说明
+                </div>
+                <div className="space-y-2 text-sm text-blue-800">
+                  <div>
+                    <strong>请求地址 (URL)：</strong>
+                    <code className="bg-blue-100 px-2 py-1 rounded font-mono ml-2">
+                      {typeof window !== 'undefined' 
+                        ? `${window.location.origin}/api/feishu-bitable/webhook` 
+                        : '/api/feishu-bitable/webhook'}
+                    </code>
+                  </div>
+                  <div><strong>请求方法：</strong> POST</div>
+                  <div><strong>请求头 (Headers)：</strong> Content-Type: application/json</div>
+                  <div><strong>请求体 (Request body)：</strong> Raw 格式 (JSON)</div>
+                </div>
+              </div>
+
+              {/* 接收记录 */}
+              {webhookRecords.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <div>暂无接收到的Webhook信息</div>
+                  <div className="text-sm mt-2">在飞书多维表格配置工作流后，新记录产生时会在这里显示</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-sm text-muted-foreground mb-2">
+                    共接收到 {webhookRecords.length} 条记录（最新在前）
+                  </div>
+                  {webhookRecords.map((record) => (
+                    <div 
+                      key={record.id} 
+                      className="border rounded-lg p-4 bg-card hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="bg-purple-50 text-purple-700">
+                            ID: {record.id}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(record.receivedAt).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <details>
+                          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                            点击查看接收内容
+                          </summary>
+                          <pre className="mt-2 p-3 bg-muted rounded-lg text-xs overflow-auto max-h-96">
+                            {JSON.stringify(record.payload, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
