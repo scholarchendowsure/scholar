@@ -177,6 +177,7 @@ export interface CaseFile {
   name: string;
   type: 'image' | 'document' | 'other';
   url?: string;
+  data?: string; // 新增：base64数据，用于直接显示图片
   uploadTime: string;
   uploadBy: string;
 }

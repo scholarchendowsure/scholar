@@ -88,6 +88,19 @@ export default function CaseDetailPage() {
         ...newFollowup,
         fileInfo: [...(newFollowup.fileInfo || []), ...fileNames]
       });
+      
+      // 保存文件内容
+      const newUploadingFiles = { ...uploadingFiles };
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          newUploadingFiles[file.name] = result;
+          setUploadingFiles({ ...newUploadingFiles });
+        };
+        reader.readAsDataURL(file);
+      });
+      
       toast.success(`已选择 ${files.length} 个文件`);
     }
   };
@@ -98,6 +111,12 @@ export default function CaseDetailPage() {
   
   // 图片预览状态
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // 查看完整记录内容状态
+  const [viewFullRecord, setViewFullRecord] = useState<string | null>(null);
+  
+  // 保存文件上传，包含数据
+  const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: string }>({});
 
   // 读取导航状态
   useEffect(() => {
@@ -751,7 +770,11 @@ export default function CaseDetailPage() {
             {/* 跟进记录列表 */}
             {caseData?.followups && caseData.followups.length > 0 ? (
               <div className="space-y-3">
-                {caseData.followups.map((followup) => (
+                {/* 最新记录排序，最新在最上面 */}
+                {[...caseData.followups].sort((a, b) => 
+                  new Date(b.followTime || b.createdAt || '').getTime() - 
+                  new Date(a.followTime || a.createdAt || '').getTime()
+                ).map((followup) => (
                   <div key={followup.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                     {/* 所有内容都在一行显示 */}
                     <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -793,7 +816,13 @@ export default function CaseDetailPage() {
                           <div className="text-slate-300">|</div>
                           <div className="flex items-center gap-1">
                             <span className="text-slate-500">记录:</span>
-                            <span className="max-w-xs truncate" title={followup.followRecord}>{followup.followRecord}</span>
+                            <span 
+                              className="max-w-xs truncate cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                              onClick={() => setViewFullRecord(followup.followRecord)}
+                              title="点击查看完整记录"
+                            >
+                              {followup.followRecord}
+                            </span>
                           </div>
                         </>
                       )}
@@ -806,26 +835,33 @@ export default function CaseDetailPage() {
                             <span className="text-slate-500">文件:</span>
                             <div className="flex gap-1">
                               {followup.fileInfo.map((file, idx) => {
-                                const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(file);
+                                // 现在 fileInfo 是 CaseFile[]，不是 string[]
+                                const caseFile = typeof file === 'string' 
+                                  ? { id: idx.toString(), name: file, type: isImageFile(file) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人' } as CaseFile
+                                  : file;
                                 return (
-                                  <div key={idx} className="flex items-center gap-1">
-                                    {isImage ? (
+                                  <div key={caseFile.id} className="flex items-center gap-1">
+                                    {caseFile.type === 'image' ? (
                                       // 图片类型：显示缩略图，可点击放大
                                       <button
-                                        onClick={() => setPreviewImage(file)}
-                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                                        title={`点击放大: ${file}`}
+                                        onClick={() => setPreviewImage(caseFile.data || caseFile.url || null)}
+                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
+                                        title={`点击放大: ${caseFile.name}`}
                                       >
-                                        图片
+                                        {caseFile.data ? (
+                                          <img src={caseFile.data} alt={caseFile.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          '图'
+                                        )}
                                       </button>
                                     ) : (
                                       // 文件类型：提供下载
                                       <button
-                                        onClick={() => toast.info(`正在下载: ${file}`)}
+                                        onClick={() => toast.info(`正在下载: ${caseFile.name}`)}
                                         className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
-                                        title={`下载: ${file}`}
+                                        title={`下载: ${caseFile.name}`}
                                       >
-                                        {file.length > 8 ? `${file.substring(0, 6)}...` : file}
+                                        {caseFile.name.length > 8 ? `${caseFile.name.substring(0, 6)}...` : caseFile.name}
                                       </button>
                                     )}
                                   </div>
@@ -1040,6 +1076,32 @@ export default function CaseDetailPage() {
           </DialogContent>
         </Dialog>
         
+        {/* 记录内容查看弹窗 */}
+        <Dialog open={viewFullRecord !== null} onOpenChange={(open) => !open && setViewFullRecord(null)}>
+          <DialogContent className="sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>跟进记录详情</DialogTitle>
+            </DialogHeader>
+            {viewFullRecord && (
+              <div className="space-y-4">
+                <div className="p-6 bg-slate-50 rounded-lg">
+                  <p className="text-slate-800 whitespace-pre-wrap break-words">
+                    {viewFullRecord}
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setViewFullRecord(null)}
+                  >
+                    关闭
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        
         {/* 图片预览弹窗 */}
         <Dialog open={previewImage !== null} onOpenChange={(open) => !open && setPreviewImage(null)}>
           <DialogContent className="sm:max-w-3xl">
@@ -1049,15 +1111,11 @@ export default function CaseDetailPage() {
             {previewImage && (
               <div className="flex flex-col items-center">
                 <div className="w-full max-h-[60vh] overflow-hidden flex items-center justify-center bg-slate-100 rounded-lg">
-                  <div className="p-8 text-center">
-                    <div className="w-32 h-32 bg-slate-200 rounded-lg flex items-center justify-center text-slate-400 mb-4 mx-auto">
-                      图片预览
-                    </div>
-                    <p className="text-slate-600 font-medium">{previewImage}</p>
-                    <p className="text-slate-400 text-sm mt-2">
-                      （此处仅为演示，实际项目中会显示真实图片）
-                    </p>
-                  </div>
+                  <img 
+                    src={previewImage} 
+                    alt="预览图片"
+                    className="max-w-full max-h-[60vh] object-contain"
+                  />
                 </div>
                 <div className="mt-4 flex gap-2">
                   <Button 
