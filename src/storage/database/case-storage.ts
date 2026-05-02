@@ -5,6 +5,15 @@ import path from 'path';
 
 // 存储文件路径
 const STORAGE_FILE = path.join('/tmp', 'cases-v2.json');
+const RECYCLE_BIN_FILE = path.join('/tmp', 'cases-recycle-bin.json');
+
+// 回收站案件类型
+interface RecycleBinItem {
+  id: string;
+  caseData: Case;
+  deletedAt: string;
+  deletedBy: string;
+}
 
 // 确保存储目录存在
 function ensureStorageDir() {
@@ -30,6 +39,22 @@ function readFromFile(): Case[] {
   return [];
 }
 
+// 从回收站读取数据
+function readRecycleBin(): RecycleBinItem[] {
+  ensureStorageDir();
+  try {
+    if (fs.existsSync(RECYCLE_BIN_FILE)) {
+      const content = fs.readFileSync(RECYCLE_BIN_FILE, 'utf-8');
+      const data = JSON.parse(content);
+      console.log('Read from recycle bin, items count:', data.length);
+      return data;
+    }
+  } catch (error) {
+    console.error('Error reading recycle bin:', error);
+  }
+  return [];
+}
+
 // 写入数据到文件
 function writeToFile(cases: Case[]) {
   ensureStorageDir();
@@ -38,6 +63,17 @@ function writeToFile(cases: Case[]) {
     console.log('Written to file, cases count:', cases.length);
   } catch (error) {
     console.error('Error writing to file:', error);
+  }
+}
+
+// 写入回收站数据
+function writeRecycleBin(items: RecycleBinItem[]) {
+  ensureStorageDir();
+  try {
+    fs.writeFileSync(RECYCLE_BIN_FILE, JSON.stringify(items, null, 2), 'utf-8');
+    console.log('Written to recycle bin, items count:', items.length);
+  } catch (error) {
+    console.error('Error writing recycle bin:', error);
   }
 }
 
@@ -110,9 +146,76 @@ export const caseStorage = {
     const index = cases.findIndex(c => c.id === id);
     if (index === -1) return false;
 
+    // 移动到回收站，而不是直接删除
+    const deletedCase = cases[index];
+    const recycleBin = readRecycleBin();
+    
+    const recycleItem: RecycleBinItem = {
+      id: id,
+      caseData: deletedCase,
+      deletedAt: new Date().toISOString(),
+      deletedBy: '系统',
+    };
+    
+    recycleBin.unshift(recycleItem);
+    writeRecycleBin(recycleBin);
+
+    // 从主列表中删除
     cases.splice(index, 1);
     writeToFile(cases);
     return true;
+  },
+
+  // ===== 回收站相关方法 =====
+  async getRecycleBin(): Promise<RecycleBinItem[]> {
+    return readRecycleBin();
+  },
+
+  async restore(ids: string[]): Promise<number> {
+    const cases = await this.getAll();
+    const recycleBin = readRecycleBin();
+    
+    let restoredCount = 0;
+    const itemsToRestore: RecycleBinItem[] = [];
+    const remainingItems: RecycleBinItem[] = [];
+    
+    recycleBin.forEach(item => {
+      if (ids.includes(item.id)) {
+        itemsToRestore.push(item);
+        restoredCount++;
+      } else {
+        remainingItems.push(item);
+      }
+    });
+    
+    // 恢复到主列表
+    itemsToRestore.forEach(item => {
+      cases.unshift(item.caseData);
+    });
+    
+    writeToFile(cases);
+    writeRecycleBin(remainingItems);
+    
+    return restoredCount;
+  },
+
+  async permanentDelete(ids: string[]): Promise<number> {
+    const recycleBin = readRecycleBin();
+    
+    let deletedCount = 0;
+    const remainingItems: RecycleBinItem[] = [];
+    
+    recycleBin.forEach(item => {
+      if (ids.includes(item.id)) {
+        deletedCount++;
+      } else {
+        remainingItems.push(item);
+      }
+    });
+    
+    writeRecycleBin(remainingItems);
+    
+    return deletedCount;
   },
 
   async importCases(casesData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Case[]> {

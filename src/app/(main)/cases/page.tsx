@@ -522,14 +522,26 @@ export default function CasesPage() {
   };
 
   // 删除选中案件
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) {
       toast.warning('请先选择要删除的案件');
       return;
     }
-    if (confirm(`确定要删除选中的 ${selectedIds.length} 个案件吗？`)) {
-      toast.success(`已删除 ${selectedIds.length} 个案件`);
-      setSelectedIds([]);
+    if (confirm(`确定要删除选中的 ${selectedIds.length} 个案件吗？删除的案件将进入回收站，可以恢复。`)) {
+      try {
+        // 逐个删除
+        for (const id of selectedIds) {
+          await fetch(`/api/cases/${id}`, {
+            method: 'DELETE',
+          });
+        }
+        toast.success(`已删除 ${selectedIds.length} 个案件，已移入回收站`);
+        setSelectedIds([]);
+        // 刷新列表
+        fetchCases();
+      } catch (error) {
+        toast.error('删除案件失败');
+      }
     }
   };
 
@@ -757,7 +769,22 @@ export default function CasesPage() {
                 <Edit className="w-4 h-4 mr-2" />
                 编辑
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem 
+                className="text-red-600"
+                onClick={async () => {
+                  if (confirm(`确定要删除案件 ${caseItem.loanNo} 吗？删除的案件将进入回收站，可以恢复。`)) {
+                    try {
+                      await fetch(`/api/cases/${caseItem.id}`, {
+                        method: 'DELETE',
+                      });
+                      toast.success('案件已删除，已移入回收站');
+                      fetchCases();
+                    } catch (error) {
+                      toast.error('删除案件失败');
+                    }
+                  }
+                }}
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 删除
               </DropdownMenuItem>
