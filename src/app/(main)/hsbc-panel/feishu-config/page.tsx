@@ -8,8 +8,15 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Save, Users, Settings, Link, Trash2, MessageSquare, Search, Send } from 'lucide-react';
+import { 
+  Loader2, RefreshCw, Save, Users, Settings, Link, Trash2, 
+  MessageSquare, Search, Send, Database, ArrowRightLeft, 
+  Cloud, Download, Upload, Activity 
+} from 'lucide-react';
+import { FeishuBitableConfig, BitableSyncRecord, DEFAULT_BITABLE_FIELDS } from '@/types/feishu-bitable';
 
 // 类型定义
 interface FeishuUser {
@@ -65,12 +72,25 @@ export default function FeishuConfigPage() {
   const [useDirectUserId, setUseDirectUserId] = useState(false);
   const [idType, setIdType] = useState<'user_id' | 'open_id' | 'union_id'>('open_id');
 
+  // 多维表格配置状态
+  const [bitableConfigs, setBitableConfigs] = useState<FeishuBitableConfig[]>([]);
+  const [bitableAppId, setBitableAppId] = useState('');
+  const [bitableAppToken, setBitableAppToken] = useState('');
+  const [bitableTableId, setBitableTableId] = useState('');
+  const [bitableSyncEnabled, setBitableSyncEnabled] = useState(true);
+  const [bitableSyncDirection, setBitableSyncDirection] = useState<'bidirectional' | 'to-coze' | 'to-feishu'>('bidirectional');
+  const [bitableFieldMapping, setBitableFieldMapping] = useState<Record<string, string>>({});
+  const [syncingBitable, setSyncingBitable] = useState(false);
+  const [syncRecords, setSyncRecords] = useState<BitableSyncRecord[]>([]);
+  const [selectedBitableConfig, setSelectedBitableConfig] = useState<FeishuBitableConfig | null>(null);
+
   // 加载配置
   useEffect(() => {
     loadConfig();
     loadFeishuUsers();
     loadMappings();
     loadMerchantMappings();
+    loadBitableConfigs();
   }, []);
 
   // 加载应用配置
@@ -124,6 +144,45 @@ export default function FeishuConfigPage() {
       }
     } catch (error) {
       console.error('加载商户-销售映射失败:', error);
+    }
+  };
+
+  // 加载多维表格配置
+  const loadBitableConfigs = async () => {
+    try {
+      const response = await fetch('/api/feishu-bitable');
+      const data = await response.json();
+      if (data.success) {
+        setBitableConfigs(data.configs || []);
+        if (data.configs && data.configs.length > 0) {
+          const config = data.configs[0];
+          setSelectedBitableConfig(config);
+          setBitableAppId(config.appId);
+          setBitableAppToken(config.appToken);
+          setBitableTableId(config.tableId);
+          setBitableSyncEnabled(config.syncEnabled);
+          setBitableSyncDirection(config.syncDirection);
+          setBitableFieldMapping(config.fieldMapping || {});
+          
+          // 加载同步记录
+          loadSyncRecords(config.id);
+        }
+      }
+    } catch (error) {
+      console.error('加载多维表格配置失败:', error);
+    }
+  };
+
+  // 加载同步记录
+  const loadSyncRecords = async (configId: string) => {
+    try {
+      const response = await fetch(`/api/feishu-bitable/${configId}/sync-records`);
+      const data = await response.json();
+      if (data.success) {
+        setSyncRecords(data.records || []);
+      }
+    } catch (error) {
+      console.error('加载同步记录失败:', error);
     }
   };
 
@@ -360,6 +419,75 @@ export default function FeishuConfigPage() {
     }
   };
 
+  // 保存多维表格配置
+  const saveBitableConfig = async () => {
+    if (!bitableAppId || !bitableAppToken || !bitableTableId) {
+      toast.error('请填写完整的多维表格信息');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/feishu-bitable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId: bitableAppId,
+          appToken: bitableAppToken,
+          tableId: bitableTableId,
+          syncEnabled: bitableSyncEnabled,
+          syncDirection: bitableSyncDirection,
+          fieldMapping: bitableFieldMapping,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success('多维表格配置保存成功');
+        await loadBitableConfigs();
+      } else {
+        toast.error(data.message || '保存失败');
+      }
+    } catch (error) {
+      toast.error('保存多维表格配置失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 执行同步
+  const executeSync = async (direction: 'to-coze' | 'to-feishu' | 'bidirectional') => {
+    if (!selectedBitableConfig) {
+      toast.error('请先配置多维表格');
+      return;
+    }
+
+    setSyncingBitable(true);
+    try {
+      const response = await fetch('/api/feishu-bitable/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          configId: selectedBitableConfig.id,
+          direction,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || '同步成功');
+        await loadSyncRecords(selectedBitableConfig.id);
+        await loadBitableConfigs();
+      } else {
+        toast.error(data.message || '同步失败');
+      }
+    } catch (error) {
+      toast.error('同步失败');
+    } finally {
+      setSyncingBitable(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -388,6 +516,10 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="message-test">
             <MessageSquare className="w-4 h-4 mr-2" />
             消息测试
+          </TabsTrigger>
+          <TabsTrigger value="bitable-sync">
+            <Database className="w-4 h-4 mr-2" />
+            多维表格同步
           </TabsTrigger>
         </TabsList>
 
@@ -720,79 +852,74 @@ export default function FeishuConfigPage() {
                       </div>
                     )}
 
-                    {/* 已选择的用户 */}
+                    {/* 选中的用户 */}
                     {selectedUser && (
                       <div className="p-4 bg-muted rounded-lg">
-                        <div className="font-medium mb-2">已选择的同事</div>
-                        <div className="text-sm text-muted-foreground">
-                          <div>姓名：{selectedUser.name}</div>
-                          <div>用户ID：{selectedUser.userId}</div>
-                          {selectedUser.email && <div>邮箱：{selectedUser.email}</div>}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{selectedUser.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              User ID: {selectedUser.userId || selectedUser.id}
+                            </p>
+                            {selectedUser.email && (
+                              <p className="text-sm text-muted-foreground">
+                                {selectedUser.email}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedUser(null)}
+                          >
+                            清除
+                          </Button>
                         </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  /* 直接输入User ID模式 */
+                  /* 直接输入ID模式 */
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="idType">ID类型</Label>
-                      <select
-                        id="idType"
-                        value={idType}
-                        onChange={(e) => setIdType(e.target.value as any)}
-                        className="w-full px-3 py-2 border border-border rounded-md bg-background"
-                      >
-                        <option value="open_id">Open ID（推荐）</option>
-                        <option value="user_id">User ID</option>
-                        <option value="union_id">Union ID</option>
-                      </select>
-                      <p className="text-sm text-muted-foreground">
-                        提示：根据错误信息，通常使用 Open ID
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="directUserId">飞书{idType === 'open_id' ? 'Open ID' : idType === 'user_id' ? 'User ID' : 'Union ID'}</Label>
-                      <Input
-                        id="directUserId"
-                        value={directUserId}
-                        onChange={(e) => setDirectUserId(e.target.value)}
-                        placeholder={`请输入飞书${idType === 'open_id' ? 'Open ID' : idType === 'user_id' ? 'User ID' : 'Union ID'}`}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        提示：您可以在飞书中查看自己的{idType === 'open_id' ? 'Open ID' : idType === 'user_id' ? 'User ID' : 'Union ID'}，或者让同事提供
-                      </p>
-                    </div>
-
-                    {directUserId && (
-                      <div className="p-4 bg-muted rounded-lg">
-                        <div className="font-medium mb-2">目标用户</div>
-                        <div className="text-sm text-muted-foreground">
-                          <div>User ID：{directUserId}</div>
-                        </div>
+                      <Label htmlFor="directUserId">User ID</Label>
+                      <div className="flex gap-2">
+                        <Select value={idType} onValueChange={(v: any) => setIdType(v)}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="user_id">User ID</SelectItem>
+                            <SelectItem value="open_id">Open ID</SelectItem>
+                            <SelectItem value="union_id">Union ID</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          id="directUserId"
+                          value={directUserId}
+                          onChange={(e) => setDirectUserId(e.target.value)}
+                          placeholder="请输入飞书User ID"
+                        />
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
 
                 {/* 测试消息 */}
                 <div className="space-y-2">
-                  <Label htmlFor="testMessage">测试消息</Label>
-                  <Input
+                  <Label htmlFor="testMessage">测试消息内容</Label>
+                  <textarea
                     id="testMessage"
                     value={testMessage}
                     onChange={(e) => setTestMessage(e.target.value)}
-                    placeholder="请输入要发送的测试消息内容"
+                    placeholder="请输入测试消息内容"
+                    className="w-full p-3 border rounded-md resize-none"
+                    rows={4}
                   />
                 </div>
 
                 {/* 发送按钮 */}
-                <Button
-                  onClick={sendTestMessage}
-                  disabled={sendingMessage || !(useDirectUserId ? directUserId : selectedUser) || !testMessage.trim()}
-                  className="w-full md:w-auto"
-                >
+                <Button onClick={sendTestMessage} disabled={sendingMessage}>
                   {sendingMessage ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -801,11 +928,185 @@ export default function FeishuConfigPage() {
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      发送测试
+                      发送测试消息
                     </>
                   )}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 多维表格同步 */}
+        <TabsContent value="bitable-sync" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>飞书多维表格双向同步</CardTitle>
+              <CardDescription>
+                配置飞书多维表格与扣子贷后系统的双向实时同步
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* 多维表格配置 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bitableAppId">App ID</Label>
+                  <Input
+                    id="bitableAppId"
+                    value={bitableAppId}
+                    onChange={(e) => setBitableAppId(e.target.value)}
+                    placeholder="请输入飞书多维表格的 App ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bitableAppToken">App Token</Label>
+                  <Input
+                    id="bitableAppToken"
+                    value={bitableAppToken}
+                    onChange={(e) => setBitableAppToken(e.target.value)}
+                    placeholder="请输入多维表格的 App Token"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bitableTableId">Table ID</Label>
+                  <Input
+                    id="bitableTableId"
+                    value={bitableTableId}
+                    onChange={(e) => setBitableTableId(e.target.value)}
+                    placeholder="请输入多维表格的 Table ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>同步方向</Label>
+                  <Select 
+                    value={bitableSyncDirection} 
+                    onValueChange={(v: any) => setBitableSyncDirection(v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bidirectional">双向同步</SelectItem>
+                      <SelectItem value="to-coze">飞书 → 扣子</SelectItem>
+                      <SelectItem value="to-feishu">扣子 → 飞书</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch 
+                    id="syncEnabled" 
+                    checked={bitableSyncEnabled} 
+                    onCheckedChange={setBitableSyncEnabled} 
+                  />
+                  <Label htmlFor="syncEnabled">启用同步</Label>
+                </div>
+                {selectedBitableConfig && (
+                  <div className="text-sm text-muted-foreground">
+                    已同步 {selectedBitableConfig.syncCount} 次
+                    {selectedBitableConfig.lastSyncTime && (
+                      <span className="ml-2">
+                        · 最后同步: {new Date(selectedBitableConfig.lastSyncTime).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <Button onClick={saveBitableConfig} disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    保存中...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    保存配置
+                  </>
+                )}
+              </Button>
+
+              {/* 同步操作按钮 */}
+              {selectedBitableConfig && (
+                <div className="pt-6 border-t">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium">同步操作</h3>
+                  </div>
+                  <div className="flex gap-4">
+                    <Button 
+                      onClick={() => executeSync('to-coze')} 
+                      disabled={syncingBitable || !bitableSyncEnabled}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      从飞书同步到扣子
+                    </Button>
+                    <Button 
+                      onClick={() => executeSync('to-feishu')} 
+                      disabled={syncingBitable || !bitableSyncEnabled}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      从扣子同步到飞书
+                    </Button>
+                    <Button 
+                      onClick={() => executeSync('bidirectional')} 
+                      disabled={syncingBitable || !bitableSyncEnabled}
+                    >
+                      <ArrowRightLeft className="w-4 h-4 mr-2" />
+                      双向同步
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 同步记录 */}
+              {syncRecords.length > 0 && (
+                <div className="pt-6 border-t">
+                  <h3 className="font-medium mb-4">同步记录</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>方向</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead>同步时间</TableHead>
+                        <TableHead>错误信息</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {syncRecords.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {record.direction === 'to-coze' ? '飞书→扣子' : 
+                               record.direction === 'to-feishu' ? '扣子→飞书' : '双向'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              className={
+                                record.status === 'success' ? 'bg-green-100 text-green-800' :
+                                record.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                'bg-blue-100 text-blue-800'
+                              }
+                            >
+                              {record.status === 'success' ? '成功' :
+                               record.status === 'failed' ? '失败' : '同步中'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(record.syncTime).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            {record.errorMessage || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
