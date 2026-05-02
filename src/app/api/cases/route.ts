@@ -183,9 +183,9 @@ export async function GET(request: NextRequest) {
       const val = filterFollowupContent.toLowerCase();
       cases = cases.filter(c => {
         // 检查跟进记录
-        if (c.followUps && Array.isArray(c.followUps)) {
-          return c.followUps.some((f: any) => 
-            (f.content?.toLowerCase() || '').includes(val)
+        if (c.followups && Array.isArray(c.followups)) {
+          return c.followups.some((f: any) => 
+            ((f.followRecord || f.content)?.toLowerCase() || '').includes(val)
           );
         }
         return false;

@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
           compensationAmount: parseNumber(convertedData.compensationAmount),
           compensationDate: parseDate(convertedData.compensationDate),
           isExtended: convertedData.isExtended === '是' || convertedData.isExtended === 'true',
-          followUps: [],
+          followups: [],
         };
         
         console.log('Creating case:', caseData.loanNo);

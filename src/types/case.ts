@@ -26,7 +26,7 @@ export interface Case {
   isExtended?: boolean; // 是否展期（可选）
   
   // ===== 跟进记录 =====
-  followUps?: any[]; // 跟进记录（新增，可选）
+  followups?: FollowUp[]; // 跟进记录（新增，可选）
 
   // ===== 贷款核心金额 =====
   currency?: string; // 币种（可选）
@@ -72,6 +72,40 @@ export interface Case {
   createdAt: string; // 创建时间
   updatedAt: string; // 更新时间
 }
+
+// ===== 跟进记录类型定义
+export interface FollowUp {
+  id: string;
+  
+  // ===== 基础信息 =====
+  follower: string; // 跟进人
+  followTime: string; // 跟进时间
+  followType: 'online' | 'offline'; // 跟进类型：线上/线下
+  contact: 'legal_representative' | 'actual_controller'; // 联系人：法人/实控人
+  followResult: 'normal_repayment' | 'warning_rise' | 'overdue_promise'; // 跟进结果：正常还款/预警上升/逾期承诺
+  followRecord: string; // 跟进记录内容
+  fileInfo?: string[]; // 文件信息：文件列表
+  // ===== 系统元数据 =====
+  createdAt: string; // 创建时间
+  createdBy: string; // 创建人
+}
+
+// 跟进记录的显示配置
+export const FOLLOWUP_TYPE_OPTIONS = [
+  { value: 'online', label: '线上' },
+  { value: 'offline', label: '线下' },
+];
+
+export const CONTACT_OPTIONS = [
+  { value: 'legal_representative', label: '法人' },
+  { value: 'actual_controller', label: '实控人' },
+];
+
+export const FOLLOWUP_RESULT_OPTIONS = [
+  { value: 'normal_repayment', label: '正常还款' },
+  { value: 'warning_rise', label: '预警上升' },
+  { value: 'overdue_promise', label: '逾期承诺' },
+];
 
 // 导入时的字段映射（用于Excel导入）
 export const CASE_IMPORT_FIELDS = {
@@ -133,3 +167,4 @@ export const CASE_IMPORT_FIELDS = {
   assignedRiskControl: { label: '所属风控', required: false },
   assignedPostLoan: { label: '所属贷后', required: false },
 };
+

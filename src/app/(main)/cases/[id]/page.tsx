@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { FOLLOWUP_TYPE_OPTIONS, CONTACT_OPTIONS, FOLLOWUP_RESULT_OPTIONS, FollowUp } from '@/types/case';
 import { Button } from '@/components/ui/button';
 
 const NAVIGATION_KEY = 'cases-navigation-state';
@@ -57,6 +63,15 @@ export default function CaseDetailPage() {
   const [relatedLoans, setRelatedLoans] = useState<Case[]>([]);
   const [relatedLoansLoading, setRelatedLoansLoading] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [showFollowupDialog, setShowFollowupDialog] = useState(false);
+  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
+    follower: '',
+    followType: 'online',
+    contact: 'legal_representative',
+    followResult: 'normal_repayment',
+    followRecord: '',
+    fileInfo: [],
+  });
 
   // 导航状态
   const [navigationState, setNavigationState] = useState<{
@@ -647,52 +662,263 @@ export default function CaseDetailPage() {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-8 bg-red-500 rounded-full" />
                 <h3 className="text-xl font-bold text-slate-900">贷后跟进记录</h3>
-                <span className="text-sm text-slate-500">(1条)</span>
+                <span className="text-sm text-slate-500">({caseData?.followups?.length || 0}条)</span>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                跟进记录
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  setNewFollowup({
+                    follower: '未登记人',
+                    followType: 'online',
+                    contact: 'legal_representative',
+                    followResult: 'normal_repayment',
+                    followRecord: '',
+                    fileInfo: [],
+                    followTime: new Date().toISOString(),
+                  });
+                  setShowFollowupDialog(true);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                新增跟进记录
               </Button>
             </div>
 
-            {/* 跟进记录表格 */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">跟进类型</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">状态</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">部门</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">所属职能</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">名称</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">联系人</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">联络方式</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">案件状态</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">承诺还款</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">日期时间</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">文字记录</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">附件</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-4 px-4 text-sm">电话</td>
-                    <td className="py-4 px-4 text-sm"></td>
-                    <td className="py-4 px-4 text-sm">贷后管理部</td>
-                    <td className="py-4 px-4 text-sm">运营专员</td>
-                    <td className="py-4 px-4 text-sm">Scholar</td>
-                    <td className="py-4 px-4 text-sm">胡涵</td>
-                    <td className="py-4 px-4 text-sm font-mono">17796358701</td>
-                    <td className="py-4 px-4 text-sm">跟进中</td>
-                    <td className="py-4 px-4 text-sm">-</td>
-                    <td className="py-4 px-4 text-sm text-slate-600">2026-4-14 20:10:22</td>
-                    <td className="py-4 px-4 text-sm">未分配</td>
-                    <td className="py-4 px-4 text-sm">-</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {/* 跟进记录列表 */}
+            {caseData?.followups && caseData.followups.length > 0 ? (
+              <div className="space-y-4">
+                {caseData.followups.map((followup) => (
+                  <div key={followup.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <Label className="text-sm text-slate-500">跟进人</Label>
+                        <div className="font-medium">{followup.follower}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-slate-500">跟进时间</Label>
+                        <div className="font-medium">{new Date(followup.followTime).toLocaleString('zh-CN')}</div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-slate-500">跟进类型</Label>
+                        <div className="font-medium">
+                          {FOLLOWUP_TYPE_OPTIONS.find(opt => opt.value === followup.followType)?.label}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-slate-500">联系人</Label>
+                        <div className="font-medium">
+                          {CONTACT_OPTIONS.find(opt => opt.value === followup.contact)?.label}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <Label className="text-sm text-slate-500">跟进结果</Label>
+                      <div className="font-medium">
+                        {FOLLOWUP_RESULT_OPTIONS.find(opt => opt.value === followup.followResult)?.label}
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <Label className="text-sm text-slate-500">跟进记录</Label>
+                      <div className="mt-1 p-3 bg-white border border-slate-200 rounded-md text-sm whitespace-pre-wrap">
+                        {followup.followRecord}
+                      </div>
+                    </div>
+                    {followup.fileInfo && followup.fileInfo.length > 0 && (
+                      <div>
+                        <Label className="text-sm text-slate-500">文件信息</Label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {followup.fileInfo.map((file, idx) => (
+                            <div key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                              {file}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                暂无跟进记录，点击"新增跟进记录"添加第一条记录
+              </div>
+            )}
           </div>
         </Card>
+
+        {/* 新增跟进记录对话框 */}
+        <Dialog open={showFollowupDialog} onOpenChange={setShowFollowupDialog}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>新增跟进记录</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <Label>跟进人</Label>
+                <Input 
+                  value={newFollowup.follower || ''}
+                  onChange={(e) => setNewFollowup({ ...newFollowup, follower: e.target.value })}
+                  placeholder="请输入跟进人"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>跟进时间</Label>
+                <Input 
+                  value={newFollowup.followTime ? new Date(newFollowup.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')}
+                  disabled
+                  className="bg-slate-50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>跟进类型</Label>
+                <Select 
+                  value={newFollowup.followType} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择跟进类型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOLLOWUP_TYPE_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>联系人</Label>
+                <Select 
+                  value={newFollowup.contact} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, contact: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择联系人" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONTACT_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>跟进结果</Label>
+                <Select 
+                  value={newFollowup.followResult} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followResult: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择跟进结果" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOLLOWUP_RESULT_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>跟进记录</Label>
+                <Textarea 
+                  value={newFollowup.followRecord || ''}
+                  onChange={(e) => setNewFollowup({ ...newFollowup, followRecord: e.target.value })}
+                  placeholder="请输入跟进记录内容"
+                  rows={6}
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>文件信息</Label>
+                <div className="flex gap-2">
+                  <Button variant="outline" type="button">
+                    <Upload className="w-4 h-4 mr-2" />
+                    选择文件上传
+                  </Button>
+                  <Button variant="outline" type="button">
+                    <Camera className="w-4 h-4 mr-2" />
+                    拍照上传
+                  </Button>
+                </div>
+                {newFollowup.fileInfo && newFollowup.fileInfo.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {newFollowup.fileInfo.map((file, idx) => (
+                      <div key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
+                        {file}
+                        <button 
+                          onClick={() => setNewFollowup({
+                            ...newFollowup,
+                            fileInfo: newFollowup.fileInfo?.filter((_, i) => i !== idx)
+                          })}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowFollowupDialog(false)}>
+                取消
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={async () => {
+                  if (!newFollowup.follower || !newFollowup.followRecord) {
+                    toast.error('请填写跟进人和跟进记录');
+                    return;
+                  }
+                  try {
+                    const followup: FollowUp = {
+                      id: Date.now().toString(),
+                      follower: newFollowup.follower,
+                      followTime: newFollowup.followTime || new Date().toISOString(),
+                      followType: newFollowup.followType as any,
+                      contact: newFollowup.contact as any,
+                      followResult: newFollowup.followResult as any,
+                      followRecord: newFollowup.followRecord,
+                      fileInfo: newFollowup.fileInfo,
+                      createdAt: new Date().toISOString(),
+                      createdBy: newFollowup.follower,
+                    };
+                    
+                    const updatedCase = {
+                      ...caseData!,
+                      followups: [...(caseData?.followups || []), followup],
+                      updatedAt: new Date().toISOString(),
+                    };
+                    
+                    const res = await fetch(`/api/cases/${params.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(updatedCase),
+                    });
+                    
+                    const json = await res.json();
+                    if (json.success) {
+                      setCaseData(updatedCase);
+                      setShowFollowupDialog(false);
+                      toast.success('跟进记录添加成功');
+                    } else {
+                      toast.error('跟进记录添加失败');
+                    }
+                  } catch (error) {
+                    toast.error('跟进记录添加失败');
+                  }
+                }}
+              >
+                保存
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

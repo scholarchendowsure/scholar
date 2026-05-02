@@ -1,4 +1,4 @@
-import { Case } from '@/types/case';
+import { Case, FollowUp } from '@/types/case';
 import { caseStorage } from '@/storage/database/case-storage';
 
 // 飞书多维表格记录类型（支持中文名和英文名）
@@ -268,23 +268,24 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   const registeredAddress = getFieldValue(record, '户籍地址', 'registered_address');
   const borrowerPhone = getFieldValue(record, '借款人手机号', 'borrower_phone');
   const registeredPhone = getFieldValue(record, '注册手机号', 'registered_phone');
-  const contact = getFieldValue(record, '联系方式', 'contact');
+  const contactInfo = getFieldValue(record, '联系方式', 'contact_info');
+  const householdAddress = getFieldValue(record, '户籍地址', 'household_address');
 
   if (isNotEmpty(companyName)) caseData.companyName = String(companyName);
   if (isNotEmpty(companyAddress)) caseData.companyAddress = String(companyAddress);
   if (isNotEmpty(homeAddress)) caseData.homeAddress = String(homeAddress);
-  if (isNotEmpty(registeredAddress)) caseData.registeredAddress = String(registeredAddress);
+  if (isNotEmpty(householdAddress)) caseData.householdAddress = String(householdAddress);
   if (isNotEmpty(borrowerPhone)) caseData.borrowerPhone = String(borrowerPhone);
   if (isNotEmpty(registeredPhone)) caseData.registeredPhone = String(registeredPhone);
-  if (isNotEmpty(contact)) caseData.contact = String(contact);
+  if (isNotEmpty(contactInfo)) caseData.contactInfo = String(contactInfo);
 
   // 案件归属
   const assignedSales = getFieldValue(record, '所属销售', 'assigned_sales');
-  const assignedRisk = getFieldValue(record, '所属风控', 'assigned_risk');
+  const assignedRiskControl = getFieldValue(record, '所属风控', 'assigned_risk_control');
   const assignedPostLoan = getFieldValue(record, '所属贷后', 'assigned_post_loan');
 
   if (isNotEmpty(assignedSales)) caseData.assignedSales = String(assignedSales);
-  if (isNotEmpty(assignedRisk)) caseData.assignedRisk = String(assignedRisk);
+  if (isNotEmpty(assignedRiskControl)) caseData.assignedRiskControl = String(assignedRiskControl);
   if (isNotEmpty(assignedPostLoan)) caseData.assignedPostLoan = String(assignedPostLoan);
 
   return caseData;
@@ -351,24 +352,30 @@ export async function processFeishuBitableRecord(record: FeishuBitableRecord): P
 
       // 如果有跟进记录信息，添加跟进记录
       if (followupInfo.content || followupInfo.action) {
-        const followupContent = [
+        const followupRecord = [
           followupInfo.action ? `操作：${followupInfo.action}` : '',
           followupInfo.recorder ? `记录人：${followupInfo.recorder}` : '',
           followupInfo.time ? `时间：${followupInfo.time}` : '',
           followupInfo.content ? `内容：${followupInfo.content}` : '',
         ].filter(Boolean).join('\n');
 
-        if (followupContent) {
+        if (followupRecord) {
           const existingFollowups = existingCase.followups || [];
+          const newFollowup: FollowUp = {
+            id: crypto.randomUUID(),
+            follower: followupInfo.recorder || '未登记人',
+            followTime: followupInfo.time || new Date().toISOString(),
+            followType: 'online',
+            contact: 'legal_representative',
+            followResult: 'normal_repayment',
+            followRecord: followupRecord,
+            createdAt: new Date().toISOString(),
+            createdBy: followupInfo.recorder || '系统',
+          };
           await caseStorage.update(existingCase.id, {
             followups: [
               ...existingFollowups,
-              {
-                id: crypto.randomUUID(),
-                content: followupContent,
-                createdAt: new Date().toISOString(),
-                createdBy: followupInfo.recorder || '系统',
-              },
+              newFollowup,
             ],
           });
         }
@@ -386,31 +393,43 @@ export async function processFeishuBitableRecord(record: FeishuBitableRecord): P
     } else {
       // 不存在案件：创建新案件
       // 确保有必要的默认值
-      const newCaseData: Partial<Case> = {
-        ...caseData,
+      const newCaseData = {
+        // 确保所有必填字段都有值
+        batchNo: caseData.batchNo || '',
         loanNo: loanNoStr,
+        userId: caseData.userId || '',
+        borrowerName: caseData.borrowerName || '',
         status: caseData.status || 'pending_assign',
-        followups: [],
+        totalOutstandingBalance: caseData.totalOutstandingBalance || 0,
+        overdueAmount: caseData.overdueAmount || 0,
+        overdueDays: caseData.overdueDays || 0,
+        // 可选字段
+        ...caseData,
+        followups: caseData.followups || [],
       };
 
       // 如果有跟进记录信息，添加到初始跟进记录
       if (followupInfo.content || followupInfo.action) {
-        const followupContent = [
+        const followupRecord = [
           followupInfo.action ? `操作：${followupInfo.action}` : '',
           followupInfo.recorder ? `记录人：${followupInfo.recorder}` : '',
           followupInfo.time ? `时间：${followupInfo.time}` : '',
           followupInfo.content ? `内容：${followupInfo.content}` : '',
         ].filter(Boolean).join('\n');
 
-        if (followupContent) {
-          newCaseData.followups = [
-            {
-              id: crypto.randomUUID(),
-              content: followupContent,
-              createdAt: new Date().toISOString(),
-              createdBy: followupInfo.recorder || '系统',
-            },
-          ];
+        if (followupRecord) {
+          const newFollowup: FollowUp = {
+            id: crypto.randomUUID(),
+            follower: followupInfo.recorder || '未登记人',
+            followTime: followupInfo.time || new Date().toISOString(),
+            followType: 'online',
+            contact: 'legal_representative',
+            followResult: 'normal_repayment',
+            followRecord: followupRecord,
+            createdAt: new Date().toISOString(),
+            createdBy: followupInfo.recorder || '系统',
+          };
+          newCaseData.followups = [newFollowup];
         }
       }
 
