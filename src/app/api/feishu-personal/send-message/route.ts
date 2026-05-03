@@ -1,93 +1,74 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+import { NextRequest, NextResponse } from 'next/server';
+import { getTenantAccessToken } from '@/lib/feishu-api';
+import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, message } = await request.json();
+    const { openId, message } = await request.json();
 
-    if (!userId || !message) {
-      return NextResponse.json(
-        { success: false, error: '请提供用户ID和消息内容' },
-        { status: 400 }
-      );
+    if (!openId) {
+      return NextResponse.json({ success: false, error: '接收人Open ID不能为空' }, { status: 400 });
     }
 
-    console.log('🚀 使用 lark-cli 发送消息给:', userId);
-    console.log('📝 消息内容:', message.substring(0, 100));
+    if (!message) {
+      return NextResponse.json({ success: false, error: '消息内容不能为空' }, { status: 400 });
+    }
+
+    // 获取企业自建应用凭证
+    const credentials = await getFeishuAppCredentials();
+    if (!credentials?.appId) {
+      return NextResponse.json({ 
+        success: false, 
+        error: '请先配置飞书自建应用App ID和App Secret' 
+      }, { status: 400 });
+    }
+
+    // 获取tenant_access_token
+    const tenantAccessToken = await getTenantAccessToken(credentials.appId, credentials.appSecret || '');
+
+    // 构建飞书API请求
+    const feishuUrl = `https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id`;
     
-    // 尝试多种方式发送消息
-    
-    // 方式1: 使用 lark-cli im +messages-send
-    try {
-      console.log('📤 方式1: 尝试使用 lark-cli im +messages-send...');
-      const command1 = `lark-cli im +messages-send --user-id ${userId} --text "${message.replace(/"/g, '\\"')}" --as user 2>&1`;
-      console.log('🔧 执行命令:', command1.substring(0, 100));
-      
-      const { stdout: stdout1, stderr: stderr1 } = await execAsync(command1);
-      console.log('✅ 方式1成功!');
-      console.log('📤 输出:', stdout1);
-      
-      if (stderr1 && !stderr1.includes('warning')) {
-        console.log('⚠️ 方式1有警告:', stderr1);
-      }
-      
+    const content = {
+      text: message
+    };
+
+    const payload = {
+      receive_id: openId,
+      msg_type: "text",
+      content: JSON.stringify(content)
+    };
+
+    const response = await fetch(feishuUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tenantAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (result.code === 0) {
       return NextResponse.json({
         success: true,
-        message: '消息发送成功',
-        output: stdout1
+        messageId: result.data?.message_id,
+        chatId: result.data?.chat_id
       });
-    } catch (error1) {
-      console.log('❌ 方式1失败:', error1);
-    }
-    
-    // 方式2: 尝试不带 --as user
-    try {
-      console.log('📤 方式2: 尝试不带 --as user...');
-      const command2 = `lark-cli im +messages-send --user-id ${userId} --text "${message.replace(/"/g, '\\"')}" 2>&1`;
-      
-      const { stdout: stdout2, stderr: stderr2 } = await execAsync(command2);
-      console.log('✅ 方式2成功!');
-      
+    } else {
       return NextResponse.json({
-        success: true,
-        message: '消息发送成功',
-        output: stdout2
-      });
-    } catch (error2) {
-      console.log('❌ 方式2失败:', error2);
+        success: false,
+        error: `发送消息失败: ${result.msg} (code: ${result.code})`
+      }, { status: 500 });
     }
-    
-    // 方式3: 尝试使用 chat-id
-    try {
-      console.log('📤 方式3: 尝试使用 chat-id...');
-      const command3 = `lark-cli im +messages-send --chat-id ${userId} --text "${message.replace(/"/g, '\\"')}" 2>&1`;
-      
-      const { stdout: stdout3, stderr: stderr3 } = await execAsync(command3);
-      console.log('✅ 方式3成功!');
-      
-      return NextResponse.json({
-        success: true,
-        message: '消息发送成功',
-        output: stdout3
-      });
-    } catch (error3) {
-      console.log('❌ 方式3失败:', error3);
-    }
-    
-    // 所有方式都失败
-    return NextResponse.json({
-      success: false,
-      error: '发送消息失败，请确保lark-cli已正确授权'
-    }, { status: 500 });
 
   } catch (error) {
-    console.error('发送飞书消息失败:', error);
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '发送失败' },
-      { status: 500 }
-    );
+    console.error('发送消息失败:', error);
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : '发送消息失败'
+    }, { status: 500 });
   }
 }
