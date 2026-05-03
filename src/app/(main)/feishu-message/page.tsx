@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { 
   Loader2, RefreshCw, Save, Users, MessageSquare, Send, 
   Bell, Key, CheckCircle, Terminal, Settings, 
-  AlertTriangle, Clock, ShieldCheck, Unlink
+  AlertTriangle, Clock, ShieldCheck, Unlink, Search
 } from 'lucide-react';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
@@ -1089,135 +1089,6 @@ POST /api/coze-api/send-reminder
                       解除授权
                     </Button>
                   </div>
-
-                  {/* 搜索和发送消息 */}
-                  <div className="pt-6 border-t border-gray-200">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
-                      搜索和发送消息（企业自建应用）
-                    </h3>
-                    
-                    {/* 搜索用户 */}
-                    <div className="space-y-4 mb-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="oauth-search-query">搜索同事</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="oauth-search-query"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="请输入同事姓名或花名"
-                            onKeyDown={(e) => e.key === 'Enter' && searchFeishuUser()}
-                          />
-                          <Button
-                            onClick={searchFeishuUser}
-                            disabled={searching || !searchQuery}
-                          >
-                            {searching ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Search className="w-4 h-4 mr-2" />
-                            )}
-                            搜索
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* 搜索结果 */}
-                      {showSearchResults && searchResults.length > 0 && (
-                        <div className="border border-gray-200 rounded-lg overflow-hidden">
-                          <div className="p-3 bg-gray-50 border-b border-gray-200">
-                            <p className="text-sm text-gray-600">找到 {searchResults.length} 个用户</p>
-                          </div>
-                          <div className="divide-y divide-gray-200 max-h-60 overflow-y-auto">
-                            {searchResults.map((user, index) => (
-                              <div
-                                key={index}
-                                className="p-3 hover:bg-gray-50 cursor-pointer"
-                                onClick={() => {
-                                  setPersonalDirectUserId(user.open_id || user.user_id || user.id);
-                                  setShowSearchResults(false);
-                                }}
-                              >
-                                <div className="font-medium text-gray-900">{user.name || user.alias}</div>
-                                {user.email && (
-                                  <div className="text-sm text-gray-500">{user.email}</div>
-                                )}
-                                {user.department && (
-                                  <div className="text-xs text-gray-400">{user.department}</div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 发送消息 */}
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="oauth-receive-id">接收人 ID</Label>
-                        <Input
-                          id="oauth-receive-id"
-                          value={personalDirectUserId}
-                          onChange={(e) => setPersonalDirectUserId(e.target.value)}
-                          placeholder="请输入接收人的 Open ID（点击上方搜索结果选择）"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="oauth-message">消息内容</Label>
-                        <Textarea
-                          id="oauth-message"
-                          value={personalTestMessage}
-                          onChange={(e) => setPersonalTestMessage(e.target.value)}
-                          placeholder="请输入要发送的消息内容"
-                          rows={4}
-                        />
-                      </div>
-
-                      <Button
-                        onClick={async () => {
-                          if (!personalDirectUserId || !personalTestMessage) {
-                            toast.error('请填写接收人ID和消息内容');
-                            return;
-                          }
-                          
-                          setPersonalSendingMessage(true);
-                          try {
-                            const response = await fetch('/api/feishu-send-direct', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                receiveId: personalDirectUserId,
-                                message: personalTestMessage,
-                              }),
-                            });
-                            
-                            const data = await response.json();
-                            if (data.success) {
-                              toast.success('消息发送成功');
-                              setPersonalTestMessage('');
-                            } else {
-                              toast.error(data.error || '消息发送失败');
-                            }
-                          } catch (error) {
-                            toast.error('消息发送失败');
-                          } finally {
-                            setPersonalSendingMessage(false);
-                          }
-                        }}
-                        disabled={personalSendingMessage || !personalDirectUserId || !personalTestMessage}
-                        className="w-full"
-                      >
-                        {personalSendingMessage ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4 mr-2" />
-                        )}
-                        发送消息
-                      </Button>
-                    </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
