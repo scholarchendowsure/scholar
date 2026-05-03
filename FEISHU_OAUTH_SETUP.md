@@ -1,108 +1,103 @@
-# 飞书个人授权配置指南 (lark-cli)
+# 飞书网页应用OAuth配置指南
 
 ## 重要提示
 
-本系统使用的是 **lark-cli** 的个人用户授权模式**！
+本系统使用的是 **飞书网页应用**的个人用户OAuth授权**！**无需安装任何外部工具！**
 
 ## 配置步骤
 
-### 1. 安装 lark-cli
+### 1. 在飞书开放平台创建网页应用
 
-访问 [lark-cli GitHub 仓库下载安装：
-- GitHub: https://github.com/larksuite/lark-cli
+1. 访问 [飞书开放平台](https://open.feishu.cn/)
+2. 登录并进入 [开发者后台](https://open.feishu.cn/app)
+3. 点击"创建应用" → **选择"网页应用"**（重要！不要选企业自建应用）
+4. 填写应用信息：
+   - 应用名称：贷后案件管理系统
+   - 应用描述：用于贷后案件管理的飞书集成
+5. 点击"确定创建"
 
-根据你的操作系统选择对应的安装方式：
+### 2. 获取应用凭证
 
-**MacOS:**
+1. 在应用详情页，找到"凭证与基础信息"
+2. 复制以下信息：
+   - **App ID** (App ID)
+   - **App Secret** (App Secret)
+
+### 3. 配置重定向URL
+
+1. 在应用详情页，找到"安全设置"
+2. 在"重定向URL"中添加：
+   ```
+   https://your-domain.com/api/feishu-web-oauth/callback
+   ```
+   （将 `your-domain.com` 替换为你实际的域名）
+
+### 4. 配置环境变量
+
+在你的项目中配置以下环境变量：
+
 ```bash
-# 使用 Homebrew 安装
-brew install larksuite/tap/lark-cli
-
-# 或者下载二进制安装
-curl -fsSL https://github.com/larksuite.github.io/lark-cli/install.sh | bash
+# 飞书网页应用凭证
+FEISHU_APP_ID=your_app_id_here
+FEISHU_APP_SECRET=your_app_secret_here
 ```
 
-**Linux:**
-```bash
-# 下载二进制文件并安装
-curl -fsSL https://github.com/larksuite.github.io/lark-cli/install.sh | bash
-```
+### 5. 添加权限
 
-**Windows:**
-```powershell
-# 使用 PowerShell 安装
-iex (iwr https://github.com/larksuite.github.io/lark-cli/install.ps1)
-```
+在应用详情页的"权限管理"中，添加以下权限：
+- `user:profile` - 获取用户基本信息（必须）
 
-### 2. 验证安装
+### 6. 发布应用
 
-安装完成后，在终端运行：
-```bash
-lark-cli --version
-```
+1. 完成配置后，点击"版本管理与发布"
+2. 创建一个新版本并发布
+3. 等待审核通过（或使用测试版进行测试）
 
-如果显示版本号，说明安装成功！
+## 使用流程
 
-### 3. 使用一键授权
-
+### 一键授权
 1. 打开贷后系统的飞书消息页面
-2. 找到"飞书个人授权 (lark-cli)"卡片
+2. 找到"飞书个人授权 (网页应用OAuth)"卡片
 3. 点击"一键授权"按钮
-4. 系统会自动调用 `lark-cli auth login --no-wait --recommend --json`
-5. 在弹出的浏览器中完成授权
-6. 授权成功后，lark-cli 会自动保存令牌
+4. 在弹出的飞书授权页面同意授权
+5. 自动跳转回系统，授权完成！
 
-### 4. 手动授权（如果一键授权有问题）
-
-你也可以手动在终端执行：
-```bash
-lark-cli auth login
-```
-
-按照提示完成授权流程。
-
-## lark-cli 特性
-
-### 自动刷新机制
-lark-cli 内置自动刷新机制，授权成功后会自动维护令牌有效性：
-- 每50分钟自动刷新用户态令牌
-- 无需手动刷新操作
-- 令牌永久保存到本地配置文件
-
-### 令牌存储位置
-- **MacOS/Linux: `~/.lark-cli/config.json`
-- **Windows: `%APPDATA%\lark-cli\config.json`
-
-### 检查授权状态
-```bash
-lark-cli auth status
-```
+### 刷新授权
+- 系统会自动检查授权状态
+- 当 token 即将过期时，点击"刷新授权"即可
+- 或等待系统提醒后点击刷新
 
 ### 解除授权
-```bash
-lark-cli auth logout
-```
+- 点击"解除授权"按钮
+- 确认后删除本地保存的授权信息
 
-## 系统功能说明
+## 授权流程说明
 
-### 卡片功能
-- **一键授权**: 调用 `lark-cli auth login` 启动授权流程
-- **检查状态**: 刷新并检查当前授权状态
-- **解除授权**: 提示手动执行 `lark-cli auth logout`
+### 网页应用OAuth 2.0流程：
 
-### 自动检查
-系统会每30秒自动检查一次授权状态，确保显示最新信息。
+1. **用户点击授权链接** → 跳转到飞书授权页面
+2. **用户同意授权** → 飞书重定向到回调地址，携带 code 参数
+3. **后端用 code 调用接口** → 先获取 app_access_token，再换取 user_access_token
+4. **保存用户授权信息** → 存储 access_token 和 refresh_token 到本地
+
+## 特性
+
+✅ **无需安装任何工具** - 纯网页授权  
+✅ **安全可靠** - 标准 OAuth 2.0 流程  
+✅ **自动刷新** - 支持 refresh_token 刷新  
+✅ **永久保存** - token 保存到本地文件  
+✅ **状态检查** - 自动检查授权有效性  
 
 ## 常见问题
 
-### Q: 提示"未找到lark-cli命令"
-A: 请先按照上述步骤安装 lark-cli。
+### Q: 提示"请先配置飞书应用ID"
+A: 没有设置 `FEISHU_APP_ID` 环境变量，请按照上述步骤配置。
 
-### Q: 一键授权没有弹出浏览器
-A: 可以手动在终端执行 `lark-cli auth login`。
+### Q: 授权后提示错误
+A: 检查重定向URL是否正确配置，并且与环境变量中的域名一致。
 
-### Q: 授权后还是显示未授权
-A: 点击"检查状态"按钮刷新一下，或者等几秒钟系统自动检查。
+### Q: Token很快过期
+A: 点击"刷新授权"按钮即可，refresh_token 有效期为30天。
 
-### Q: 我需要配置环境变量吗？
-A: 不需要！使用 lark-cli 模式不需要配置任何环境变量！
+### Q: 我需要安装 lark-cli 吗？
+A: **不需要！** 本方案是纯网页OAuth，无需任何外部工具！

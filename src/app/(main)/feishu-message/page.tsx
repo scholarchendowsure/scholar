@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { 
   Loader2, RefreshCw, Save, Users, MessageSquare, Send, 
   Bell, Key, CheckCircle, Terminal, Settings, 
-  Link, AlertTriangle, Clock, ShieldCheck, Unlink
+  AlertTriangle, Clock, ShieldCheck, Unlink
 } from 'lucide-react';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
@@ -65,13 +65,23 @@ export default function FeishuMessagePage() {
     loadPersonalConfig();
     loadPersonalAccounts();
     loadCozeConfig();
-    checkLarkCliInstall();
     loadOAuthStatus();
 
-    // 定期检查授权状态（每30秒检查一次）
+    // 检查URL中的oauth参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthStatus = urlParams.get('oauth');
+    if (oauthStatus === 'success') {
+      toast.success('飞书授权成功');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (oauthStatus === 'error') {
+      toast.error('飞书授权失败');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // 定期检查授权状态（每分钟检查一次）
     const statusInterval = setInterval(() => {
       loadOAuthStatus();
-    }, 30000);
+    }, 60000);
 
     return () => clearInterval(statusInterval);
   }, []);
@@ -159,52 +169,17 @@ export default function FeishuMessagePage() {
     }
   };
 
-  // lark-cli相关状态
-  const [larkCliInstalled, setLarkCliInstalled] = useState<boolean | null>(null);
-  const [checkingInstall, setCheckingInstall] = useState(false);
-
-  // lark-cli授权相关函数
-  const checkLarkCliInstall = async () => {
-    setCheckingInstall(true);
-    try {
-      const response = await fetch('/api/lark-cli/check');
-      const data = await response.json();
-      if (data.success) {
-        setLarkCliInstalled(data.installed);
-      }
-    } catch (error) {
-      console.error('检查lark-cli安装失败:', error);
-      setLarkCliInstalled(false);
-    } finally {
-      setCheckingInstall(false);
-    }
-  };
-
+  // 飞书网页应用OAuth授权相关函数
   const loadOAuthStatus = async () => {
     setCheckingStatus(true);
     try {
-      const response = await fetch('/api/lark-cli/status');
+      const response = await fetch('/api/feishu-web-oauth/status');
       const data = await response.json();
       if (data.success) {
-        if (data.isAuthenticated) {
-          // 模拟一个token对象用于UI展示
-          setOauthToken({
-            accessToken: 'lark-cli-token',
-            tokenType: 'Bearer',
-            expiresAt: Date.now() + 86400000 * 365, // 模拟1年有效期
-            refreshToken: 'lark-cli-refresh',
-            userId: data.userInfo?.user_id,
-            userName: data.userInfo?.name || 'lark-cli用户',
-            userEmail: data.userInfo?.email,
-            userAvatar: data.userInfo?.avatar_url,
-            createdAt: Date.now(),
-          });
-        } else {
-          setOauthToken(null);
-        }
+        setOauthToken(data.token);
       }
     } catch (error) {
-      console.error('加载lark-cli状态失败:', error);
+      console.error('加载OAuth状态失败:', error);
     } finally {
       setCheckingStatus(false);
     }
@@ -213,21 +188,12 @@ export default function FeishuMessagePage() {
   const startOAuth = async () => {
     setOauthLoading(true);
     try {
-      const response = await fetch('/api/lark-cli/auth', {
-        method: 'POST',
-      });
+      const response = await fetch('/api/feishu-web-oauth/authorize');
       const data = await response.json();
-      if (data.success) {
-        toast.success(data.message || '已启动授权流程，请在浏览器中完成授权');
-        // 等待一下后刷新状态
-        setTimeout(() => {
-          loadOAuthStatus();
-        }, 3000);
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
       } else {
-        toast.error(data.error || '启动授权失败');
-        if (data.hint) {
-          toast.info(data.hint);
-        }
+        toast.error(data.error || '获取授权链接失败');
       }
     } catch (error) {
       toast.error('启动授权失败');
@@ -237,17 +203,52 @@ export default function FeishuMessagePage() {
   };
 
   const refreshOAuth = async () => {
-    toast.info('lark-cli会自动维护令牌有效性，无需手动刷新');
-    // 重新检查状态
-    loadOAuthStatus();
+    if (!oauthToken?.refreshToken) {
+      toast.error('没有可刷新的token');
+      return;
+    }
+    setOauthLoading(true);
+    try {
+      const response = await fetch('/api/feishu-web-oauth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: oauthToken.refreshToken }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOauthToken(data.token);
+        toast.success('授权刷新成功');
+      } else {
+        toast.error(data.error || '刷新授权失败');
+      }
+    } catch (error) {
+      toast.error('刷新授权失败');
+    } finally {
+      setOauthLoading(false);
+    }
   };
 
   const revokeOAuth = async () => {
-    if (!confirm('确定要解除授权吗？\n\n注意：这需要手动执行 lark-cli auth logout 命令')) {
+    if (!confirm('确定要解除授权吗？')) {
       return;
     }
-    toast.info('请在终端执行: lark-cli auth logout');
-    setOauthToken(null);
+    setOauthLoading(true);
+    try {
+      const response = await fetch('/api/feishu-web-oauth/revoke', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOauthToken(null);
+        toast.success('已解除授权');
+      } else {
+        toast.error(data.error || '解除授权失败');
+      }
+    } catch (error) {
+      toast.error('解除授权失败');
+    } finally {
+      setOauthLoading(false);
+    }
   };
 
   // 搜索飞书用户
@@ -961,16 +962,16 @@ POST /api/coze-api/send-reminder
           </div>
         </TabsContent>
 
-        {/* lark-cli授权卡片 */}
+        {/* 飞书网页应用OAuth授权卡片 */}
         <div className="mt-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Terminal className="w-5 h-5 mr-2 text-primary" />
-                飞书个人授权 (lark-cli)
+                <ShieldCheck className="w-5 h-5 mr-2 text-primary" />
+                飞书个人授权 (网页应用OAuth)
               </CardTitle>
               <CardDescription>
-                使用 lark-cli 进行个人用户授权，支持自动刷新令牌、永久保存
+                使用飞书网页应用OAuth进行个人用户授权，安全、简单、无需安装任何工具
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -998,24 +999,28 @@ POST /api/coze-api/send-reminder
                     <Badge variant="default" className="bg-green-600">有效</Badge>
                   </div>
 
-                  {/* lark-cli信息 */}
+                  {/* Token有效期 */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center">
-                          <Settings className="w-4 h-4 mr-2 text-gray-500" />
-                          lark-cli 状态
+                          <Clock className="w-4 h-4 mr-2 text-gray-500" />
+                          Access Token
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-sm space-y-1">
-                          <div className="text-green-600 flex items-center">
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            <span>自动刷新已启用</span>
-                          </div>
                           <div className="text-gray-600">
-                            每50分钟自动刷新令牌
+                            过期时间: {new Date(oauthToken.expiresAt).toLocaleString()}
                           </div>
+                          {oauthToken.expiresAt < Date.now() + 3600000 ? (
+                            <div className="flex items-center text-amber-600">
+                              <AlertTriangle className="w-4 h-4 mr-1" />
+                              <span>即将过期</span>
+                            </div>
+                          ) : (
+                            <div className="text-green-600">有效期内</div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1023,18 +1028,19 @@ POST /api/coze-api/send-reminder
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center">
-                          <Save className="w-4 h-4 mr-2 text-gray-500" />
-                          配置存储
+                          <RefreshCw className="w-4 h-4 mr-2 text-gray-500" />
+                          Refresh Token
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-sm space-y-1">
-                          <div className="text-gray-600">
-                            令牌永久保存到本地配置文件
-                          </div>
-                          <div className="text-gray-500 text-xs">
-                            支持跨会话保持登录状态
-                          </div>
+                          {oauthToken.refreshTokenExpiresAt ? (
+                            <div className="text-gray-600">
+                              过期时间: {new Date(oauthToken.refreshTokenExpiresAt).toLocaleString()}
+                            </div>
+                          ) : (
+                            <div className="text-gray-600">长期有效</div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1044,7 +1050,7 @@ POST /api/coze-api/send-reminder
                   <div className="flex gap-3">
                     <Button
                       onClick={refreshOAuth}
-                      disabled={oauthLoading}
+                      disabled={oauthLoading || !oauthToken.refreshToken}
                       className="flex-1"
                     >
                       {oauthLoading ? (
@@ -1052,7 +1058,7 @@ POST /api/coze-api/send-reminder
                       ) : (
                         <RefreshCw className="w-4 h-4 mr-2" />
                       )}
-                      检查状态
+                      刷新授权
                     </Button>
                     <Button
                       onClick={revokeOAuth}
@@ -1070,99 +1076,31 @@ POST /api/coze-api/send-reminder
                   </div>
                 </div>
               ) : (
-                <div className="py-8">
-                  {checkingInstall ? (
-                    <div className="text-center py-4">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
-                      <p className="text-gray-500">检查 lark-cli 安装状态...</p>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Key className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">尚未授权</h3>
+                  <p className="text-gray-500 mb-6">
+                    使用飞书网页应用OAuth进行个人用户授权，安全、简单、无需安装任何工具
+                  </p>
+                  <div className="space-y-4">
+                    <Button
+                      onClick={startOAuth}
+                      disabled={oauthLoading}
+                      size="lg"
+                    >
+                      {oauthLoading ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      ) : (
+                        <Key className="w-5 h-5 mr-2" />
+                      )}
+                      一键授权
+                    </Button>
+                    <div className="text-xs text-gray-400">
+                      需要先配置飞书网页应用的 App ID 和 App Secret
                     </div>
-                  ) : larkCliInstalled === false ? (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <AlertTriangle className="w-8 h-8 text-amber-500" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">需要安装 lark-cli</h3>
-                        <p className="text-gray-500">
-                          请先安装 lark-cli 命令行工具后再使用授权功能
-                        </p>
-                      </div>
-
-                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <h4 className="font-medium text-blue-800 mb-3 flex items-center">
-                          <Terminal className="w-4 h-4 mr-2" />
-                          快速安装（选择一种方式）
-                        </h4>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <div className="text-sm font-medium text-gray-700 mb-1">MacOS (Homebrew)</div>
-                            <div className="bg-gray-900 rounded p-2 text-sm text-gray-300 font-mono overflow-x-auto">
-                              brew install larksuite/tap/lark-cli
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <div className="text-sm font-medium text-gray-700 mb-1">MacOS/Linux (脚本安装)</div>
-                            <div className="bg-gray-900 rounded p-2 text-sm text-gray-300 font-mono overflow-x-auto">
-                              curl -fsSL https://github.com/larksuite.github.io/lark-cli/install.sh | bash
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <div className="text-sm font-medium text-gray-700 mb-1">Windows (PowerShell)</div>
-                            <div className="bg-gray-900 rounded p-2 text-sm text-gray-300 font-mono overflow-x-auto">
-                              iex (iwr https://github.com/larksuite.github.io/lark-cli/install.ps1)
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <a 
-                          href="https://github.com/larksuite/lark-cli" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline flex items-center"
-                        >
-                          <Link className="w-4 h-4 mr-1" />
-                          查看 GitHub 官方文档
-                        </a>
-                        <Button 
-                          onClick={checkLarkCliInstall}
-                          variant="secondary"
-                          size="sm"
-                        >
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          重新检查
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Terminal className="w-8 h-8 text-gray-400" />
-                      </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">尚未授权</h3>
-                      <p className="text-gray-500 mb-6">
-                        使用 lark-cli 进行个人用户授权，支持自动刷新令牌、永久保存到本地配置文件
-                      </p>
-                      <div className="space-y-4">
-                        <Button
-                          onClick={startOAuth}
-                          disabled={oauthLoading}
-                          size="lg"
-                        >
-                          {oauthLoading ? (
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          ) : (
-                            <Key className="w-5 h-5 mr-2" />
-                          )}
-                          一键授权
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
             </CardContent>
