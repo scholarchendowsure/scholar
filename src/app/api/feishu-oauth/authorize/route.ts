@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 飞书OAuth配置（这里使用占位符，实际使用时需要配置真实的应用ID）
+// 飞书网页应用OAuth配置
 const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
 const FEISHU_REDIRECT_URI = process.env.COZE_PROJECT_DOMAIN_DEFAULT 
   ? `${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/feishu-oauth/callback`
   : 'http://localhost:5000/api/feishu-oauth/callback';
@@ -19,15 +20,16 @@ export async function GET(request: NextRequest) {
     // 生成随机state参数用于防CSRF
     const state = Date.now().toString(36) + Math.random().toString(36).substring(2);
     
-    // 构建飞书OAuth授权URL
-    const authUrl = new URL('https://open.feishu.cn/open-apis/authen/v1/index');
+    // 构建飞书网页应用OAuth授权URL
+    const authUrl = new URL('https://open.feishu.cn/open-apis/oauth2/authorize');
     authUrl.searchParams.set('app_id', FEISHU_APP_ID);
     authUrl.searchParams.set('redirect_uri', FEISHU_REDIRECT_URI);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('state', state);
-    authUrl.searchParams.set('scope', 'contact:user.base:readonly');
+    // 网页应用使用的scope
+    authUrl.searchParams.set('scope', 'user:profile');
 
-    console.log('生成飞书OAuth授权URL:', authUrl.toString());
+    console.log('生成飞书网页应用OAuth授权URL:', authUrl.toString());
 
     return NextResponse.json({
       success: true,

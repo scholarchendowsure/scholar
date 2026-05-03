@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeishuOAuthStorage } from '@/storage/database/feishu-oauth-storage';
 
-// 飞书OAuth配置
+// 飞书网页应用OAuth配置
 const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
 const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
 
@@ -16,13 +16,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('刷新飞书OAuth token');
+    console.log('刷新飞书网页应用OAuth token');
 
-    // 使用refresh_token获取新的access_token
-    const tokenResponse = await fetch('https://open.feishu.cn/open-apis/authen/v1/refresh_access_token', {
+    // 第一步：获取 app_access_token
+    const appTokenResponse = await fetch('https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        app_id: FEISHU_APP_ID,
+        app_secret: FEISHU_APP_SECRET,
+      }),
+    });
+
+    if (!appTokenResponse.ok) {
+      const errorText = await appTokenResponse.text();
+      console.error('获取app_access_token失败:', errorText);
+      return NextResponse.json(
+        { success: false, error: '刷新token失败' },
+        { status: 500 }
+      );
+    }
+
+    const appTokenData = await appTokenResponse.json();
+    if (appTokenData.code !== 0) {
+      console.error('获取app_access_token失败:', appTokenData);
+      return NextResponse.json(
+        { success: false, error: '刷新token失败' },
+        { status: 500 }
+      );
+    }
+
+    const appAccessToken = appTokenData.app_access_token;
+
+    // 第二步：用 refresh_token 刷新 user_access_token
+    const userTokenResponse = await fetch('https://open.feishu.cn/open-apis/oauth2/refresh_access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${appAccessToken}`,
       },
       body: JSON.stringify({
         grant_type: 'refresh_token',
@@ -32,8 +65,8 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
+    if (!userTokenResponse.ok) {
+      const errorText = await userTokenResponse.text();
       console.error('刷新token失败:', errorText);
       return NextResponse.json(
         { success: false, error: '刷新token失败' },
@@ -41,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await userTokenResponse.json();
     console.log('飞书刷新token响应:', tokenData);
 
     if (tokenData.code !== 0) {
@@ -77,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     await storage.saveToken(newToken);
 
-    console.log('飞书OAuth token刷新成功');
+    console.log('飞书网页应用OAuth token刷新成功');
 
     return NextResponse.json({
       success: true,
