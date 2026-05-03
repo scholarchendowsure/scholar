@@ -5,6 +5,7 @@ import { caseStorage } from '@/storage/database/case-storage';
 export interface FeishuBitableRecord {
   // 案件基础标识
   批次号?: string;
+  batch_number?: string;
   batch_no?: string;
   贷款单号?: string;
   loan_number?: string;
@@ -19,8 +20,10 @@ export interface FeishuBitableRecord {
   支付公司?: string;
   payment_company?: string;
   资金方?: string;
+  fund_provider?: string;
   funder?: string;
   资金分类?: string;
+  fund_classification?: string;
   fund_category?: string;
   
   // 案件核心状态
@@ -29,6 +32,7 @@ export interface FeishuBitableRecord {
   贷款状态?: string;
   loan_status?: string;
   锁定情况?: string;
+  lock_status?: string;
   is_locked?: string;
   五级分类?: string;
   five_level_classification?: string;
@@ -45,10 +49,13 @@ export interface FeishuBitableRecord {
   总贷款金额?: number | string;
   total_loan_amount?: number | string;
   总在贷余额?: number | string;
+  total_remaining_balance?: number | string;
   total_outstanding_balance?: number | string;
   已还款总额?: number | string;
+  total_repaid?: number | string;
   total_repaid_amount?: number | string;
   在贷余额?: number | string;
+  remaining_balance?: number | string;
   outstanding_balance?: number | string;
   逾期金额?: number | string;
   overdue_amount?: number | string;
@@ -57,12 +64,16 @@ export interface FeishuBitableRecord {
   逾期利息?: number | string;
   overdue_interest?: number | string;
   已还金额?: number | string;
+  amount_repaid?: number | string;
   repaid_amount?: number | string;
   已还本金?: number | string;
+  principal_repaid?: number | string;
   repaid_principal?: number | string;
   已还利息?: number | string;
+  interest_repaid?: number | string;
   repaid_interest?: number | string;
   代偿总额?: number | string;
+  total_compensation?: number | string;
   compensation_amount?: number | string;
   
   // 贷款期限时间
@@ -73,14 +84,17 @@ export interface FeishuBitableRecord {
   贷款日期?: string;
   loan_date?: string;
   到期日?: string;
+  maturity_date?: string;
   due_date?: string;
   逾期天数?: number | string;
   overdue_days?: number | string;
-  逾期开始时间?: string;
+  逾期开始日期?: string;
+  overdue_start_date?: string;
   overdue_start_time?: string;
   首次逾期时间?: string;
+  first_overdue_date?: string;
   first_overdue_time?: string;
-  代偿日期?: string;
+  代偿时间?: string;
   compensation_date?: string;
   
   // 借款人主体信息
@@ -88,29 +102,38 @@ export interface FeishuBitableRecord {
   company_name?: string;
   公司地址?: string;
   company_address?: string;
-  家庭地址?: string;
+  家庭住址?: string;
   home_address?: string;
   户籍地址?: string;
+  household_registration_address?: string;
   registered_address?: string;
+  household_address?: string;
   借款人手机号?: string;
   borrower_phone?: string;
   注册手机号?: string;
   registered_phone?: string;
   联系方式?: string;
+  contact_info?: string;
   contact?: string;
   
   // 案件归属
   所属销售?: string;
+  sales_affiliation?: string;
   assigned_sales?: string;
   所属风控?: string;
+  risk_control?: string;
+  assigned_risk_control?: string;
   assigned_risk?: string;
   所属贷后?: string;
+  post_loan_management?: string;
   assigned_post_loan?: string;
   
   // 跟进记录信息
   信息操作?: string;
+  information_operation?: string;
   info_action?: string;
   记录时间?: string;
+  record_date?: string;
   record_time?: string;
   记录人?: string;
   recorder?: string;
@@ -138,14 +161,16 @@ export interface ProcessResult {
 }
 
 // 工具函数：获取字段值（支持中文和英文下划线两种格式）
-function getFieldValue(record: any, chineseName: string, englishName?: string): any {
+function getFieldValue(record: any, chineseName: string, ...englishNames: string[]): any {
   // 先尝试中文名
   if (record[chineseName] !== undefined && record[chineseName] !== null && record[chineseName] !== '') {
     return record[chineseName];
   }
-  // 再尝试英文名（下划线格式）
-  if (englishName && record[englishName] !== undefined && record[englishName] !== null && record[englishName] !== '') {
-    return record[englishName];
+  // 再尝试英文名（支持多个别名）
+  for (const englishName of englishNames) {
+    if (englishName && record[englishName] !== undefined && record[englishName] !== null && record[englishName] !== '') {
+      return record[englishName];
+    }
   }
   return undefined;
 }
@@ -163,7 +188,7 @@ function toBoolean(value: any): boolean | undefined {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') {
     const lower = value.toLowerCase();
-    return lower === 'true' || lower === 'yes' || lower === '是' || lower === '已锁定' || lower === '锁定';
+    return lower === 'true' || lower === 'yes' || lower === '是' || lower === '已锁定' || lower === '锁定' || lower === '已展期' || lower === '展期';
   }
   return undefined;
 }
@@ -178,15 +203,15 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   const caseData: Partial<Case> = {};
 
   // 案件基础标识
-  const batchNo = getFieldValue(record, '批次号', 'batch_no');
+  const batchNo = getFieldValue(record, '批次号', 'batch_number', 'batch_no');
   const loanNo = getFieldValue(record, '贷款单号', 'loan_number');
   const userId = getFieldValue(record, '用户ID', 'user_id');
   const borrowerName = getFieldValue(record, '借款人姓名', 'borrower_name');
   const productName = getFieldValue(record, '产品名称', 'product_name');
   const platform = getFieldValue(record, '平台', 'platform');
   const paymentCompany = getFieldValue(record, '支付公司', 'payment_company');
-  const funder = getFieldValue(record, '资金方', 'funder');
-  const fundCategory = getFieldValue(record, '资金分类', 'fund_category');
+  const funder = getFieldValue(record, '资金方', 'fund_provider', 'funder');
+  const fundCategory = getFieldValue(record, '资金分类', 'fund_classification', 'fund_category');
 
   if (isNotEmpty(batchNo)) caseData.batchNo = String(batchNo);
   if (isNotEmpty(loanNo)) caseData.loanNo = String(loanNo);
@@ -201,7 +226,7 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   // 案件核心状态
   const status = getFieldValue(record, '状态', 'status');
   const loanStatus = getFieldValue(record, '贷款状态', 'loan_status');
-  const isLocked = getFieldValue(record, '锁定情况', 'is_locked');
+  const isLocked = getFieldValue(record, '锁定情况', 'lock_status', 'is_locked');
   const fiveLevelClassification = getFieldValue(record, '五级分类', 'five_level_classification');
   const riskLevel = getFieldValue(record, '风险等级', 'risk_level');
   const isExtended = getFieldValue(record, '是否展期', 'is_extended');
@@ -217,16 +242,16 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   const currency = getFieldValue(record, '币种', 'currency');
   const loanAmount = getFieldValue(record, '贷款金额', 'loan_amount');
   const totalLoanAmount = getFieldValue(record, '总贷款金额', 'total_loan_amount');
-  const totalOutstandingBalance = getFieldValue(record, '总在贷余额', 'total_outstanding_balance');
-  const totalRepaidAmount = getFieldValue(record, '已还款总额', 'total_repaid_amount');
-  const outstandingBalance = getFieldValue(record, '在贷余额', 'outstanding_balance');
+  const totalOutstandingBalance = getFieldValue(record, '总在贷余额', 'total_remaining_balance', 'total_outstanding_balance');
+  const totalRepaidAmount = getFieldValue(record, '已还款总额', 'total_repaid', 'total_repaid_amount');
+  const outstandingBalance = getFieldValue(record, '在贷余额', 'remaining_balance', 'outstanding_balance');
   const overdueAmount = getFieldValue(record, '逾期金额', 'overdue_amount');
   const overduePrincipal = getFieldValue(record, '逾期本金', 'overdue_principal');
   const overdueInterest = getFieldValue(record, '逾期利息', 'overdue_interest');
-  const repaidAmount = getFieldValue(record, '已还金额', 'repaid_amount');
-  const repaidPrincipal = getFieldValue(record, '已还本金', 'repaid_principal');
-  const repaidInterest = getFieldValue(record, '已还利息', 'repaid_interest');
-  const compensationAmount = getFieldValue(record, '代偿总额', 'compensation_amount');
+  const repaidAmount = getFieldValue(record, '已还金额', 'amount_repaid', 'repaid_amount');
+  const repaidPrincipal = getFieldValue(record, '已还本金', 'principal_repaid', 'repaid_principal');
+  const repaidInterest = getFieldValue(record, '已还利息', 'interest_repaid', 'repaid_interest');
+  const compensationAmount = getFieldValue(record, '代偿总额', 'total_compensation', 'compensation_amount');
 
   if (isNotEmpty(currency)) caseData.currency = String(currency);
   if (isNotEmpty(loanAmount)) caseData.loanAmount = toNumber(loanAmount);
@@ -246,11 +271,11 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   const loanTerm = getFieldValue(record, '贷款期限', 'loan_term');
   const loanTermUnit = getFieldValue(record, '贷款期限单位', 'loan_term_unit');
   const loanDate = getFieldValue(record, '贷款日期', 'loan_date');
-  const dueDate = getFieldValue(record, '到期日', 'due_date');
+  const dueDate = getFieldValue(record, '到期日', 'maturity_date', 'due_date');
   const overdueDays = getFieldValue(record, '逾期天数', 'overdue_days');
-  const overdueStartTime = getFieldValue(record, '逾期开始时间', 'overdue_start_time');
-  const firstOverdueTime = getFieldValue(record, '首次逾期时间', 'first_overdue_time');
-  const compensationDate = getFieldValue(record, '代偿日期', 'compensation_date');
+  const overdueStartTime = getFieldValue(record, '逾期开始日期', 'overdue_start_date', 'overdue_start_time');
+  const firstOverdueTime = getFieldValue(record, '首次逾期时间', 'first_overdue_date', 'first_overdue_time');
+  const compensationDate = getFieldValue(record, '代偿时间', 'compensation_date');
 
   if (isNotEmpty(loanTerm)) caseData.loanTerm = toNumber(loanTerm);
   if (isNotEmpty(loanTermUnit)) caseData.loanTermUnit = String(loanTermUnit);
@@ -264,12 +289,11 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   // 借款人主体信息
   const companyName = getFieldValue(record, '公司名称', 'company_name');
   const companyAddress = getFieldValue(record, '公司地址', 'company_address');
-  const homeAddress = getFieldValue(record, '家庭地址', 'home_address');
-  const registeredAddress = getFieldValue(record, '户籍地址', 'registered_address');
+  const homeAddress = getFieldValue(record, '家庭住址', 'home_address');
+  const householdAddress = getFieldValue(record, '户籍地址', 'household_registration_address', 'registered_address', 'household_address');
   const borrowerPhone = getFieldValue(record, '借款人手机号', 'borrower_phone');
   const registeredPhone = getFieldValue(record, '注册手机号', 'registered_phone');
-  const contactInfo = getFieldValue(record, '联系方式', 'contact_info');
-  const householdAddress = getFieldValue(record, '户籍地址', 'household_address');
+  const contactInfo = getFieldValue(record, '联系方式', 'contact_info', 'contact');
 
   if (isNotEmpty(companyName)) caseData.companyName = String(companyName);
   if (isNotEmpty(companyAddress)) caseData.companyAddress = String(companyAddress);
@@ -280,9 +304,9 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   if (isNotEmpty(contactInfo)) caseData.contactInfo = String(contactInfo);
 
   // 案件归属
-  const assignedSales = getFieldValue(record, '所属销售', 'assigned_sales');
-  const assignedRiskControl = getFieldValue(record, '所属风控', 'assigned_risk_control');
-  const assignedPostLoan = getFieldValue(record, '所属贷后', 'assigned_post_loan');
+  const assignedSales = getFieldValue(record, '所属销售', 'sales_affiliation', 'assigned_sales');
+  const assignedRiskControl = getFieldValue(record, '所属风控', 'risk_control', 'assigned_risk_control', 'assigned_risk');
+  const assignedPostLoan = getFieldValue(record, '所属贷后', 'post_loan_management', 'assigned_post_loan');
 
   if (isNotEmpty(assignedSales)) caseData.assignedSales = String(assignedSales);
   if (isNotEmpty(assignedRiskControl)) caseData.assignedRiskControl = String(assignedRiskControl);
@@ -293,8 +317,8 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
 
 // 提取跟进记录信息
 function extractFollowup(record: FeishuBitableRecord): { action?: string; time?: string; recorder?: string; content?: string } {
-  const infoAction = getFieldValue(record, '信息操作', 'info_action');
-  const recordTime = getFieldValue(record, '记录时间', 'record_time');
+  const infoAction = getFieldValue(record, '信息操作', 'information_operation', 'info_action');
+  const recordTime = getFieldValue(record, '记录时间', 'record_date', 'record_time');
   const recorder = getFieldValue(record, '记录人', 'recorder');
   const recordContent = getFieldValue(record, '记录内容', 'record_content');
 
