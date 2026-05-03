@@ -409,6 +409,61 @@ export async function searchFeishuUsersDirectly(
 }
 
 /**
+ * 使用个人用户 OAuth token 发送飞书消息
+ */
+export async function sendFeishuMessageWithUserToken(
+  userAccessToken: string,
+  receiveId: string,
+  content: string,
+  receiveIdType: 'open_id' | 'user_id' | 'union_id' | 'email' | 'chat_id' = 'open_id'
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  console.log('📤 使用个人OAuth token发送消息...');
+  console.log('📨 接收人ID:', receiveId);
+  console.log('📝 消息内容:', content.substring(0, 50));
+
+  try {
+    const response = await fetch('https://open.feishu.cn/open-apis/im/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${userAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        receive_id: receiveId,
+        msg_type: 'text',
+        content: JSON.stringify({
+          text: content
+        }),
+        uuid: crypto.randomUUID(),
+      }),
+    });
+
+    const result = await response.json();
+    console.log('📤 飞书消息发送API响应:', result);
+
+    if (result.code === 0) {
+      console.log('✅ 消息发送成功!');
+      return {
+        success: true,
+        messageId: result.data.message_id
+      };
+    } else {
+      console.log('❌ 消息发送失败:', result);
+      return {
+        success: false,
+        error: `${result.msg} (code: ${result.code})`
+      };
+    }
+  } catch (error) {
+    console.error('❌ 发送消息异常:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '发送消息失败'
+    };
+  }
+}
+
+/**
  * 通过获取用户详情尝试获取更完整的用户信息
  */
 export async function getFeishuUserDetail(
