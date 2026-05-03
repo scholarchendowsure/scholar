@@ -89,12 +89,14 @@ export interface FeishuBitableRecord {
   逾期天数?: number | string;
   overdue_days?: number | string;
   逾期开始日期?: string;
+  逾期开始时间?: string;
   overdue_start_date?: string;
   overdue_start_time?: string;
   首次逾期时间?: string;
   first_overdue_date?: string;
   first_overdue_time?: string;
   代偿时间?: string;
+  代偿日期?: string;
   compensation_date?: string;
   
   // 借款人主体信息
@@ -103,6 +105,7 @@ export interface FeishuBitableRecord {
   公司地址?: string;
   company_address?: string;
   家庭住址?: string;
+  家庭地址?: string;
   home_address?: string;
   户籍地址?: string;
   household_registration_address?: string;
@@ -273,9 +276,9 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   const loanDate = getFieldValue(record, '贷款日期', 'loan_date');
   const dueDate = getFieldValue(record, '到期日', 'maturity_date', 'due_date');
   const overdueDays = getFieldValue(record, '逾期天数', 'overdue_days');
-  const overdueStartTime = getFieldValue(record, '逾期开始日期', 'overdue_start_date', 'overdue_start_time');
+  const overdueStartTime = getFieldValue(record, '逾期开始时间', '逾期开始日期', 'overdue_start_date', 'overdue_start_time');
   const firstOverdueTime = getFieldValue(record, '首次逾期时间', 'first_overdue_date', 'first_overdue_time');
-  const compensationDate = getFieldValue(record, '代偿时间', 'compensation_date');
+  const compensationDate = getFieldValue(record, '代偿日期', '代偿时间', 'compensation_date');
 
   if (isNotEmpty(loanTerm)) caseData.loanTerm = toNumber(loanTerm);
   if (isNotEmpty(loanTermUnit)) caseData.loanTermUnit = String(loanTermUnit);
@@ -289,7 +292,7 @@ function mapFeishuToCase(record: FeishuBitableRecord): Partial<Case> {
   // 借款人主体信息
   const companyName = getFieldValue(record, '公司名称', 'company_name');
   const companyAddress = getFieldValue(record, '公司地址', 'company_address');
-  const homeAddress = getFieldValue(record, '家庭住址', 'home_address');
+  const homeAddress = getFieldValue(record, '家庭地址', '家庭住址', 'home_address');
   const householdAddress = getFieldValue(record, '户籍地址', 'household_registration_address', 'registered_address', 'household_address');
   const borrowerPhone = getFieldValue(record, '借款人手机号', 'borrower_phone');
   const registeredPhone = getFieldValue(record, '注册手机号', 'registered_phone');

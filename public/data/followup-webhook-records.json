@@ -1,0 +1,21 @@
+[
+  {
+    "id": "1777818342508",
+    "receivedAt": "2026-05-03T14:25:42.508Z",
+    "payload": {
+      "user_id": "202600501DCDR",
+      "loan_number": "USL17318524267857127",
+      "recorder": "高乐 | Scholar",
+      "follow_up_type": "线上",
+      "contact_person": "法人",
+      "follow_up_result": "正常还款",
+      "record_content": "客户答应正常还款",
+      "file_info": ""
+    },
+    "processResult": {
+      "success": true,
+      "message": "已成功为 1 个案件添加跟进记录",
+      "updatedCases": 1
+    }
+  }
+]

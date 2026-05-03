@@ -140,7 +140,7 @@
     "userId": "202600501DCDR",
     "borrowerName": "郑鼎贤",
     "status": "逾期",
-    "totalOutstandingBalance": 0,
+    "totalOutstandingBalance": 5000,
     "overdueAmount": 274465.0551,
     "overdueDays": 407,
     "productName": "跨商贷-汇丰美金",
@@ -164,10 +164,35 @@
     "borrowerPhone": "18505928787",
     "assignedSales": "高乐",
     "assignedPostLoan": "大海",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1777818342507llwcpl0a5",
+        "follower": "高乐 | Scholar",
+        "followTime": "2026-05-03T14:25:42.507Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "客户答应正常还款",
+        "fileInfo": [],
+        "createdBy": "飞书Webhook"
+      }
+    ],
     "id": "fe3e5af1-55b5-45c7-b6b3-57c84021477f",
     "createdAt": "2026-05-03T07:09:28.291Z",
-    "updatedAt": "2026-05-03T07:09:28.291Z"
+    "updatedAt": "2026-05-03T14:25:42.508Z",
+    "loanDate": "2026/01/05",
+    "dueDate": "2026/05/05",
+    "totalLoanAmount": 5000,
+    "totalRepaidAmount": 15000,
+    "overduePrincipal": 188,
+    "overdueInterest": 20,
+    "repaidAmount": 50,
+    "repaidPrincipal": 88,
+    "companyAddress": "公司",
+    "householdAddress": "户籍",
+    "registeredPhone": "13410103355",
+    "contactInfo": "13420230131",
+    "assignedRiskControl": "高乐"
   },
   {
     "batchNo": "66610",
