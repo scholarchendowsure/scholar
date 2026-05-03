@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeishuUsers, saveFeishuUser, deleteFeishuUser, FeishuUser } from '@/storage/database/feishu-user-storage';
+import fs from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +9,22 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     console.log('📥 获取飞书用户列表请求');
+    
+    // 优先读取我们刚才保存的完整文件
+    const dataFilePath = path.join(process.cwd(), 'public', 'data', 'feishu-users.json');
+    
+    if (fs.existsSync(dataFilePath)) {
+      const rawData = fs.readFileSync(dataFilePath, 'utf-8');
+      const users = JSON.parse(rawData);
+      console.log(`✅ 返回 ${users.length} 个飞书用户（从完整文件）`);
+      return NextResponse.json({
+        success: true,
+        data: users,
+        count: users.length,
+      });
+    }
+    
+    // 如果没有完整文件，从存储中读取
     const users = await getFeishuUsers();
     
     console.log(`✅ 返回 ${users.length} 个飞书用户`);
