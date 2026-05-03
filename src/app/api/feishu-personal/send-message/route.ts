@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { sendFeishuPrivateMessage } from '@/lib/feishu-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,22 +13,20 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // 使用 lark-cli 发送消息
-      const { stdout } = await execAsync(
-        `lark-cli im+send-message --user-id "${userId}" --content "${content}" 2>&1`
-      );
+      // 使用企业自建应用 API 发送消息
+      const result = await sendFeishuPrivateMessage(userId, content);
       
       return NextResponse.json({ 
         success: true, 
         message: '消息发送成功',
-        data: stdout
+        data: result
       });
       
-    } catch (execError: any) {
-      console.error('lark-cli 执行错误:', execError);
+    } catch (sendError: any) {
+      console.error('发送消息错误:', sendError);
       return NextResponse.json({ 
         success: false, 
-        error: `发送失败: ${execError.message}` 
+        error: `发送失败: ${sendError.message}` 
       }, { status: 500 });
     }
     

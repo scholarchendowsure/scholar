@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { searchFeishuUsersDirectly, searchFeishuUserComprehensive } from '@/lib/feishu-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,32 +13,24 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // 使用 lark-cli 搜索用户
-      const { stdout } = await execAsync(
-        `lark-cli contact+search-user --query "${query}" --page-size 10 2>&1`
-      );
-      
+      // 使用企业自建应用 API 搜索用户
       let users: any[] = [];
       
       try {
-        // 尝试解析 JSON 输出
-        const result = JSON.parse(stdout);
-        if (result.data && Array.isArray(result.data)) {
-          users = result.data;
-        } else if (Array.isArray(result)) {
-          users = result;
-        }
-      } catch {
-        // 如果不是 JSON，尝试从文本中提取
-        // lark-cli 可能返回文本格式，这里简化处理
-        users = [{
-          union_id: `temp_${Date.now()}`,
-          user_id: `user_${Date.now()}`,
-          name: query,
-          en_name: query,
-          email: '',
-          mobile: ''
-        }];
+        // 先尝试直接搜索
+        users = await searchFeishuUsersDirectly(query);
+      } catch (error) {
+        console.log('直接搜索失败，尝试综合搜索:', error);
+        // 如果直接搜索失败，尝试综合搜索
+        const result = await searchFeishuUserComprehensive(query);
+        users = result.users || [];
+      }
+      
+      if (users.length === 0) {
+        return NextResponse.json({ 
+          success: true, 
+          users: [] 
+        });
       }
       
       // 转换为前端需要的格式
@@ -59,11 +48,11 @@ export async function POST(request: NextRequest) {
         users: formattedUsers
       });
       
-    } catch (execError: any) {
-      console.error('lark-cli 执行错误:', execError);
+    } catch (searchError: any) {
+      console.error('搜索用户错误:', searchError);
       return NextResponse.json({ 
         success: false, 
-        error: `搜索失败: ${execError.message}` 
+        error: `搜索失败: ${searchError.message}` 
       }, { status: 500 });
     }
     
