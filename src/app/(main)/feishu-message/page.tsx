@@ -67,41 +67,15 @@ export default function FeishuMessagePage() {
     loadCozeConfig();
     loadOAuthStatus();
 
-    // 检查URL中的oauth参数
-    const urlParams = new URLSearchParams(window.location.search);
-    const oauthStatus = urlParams.get('oauth');
-    if (oauthStatus === 'success') {
-      toast.success('飞书OAuth授权成功');
-      // 清除URL参数
-      window.history.replaceState({}, '', window.location.pathname);
-    } else if (oauthStatus === 'error') {
-      toast.error('飞书OAuth授权失败');
-      // 清除URL参数
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+    // 定期检查授权状态（每30秒检查一次）
+    const statusInterval = setInterval(() => {
+      loadOAuthStatus();
+    }, 30000);
+
+    return () => clearInterval(statusInterval);
   }, []);
 
-  // 定期检查授权状态
-  useEffect(() => {
-    if (!oauthToken) return;
 
-    // 每分钟检查一次
-    const checkInterval = setInterval(() => {
-      // 检查是否即将过期（1小时内）
-      const oneHour = 3600000;
-      if (oauthToken.expiresAt < Date.now() + oneHour) {
-        toast.warning('飞书授权即将过期，请及时刷新', {
-          action: {
-            label: '立即刷新',
-            onClick: () => refreshOAuth()
-          },
-          duration: 10000
-        });
-      }
-    }, 60000); // 每分钟检查一次
-
-    return () => clearInterval(checkInterval);
-  }, [oauthToken]);
 
   // 加载个人账号配置
   const loadPersonalConfig = async () => {
@@ -184,17 +158,32 @@ export default function FeishuMessagePage() {
     }
   };
 
-  // OAuth相关函数
+  // lark-cli授权相关函数
   const loadOAuthStatus = async () => {
     setCheckingStatus(true);
     try {
-      const response = await fetch('/api/feishu-oauth/status');
+      const response = await fetch('/api/lark-cli/status');
       const data = await response.json();
       if (data.success) {
-        setOauthToken(data.token);
+        if (data.isAuthenticated) {
+          // 模拟一个token对象用于UI展示
+          setOauthToken({
+            accessToken: 'lark-cli-token',
+            tokenType: 'Bearer',
+            expiresAt: Date.now() + 86400000 * 365, // 模拟1年有效期
+            refreshToken: 'lark-cli-refresh',
+            userId: data.userInfo?.user_id,
+            userName: data.userInfo?.name || 'lark-cli用户',
+            userEmail: data.userInfo?.email,
+            userAvatar: data.userInfo?.avatar_url,
+            createdAt: Date.now(),
+          });
+        } else {
+          setOauthToken(null);
+        }
       }
     } catch (error) {
-      console.error('加载OAuth状态失败:', error);
+      console.error('加载lark-cli状态失败:', error);
     } finally {
       setCheckingStatus(false);
     }
@@ -203,12 +192,21 @@ export default function FeishuMessagePage() {
   const startOAuth = async () => {
     setOauthLoading(true);
     try {
-      const response = await fetch('/api/feishu-oauth/authorize');
+      const response = await fetch('/api/lark-cli/auth', {
+        method: 'POST',
+      });
       const data = await response.json();
-      if (data.success && data.authUrl) {
-        window.location.href = data.authUrl;
+      if (data.success) {
+        toast.success(data.message || '已启动授权流程，请在浏览器中完成授权');
+        // 等待一下后刷新状态
+        setTimeout(() => {
+          loadOAuthStatus();
+        }, 3000);
       } else {
-        toast.error(data.error || '获取授权链接失败');
+        toast.error(data.error || '启动授权失败');
+        if (data.hint) {
+          toast.info(data.hint);
+        }
       }
     } catch (error) {
       toast.error('启动授权失败');
@@ -218,52 +216,17 @@ export default function FeishuMessagePage() {
   };
 
   const refreshOAuth = async () => {
-    if (!oauthToken?.refreshToken) {
-      toast.error('没有可刷新的token');
-      return;
-    }
-    setOauthLoading(true);
-    try {
-      const response = await fetch('/api/feishu-oauth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: oauthToken.refreshToken }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setOauthToken(data.token);
-        toast.success('授权刷新成功');
-      } else {
-        toast.error(data.error || '刷新授权失败');
-      }
-    } catch (error) {
-      toast.error('刷新授权失败');
-    } finally {
-      setOauthLoading(false);
-    }
+    toast.info('lark-cli会自动维护令牌有效性，无需手动刷新');
+    // 重新检查状态
+    loadOAuthStatus();
   };
 
   const revokeOAuth = async () => {
-    if (!confirm('确定要解除授权吗？')) {
+    if (!confirm('确定要解除授权吗？\n\n注意：这需要手动执行 lark-cli auth logout 命令')) {
       return;
     }
-    setOauthLoading(true);
-    try {
-      const response = await fetch('/api/feishu-oauth/revoke', {
-        method: 'DELETE',
-      });
-      const data = await response.json();
-      if (data.success) {
-        setOauthToken(null);
-        toast.success('已解除授权');
-      } else {
-        toast.error(data.error || '解除授权失败');
-      }
-    } catch (error) {
-      toast.error('解除授权失败');
-    } finally {
-      setOauthLoading(false);
-    }
+    toast.info('请在终端执行: lark-cli auth logout');
+    setOauthToken(null);
   };
 
   // 搜索飞书用户
@@ -977,16 +940,16 @@ POST /api/coze-api/send-reminder
           </div>
         </TabsContent>
 
-        {/* OAuth授权卡片 */}
+        {/* lark-cli授权卡片 */}
         <div className="mt-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <ShieldCheck className="w-5 h-5 mr-2 text-primary" />
-                飞书OAuth授权
+                <Terminal className="w-5 h-5 mr-2 text-primary" />
+                飞书个人授权 (lark-cli)
               </CardTitle>
               <CardDescription>
-                通过OAuth授权实现长期有效访问，避免频繁重新绑定
+                使用 lark-cli 进行个人用户授权，支持自动刷新令牌、永久保存
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1014,28 +977,24 @@ POST /api/coze-api/send-reminder
                     <Badge variant="default" className="bg-green-600">有效</Badge>
                   </div>
 
-                  {/* Token有效期 */}
+                  {/* lark-cli信息 */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center">
-                          <Clock className="w-4 h-4 mr-2 text-gray-500" />
-                          Access Token
+                          <Settings className="w-4 h-4 mr-2 text-gray-500" />
+                          lark-cli 状态
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-sm space-y-1">
-                          <div className="text-gray-600">
-                            过期时间: {new Date(oauthToken.expiresAt).toLocaleString()}
+                          <div className="text-green-600 flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span>自动刷新已启用</span>
                           </div>
-                          {oauthToken.expiresAt < Date.now() + 3600000 ? (
-                            <div className="flex items-center text-amber-600">
-                              <AlertTriangle className="w-4 h-4 mr-1" />
-                              <span>即将过期</span>
-                            </div>
-                          ) : (
-                            <div className="text-green-600">有效期内</div>
-                          )}
+                          <div className="text-gray-600">
+                            每50分钟自动刷新令牌
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1043,19 +1002,18 @@ POST /api/coze-api/send-reminder
                     <Card>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm flex items-center">
-                          <RefreshCw className="w-4 h-4 mr-2 text-gray-500" />
-                          Refresh Token
+                          <Save className="w-4 h-4 mr-2 text-gray-500" />
+                          配置存储
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-sm space-y-1">
-                          {oauthToken.refreshTokenExpiresAt ? (
-                            <div className="text-gray-600">
-                              过期时间: {new Date(oauthToken.refreshTokenExpiresAt).toLocaleString()}
-                            </div>
-                          ) : (
-                            <div className="text-gray-600">长期有效</div>
-                          )}
+                          <div className="text-gray-600">
+                            令牌永久保存到本地配置文件
+                          </div>
+                          <div className="text-gray-500 text-xs">
+                            支持跨会话保持登录状态
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1065,7 +1023,7 @@ POST /api/coze-api/send-reminder
                   <div className="flex gap-3">
                     <Button
                       onClick={refreshOAuth}
-                      disabled={oauthLoading || !oauthToken.refreshToken}
+                      disabled={oauthLoading}
                       className="flex-1"
                     >
                       {oauthLoading ? (
@@ -1073,7 +1031,7 @@ POST /api/coze-api/send-reminder
                       ) : (
                         <RefreshCw className="w-4 h-4 mr-2" />
                       )}
-                      刷新授权
+                      检查状态
                     </Button>
                     <Button
                       onClick={revokeOAuth}
@@ -1093,24 +1051,33 @@ POST /api/coze-api/send-reminder
               ) : (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Link className="w-8 h-8 text-gray-400" />
+                    <Terminal className="w-8 h-8 text-gray-400" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">尚未授权</h3>
                   <p className="text-gray-500 mb-6">
-                    通过OAuth授权可以获得长期有效的访问权限，避免频繁重新绑定账号
+                    使用 lark-cli 进行个人用户授权，支持自动刷新令牌、永久保存到本地配置文件
                   </p>
-                  <Button
-                    onClick={startOAuth}
-                    disabled={oauthLoading}
-                    size="lg"
-                  >
-                    {oauthLoading ? (
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    ) : (
-                      <Key className="w-5 h-5 mr-2" />
-                    )}
-                    一键授权
-                  </Button>
+                  <div className="space-y-4">
+                    <Button
+                      onClick={startOAuth}
+                      disabled={oauthLoading}
+                      size="lg"
+                    >
+                      {oauthLoading ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      ) : (
+                        <Key className="w-5 h-5 mr-2" />
+                      )}
+                      一键授权
+                    </Button>
+                    <div className="text-xs text-gray-400">
+                      需要先安装 lark-cli：
+                      <a href="https://github.com/larksuite/lark-cli" target="_blank" rel="noopener noreferrer" 
+                         className="text-primary hover:underline ml-1">
+                        查看安装说明
+                      </a>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
