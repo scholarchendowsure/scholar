@@ -8,5 +8,37 @@
     "syncedAt": 1777830761862,
     "createdAt": 1777830761862,
     "updatedAt": 1777830761862
+  },
+  {
+    "id": "ou_a6c1929d297c616fbdff10da8472e263",
+    "unionId": "",
+    "userId": "ou_a6c1929d297c616fbdff10da8472e263",
+    "openId": "ou_a6c1929d297c616fbdff10da8472e263",
+    "name": "晨忻 | Katherine",
+    "enName": "Katherine",
+    "email": null,
+    "mobile": null,
+    "avatarUrl": null,
+    "company": "DH财富",
+    "chatId": "oc_6167c2c9896fe234e4b77dce91e5adf4",
+    "status": "active",
+    "createdAt": "2026-05-04T04:37:43.000Z",
+    "updatedAt": "2026-05-04T04:37:43.000Z"
+  },
+  {
+    "id": "ou_f8bf0f553338438d89338033cc255a5e",
+    "unionId": "",
+    "userId": "ou_f8bf0f553338438d89338033cc255a5e",
+    "openId": "ou_f8bf0f553338438d89338033cc255a5e",
+    "name": "高乐",
+    "enName": null,
+    "email": null,
+    "mobile": null,
+    "avatarUrl": null,
+    "company": "DH财富",
+    "chatId": "oc_0c794d2e9f1cdb8c52c9c38d51de1428",
+    "status": "active",
+    "createdAt": "2026-05-04T04:37:43.000Z",
+    "updatedAt": "2026-05-04T04:37:43.000Z"
   }
 ]
