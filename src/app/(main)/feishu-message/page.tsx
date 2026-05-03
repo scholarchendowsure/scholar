@@ -188,15 +188,30 @@ export default function FeishuMessagePage() {
   const startOAuth = async () => {
     setOauthLoading(true);
     try {
+      console.log('🚀 开始OAuth授权...');
       const response = await fetch('/api/feishu-web-oauth/authorize');
+      console.log('📡 API响应状态:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API响应错误:', response.status, errorText);
+        toast.error(`API错误: ${response.status}`);
+        return;
+      }
+      
       const data = await response.json();
+      console.log('📦 API返回数据:', data);
+      
       if (data.success && data.authUrl) {
+        console.log('🔗 准备跳转到:', data.authUrl);
         window.location.href = data.authUrl;
       } else {
+        console.error('❌ 获取授权链接失败:', data);
         toast.error(data.error || '获取授权链接失败');
       }
     } catch (error) {
-      toast.error('启动授权失败');
+      console.error('💥 启动授权异常:', error);
+      toast.error(`启动授权失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setOauthLoading(false);
     }
@@ -1097,6 +1112,22 @@ POST /api/coze-api/send-reminder
                       )}
                       一键授权
                     </Button>
+                    
+                    {/* 直接测试链接 */}
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-800 mb-2 font-medium">
+                        🔗 或者直接点击下方链接测试：
+                      </p>
+                      <a
+                        href="https://open.feishu.cn/open-apis/oauth2/authorize?app_id=cli_a9652497d7389bd6&redirect_uri=https%3A%2F%2Fbdb3c66d-9731-4e87-ac56-61da97d57fff.dev.coze.site%2Fapi%2Ffeishu-web-oauth%2Fcallback&response_type=code&state=direct_test_123&scope=user%3Aprofile"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-xs text-blue-600 hover:text-blue-800 underline break-all"
+                      >
+                        https://open.feishu.cn/open-apis/oauth2/authorize?app_id=cli_a9652497d7389bd6&amp;redirect_uri=https%3A%2F%2Fbdb3c66d-9731-4e87-ac56-61da97d57fff.dev.coze.site%2Fapi%2Ffeishu-web-oauth%2Fcallback&amp;response_type=code&amp;state=direct_test_123&amp;scope=user%3Aprofile
+                      </a>
+                    </div>
+                    
                     <div className="text-xs text-gray-400">
                       需要先配置飞书网页应用的 App ID 和 App Secret
                     </div>
