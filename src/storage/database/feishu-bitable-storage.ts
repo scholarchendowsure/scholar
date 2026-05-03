@@ -2,8 +2,8 @@ import { FeishuBitableConfig, BitableSyncRecord } from '@/types/feishu-bitable';
 import fs from 'fs';
 import path from 'path';
 
-const DATA_FILE = path.join('/tmp', 'feishu-bitable-configs-v2.json');
-const SYNC_RECORDS_FILE = path.join('/tmp', 'feishu-bitable-sync-records-v2.json');
+const DATA_FILE = path.join(process.cwd(), 'public', 'data', 'feishu-bitable-configs-v2.json');
+const SYNC_RECORDS_FILE = path.join(process.cwd(), 'public', 'data', 'feishu-bitable-sync-records-v2.json');
 
 function ensureFilesExist() {
   if (!fs.existsSync(DATA_FILE)) {

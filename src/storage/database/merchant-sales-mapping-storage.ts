@@ -16,12 +16,8 @@ let fallbackDataLoaded = false;
 
 // 确定 fallback 存储文件路径
 function getFallbackStorageFilePath(): string {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
-  if (isProd) {
-    return '/tmp/merchant-sales-mappings.json';
-  }
-  const workspacePath = process.env.COZE_WORKSPACE_PATH || '/workspace/projects';
-  return `${workspacePath}/merchant-sales-mappings.json`;
+  const path = require('path');
+  return path.join(process.cwd(), 'public', 'data', 'merchant-sales-mappings.json');
 }
 
 // 从 fallback 文件加载数据

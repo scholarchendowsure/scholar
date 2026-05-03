@@ -2,8 +2,8 @@ import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@
 import fs from 'fs';
 import path from 'path';
 
-const ACCOUNTS_FILE = path.join('/tmp', 'feishu-personal-accounts.json');
-const CONFIG_FILE = path.join('/tmp', 'feishu-personal-config.json');
+const ACCOUNTS_FILE = path.join(process.cwd(), 'public', 'data', 'feishu-personal-accounts.json');
+const CONFIG_FILE = path.join(process.cwd(), 'public', 'data', 'feishu-personal-config.json');
 
 // 初始化默认配置
 const defaultConfig: FeishuPersonalConfig = {

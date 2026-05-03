@@ -44,27 +44,15 @@ const DEFAULT_CONFIG: FeishuConfig = {
 
 // 根据环境决定文件存储位置
 const getConfigFilePath = (): string => {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
-  if (isProd) {
-    return '/tmp/feishu-config.json';
-  }
-  return path.join(process.cwd(), 'feishu-config.json');
+  return path.join(process.cwd(), 'public', 'data', 'feishu-config.json');
 };
 
 const getUsersFilePath = (): string => {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
-  if (isProd) {
-    return '/tmp/feishu-users.json';
-  }
-  return path.join(process.cwd(), 'feishu-users.json');
+  return path.join(process.cwd(), 'public', 'data', 'feishu-users.json');
 };
 
 const getMappingsFilePath = (): string => {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
-  if (isProd) {
-    return '/tmp/feishu-mappings.json';
-  }
-  return path.join(process.cwd(), 'feishu-mappings.json');
+  return path.join(process.cwd(), 'public', 'data', 'feishu-mappings.json');
 };
 
 // 从文件加载配置

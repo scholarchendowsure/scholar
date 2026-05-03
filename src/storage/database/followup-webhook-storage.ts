@@ -2,7 +2,7 @@ import { FollowupWebhookRecord } from '@/types/followup-webhook';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const STORAGE_FILE = path.join('/tmp', 'followup-webhook-records.json');
+const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'followup-webhook-records.json');
 
 class FollowupWebhookStorage {
   private records: FollowupWebhookRecord[] = [];

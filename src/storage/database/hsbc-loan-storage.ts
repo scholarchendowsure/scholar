@@ -8,14 +8,10 @@ import * as path from 'path';
 export type { HSBCLoan } from '@/lib/hsbc-loan';
 
 // 本地存储文件路径
-const STORAGE_FILE = process.env.NODE_ENV === 'production' 
-  ? '/tmp/hsbc-loans.json'
-  : path.join(process.cwd(), 'hsbc-loans.json');
+const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'hsbc-loans.json');
 
 // 批次日期存储文件
-const BATCH_DATES_FILE = process.env.NODE_ENV === 'production'
-  ? '/tmp/hsbc-batch-dates.json'
-  : path.join(process.cwd(), 'hsbc-batch-dates.json');
+const BATCH_DATES_FILE = path.join(process.cwd(), 'public', 'data', 'hsbc-batch-dates.json');
 
 // 内存缓存
 let loansCache: HSBCLoan[] | null = null;

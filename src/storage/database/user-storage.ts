@@ -1,10 +1,11 @@
 // 用户存储 - 本地JSON文件存储
 import { User, UserOperationLog, DEFAULT_PASSWORD_RULE, INITIAL_PASSWORD } from '@/types/user';
 import * as crypto from 'crypto';
+import * as path from 'path';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 
-const USER_DATA_FILE = '/tmp/users-v2.json';
-const USER_LOG_FILE = '/tmp/user-operation-logs.json';
+const USER_DATA_FILE = path.join(process.cwd(), 'public', 'data', 'users-v2.json');
+const USER_LOG_FILE = path.join(process.cwd(), 'public', 'data', 'user-operation-logs.json');
 
 // 密码加密
 function hashPassword(password: string, salt: string): string {

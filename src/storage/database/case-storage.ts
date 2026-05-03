@@ -4,8 +4,8 @@ import fs from 'fs';
 import path from 'path';
 
 // 存储文件路径
-const STORAGE_FILE = path.join('/tmp', 'cases-v2.json');
-const RECYCLE_BIN_FILE = path.join('/tmp', 'cases-recycle-bin.json');
+const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
+const RECYCLE_BIN_FILE = path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 
 // 回收站案件类型
 interface RecycleBinItem {

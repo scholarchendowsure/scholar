@@ -2,7 +2,7 @@ import { CozeApiConfig } from '@/types/coze-api';
 import fs from 'fs';
 import path from 'path';
 
-const CONFIG_FILE = path.join('/tmp', 'coze-api-config.json');
+const CONFIG_FILE = path.join(process.cwd(), 'public', 'data', 'coze-api-config.json');
 
 // 默认配置
 const defaultConfig: CozeApiConfig = {

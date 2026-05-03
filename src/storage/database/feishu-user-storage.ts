@@ -7,8 +7,9 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // 本地 JSON 文件路径（fallback）
-const LOCAL_DATA_PATH = '/tmp/feishu_users.json';
-const FALLBACK_DATA_PATH = `${process.env.COZE_WORKSPACE_PATH || '/workspace/projects'}/data/feishu_users.json`;
+const path = require('path');
+const LOCAL_DATA_PATH = path.join(process.cwd(), 'public', 'data', 'feishu_users.json');
+const FALLBACK_DATA_PATH = path.join(process.cwd(), 'public', 'data', 'feishu_users.json');
 
 // 飞书用户类型
 export interface FeishuUser {

@@ -2,7 +2,7 @@ import { FeishuPersonalPermanentConfig, DEFAULT_PERMANENT_CONFIG } from '../../t
 import fs from 'fs';
 import path from 'path';
 
-const PERMANENT_CONFIG_FILE = path.join('/tmp', 'feishu-personal-permanent.json');
+const PERMANENT_CONFIG_FILE = path.join(process.cwd(), 'public', 'data', 'feishu-personal-permanent.json');
 
 export class FeishuPersonalPermanentStorage {
   private static instance: FeishuPersonalPermanentStorage;

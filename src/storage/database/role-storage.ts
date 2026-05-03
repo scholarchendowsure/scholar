@@ -3,9 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 // 本地存储文件路径
-const ROLE_STORAGE_FILE = process.env.USER_STORAGE_FILE 
-  ? path.join(path.dirname(process.env.USER_STORAGE_FILE), 'roles-v2.json')
-  : '/tmp/roles-v2.json';
+const ROLE_STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'roles-v2.json');
 
 // 角色数据缓存
 let cachedRoles: Role[] | null = null;

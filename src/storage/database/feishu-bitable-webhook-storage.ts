@@ -2,7 +2,7 @@ import { FeishuBitableWebhookRecord } from '@/types/feishu-bitable-webhook';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const STORAGE_FILE = path.join('/tmp', 'feishu-bitable-webhook-records.json');
+const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'feishu-bitable-webhook-records.json');
 
 class FeishuBitableWebhookStorage {
   private records: FeishuBitableWebhookRecord[] = [];
