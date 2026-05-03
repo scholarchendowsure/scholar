@@ -95,6 +95,10 @@ export default function FeishuConfigPage() {
   // 跟进记录Webhook接收记录状态
   const [followupWebhookRecords, setFollowupWebhookRecords] = useState<any[]>([]);
   const [loadingFollowupWebhookRecords, setLoadingFollowupWebhookRecords] = useState(false);
+  
+  // 多维案件更新Webhook接收记录状态
+  const [bitableCaseUpdateRecords, setBitableCaseUpdateRecords] = useState<any[]>([]);
+  const [loadingBitableCaseUpdateRecords, setLoadingBitableCaseUpdateRecords] = useState(false);
 
   // 个人账号绑定状态
   const [personalAccounts, setPersonalAccounts] = useState<FeishuPersonalAccount[]>([]);
@@ -188,6 +192,38 @@ export default function FeishuConfigPage() {
       toast.error('清空记录失败');
     }
   };
+  
+  // 加载多维案件更新webhook记录
+  const loadBitableCaseUpdateRecords = async () => {
+    setLoadingBitableCaseUpdateRecords(true);
+    try {
+      const response = await fetch('/api/bitable-case-update/webhook?limit=20');
+      const data = await response.json();
+      if (data.success) {
+        setBitableCaseUpdateRecords(data.records || []);
+      }
+    } catch (error) {
+      console.error('加载多维案件更新记录失败:', error);
+    } finally {
+      setLoadingBitableCaseUpdateRecords(false);
+    }
+  };
+  
+  // 清空多维案件更新webhook记录
+  const clearBitableCaseUpdateRecords = async () => {
+    try {
+      const response = await fetch('/api/bitable-case-update/webhook', {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('记录已清空');
+        loadBitableCaseUpdateRecords();
+      }
+    } catch (error) {
+      toast.error('清空记录失败');
+    }
+  };
 
   useEffect(() => {
     loadConfig();
@@ -200,11 +236,13 @@ export default function FeishuConfigPage() {
     loadCozeConfig();
     loadWebhookRecords();
     loadFollowupWebhookRecords();
+    loadBitableCaseUpdateRecords();
     
     // 定时刷新webhook记录，每5秒刷新一次
     const interval = setInterval(() => {
       loadWebhookRecords();
       loadFollowupWebhookRecords();
+      loadBitableCaseUpdateRecords();
     }, 5000);
     
     return () => clearInterval(interval);
@@ -878,6 +916,10 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="followup-sync">
             <MessageSquare className="w-4 h-4 mr-2" />
             跟进记录同步
+          </TabsTrigger>
+          <TabsTrigger value="bitable-case-update">
+            <ArrowRightLeft className="w-4 h-4 mr-2" />
+            多维案件更新
           </TabsTrigger>
           <TabsTrigger value="personal-account">
             <Users className="w-4 h-4 mr-2" />
@@ -1763,6 +1805,217 @@ export default function FeishuConfigPage() {
                               {record.processResult.updatedCases && (
                                 <div className="text-muted-foreground mt-1">
                                   同步案件数: {record.processResult.updatedCases}
+                                </div>
+                              )}
+                              {record.processResult.error && (
+                                <div className="text-red-600 mt-1">
+                                  错误: {record.processResult.error}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="mt-2">
+                          <details>
+                            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                              点击查看接收内容
+                            </summary>
+                            <pre className="mt-2 p-3 bg-background rounded-lg text-xs overflow-auto max-h-96 border">
+                              {JSON.stringify(record.payload, null, 2)}
+                            </pre>
+                          </details>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 多维案件更新 */}
+        <TabsContent value="bitable-case-update" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>多维案件更新配置</CardTitle>
+              <CardDescription>
+                配置飞书多维表格Webhook，根据推送信息更新或创建案件
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Webhook配置说明 */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Webhook 配置</h3>
+                
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-green-100 rounded-full p-2">
+                      <ArrowRightLeft className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium text-green-900 mb-1">功能说明</h4>
+                      <p className="text-sm text-green-700 mb-3">
+                        接收飞书多维表格推送，自动更新或创建案件：
+                      </p>
+                      <ul className="text-sm text-green-700 space-y-1 mb-3">
+                        <li>• 如果贷款单号已存在 → 更新案件（只更新非空字段）</li>
+                        <li>• 如果贷款单号不存在 → 创建新案件</li>
+                        <li>• 推送信息中是空值的字段不进行更新</li>
+                      </ul>
+                      
+                      <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm space-y-3">
+                        <div className="text-gray-400"># 请求地址 (URL)</div>
+                        <div className="mb-2 break-all">
+                          {typeof window !== 'undefined' 
+                            ? `${window.location.origin}/api/bitable-case-update/webhook` 
+                            : '/api/bitable-case-update/webhook'}
+                        </div>
+                        
+                        <div className="text-gray-400 mt-4"># 请求方法</div>
+                        <div className="mb-2">POST</div>
+                        
+                        <div className="text-gray-400 mt-4"># Content-Type</div>
+                        <div className="mb-2">application/json</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 请求体示例 */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">请求体示例</h4>
+                  <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-xs overflow-auto">
+                    <pre>{JSON.stringify({
+                      "batch_number": "202405001",
+                      "loan_number": "DSL1720438526638",
+                      "user_id": "202600501DCDR",
+                      "borrower_name": "张三",
+                      "status": "待外访",
+                      "loan_amount": "100000",
+                      "remaining_balance": "50000",
+                      "overdue_amount": "5000",
+                      "overdue_days": "30"
+                    }, null, 2)}</pre>
+                  </div>
+                </div>
+                
+                {/* 字段映射说明 */}
+                <div className="space-y-2 pt-4 border-t">
+                  <h4 className="text-sm font-medium">支持的字段列表</h4>
+                  <div className="bg-muted p-4 rounded-lg text-sm">
+                    <p className="mb-2">支持以下字段（中英文都可以）：</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
+                      <div>批次号 (batch_number)</div>
+                      <div>贷款单号 (loan_number)</div>
+                      <div>用户ID (user_id)</div>
+                      <div>借款人姓名 (borrower_name)</div>
+                      <div>状态 (status)</div>
+                      <div>贷款金额 (loan_amount)</div>
+                      <div>在贷余额 (remaining_balance)</div>
+                      <div>逾期金额 (overdue_amount)</div>
+                      <div>逾期天数 (overdue_days)</div>
+                      <div>到期日 (maturity_date)</div>
+                      <div>产品名称 (product_name)</div>
+                      <div>公司名称 (company_name)</div>
+                      <div>... (更多字段)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 接收记录展示 */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium">
+                    共接收到 {bitableCaseUpdateRecords.length} 条记录（最新在前）
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadBitableCaseUpdateRecords}
+                      disabled={loadingBitableCaseUpdateRecords}
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${loadingBitableCaseUpdateRecords ? 'animate-spin' : ''}`} />
+                      刷新
+                    </Button>
+                    {bitableCaseUpdateRecords.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={clearBitableCaseUpdateRecords}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        清空
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {loadingBitableCaseUpdateRecords ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">加载中...</p>
+                  </div>
+                ) : bitableCaseUpdateRecords.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>暂无记录</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-auto">
+                    {bitableCaseUpdateRecords.map((record, index) => (
+                      <div 
+                        key={index} 
+                        className="p-4 bg-muted rounded-lg border border-border"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {index + 1}
+                            </Badge>
+                            <span className="text-sm font-medium">
+                              {new Date(record.receivedAt).toLocaleString('zh-CN')}
+                            </span>
+                          </div>
+                          
+                          {/* 处理结果标签 */}
+                          {record.processResult && (
+                            <Badge 
+                              className={
+                                record.processResult.success 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }
+                            >
+                              {record.processResult.action === 'created' 
+                                ? '创建新案件' 
+                                : record.processResult.action === 'updated'
+                                  ? '更新案件'
+                                  : '处理完成'}
+                              {record.processResult.success ? '成功' : '失败'}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {/* 处理结果展示 */}
+                        {record.processResult && (
+                          <div className="mb-3 p-3 bg-background rounded-lg border">
+                            <div className="text-sm">
+                              <div className="font-medium">
+                                {record.processResult.message}
+                              </div>
+                              {record.processResult.loanNo && (
+                                <div className="text-muted-foreground mt-1">
+                                  贷款单号: {record.processResult.loanNo}
+                                </div>
+                              )}
+                              {record.processResult.caseId && (
+                                <div className="text-muted-foreground mt-1">
+                                  案件ID: {record.processResult.caseId}
                                 </div>
                               )}
                               {record.processResult.error && (

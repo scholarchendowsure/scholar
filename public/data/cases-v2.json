@@ -1,1 +1,47 @@
-[]
+[
+  {
+    "batchNo": "66600",
+    "loanNo": "DSL1714449661433",
+    "userId": "202600501DCDR",
+    "borrowerName": "黄权_HUANGQUAN",
+    "status": "豆沙包担保代偿",
+    "totalOutstandingBalance": 0,
+    "overdueAmount": 13800.6,
+    "overdueDays": 0,
+    "productName": "跨商贷-浦发协议锁定-10.5-等额本息",
+    "platform": "AMAZON",
+    "paymentCompany": "PingPong",
+    "funder": "豆沙包保证金",
+    "fundCategory": "代偿",
+    "loanStatus": "CLEAR",
+    "isLocked": false,
+    "riskLevel": "高风险",
+    "isExtended": false,
+    "currency": "CNY",
+    "loanAmount": 40000,
+    "outstandingBalance": 13800.6,
+    "loanTerm": 12,
+    "loanTermUnit": "M",
+    "compensationDate": "20251013",
+    "companyName": "潮州市旭权电子商务有限公司",
+    "borrowerPhone": "13727939631",
+    "assignedSales": "高乐",
+    "assignedPostLoan": "中堂",
+    "followups": [
+      {
+        "id": "824b6574-a8ba-4108-b657-61386d72d9b5",
+        "follower": "未登记人",
+        "followTime": "2026-05-03T06:45:31.320Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "操作：录入",
+        "createdAt": "2026-05-03T06:45:31.320Z",
+        "createdBy": "系统"
+      }
+    ],
+    "id": "2ee33673-4b6c-44a9-9517-4bbe35a847a0",
+    "createdAt": "2026-05-03T06:45:31.320Z",
+    "updatedAt": "2026-05-03T06:45:31.320Z"
+  }
+]
