@@ -479,3 +479,62 @@ export async function searchFeishuUserComprehensive(
   console.log(`✅ 全面搜索完成，共找到 ${results.length} 个唯一用户`);
   return results;
 }
+
+/**
+ * 使用个人用户 OAuth token 搜索飞书用户
+ */
+export async function searchFeishuUsersWithUserToken(
+  userAccessToken: string,
+  keyword: string
+): Promise<FeishuUser[]> {
+  console.log('🔍 使用个人OAuth token搜索飞书用户，关键词:', keyword);
+  
+  const matchedUsers: FeishuUser[] = [];
+  
+  try {
+    // 调用飞书搜索API
+    const response = await fetch(
+      `${FEISHU_API_BASE}/contact/v3/users/search?user_id_type=open_id`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: keyword,
+          page_size: 50
+        })
+      }
+    );
+    
+    console.log('📡 搜索API响应状态:', response.status);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('📊 搜索API响应:', JSON.stringify(data, null, 2));
+      
+      if (data.code === 0 && data.data && data.data.items) {
+        for (const item of data.data.items) {
+          matchedUsers.push({
+            unionId: '',
+            userId: item.id || '',
+            name: item.display_info?.replace(/<[^>]*>/g, '') || keyword,
+            enName: '',
+            email: item.meta_data?.enterprise_mail_address || '',
+            mobile: '',
+            avatarUrl: '',
+            status: 'active',
+            departmentIds: []
+          });
+          console.log('✅ 找到匹配用户:', item.display_info, item.id);
+        }
+      }
+    }
+  } catch (error) {
+    console.log('⚠️ 使用个人token搜索失败:', error);
+  }
+  
+  console.log(`🎯 搜索完成，共找到 ${matchedUsers.length} 个匹配用户`);
+  return matchedUsers;
+}
