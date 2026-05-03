@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,9 +56,9 @@ export default function RecycleBinPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchDeletedCases();
-  });
+  }, []);
 
   const handleSelectAll = () => {
     if (selectedIds.size === cases.length) {
@@ -92,12 +92,17 @@ export default function RecycleBinPage() {
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
 
-      if (res.ok) {
-        toast.success(`已恢复 ${selectedIds.size} 个案件`);
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success(result.message || `已恢复 ${selectedIds.size} 个案件`);
         setSelectedIds(new Set());
         fetchDeletedCases();
+      } else {
+        toast.error(result.error || '恢复失败');
       }
     } catch (error) {
+      console.error('Restore error:', error);
       toast.error('恢复失败');
     } finally {
       setRestoring(false);
@@ -122,12 +127,17 @@ export default function RecycleBinPage() {
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
 
-      if (res.ok) {
-        toast.success(`已永久删除 ${selectedIds.size} 个案件`);
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success(result.message || `已永久删除 ${selectedIds.size} 个案件`);
         setSelectedIds(new Set());
         fetchDeletedCases();
+      } else {
+        toast.error(result.error || '删除失败');
       }
     } catch (error) {
+      console.error('Permanent delete error:', error);
       toast.error('删除失败');
     } finally {
       setDeleting(false);

@@ -23,21 +23,7 @@ function ensureStorageDir() {
   }
 }
 
-// 从文件读取数据
-function readFromFile(): Case[] {
-  ensureStorageDir();
-  try {
-    if (fs.existsSync(STORAGE_FILE)) {
-      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      const data = JSON.parse(content);
-      console.log('Read from file, cases count:', data.length);
-      return data;
-    }
-  } catch (error) {
-    console.error('Error reading from file:', error);
-  }
-  return [];
-}
+
 
 // 从回收站读取数据
 function readRecycleBin(): RecycleBinItem[] {
@@ -45,12 +31,19 @@ function readRecycleBin(): RecycleBinItem[] {
   try {
     if (fs.existsSync(RECYCLE_BIN_FILE)) {
       const content = fs.readFileSync(RECYCLE_BIN_FILE, 'utf-8');
+      // 如果内容为空或只有空白字符，返回空数组
+      if (!content || content.trim().length === 0) {
+        console.log('Recycle bin file is empty');
+        return [];
+      }
       const data = JSON.parse(content);
       console.log('Read from recycle bin, items count:', data.length);
       return data;
     }
   } catch (error) {
     console.error('Error reading recycle bin:', error);
+    // 如果JSON解析失败，返回空数组而不是崩溃
+    return [];
   }
   return [];
 }
@@ -64,6 +57,29 @@ function writeToFile(cases: Case[]) {
   } catch (error) {
     console.error('Error writing to file:', error);
   }
+}
+
+// 从文件读取数据 - 增强版，更健壮
+function readFromFile(): Case[] {
+  ensureStorageDir();
+  try {
+    if (fs.existsSync(STORAGE_FILE)) {
+      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
+      // 如果内容为空或只有空白字符，返回空数组
+      if (!content || content.trim().length === 0) {
+        console.log('Storage file is empty');
+        return [];
+      }
+      const data = JSON.parse(content);
+      console.log('Read from file, cases count:', data.length);
+      return data;
+    }
+  } catch (error) {
+    console.error('Error reading from file:', error);
+    // 如果JSON解析失败，返回空数组而不是崩溃
+    return [];
+  }
+  return [];
 }
 
 // 写入回收站数据
