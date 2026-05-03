@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
 const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
 const FEISHU_REDIRECT_URI = process.env.COZE_PROJECT_DOMAIN_DEFAULT 
-  ? `https://${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/feishu-web-oauth/callback`
+  ? `${process.env.COZE_PROJECT_DOMAIN_DEFAULT}/api/feishu-web-oauth/callback`
   : 'http://localhost:5000/api/feishu-web-oauth/callback';
 
 export async function GET(request: NextRequest) {
