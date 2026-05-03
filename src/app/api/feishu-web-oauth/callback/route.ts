@@ -4,14 +4,18 @@ import { getFeishuOAuthStorage } from '@/storage/database/feishu-oauth-storage';
 // 飞书网页应用OAuth配置
 const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
 const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
+const COZE_PROJECT_DOMAIN = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'bdb3c66d-9731-4e87-ac56-61da97d57fff.dev.coze.site';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
 
+    const successUrl = `https://${COZE_PROJECT_DOMAIN}/feishu-message?oauth=success`;
+    const errorUrl = `https://${COZE_PROJECT_DOMAIN}/feishu-message?oauth=error`;
+
     if (!code) {
-      return NextResponse.redirect(new URL('/feishu-message?oauth=error', request.url));
+      return NextResponse.redirect(errorUrl);
     }
 
     console.log('收到飞书网页应用OAuth回调');
@@ -31,13 +35,13 @@ export async function GET(request: NextRequest) {
     if (!appTokenResponse.ok) {
       const errorText = await appTokenResponse.text();
       console.error('获取app_access_token失败:', errorText);
-      return NextResponse.redirect(new URL('/feishu-message?oauth=error', request.url));
+      return NextResponse.redirect(errorUrl);
     }
 
     const appTokenData = await appTokenResponse.json();
     if (appTokenData.code !== 0) {
       console.error('获取app_access_token失败:', appTokenData);
-      return NextResponse.redirect(new URL('/feishu-message?oauth=error', request.url));
+      return NextResponse.redirect(errorUrl);
     }
 
     const appAccessToken = appTokenData.app_access_token;
@@ -60,14 +64,14 @@ export async function GET(request: NextRequest) {
     if (!userTokenResponse.ok) {
       const errorText = await userTokenResponse.text();
       console.error('获取user_access_token失败:', errorText);
-      return NextResponse.redirect(new URL('/feishu-message?oauth=error', request.url));
+      return NextResponse.redirect(errorUrl);
     }
 
     const tokenData = await userTokenResponse.json();
     console.log('飞书网页应用token响应');
 
     if (tokenData.code !== 0) {
-      return NextResponse.redirect(new URL('/feishu-message?oauth=error', request.url));
+      return NextResponse.redirect(errorUrl);
     }
 
     const { access_token, refresh_token, expires_in, token_type } = tokenData.data;
@@ -112,9 +116,9 @@ export async function GET(request: NextRequest) {
     console.log('飞书网页应用OAuth授权成功, 用户:', userInfo?.name);
 
     // 重定向回飞书消息页面
-    return NextResponse.redirect(new URL('/feishu-message?oauth=success', request.url));
+    return NextResponse.redirect(successUrl);
   } catch (error) {
     console.error('处理OAuth回调失败:', error);
-    return NextResponse.redirect(new URL('/feishu-message?oauth=error', request.url));
+    return NextResponse.redirect(errorUrl);
   }
 }
