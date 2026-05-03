@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
-import { FeishuOAuthToken } from '@/types/feishu-oauth';
+import { FeishuWebOAuthToken } from '@/types/feishu-web-oauth';
 
 export default function FeishuMessagePage() {
   const [activeTab, setActiveTab] = useState('personal-account');
@@ -26,7 +26,7 @@ export default function FeishuMessagePage() {
 
   // OAuth授权状态
   const [oauthLoading, setOauthLoading] = useState(false);
-  const [oauthToken, setOauthToken] = useState<FeishuOAuthToken | null>(null);
+  const [oauthToken, setOauthToken] = useState<FeishuWebOAuthToken | null>(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
 
   // 个人账号绑定状态

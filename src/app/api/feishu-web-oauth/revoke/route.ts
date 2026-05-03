@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeishuOAuthStorage } from '@/storage/database/feishu-oauth-storage';
+import { getFeishuWebOAuthStorage } from '@/storage/database/feishu-web-oauth-storage';
 
 export async function DELETE(request: NextRequest) {
   try {
-    const storage = await getFeishuOAuthStorage();
+    const storage = await getFeishuWebOAuthStorage();
     
     const currentToken = await storage.getToken();
     if (!currentToken) {
