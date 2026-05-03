@@ -13,14 +13,21 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { 
   Loader2, RefreshCw, Save, Users, MessageSquare, Send, 
-  Bell, Key, CheckCircle, Terminal, Settings
+  Bell, Key, CheckCircle, Terminal, Settings, 
+  Link, AlertTriangle, Clock, ShieldCheck, Unlink
 } from 'lucide-react';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
+import { FeishuOAuthToken } from '@/types/feishu-oauth';
 
 export default function FeishuMessagePage() {
   const [activeTab, setActiveTab] = useState('personal-account');
   const [loading, setLoading] = useState(false);
+
+  // OAuth授权状态
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthToken, setOauthToken] = useState<FeishuOAuthToken | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // 个人账号绑定状态
   const [personalAccounts, setPersonalAccounts] = useState<FeishuPersonalAccount[]>([]);
@@ -58,7 +65,43 @@ export default function FeishuMessagePage() {
     loadPersonalConfig();
     loadPersonalAccounts();
     loadCozeConfig();
+    loadOAuthStatus();
+
+    // 检查URL中的oauth参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthStatus = urlParams.get('oauth');
+    if (oauthStatus === 'success') {
+      toast.success('飞书OAuth授权成功');
+      // 清除URL参数
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (oauthStatus === 'error') {
+      toast.error('飞书OAuth授权失败');
+      // 清除URL参数
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
+
+  // 定期检查授权状态
+  useEffect(() => {
+    if (!oauthToken) return;
+
+    // 每分钟检查一次
+    const checkInterval = setInterval(() => {
+      // 检查是否即将过期（1小时内）
+      const oneHour = 3600000;
+      if (oauthToken.expiresAt < Date.now() + oneHour) {
+        toast.warning('飞书授权即将过期，请及时刷新', {
+          action: {
+            label: '立即刷新',
+            onClick: () => refreshOAuth()
+          },
+          duration: 10000
+        });
+      }
+    }, 60000); // 每分钟检查一次
+
+    return () => clearInterval(checkInterval);
+  }, [oauthToken]);
 
   // 加载个人账号配置
   const loadPersonalConfig = async () => {
@@ -138,6 +181,88 @@ export default function FeishuMessagePage() {
       setCliAvailable(false);
     } finally {
       setTestingCli(false);
+    }
+  };
+
+  // OAuth相关函数
+  const loadOAuthStatus = async () => {
+    setCheckingStatus(true);
+    try {
+      const response = await fetch('/api/feishu-oauth/status');
+      const data = await response.json();
+      if (data.success) {
+        setOauthToken(data.token);
+      }
+    } catch (error) {
+      console.error('加载OAuth状态失败:', error);
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  const startOAuth = async () => {
+    setOauthLoading(true);
+    try {
+      const response = await fetch('/api/feishu-oauth/authorize');
+      const data = await response.json();
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast.error(data.error || '获取授权链接失败');
+      }
+    } catch (error) {
+      toast.error('启动授权失败');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  const refreshOAuth = async () => {
+    if (!oauthToken?.refreshToken) {
+      toast.error('没有可刷新的token');
+      return;
+    }
+    setOauthLoading(true);
+    try {
+      const response = await fetch('/api/feishu-oauth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: oauthToken.refreshToken }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOauthToken(data.token);
+        toast.success('授权刷新成功');
+      } else {
+        toast.error(data.error || '刷新授权失败');
+      }
+    } catch (error) {
+      toast.error('刷新授权失败');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  const revokeOAuth = async () => {
+    if (!confirm('确定要解除授权吗？')) {
+      return;
+    }
+    setOauthLoading(true);
+    try {
+      const response = await fetch('/api/feishu-oauth/revoke', {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOauthToken(null);
+        toast.success('已解除授权');
+      } else {
+        toast.error(data.error || '解除授权失败');
+      }
+    } catch (error) {
+      toast.error('解除授权失败');
+    } finally {
+      setOauthLoading(false);
     }
   };
 
@@ -851,6 +976,146 @@ POST /api/coze-api/send-reminder
             </div>
           </div>
         </TabsContent>
+
+        {/* OAuth授权卡片 */}
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <ShieldCheck className="w-5 h-5 mr-2 text-primary" />
+                飞书OAuth授权
+              </CardTitle>
+              <CardDescription>
+                通过OAuth授权实现长期有效访问，避免频繁重新绑定
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {checkingStatus ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2 text-gray-500" />
+                  <span className="text-gray-500">检查授权状态中...</span>
+                </div>
+              ) : oauthToken ? (
+                <div className="space-y-4">
+                  {/* 授权状态 */}
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                      <div>
+                        <div className="font-medium text-green-800">已授权</div>
+                        {oauthToken.userName && (
+                          <div className="text-sm text-green-700">
+                            用户: {oauthToken.userName}
+                            {oauthToken.userEmail && ` (${oauthToken.userEmail})`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant="default" className="bg-green-600">有效</Badge>
+                  </div>
+
+                  {/* Token有效期 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center">
+                          <Clock className="w-4 h-4 mr-2 text-gray-500" />
+                          Access Token
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-sm space-y-1">
+                          <div className="text-gray-600">
+                            过期时间: {new Date(oauthToken.expiresAt).toLocaleString()}
+                          </div>
+                          {oauthToken.expiresAt < Date.now() + 3600000 ? (
+                            <div className="flex items-center text-amber-600">
+                              <AlertTriangle className="w-4 h-4 mr-1" />
+                              <span>即将过期</span>
+                            </div>
+                          ) : (
+                            <div className="text-green-600">有效期内</div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center">
+                          <RefreshCw className="w-4 h-4 mr-2 text-gray-500" />
+                          Refresh Token
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-sm space-y-1">
+                          {oauthToken.refreshTokenExpiresAt ? (
+                            <div className="text-gray-600">
+                              过期时间: {new Date(oauthToken.refreshTokenExpiresAt).toLocaleString()}
+                            </div>
+                          ) : (
+                            <div className="text-gray-600">长期有效</div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* 操作按钮 */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={refreshOAuth}
+                      disabled={oauthLoading || !oauthToken.refreshToken}
+                      className="flex-1"
+                    >
+                      {oauthLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                      )}
+                      刷新授权
+                    </Button>
+                    <Button
+                      onClick={revokeOAuth}
+                      disabled={oauthLoading}
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      {oauthLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Unlink className="w-4 h-4 mr-2" />
+                      )}
+                      解除授权
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Link className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">尚未授权</h3>
+                  <p className="text-gray-500 mb-6">
+                    通过OAuth授权可以获得长期有效的访问权限，避免频繁重新绑定账号
+                  </p>
+                  <Button
+                    onClick={startOAuth}
+                    disabled={oauthLoading}
+                    size="lg"
+                  >
+                    {oauthLoading ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <Key className="w-5 h-5 mr-2" />
+                    )}
+                    一键授权
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </Tabs>
     </div>
   );
