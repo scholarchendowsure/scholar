@@ -272,6 +272,13 @@ export default function CaseDetailPage() {
               <Field label="所属销售" value={caseData.assignedSales || '-'} highlight />
               <Field label="所属贷后" value={caseData.assignedPostLoan || '-'} highlight />
               <Field label="风险等级" value={caseData.riskLevel || '-'} highlight />
+              <Field label="贷款期限" value={caseData.loanTerm ? `${caseData.loanTerm}${caseData.loanTermUnit || ''}` : '-'} />
+              <Field label="贷款期限单位" value={caseData.loanTermUnit || '-'} />
+              <Field label="贷款日期" value={caseData.loanDate ? new Date(caseData.loanDate).toLocaleDateString('zh-CN') : '-'} />
+              <Field label="到期日" value={caseData.dueDate ? new Date(caseData.dueDate).toLocaleDateString('zh-CN') : '-'} />
+              <Field label="逾期开始时间" value={caseData.overdueStartTime ? new Date(caseData.overdueStartTime).toLocaleString('zh-CN') : '-'} />
+              <Field label="首次逾期时间" value={caseData.firstOverdueTime ? new Date(caseData.firstOverdueTime).toLocaleString('zh-CN') : '-'} />
+              <Field label="代偿日期" value={caseData.compensationDate ? new Date(caseData.compensationDate).toLocaleDateString('zh-CN') : '-'} />
             </dl>
           </div>
         );
