@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchFeishuUsersDirectly, searchFeishuUserComprehensive } from '@/lib/feishu-api';
+import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,17 +14,26 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // 获取飞书应用凭证
+      const { appId, appSecret } = await getFeishuAppCredentials();
+      
+      if (!appId || !appSecret) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '请先配置飞书应用ID和密钥' 
+        }, { status: 400 });
+      }
+
       // 使用企业自建应用 API 搜索用户
       let users: any[] = [];
       
       try {
         // 先尝试直接搜索
-        users = await searchFeishuUsersDirectly(query);
+        users = await searchFeishuUsersDirectly(appId, appSecret, query);
       } catch (error) {
         console.log('直接搜索失败，尝试综合搜索:', error);
         // 如果直接搜索失败，尝试综合搜索
-        const result = await searchFeishuUserComprehensive(query);
-        users = result.users || [];
+        users = await searchFeishuUserComprehensive(appId, appSecret, query);
       }
       
       if (users.length === 0) {

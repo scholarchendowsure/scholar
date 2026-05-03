@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendFeishuPrivateMessage } from '@/lib/feishu-api';
+import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, content } = await request.json();
+    const { userId, content, userIdType } = await request.json();
     
     if (!userId || !content) {
       return NextResponse.json({ 
@@ -13,8 +14,24 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // 获取飞书应用凭证
+      const { appId, appSecret } = await getFeishuAppCredentials();
+      
+      if (!appId || !appSecret) {
+        return NextResponse.json({ 
+          success: false, 
+          error: '请先配置飞书应用ID和密钥' 
+        }, { status: 400 });
+      }
+
       // 使用企业自建应用 API 发送消息
-      const result = await sendFeishuPrivateMessage(userId, content);
+      const result = await sendFeishuPrivateMessage(
+        appId, 
+        appSecret, 
+        userId, 
+        content, 
+        userIdType || 'union_id'
+      );
       
       return NextResponse.json({ 
         success: true, 
