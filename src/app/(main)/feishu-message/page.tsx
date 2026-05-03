@@ -65,6 +65,7 @@ export default function FeishuMessagePage() {
     loadPersonalConfig();
     loadPersonalAccounts();
     loadCozeConfig();
+    checkLarkCliInstall();
     loadOAuthStatus();
 
     // 定期检查授权状态（每30秒检查一次）
@@ -158,7 +159,27 @@ export default function FeishuMessagePage() {
     }
   };
 
+  // lark-cli相关状态
+  const [larkCliInstalled, setLarkCliInstalled] = useState<boolean | null>(null);
+  const [checkingInstall, setCheckingInstall] = useState(false);
+
   // lark-cli授权相关函数
+  const checkLarkCliInstall = async () => {
+    setCheckingInstall(true);
+    try {
+      const response = await fetch('/api/lark-cli/check');
+      const data = await response.json();
+      if (data.success) {
+        setLarkCliInstalled(data.installed);
+      }
+    } catch (error) {
+      console.error('检查lark-cli安装失败:', error);
+      setLarkCliInstalled(false);
+    } finally {
+      setCheckingInstall(false);
+    }
+  };
+
   const loadOAuthStatus = async () => {
     setCheckingStatus(true);
     try {
@@ -1049,35 +1070,99 @@ POST /api/coze-api/send-reminder
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Terminal className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">尚未授权</h3>
-                  <p className="text-gray-500 mb-6">
-                    使用 lark-cli 进行个人用户授权，支持自动刷新令牌、永久保存到本地配置文件
-                  </p>
-                  <div className="space-y-4">
-                    <Button
-                      onClick={startOAuth}
-                      disabled={oauthLoading}
-                      size="lg"
-                    >
-                      {oauthLoading ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      ) : (
-                        <Key className="w-5 h-5 mr-2" />
-                      )}
-                      一键授权
-                    </Button>
-                    <div className="text-xs text-gray-400">
-                      需要先安装 lark-cli：
-                      <a href="https://github.com/larksuite/lark-cli" target="_blank" rel="noopener noreferrer" 
-                         className="text-primary hover:underline ml-1">
-                        查看安装说明
-                      </a>
+                <div className="py-8">
+                  {checkingInstall ? (
+                    <div className="text-center py-4">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
+                      <p className="text-gray-500">检查 lark-cli 安装状态...</p>
                     </div>
-                  </div>
+                  ) : larkCliInstalled === false ? (
+                    <div className="space-y-6">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <AlertTriangle className="w-8 h-8 text-amber-500" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">需要安装 lark-cli</h3>
+                        <p className="text-gray-500">
+                          请先安装 lark-cli 命令行工具后再使用授权功能
+                        </p>
+                      </div>
+
+                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <h4 className="font-medium text-blue-800 mb-3 flex items-center">
+                          <Terminal className="w-4 h-4 mr-2" />
+                          快速安装（选择一种方式）
+                        </h4>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <div className="text-sm font-medium text-gray-700 mb-1">MacOS (Homebrew)</div>
+                            <div className="bg-gray-900 rounded p-2 text-sm text-gray-300 font-mono overflow-x-auto">
+                              brew install larksuite/tap/lark-cli
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <div className="text-sm font-medium text-gray-700 mb-1">MacOS/Linux (脚本安装)</div>
+                            <div className="bg-gray-900 rounded p-2 text-sm text-gray-300 font-mono overflow-x-auto">
+                              curl -fsSL https://github.com/larksuite.github.io/lark-cli/install.sh | bash
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <div className="text-sm font-medium text-gray-700 mb-1">Windows (PowerShell)</div>
+                            <div className="bg-gray-900 rounded p-2 text-sm text-gray-300 font-mono overflow-x-auto">
+                              iex (iwr https://github.com/larksuite.github.io/lark-cli/install.ps1)
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <a 
+                          href="https://github.com/larksuite/lark-cli" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline flex items-center"
+                        >
+                          <Link className="w-4 h-4 mr-1" />
+                          查看 GitHub 官方文档
+                        </a>
+                        <Button 
+                          onClick={checkLarkCliInstall}
+                          variant="secondary"
+                          size="sm"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-1" />
+                          重新检查
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Terminal className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">尚未授权</h3>
+                      <p className="text-gray-500 mb-6">
+                        使用 lark-cli 进行个人用户授权，支持自动刷新令牌、永久保存到本地配置文件
+                      </p>
+                      <div className="space-y-4">
+                        <Button
+                          onClick={startOAuth}
+                          disabled={oauthLoading}
+                          size="lg"
+                        >
+                          {oauthLoading ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          ) : (
+                            <Key className="w-5 h-5 mr-2" />
+                          )}
+                          一键授权
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
