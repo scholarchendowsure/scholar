@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { sendFeishuPrivateMessage } from '@/lib/feishu-api';
 
-const execAsync = promisify(exec);
+const APP_ID = 'cli_a9652497d7389bd6';
+const APP_SECRET = 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,37 +15,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 直接使用我们已确认可用的路径
-    const cliPath = '/usr/bin/lark-cli';
-    
-    console.log(`[lark-cli] 准备发送消息给: ${receiveId}`);
-    console.log(`[lark-cli] 消息内容: ${text}`);
+    console.log('📤 使用企业应用API发送消息给:', receiveId);
+    console.log('💬 消息内容:', text);
       
-    // 使用 lark-cli 发送消息
-    // 命令格式: lark-cli im +messages-send --user-id ou_xxx --text "消息内容" --as user
+    // 使用企业应用 API 发送消息
+    const result = await sendFeishuPrivateMessage(
+      APP_ID,
+      APP_SECRET,
+      receiveId,
+      text,
+      'open_id'
+    );
       
-    // 对text进行shell转义，避免包含引号、空格等导致的问题
-    const escapedText = text.replace(/'/g, "'\\''");
-    const command = `${cliPath} im +messages-send --user-id "${receiveId}" --text '${escapedText}' --as user`;
-      
-    console.log('[lark-cli] 执行命令:', command);
-      
-    const { stdout, stderr } = await execAsync(command);
-      
-    console.log('[lark-cli] 命令输出:', stdout);
-    if (stderr) {
-      console.log('[lark-cli] 命令错误:', stderr);
-    }
+    console.log('✅ 消息发送成功:', result.msgId);
       
     return NextResponse.json({
       success: true,
       message: '消息发送成功',
-      result: stdout,
+      result: result,
       sentAt: new Date().toISOString()
     });
       
   } catch (error: any) {
-    console.error('发送消息失败:', error);
+    console.error('❌ 发送消息失败:', error);
     return NextResponse.json(
       { success: false, error: error?.message || '发送失败' },
       { status: 500 }

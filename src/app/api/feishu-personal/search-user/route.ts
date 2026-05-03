@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { searchFeishuUsersDirectly, searchFeishuUserComprehensive } from '@/lib/feishu-api';
 
-const execAsync = promisify(exec);
+const APP_ID = 'cli_a9652497d7389bd6';
+const APP_SECRET = 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,54 +16,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 使用 lark-cli 搜索用户
-    // lark-cli contact +search-user --query "姓名" --page-size 10
-    const command = `/usr/bin/lark-cli contact +search-user --query "${query}" --page-size 10 2>&1`;
+    console.log('🔍 使用企业应用API搜索用户:', query);
+
+    // 使用企业应用 API 搜索用户
+    let users = await searchFeishuUsersDirectly(APP_ID, APP_SECRET, query);
     
-    console.log('执行命令:', command);
-    
-    console.log('执行命令:', command);
-    
-    const { stdout, stderr } = await execAsync(command);
-    
-    console.log('命令输出:', stdout);
-    if (stderr) {
-      console.error('命令错误输出:', stderr);
+    // 如果直接搜索没找到，尝试更全面的搜索
+    if (users.length === 0) {
+      console.log('⚠️ 直接搜索未找到，尝试全面搜索...');
+      users = await searchFeishuUserComprehensive(APP_ID, APP_SECRET, query);
     }
 
-    // 解析输出结果
-    let users = [];
-    
-    try {
-      // 尝试解析 JSON
-      const result = JSON.parse(stdout);
-      if (result.ok && result.data && result.data.users) {
-        users = result.data.users;
-      }
-    } catch (e) {
-      // 如果不是 JSON，尝试解析文本输出
-      console.log('不是 JSON 格式，尝试解析文本');
-    }
+    console.log('✅ 搜索结果:', users.length, '个用户');
+
+    // 转换格式，兼容前端期望的格式
+    const formattedUsers = users.map(user => ({
+      open_id: user.userId,
+      user_id: user.userId,
+      union_id: user.unionId,
+      name: user.name,
+      localized_name: user.name,
+      en_name: user.enName,
+      email: user.email,
+      enterprise_email: user.email,
+      mobile: user.mobile,
+      avatar_url: user.avatarUrl,
+      avatar: user.avatarUrl,
+      department: '',
+      status: user.status
+    }));
 
     return NextResponse.json({
       success: true,
       query,
-      users,
-      rawOutput: stdout
+      users: formattedUsers,
+      count: formattedUsers.length
     });
   } catch (error: any) {
-    console.error('搜索用户失败:', error);
+    console.error('❌ 搜索用户失败:', error);
     
-    let errorMessage = '搜索用户失败';
-    
-    if (error.message && error.message.includes('need_user_authorization')) {
-      errorMessage = '需要用户授权，请先在"个人账号绑定"中完成授权';
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-
     return NextResponse.json(
-      { error: errorMessage },
+      { error: error.message || '搜索用户失败' },
       { status: 500 }
     );
   }
