@@ -44,15 +44,21 @@ export interface FeishuConfig {
 }
 
 export interface FeishuUser {
+  id?: string;
   unionId: string;
   userId: string;
+  openId?: string;
   name: string;
   enName?: string;
   email?: string;
   mobile?: string;
   avatarUrl?: string;
+  company?: string;
+  chatId?: string;
   status: 'active' | 'inactive';
   departmentIds?: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface FeishuMessage {

@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 import { 
   Loader2, RefreshCw, Save, Users, MessageSquare, Send, 
   Bell, Key, CheckCircle, Terminal, Settings, 
-  AlertTriangle, Clock, ShieldCheck, Unlink, Search
+  AlertTriangle, Clock, ShieldCheck, Unlink, Search, 
+  Database, Trash2
 } from 'lucide-react';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
@@ -23,6 +24,13 @@ import { FeishuWebOAuthToken } from '@/types/feishu-web-oauth';
 export default function FeishuMessagePage() {
   const [activeTab, setActiveTab] = useState('personal-account');
   const [loading, setLoading] = useState(false);
+
+  // 当标签页切换到用户存储时加载用户列表
+  useEffect(() => {
+    if (activeTab === 'user-storage') {
+      loadSavedUsers();
+    }
+  }, [activeTab]);
 
   // OAuth授权状态
   const [oauthLoading, setOauthLoading] = useState(false);
@@ -45,6 +53,10 @@ export default function FeishuMessagePage() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // 已保存的用户列表
+  const [savedUsers, setSavedUsers] = useState<any[]>([]);
+  const [loadingSavedUsers, setLoadingSavedUsers] = useState(false);
 
   // Coze API 状态
   const [cozeConfig, setCozeConfig] = useState<CozeApiConfig | null>(null);
@@ -85,6 +97,40 @@ export default function FeishuMessagePage() {
 
     return () => clearInterval(statusInterval);
   }, []);
+
+  // 加载已保存的用户
+  const loadSavedUsers = async () => {
+    setLoadingSavedUsers(true);
+    try {
+      const response = await fetch('/api/feishu-users');
+      const data = await response.json();
+      if (data.success) {
+        setSavedUsers(data.data);
+      }
+    } catch (error) {
+      console.error('加载已保存用户失败:', error);
+    } finally {
+      setLoadingSavedUsers(false);
+    }
+  };
+
+  // 删除已保存的用户
+  const deleteSavedUser = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/feishu-users?userId=${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('删除成功');
+        loadSavedUsers();
+      } else {
+        toast.error('删除失败');
+      }
+    } catch (error) {
+      toast.error('删除失败');
+    }
+  };
 
 
 
@@ -305,10 +351,12 @@ export default function FeishuMessagePage() {
 
   // 选择搜索结果中的用户
   const selectUser = (user: any) => {
-    setPersonalDirectUserId(user.open_id);
-    setSearchQuery(user.localized_name || user.name || '');
+    // 从用户信息中提取Open ID
+    const openId = user.openId || user.open_id || user.user_id || user.userId || '';
+    setPersonalDirectUserId(openId);
+    setSearchQuery(user.name || user.localized_name || '');
     setShowSearchResults(false);
-    toast.success(`已选择: ${user.localized_name || user.name}`);
+    toast.success(`已选择: ${user.name || user.localized_name || user.enName}`);
   };
 
   // 发送个人消息
@@ -486,6 +534,10 @@ export default function FeishuMessagePage() {
             <MessageSquare className="w-4 h-4 mr-2" />
             扣子AI消息
           </TabsTrigger>
+          <TabsTrigger value="user-storage">
+            <Database className="w-4 h-4 mr-2" />
+            数据存储表
+          </TabsTrigger>
         </TabsList>
 
         {/* 个人账号绑定 */}
@@ -621,15 +673,28 @@ export default function FeishuMessagePage() {
                             onClick={() => selectUser(user)}
                             className="p-3 bg-card border rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
                           >
-                            <div className="font-medium">{user.localized_name || user.name}</div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              {user.department && (
-                                <div>部门：{user.department}</div>
+                            <div className="font-medium">
+                              {user.name || user.localized_name || '未知用户'}
+                              {user.enName && (
+                                <span className="text-muted-foreground ml-2">| {user.enName}</span>
                               )}
-                              {user.enterprise_email && (
-                                <div>邮箱：{user.enterprise_email}</div>
+                            </div>
+                            <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                              {user.company && (
+                                <div>公司：{user.company}</div>
                               )}
-                              <div className="font-mono text-xs">Open ID: {user.open_id}</div>
+                              {user.email && (
+                                <div>邮箱：{user.email}</div>
+                              )}
+                              {user.mobile && (
+                                <div>手机：{user.mobile}</div>
+                              )}
+                              {user.chatId && (
+                                <div className="font-mono text-xs">聊天ID: {user.chatId}</div>
+                              )}
+                              <div className="font-mono text-xs">
+                                Open ID: {user.openId || user.open_id || user.user_id || user.userId}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1137,6 +1202,122 @@ POST /api/coze-api/send-reminder
             </CardContent>
           </Card>
         </div>
+
+        {/* 用户数据存储表 */}
+        <TabsContent value="user-storage" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Database className="w-5 h-5 mr-2 text-purple-600" />
+                  已保存的飞书用户
+                </CardTitle>
+                <CardDescription>
+                  所有搜索过的用户都会自动保存到这里
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingSavedUsers ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin mr-2 text-gray-500" />
+                    <span className="text-gray-500">加载用户数据中...</span>
+                  </div>
+                ) : savedUsers.length === 0 ? (
+                  <div className="text-center py-8 space-y-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Users className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">暂无保存的用户</h3>
+                    <p className="text-gray-500 mb-6">
+                      在"个人账号绑定"中搜索同事后，用户信息会自动保存到这里
+                    </p>
+                    <Button onClick={loadSavedUsers} className="w-full">
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      刷新
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-muted-foreground">
+                        共 {savedUsers.length} 个用户
+                      </div>
+                      <Button onClick={loadSavedUsers} size="sm">
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        刷新
+                      </Button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border rounded-lg overflow-hidden">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-medium">姓名</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium">公司</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium">Open ID</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium">聊天ID</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {savedUsers.map((user) => (
+                            <tr key={user.id || user.openId || user.userId} className="hover:bg-muted/50">
+                              <td className="px-4 py-3">
+                                <div className="font-medium">
+                                  {user.name}
+                                  {user.enName && (
+                                    <span className="text-muted-foreground ml-2">| {user.enName}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {user.company || '-'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <code className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                                  {user.openId || user.open_id || user.userId || user.user_id || '-'}
+                                </code>
+                              </td>
+                              <td className="px-4 py-3">
+                                <code className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                                  {user.chatId || '-'}
+                                </code>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => {
+                                      // 快速选择此用户
+                                      const openId = user.openId || user.open_id || user.userId || user.user_id || '';
+                                      setPersonalDirectUserId(openId);
+                                      setActiveTab('personal-account');
+                                      toast.success(`已选择: ${user.name}`);
+                                    }}
+                                  >
+                                    <Send className="w-3 h-3 mr-1" />
+                                    选择
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteSavedUser(user.id || user.openId || user.userId)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );

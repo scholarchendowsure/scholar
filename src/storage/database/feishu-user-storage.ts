@@ -16,11 +16,14 @@ export interface FeishuUser {
   id: string;
   unionId: string;
   userId: string;
+  openId: string;
   name: string;
   enName?: string;
   email?: string;
   mobile?: string;
   avatarUrl?: string;
+  company?: string;
+  chatId?: string;
   status: 'active' | 'inactive';
   departmentIds?: string[];
   createdAt: Date;
@@ -66,6 +69,9 @@ async function readLocalFile(): Promise<FeishuUser[]> {
         console.log(`📖 从 ${filePath} 读取了 ${parsed.length} 个飞书用户`);
         return parsed.map((u: any) => ({
           ...u,
+          openId: u.openId || u.open_id || u.user_id || u.userId || '',
+          company: u.company,
+          chatId: u.chatId || u.chat_id,
           createdAt: new Date(u.createdAt || u.created_at || Date.now()),
           updatedAt: new Date(u.updatedAt || u.updated_at || Date.now()),
         }));
@@ -136,11 +142,14 @@ export async function getFeishuUsers(): Promise<FeishuUser[]> {
             id: u.id,
             unionId: u.union_id || u.unionId || '',
             userId: u.user_id || u.userId || '',
+            openId: u.open_id || u.openId || u.user_id || u.userId || '',
             name: u.name || '未知用户',
             enName: u.en_name || u.enName,
             email: u.email,
             mobile: u.mobile,
             avatarUrl: u.avatar_url || u.avatarUrl,
+            company: u.company,
+            chatId: u.chat_id || u.chatId,
             status: u.status || 'active',
             departmentIds: u.department_ids || u.departmentIds,
             createdAt: new Date(u.created_at || u.createdAt || Date.now()),
@@ -192,11 +201,14 @@ export async function saveFeishuUser(user: FeishuUser): Promise<FeishuUser> {
             id: userToSave.id,
             union_id: userToSave.unionId,
             user_id: userToSave.userId,
+            open_id: userToSave.openId,
             name: userToSave.name,
             en_name: userToSave.enName,
             email: userToSave.email,
             mobile: userToSave.mobile,
             avatar_url: userToSave.avatarUrl,
+            company: userToSave.company,
+            chat_id: userToSave.chatId,
             status: userToSave.status,
             department_ids: userToSave.departmentIds,
             updated_at: userToSave.updatedAt.toISOString(),
@@ -225,7 +237,7 @@ export async function saveFeishuUser(user: FeishuUser): Promise<FeishuUser> {
   const users = await readLocalFile();
   
   // 检查是否已存在
-  const existingIndex = users.findIndex(u => u.id === userToSave.id || u.userId === userToSave.userId);
+  const existingIndex = users.findIndex(u => u.id === userToSave.id || u.userId === userToSave.userId || u.openId === userToSave.openId);
   
   if (existingIndex >= 0) {
     users[existingIndex] = userToSave;
