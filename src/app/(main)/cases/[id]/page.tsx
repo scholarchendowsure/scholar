@@ -123,10 +123,12 @@ export default function CaseDetailPage() {
       }
 
       // 2. 构造消息内容
-      const dueDate = caseData.dueDate ? new Date(caseData.dueDate).toLocaleDateString('zh-CN') : '未知';
-      const followLink = `${window.location.origin}/cases/${caseData.id}?tab=followups`;
+      const dueDate = caseData.repaymentDate ? new Date(caseData.repaymentDate).toLocaleDateString('zh-CN') : '未知';
+      const followLink = `${window.location.origin}/followup/${caseData.id}`;
+      const balance = caseData.balance || caseData.overdueAmount || 0;
+      const currency = caseData.currency || '元';
       
-      const message = `${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${caseData.outstandingBalance || 0}${caseData.currency || '元'} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
+      const message = `${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}${currency} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
 
       // 3. 发送消息（使用和飞书配置页面一样的API）
       const sendResponse = await fetch('/api/feishu-send-direct', {
