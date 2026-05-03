@@ -31,7 +31,7 @@
     "id": "ou_a6c1929d297c616fbdff10da8472e263",
     "unionId": "",
     "userId": "ou_a6c1929d297c616fbdff10da8472e263",
-    "openId": "",
+    "openId": "ou_a6c1929d297c616fbdff10da8472e263",
     "name": "晨忻 | Katherine\nDH财富\n",
     "enName": "",
     "email": "katherinehe@dowsure.com",
@@ -40,5 +40,19 @@
     "status": "active",
     "createdAt": "2026-05-03T20:20:36.876Z",
     "updatedAt": "2026-05-03T20:20:36.876Z"
+  },
+  {
+    "id": "ou_6f268316a874f6daf851aded6edf8728",
+    "unionId": "",
+    "userId": "ou_6f268316a874f6daf851aded6edf8728",
+    "openId": "",
+    "name": "君澜 | Dean\nDC贷后管理\n",
+    "enName": "",
+    "email": "deanniu@dowsure.com",
+    "mobile": "",
+    "avatarUrl": "",
+    "status": "active",
+    "createdAt": "2026-05-03T20:40:54.611Z",
+    "updatedAt": "2026-05-03T20:40:54.611Z"
   }
 ]
