@@ -1,50 +1,5 @@
 [
   {
-    "id": "517f09fb-61ff-4a4d-979d-7cd4e6903022",
-    "caseData": {
-      "batchNo": "",
-      "loanNo": "DSL1711100121566",
-      "userId": "202600501DCDR",
-      "borrowerName": "沈仕向_SHENSHIXIANG",
-      "status": "豆沙包担保代偿",
-      "totalOutstandingBalance": 0,
-      "overdueAmount": 25861.26,
-      "overdueDays": 0,
-      "productName": "跨商贷-浦发协议锁定-11.5-等额本息",
-      "platform": "AMAZON",
-      "paymentCompany": "LianLian",
-      "loanStatus": "CLEAR",
-      "riskLevel": "高风险",
-      "isExtended": false,
-      "currency": "CNY",
-      "loanAmount": 34000,
-      "loanTerm": 12,
-      "loanTermUnit": "M",
-      "loanDate": "45373",
-      "compensationDate": "20250826",
-      "companyName": "深圳市向仕科技有限公司",
-      "borrowerPhone": "15899879389",
-      "followups": [
-        {
-          "id": "3c3d9270-1b06-4fb1-a480-e0b2060daf9a",
-          "follower": "未登记人",
-          "followTime": "2026-05-03T05:23:17.546Z",
-          "followType": "online",
-          "contact": "legal_representative",
-          "followResult": "normal_repayment",
-          "followRecord": "记录人：未登记人\n内容：cesd d hh打发打发",
-          "createdAt": "2026-05-03T05:23:17.546Z",
-          "createdBy": "未登记人"
-        }
-      ],
-      "id": "517f09fb-61ff-4a4d-979d-7cd4e6903022",
-      "createdAt": "2026-05-03T05:23:17.546Z",
-      "updatedAt": "2026-05-03T05:23:17.546Z"
-    },
-    "deletedAt": "2026-05-03T06:03:53.226Z",
-    "deletedBy": "系统"
-  },
-  {
     "id": "176a8d1d-11ec-4163-9aa9-4dd4a4cb4597",
     "caseData": {
       "batchNo": "",
