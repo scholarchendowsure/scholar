@@ -1,124 +1,110 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeishuOAuthStorage } from '@/storage/database/feishu-oauth-storage';
-
-// 飞书网页应用OAuth配置
-const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
-const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
-const COZE_PROJECT_DOMAIN = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'bdb3c66d-9731-4e87-ac56-61da97d57fff.dev.coze.site';
+import { getFeishuWebOAuthStorage } from '@/storage/database/feishu-web-oauth-storage';
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
 
-    const successUrl = `https://${COZE_PROJECT_DOMAIN}/feishu-message?oauth=success`;
-    const errorUrl = `https://${COZE_PROJECT_DOMAIN}/feishu-message?oauth=error`;
+    console.log('收到飞书网页应用OAuth回调, code:', code?.slice(0, 10) + '...');
+
+    // 从请求中获取正确的 origin
+    const requestUrl = new URL(request.url);
+    const origin = requestUrl.origin; // 这会是 https://bdb3c66d-...
+
+    const successUrl = `${origin}/feishu-message?oauth=success`;
+    const errorUrl = `${origin}/feishu-message?oauth=error`;
 
     if (!code) {
+      console.error('缺少code参数');
       return NextResponse.redirect(errorUrl);
     }
 
-    console.log('收到飞书网页应用OAuth回调');
+    const storage = await getFeishuWebOAuthStorage();
 
-    // 第一步：获取 app_access_token
-    const appTokenResponse = await fetch('https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal', {
+    // === 第一步：获取 app_access_token ===
+    const appId = process.env.FEISHU_APP_ID || 'cli_a9652497d7389bd6';
+    const appSecret = process.env.FEISHU_APP_SECRET || 'YHs5IxuDt5xXy4NT5dx0NgIVoC0aE2dO';
+
+    const tokenResponse = await fetch('https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        app_id: FEISHU_APP_ID,
-        app_secret: FEISHU_APP_SECRET,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app_id: appId, app_secret: appSecret })
     });
 
-    if (!appTokenResponse.ok) {
-      const errorText = await appTokenResponse.text();
-      console.error('获取app_access_token失败:', errorText);
+    const tokenData = await tokenResponse.json();
+    if (tokenData.code !== 0) {
+      console.error('获取app_access_token失败:', tokenData);
       return NextResponse.redirect(errorUrl);
     }
 
-    const appTokenData = await appTokenResponse.json();
-    if (appTokenData.code !== 0) {
-      console.error('获取app_access_token失败:', appTokenData);
-      return NextResponse.redirect(errorUrl);
-    }
+    const appAccessToken = tokenData.app_access_token;
 
-    const appAccessToken = appTokenData.app_access_token;
-
-    // 第二步：用 code 换取 user_access_token
-    const userTokenResponse = await fetch('https://open.feishu.cn/open-apis/oauth2/access_token', {
+    // === 第二步：用 code 换取 user_access_token ===
+    const userTokenResponse = await fetch('https://open.feishu.cn/open-apis/authen/v1/access_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${appAccessToken}`,
+        'Authorization': `Bearer ${appAccessToken}`
       },
       body: JSON.stringify({
         grant_type: 'authorization_code',
-        client_id: FEISHU_APP_ID,
-        client_secret: FEISHU_APP_SECRET,
-        code,
-      }),
+        code: code
+      })
     });
 
-    if (!userTokenResponse.ok) {
-      const errorText = await userTokenResponse.text();
-      console.error('获取user_access_token失败:', errorText);
+    const userTokenData = await userTokenResponse.json();
+    console.log('换取user_access_token响应:', {
+      code: userTokenData.code,
+      msg: userTokenData.msg,
+      hasData: !!userTokenData.data
+    });
+
+    if (userTokenData.code !== 0 || !userTokenData.data) {
+      console.error('换取user_access_token失败:', userTokenData);
       return NextResponse.redirect(errorUrl);
     }
 
-    const tokenData = await userTokenResponse.json();
-    console.log('飞书网页应用token响应');
+    const tokenInfo = userTokenData.data;
+    const now = Date.now();
 
-    if (tokenData.code !== 0) {
-      return NextResponse.redirect(errorUrl);
-    }
-
-    const { access_token, refresh_token, expires_in, token_type } = tokenData.data;
-    
-    // 计算过期时间
-    const expiresAt = Date.now() + (expires_in * 1000);
-    const refreshTokenExpiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000);
-
-    // 获取用户信息
-    const userInfoResponse = await fetch('https://open.feishu.cn/open-apis/oauth2/user_info', {
+    // === 第三步：获取用户信息 ===
+    const userResponse = await fetch('https://open.feishu.cn/open-apis/authen/v1/user_info', {
       method: 'GET',
-      headers: {
-        'Authorization': `${token_type} ${access_token}`,
-      },
+      headers: { 'Authorization': `Bearer ${tokenInfo.access_token}` }
     });
 
-    let userInfo = null;
-    if (userInfoResponse.ok) {
-      const userData = await userInfoResponse.json();
-      if (userData.code === 0) {
-        userInfo = userData.data;
-      }
-    }
+    const userData = await userResponse.json();
+    const userInfo = userData.code === 0 ? userData.data : null;
 
     // 保存token
-    const storage = await getFeishuOAuthStorage();
-    const tokenRecord = {
-      accessToken: access_token,
-      refreshToken: refresh_token,
-      expiresAt: expiresAt,
-      tokenType: token_type,
-      userId: userInfo?.sub,
-      userName: userInfo?.name,
+    await storage.saveToken({
+      accessToken: tokenInfo.access_token,
+      refreshToken: tokenInfo.refresh_token,
+      expiresIn: tokenInfo.expires_in,
+      expiresAt: now + (tokenInfo.expires_in * 1000),
+      tokenType: tokenInfo.token_type || 'Bearer',
+      userId: tokenInfo.user_id,
+      userName: userInfo?.name || tokenInfo.user_id,
+      userAvatar: userInfo?.avatar_url,
       userEmail: userInfo?.email,
-      userAvatar: userInfo?.picture,
-      refreshTokenExpiresAt: refreshTokenExpiresAt,
-      createdAt: Date.now(),
-    };
+      createdAt: now
+    });
 
-    await storage.saveToken(tokenRecord);
-
-    console.log('飞书网页应用OAuth授权成功, 用户:', userInfo?.name);
+    console.log('飞书网页应用OAuth授权成功, 用户:', userInfo?.name || tokenInfo.user_id);
 
     // 重定向回飞书消息页面
     return NextResponse.redirect(successUrl);
   } catch (error) {
     console.error('处理OAuth回调失败:', error);
-    return NextResponse.redirect(errorUrl);
+    // 即使出错也尝试重定向回去
+    try {
+      const requestUrl = new URL(request.url);
+      const errorUrl = `${requestUrl.origin}/feishu-message?oauth=error`;
+      return NextResponse.redirect(errorUrl);
+    } catch {
+      return NextResponse.json({ error: '处理失败' }, { status: 500 });
+    }
   }
 }
