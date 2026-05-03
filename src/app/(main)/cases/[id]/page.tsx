@@ -102,12 +102,10 @@ export default function CaseDetailPage() {
 
     setSendingReminder(roleType);
     try {
-      // 1. 搜索飞书用户
-      const searchResponse = await fetch('/api/feishu-personal/search-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: roleName })
-      });
+      // 1. 搜索飞书用户（使用和飞书配置页面一样的API）
+      const searchResponse = await fetch(
+        `/api/feishu-search-save?action=search-and-save&keyword=${encodeURIComponent(roleName)}`
+      );
 
       const searchResult = await searchResponse.json();
       
@@ -117,7 +115,7 @@ export default function CaseDetailPage() {
       }
 
       const targetUser = searchResult.users[0];
-      const userId = targetUser.user_id || targetUser.open_id || targetUser.id;
+      const userId = targetUser.userId || targetUser.user_id || targetUser.open_id || targetUser.id;
 
       if (!userId) {
         toast.error('无法获取用户ID');
@@ -130,24 +128,27 @@ export default function CaseDetailPage() {
       
       const message = `${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${caseData.outstandingBalance || 0}${caseData.currency || '元'} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
 
-      // 3. 发送消息
-      const sendResponse = await fetch('/api/feishu-personal/send-message', {
+      // 3. 发送消息（使用和飞书配置页面一样的API）
+      const sendResponse = await fetch('/api/feishu-send-direct', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiveId: userId, text: message })
+        body: JSON.stringify({
+          userId: userId,
+          message: message,
+          idType: 'user_id'
+        })
       });
 
       const sendResult = await sendResponse.json();
 
       if (sendResult.success) {
-        toast.success(`已成功提醒 ${roleName}`);
+        toast.success(`已发送提醒给 ${roleName}`);
       } else {
-        toast.error(sendResult.error || '发送失败');
+        toast.error(sendResult.message || '发送失败');
       }
 
-    } catch (error: any) {
-      console.error('发送提醒失败:', error);
-      toast.error(error.message || '发送失败');
+    } catch (error) {
+      toast.error('发送提醒失败');
     } finally {
       setSendingReminder(null);
     }
