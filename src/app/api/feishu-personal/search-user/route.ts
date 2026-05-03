@@ -1,10 +1,13 @@
+
 import { NextRequest, NextResponse } from 'next/server';
-import { searchFeishuUsersDirectly, searchFeishuUserComprehensive } from '@/lib/feishu-api';
-import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 export async function POST(request: NextRequest) {
   try {
-    const { query } = await request.json();
+    const { query, cliPath = 'lark' } = await request.json();
     
     if (!query) {
       return NextResponse.json({ 
@@ -14,60 +17,72 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // 获取飞书应用凭证
-      const { appId, appSecret } = await getFeishuAppCredentials();
+      console.log('🔍 使用 lark-cli 搜索用户:', query);
       
-      if (!appId || !appSecret) {
-        return NextResponse.json({ 
-          success: false, 
-          error: '请先配置飞书应用ID和密钥' 
-        }, { status: 400 });
+      // 使用 lark-cli 搜索用户
+      const { stdout, stderr } = await execAsync(
+        `${cliPath} contact +search-user --query "${query}" --page-size 10`
+      );
+      
+      console.log('📡 lark-cli 搜索结果:', stdout);
+      
+      if (stderr) {
+        console.warn('⚠️ lark-cli stderr:', stderr);
       }
-
-      // 使用企业自建应用 API 搜索用户
+      
       let users: any[] = [];
       
       try {
-        // 先尝试直接搜索
-        users = await searchFeishuUsersDirectly(appId, appSecret, query);
-      } catch (error) {
-        console.log('直接搜索失败，尝试综合搜索:', error);
-        // 如果直接搜索失败，尝试综合搜索
-        users = await searchFeishuUserComprehensive(appId, appSecret, query);
+        const result = JSON.parse(stdout);
+        console.log('📊 解析后的 JSON:', JSON.stringify(result, null, 2));
+        
+        // lark-cli 返回的格式可能是多种，尝试各种可能
+        if (result.items) {
+          users = result.items;
+        } else if (result.data?.items) {
+          users = result.data.items;
+        } else if (Array.isArray(result)) {
+          users = result;
+        } else {
+          // 如果是单个用户对象，包装成数组
+          users = [result];
+        }
+      } catch (parseError) {
+        console.warn('⚠️ JSON 解析失败，尝试按行解析:', parseError);
+        // 如果 JSON 解析失败，尝试其他方式处理
       }
       
-      if (users.length === 0) {
-        return NextResponse.json({ 
-          success: true, 
-          users: [] 
-        });
-      }
+      console.log(`✅ 找到 ${users.length} 个用户`);
       
       // 转换为前端需要的格式
-      const formattedUsers = users.map((user: any) => ({
+      const formattedUsers = users.map((user: any) =&gt; ({
         unionId: user.union_id || user.unionId || user.user_id || user.userId || '',
-        userId: user.user_id || user.userId || user.union_id || user.unionId || '',
-        name: user.name || user.nick_name || user.nickName || '',
+        userId: user.user_id || user.userId || user.open_id || user.openId || '',
+        open_id: user.open_id || user.openId || user.user_id || user.userId || '',
+        name: user.name || user.nick_name || user.nickName || user.localized_name || '',
+        localized_name: user.localized_name || user.name || '',
         enName: user.en_name || user.enName || '',
-        email: user.email || '',
-        mobile: user.mobile || user.mobile_phone || user.mobilePhone || ''
-      })).filter(user => user.name);
+        email: user.email || user.enterprise_email || '',
+        enterprise_email: user.enterprise_email || user.email || '',
+        mobile: user.mobile || user.mobile_phone || user.mobilePhone || '',
+        department: user.department || user.department_name || ''
+      })).filter(user =&gt; user.name || user.localized_name);
 
       return NextResponse.json({ 
         success: true, 
         users: formattedUsers
       });
       
-    } catch (searchError: any) {
-      console.error('搜索用户错误:', searchError);
+    } catch (cliError: any) {
+      console.error('❌ lark-cli 执行失败:', cliError);
       return NextResponse.json({ 
         success: false, 
-        error: `搜索失败: ${searchError.message}` 
+        error: `搜索失败: ${cliError.message || cliError.stderr || 'lark-cli 执行失败'}` 
       }, { status: 500 });
     }
     
   } catch (error) {
-    console.error('搜索用户错误:', error);
+    console.error('❌ 搜索用户错误:', error);
     return NextResponse.json({ 
       success: false, 
       error: '服务器错误' 
