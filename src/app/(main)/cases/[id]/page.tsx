@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera, Bell } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,9 +45,17 @@ const formatMoney = (amount: number): string => {
 };
 
 // 字段显示组件
-const Field = ({ label, value, highlight = false }: { label: string; value: string | number | React.ReactNode; highlight?: boolean }) => (
+const Field = ({ label, value, highlight = false, action }: { 
+  label: string; 
+  value: string | number | React.ReactNode; 
+  highlight?: boolean;
+  action?: React.ReactNode;
+}) => (
   <div className="space-y-1">
-    <dt className="text-sm font-medium text-slate-500">{label}</dt>
+    <div className="flex items-center justify-between">
+      <dt className="text-sm font-medium text-slate-500">{label}</dt>
+      {action}
+    </div>
     <dd className={`text-sm ${highlight ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>
       {value !== undefined && value !== null && value !== '' ? value : '-'}
     </dd>
@@ -81,6 +89,69 @@ export default function CaseDetailPage() {
     caseIds: string[];
     currentIndex: number;
   } | null>(null);
+
+  // 提醒跟进状态
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
+
+  // 发送飞书提醒消息
+  const handleSendReminder = async (roleType: string, roleName: string) => {
+    if (!caseData || !roleName) {
+      toast.error('缺少必要信息');
+      return;
+    }
+
+    setSendingReminder(roleType);
+    try {
+      // 1. 搜索飞书用户
+      const searchResponse = await fetch('/api/feishu-personal/search-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: roleName })
+      });
+
+      const searchResult = await searchResponse.json();
+      
+      if (!searchResult.success || !searchResult.users || searchResult.users.length === 0) {
+        toast.error(`未找到飞书用户: ${roleName}`);
+        return;
+      }
+
+      const targetUser = searchResult.users[0];
+      const userId = targetUser.user_id || targetUser.open_id || targetUser.id;
+
+      if (!userId) {
+        toast.error('无法获取用户ID');
+        return;
+      }
+
+      // 2. 构造消息内容
+      const dueDate = caseData.dueDate ? new Date(caseData.dueDate).toLocaleDateString('zh-CN') : '未知';
+      const followLink = `${window.location.origin}/cases/${caseData.id}?tab=followups`;
+      
+      const message = `${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${caseData.outstandingBalance || 0}${caseData.currency || '元'} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
+
+      // 3. 发送消息
+      const sendResponse = await fetch('/api/feishu-personal/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiveId: userId, text: message })
+      });
+
+      const sendResult = await sendResponse.json();
+
+      if (sendResult.success) {
+        toast.success(`已成功提醒 ${roleName}`);
+      } else {
+        toast.error(sendResult.error || '发送失败');
+      }
+
+    } catch (error: any) {
+      console.error('发送提醒失败:', error);
+      toast.error(error.message || '发送失败');
+    } finally {
+      setSendingReminder(null);
+    }
+  };
   
   // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -605,9 +676,63 @@ export default function CaseDetailPage() {
             </div>
             
             <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Field label="所属销售" value={caseData.assignedSales} highlight />
-              <Field label="所属风控" value={caseData.assignedRiskControl} highlight />
-              <Field label="所属贷后" value={caseData.assignedPostLoan} highlight />
+              <Field 
+                label="所属销售" 
+                value={caseData.assignedSales} 
+                highlight 
+                action={
+                  caseData.assignedSales && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSendReminder('sales', caseData.assignedSales!)}
+                      disabled={sendingReminder === 'sales'}
+                    >
+                      <Bell className="w-3 h-3 mr-1" />
+                      {sendingReminder === 'sales' ? '发送中...' : '提醒跟进'}
+                    </Button>
+                  )
+                }
+              />
+              <Field 
+                label="所属风控" 
+                value={caseData.assignedRiskControl} 
+                highlight 
+                action={
+                  caseData.assignedRiskControl && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSendReminder('risk', caseData.assignedRiskControl!)}
+                      disabled={sendingReminder === 'risk'}
+                    >
+                      <Bell className="w-3 h-3 mr-1" />
+                      {sendingReminder === 'risk' ? '发送中...' : '提醒跟进'}
+                    </Button>
+                  )
+                }
+              />
+              <Field 
+                label="所属贷后" 
+                value={caseData.assignedPostLoan} 
+                highlight 
+                action={
+                  caseData.assignedPostLoan && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSendReminder('postLoan', caseData.assignedPostLoan!)}
+                      disabled={sendingReminder === 'postLoan'}
+                    >
+                      <Bell className="w-3 h-3 mr-1" />
+                      {sendingReminder === 'postLoan' ? '发送中...' : '提醒跟进'}
+                    </Button>
+                  )
+                }
+              />
             </dl>
             <Separator className="my-6" />
             <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">

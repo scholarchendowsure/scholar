@@ -179,7 +179,7 @@
     ],
     "id": "fe3e5af1-55b5-45c7-b6b3-57c84021477f",
     "createdAt": "2026-05-03T07:09:28.291Z",
-    "updatedAt": "2026-05-03T14:25:42.508Z",
+    "updatedAt": "2026-05-03T14:50:40.050Z",
     "loanDate": "2026/01/05",
     "dueDate": "2026/05/05",
     "totalLoanAmount": 5000,
@@ -192,7 +192,10 @@
     "householdAddress": "户籍",
     "registeredPhone": "13410103355",
     "contactInfo": "13420230131",
-    "assignedRiskControl": "高乐"
+    "assignedRiskControl": "高乐",
+    "overdueStartTime": "2025/03/18",
+    "compensationDate": "2025/08/26",
+    "homeAddress": "家庭"
   },
   {
     "batchNo": "66610",
