@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/components/auth-provider';
 
 export default function SimpleLoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,6 +31,24 @@ export default function SimpleLoginPage() {
       const result = await response.json();
 
       if (result.success) {
+        // 设置localStorage并调用AuthProvider的login方法
+        const userData = result.user;
+        const token = 'temp-token-' + Date.now();
+        
+        // 确保userData有必要的字段
+        const userWithName = {
+          ...userData,
+          name: userData.realName || userData.username || userData.name
+        };
+        
+        // 设置localStorage
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userWithName));
+        
+        // 调用AuthProvider的login方法
+        login(userWithName, token);
+        
+        // 跳转到首页
         router.push('/');
       } else {
         setError(result.message || '登录失败');
@@ -85,12 +105,6 @@ export default function SimpleLoginPage() {
               )}
             </Button>
           </form>
-
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-            <p className="font-semibold mb-2">测试账号：</p>
-            <p>用户名：Scholar</p>
-            <p>密码：9469832.Qaz</p>
-          </div>
         </CardContent>
       </Card>
     </div>
