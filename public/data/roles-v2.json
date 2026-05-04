@@ -1,0 +1,66 @@
+[
+  {
+    "id": "role_super_admin",
+    "name": "超级管理员",
+    "code": "super_admin",
+    "description": "拥有所有系统权限",
+    "permissions": [
+      "*"
+    ],
+    "isSystem": true,
+    "createdAt": "2026-05-04T17:13:37.862Z",
+    "updatedAt": "2026-05-04T17:13:37.862Z"
+  },
+  {
+    "id": "role_admin",
+    "name": "系统管理员",
+    "code": "admin",
+    "description": "管理用户和案件",
+    "permissions": [
+      "user:create",
+      "user:read",
+      "user:update",
+      "user:delete",
+      "user:reset_password",
+      "user:unlock",
+      "case:create",
+      "case:read",
+      "case:update",
+      "case:delete",
+      "case:export",
+      "log:read"
+    ],
+    "isSystem": true,
+    "createdAt": "2026-05-04T17:13:37.862Z",
+    "updatedAt": "2026-05-04T17:13:37.862Z"
+  },
+  {
+    "id": "role_manager",
+    "name": "经理",
+    "code": "manager",
+    "description": "查看用户和管理案件",
+    "permissions": [
+      "user:read",
+      "case:create",
+      "case:read",
+      "case:update",
+      "case:export"
+    ],
+    "isSystem": true,
+    "createdAt": "2026-05-04T17:13:37.862Z",
+    "updatedAt": "2026-05-04T17:13:37.862Z"
+  },
+  {
+    "id": "role_agent",
+    "name": "外访员",
+    "code": "agent",
+    "description": "查看和更新案件",
+    "permissions": [
+      "case:read",
+      "case:update"
+    ],
+    "isSystem": true,
+    "createdAt": "2026-05-04T17:13:37.862Z",
+    "updatedAt": "2026-05-04T17:13:37.862Z"
+  }
+]

@@ -8,6 +8,8 @@ import {
 import { userStorage } from '@/storage/database/user-storage';
 import { User } from '@/types/user';
 import * as crypto from 'crypto';
+import * as path from 'path';
+import { existsSync, readFileSync } from 'fs';
 
 // 密码加密
 function hashPassword(password: string, salt: string): string {
@@ -20,31 +22,40 @@ function generateSalt(): string {
 }
 
 const INITIAL_PASSWORD = 'admin123';
+const FEISHU_USERS_FILE = path.join(process.cwd(), 'public', 'data', 'feishu_users.json');
 
 // 同步飞书用户到用户管理
 export async function POST(request: NextRequest) {
   console.log('🔄 开始同步飞书用户到用户管理...');
   
   try {
-    // 获取飞书配置
-    const credentials = await getFeishuAppCredentials();
+    // 优先读取 feishu_users.json 的数据
+    let feishuUsers: FeishuUser[] = [];
     
-    if (!credentials.appId || !credentials.appSecret) {
-      return NextResponse.json({
-        success: false,
-        error: '请先配置飞书企业应用（App ID 和 App Secret）',
-      }, { status: 400 });
+    if (existsSync(FEISHU_USERS_FILE)) {
+      console.log('📄 发现 feishu_users.json，优先使用此文件数据');
+      const fileContent = readFileSync(FEISHU_USERS_FILE, 'utf-8');
+      feishuUsers = JSON.parse(fileContent);
+      console.log(`✅ 从 feishu_users.json 读取到 ${feishuUsers.length} 个用户`);
+    } else {
+      // 如果没有 feishu_users.json，才从飞书API获取
+      console.log('📥 feishu_users.json 不存在，从飞书API获取用户列表...');
+      const credentials = await getFeishuAppCredentials();
+      
+      if (!credentials.appId || !credentials.appSecret) {
+        return NextResponse.json({
+          success: false,
+          error: '请先配置飞书企业应用（App ID 和 App Secret）',
+        }, { status: 400 });
+      }
+      
+      feishuUsers = await getAllFeishuUsers(credentials.appId, credentials.appSecret);
+      
+      // 保存到feishu-users.json（保持原有逻辑）
+      await syncFeishuUsersToStorage(feishuUsers);
     }
     
-    // 获取所有飞书用户
-    console.log('📥 从飞书获取用户列表...');
-    const feishuUsers = await getAllFeishuUsers(credentials.appId, credentials.appSecret);
-    
-    console.log(`✅ 获取到 ${feishuUsers.length} 个飞书用户`);
-    
-    // 保存到feishu-users.json（保持原有逻辑）
-    await syncFeishuUsersToStorage(feishuUsers);
-    console.log('💾 已保存到飞书用户数据文件');
+    console.log(`✅ 共获取到 ${feishuUsers.length} 个飞书用户`);
     
     // 读取现有用户
     const existingUsers = userStorage.findAll();
@@ -53,7 +64,6 @@ export async function POST(request: NextRequest) {
     // 同步到users-v2.json
     let newUsersCount = 0;
     let updatedUsersCount = 0;
-    const now = new Date().toISOString();
     
     // 处理每个飞书用户
     for (const feishuUser of feishuUsers) {
@@ -77,7 +87,6 @@ export async function POST(request: NextRequest) {
         console.log(`🔄 更新用户: ${feishuUser.name} (${feishuUser.userId})`);
       } else {
         // 创建新用户
-        const salt = generateSalt();
         userStorage.create({
           username: feishuUser.userId,
           realName: feishuUser.name,
@@ -98,6 +107,15 @@ export async function POST(request: NextRequest) {
     
     console.log(`💾 用户管理同步完成！共处理 ${feishuUsers.length} 个用户`);
     
+    // 返回用户名单
+    const userList = feishuUsers.map((u, index) => ({
+      序号: index + 1,
+      用户ID: u.userId,
+      姓名: u.name,
+      邮箱: u.email || '',
+      状态: u.status,
+    }));
+    
     return NextResponse.json({
       success: true,
       data: {
@@ -105,6 +123,7 @@ export async function POST(request: NextRequest) {
         newUsers: newUsersCount,
         updatedUsers: updatedUsersCount,
         users: feishuUsers,
+        userList: userList,
       },
       message: `同步成功！新增 ${newUsersCount} 个用户，更新 ${updatedUsersCount} 个用户`,
     });
