@@ -31,7 +31,7 @@
     "id": "ou_a6c1929d297c616fbdff10da8472e263",
     "unionId": "",
     "userId": "ou_a6c1929d297c616fbdff10da8472e263",
-    "openId": "",
+    "openId": "ou_a6c1929d297c616fbdff10da8472e263",
     "name": "晨忻 | Katherine\nDH财富\n",
     "enName": "",
     "email": "katherinehe@dowsure.com",
@@ -54,5 +54,19 @@
     "status": "active",
     "createdAt": "2026-05-03T20:40:54.611Z",
     "updatedAt": "2026-05-03T20:40:54.611Z"
+  },
+  {
+    "id": "ou_f9299d347bbd3300a258ba0cb4747233",
+    "unionId": "",
+    "userId": "ou_f9299d347bbd3300a258ba0cb4747233",
+    "openId": "",
+    "name": "平阳 | Chrys\nDH财富\n",
+    "enName": "",
+    "email": "chryslian@dowsure.com",
+    "mobile": "",
+    "avatarUrl": "",
+    "status": "active",
+    "createdAt": "2026-05-04T17:01:56.810Z",
+    "updatedAt": "2026-05-04T17:01:56.810Z"
   }
 ]
