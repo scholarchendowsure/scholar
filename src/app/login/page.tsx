@@ -1,251 +1,96 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
-import { Lock, User, Loader2, Shield, RefreshCw, Image as ImageIcon } from 'lucide-react';
-import { useAuth } from '@/components/auth-provider';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+export default function SimpleLoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [captchaLoading, setCaptchaLoading] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [captcha, setCaptcha] = useState('');
-  const [captchaData, setCaptchaData] = useState<{ id: string; image: string } | null>(null);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 获取验证码
-  const fetchCaptcha = async () => {
-    setCaptchaLoading(true);
-    try {
-      const res = await fetch('/api/auth/captcha');
-      const json = await res.json();
-      if (json.success) {
-        setCaptchaData(json.data);
-      }
-    } catch (error) {
-      toast.error('获取验证码失败');
-    } finally {
-      setCaptchaLoading(false);
-    }
-  };
-
-  // 页面加载时获取验证码
-  useEffect(() => {
-    fetchCaptcha();
-  }, []);
-
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('handleSubmit called, values:', { username, password, captcha });
-    console.log('captchaData:', captchaData);
-    
-    if (!username || !password) {
-      toast.error('请输入用户名和密码');
-      return;
-    }
+    setError('');
+    setIsLoading(true);
 
-    if (!captcha) {
-      console.log('captcha is empty:', captcha);
-      toast.error('请输入验证码');
-      return;
-    }
-
-    if (!captchaData) {
-      toast.error('请先获取验证码');
-      return;
-    }
-
-    setLoading(true);
     try {
-      const requestData = {
-        username,
-        password,
-        captcha,
-        captchaId: captchaData.id,
-      };
-      console.log('Sending login request with data:', requestData);
-      
-      const res = await fetch('/api/auth', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({ username, password }),
       });
 
-      const json = await res.json();
-      console.log('Login API response:', json);
+      const result = await response.json();
 
-      if (json.success) {
-        toast.success('登录成功');
-        // 使用AuthProvider的login函数
-        login(json.data.user, json.data.token);
-        
-        // 检查是否需要首次修改密码
-        if (json.data.user.mustChangePassword) {
-          router.push('/change-password');
-        } else {
-          router.push('/');
-        }
+      if (result.success) {
+        router.push('/');
       } else {
-        // 根据错误类型显示不同的提示
-        const errorMessage = json.message || json.error || '登录失败';
-        console.log('Login error message:', errorMessage);
-        
-        // 检查是否是验证码相关错误
-        if (
-          errorMessage.includes('验证码') || 
-          errorMessage.includes('captcha') ||
-          errorMessage.includes('验证码已过期')
-        ) {
-          toast.error('图形验证码错误');
-          fetchCaptcha();
-          setCaptcha('');
-        } 
-        // 检查是否是用户名或密码错误
-        else if (
-          errorMessage.includes('用户名或密码') || 
-          errorMessage.includes('user') || 
-          errorMessage.includes('password')
-        ) {
-          toast.error('用户名或密码错误');
-        } 
-        // 其他错误
-        else {
-          toast.error(errorMessage);
-        }
+        setError(result.message || '登录失败');
       }
-    } catch (error) {
-      toast.error('登录失败，请稍后重试');
+    } catch (err) {
+      setError('登录失败，请稍后重试');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-90 p-4">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl" />
-      </div>
-
-      <Card className="w-full max-w-md relative z-10 border-0 shadow-2xl bg-white/95 backdrop-blur-sm">
-        <CardHeader className="space-y-4 text-center pb-8">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
-          <CardTitle className="text-2xl font-bold text-slate-90">
-            贷后案件管理系统
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-gray-800">
+            欢迎回来
           </CardTitle>
-          <p className="text-slate-500 text-sm">
-            请登录您的账户以继续
-          </p>
+          <p className="text-gray-600 mt-2">贷后案件管理系统</p>
         </CardHeader>
-
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-slate-700 font-medium">
-                用户名
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="请输入用户名"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                  autoComplete="username"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Input
+                type="text"
+                placeholder="用户名"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading}
+                required
+              />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 font-medium">
-                密码
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="请输入密码"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                  autoComplete="current-password"
-                />
-              </div>
+            <div>
+              <Input
+                type="password"
+                placeholder="密码"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                required
+              />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="captcha" className="text-slate-700 font-medium">
-                验证码
-              </Label>
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input
-                    id="captcha"
-                    type="text"
-                    placeholder="请输入验证码"
-                    value={captcha}
-                    onChange={(e) => {
-                      console.log('captcha input changed:', e.target.value);
-                      setCaptcha(e.target.value);
-                    }}
-                    className="pl-11 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                    autoComplete="off"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={fetchCaptcha}
-                  disabled={captchaLoading}
-                  className="h-12 px-4 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 flex items-center justify-center transition-colors disabled:opacity-50"
-                >
-                  {captchaLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
-                  ) : captchaData ? (
-                    <img
-                      src={captchaData.image}
-                      alt="验证码"
-                      className="h-10 w-auto object-contain"
-                    />
-                  ) : (
-                    <RefreshCw className="w-5 h-5 text-slate-500" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-slate-500 flex items-center gap-1">
-                <RefreshCw className="w-3 h-3" />
-                点击图片刷新验证码
-              </p>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/25 transition-all"
-              disabled={loading}
-            >
-              {loading ? (
+            {error && (
+              <div className="text-red-500 text-sm text-center">{error}</div>
+            )}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   登录中...
                 </>
               ) : (
-                '登 录'
+                '登录'
               )}
             </Button>
           </form>
+
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+            <p className="font-semibold mb-2">测试账号：</p>
+            <p>用户名：Scholar</p>
+            <p>密码：9469832.Qaz</p>
+          </div>
         </CardContent>
       </Card>
     </div>
