@@ -139,10 +139,10 @@ export default function CaseDetailPage() {
       }
 
       // 3. 构造消息内容
-      const dueDate = caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || caseData.repaymentDate ? 
-        new Date(caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || caseData.repaymentDate || '').toLocaleDateString('zh-CN') : '未知';
+      const dateStr = (caseData as any).firstOverdueTime || (caseData as any).dueDate || (caseData as any).compensationDate || (caseData as any).repaymentDate;
+      const dueDate = dateStr ? new Date(dateStr).toLocaleDateString('zh-CN') : '未知';
       const followLink = `${window.location.origin}/followup/${caseData.loanNo}`;
-      const balance = caseData.outstandingBalance || caseData.overdueAmount || caseData.inLoanBalance || 0;
+      const balance = (caseData as any).outstandingBalance || (caseData as any).overdueAmount || (caseData as any).inLoanBalance || 0;
       
       // 处理币种显示
       let currency = caseData.currency || 'CNY';

@@ -21,18 +21,17 @@ import {
 } from '@/components/ui/dialog';
 import { CheckCircle, Camera, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { LoanCaseV2, FollowUp } from '@/types/case';
+import type { FollowUp } from '@/types/case';
 import {
   FOLLOWUP_TYPE_OPTIONS,
   CONTACT_OPTIONS,
   FOLLOWUP_RESULT_OPTIONS,
 } from '@/types/case';
-import { generateId } from '@/lib/utils';
 
 export default function FollowupPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { currentUser } = useAuth();
-  const [caseData, setCaseData] = useState<LoanCaseV2 | null>(null);
+  const { currentUser } = useAuth() as any;
+  const [caseData, setCaseData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(true);
   const [saveSuccess, setSavedSuccess] = useState(false);
@@ -43,7 +42,6 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
     contact: 'legal_person',
     followResult: 'normal_repayment',
     followRecord: '',
-    remark: '',
   });
   
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<{ name: string; url: string }[]>([]);
@@ -66,10 +64,8 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
             setCaseData(listResult.data[0]);
           }
         }
-        // 即使找不到案件，也不显示错误，直接显示弹窗
       } catch (error) {
         console.error('加载案件失败:', error);
-        // 即使加载失败，也不显示toast错误
       } finally {
         setLoading(false);
       }
@@ -86,7 +82,6 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
     setUploadingFiles(true);
     try {
       const uploaded = files.map((file) => {
-        // 使用临时URL，实际项目中应该上传到存储服务
         const url = URL.createObjectURL(file);
         return { name: file.name, url };
       });
@@ -118,85 +113,16 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
     setUploadedCaseFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // 同步飞书webhook
-  const syncToFeishuWebhook = async (caseData: LoanCaseV2, followup: FollowUp) => {
+  // 同步飞书webhook（简化版）
+  const syncToFeishuWebhook = async (caseData: any, followup: FollowUp) => {
     try {
-      // 时间格式化函数
-      const formatDateTime = (dateStr: string) => {
-        const date = new Date(dateStr);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-      };
-
-      // 枚举值转中文
-      const getFollowupTypeText = (type: string) => {
-        const map: Record<string, string> = {
-          'online': '线上',
-          'offline': '线下',
-          'other': '其他',
-        };
-        return map[type] || type;
-      };
-
-      const getContactText = (contact: string) => {
-        const map: Record<string, string> = {
-          'legal_person': '法人',
-          'actual_controller': '实控人',
-          'other': '其他',
-        };
-        return map[contact] || contact;
-      };
-
-      const getFollowupResultText = (result: string) => {
-        const map: Record<string, string> = {
-          'normal_repayment': '正常还款',
-          'warning_rise': '预警上升',
-          'overdue_promise': '逾期承诺',
-          'other': '其他',
-        };
-        return map[result] || result;
-      };
-
-      // 生成短链接的函数
-      const generateShortLink = (url: string) => {
-        return url;
-      };
-
-      // 文件信息生成
-      let filesInfo = '';
-      if (followup.attachments && followup.attachments.length > 0) {
-        const fileLinks = followup.attachments.map(url => generateShortLink(url));
-        filesInfo = fileLinks.join('\\n');
-      }
-
       const webhookPayload = {
         action: 'case_followup',
         caseId: caseData.id,
         loanNo: caseData.loanNo,
-        userId: caseData.userId || '',
-        borrowerName: caseData.borrowerName,
-        companyName: caseData.companyName || '',
-        followup: {
-          id: followup.id,
-          visitUser: followup.visitUser,
-          visitDate: formatDateTime(followup.visitDate || followup.createTime),
-          visitType: getFollowupTypeText(followup.visitType || followup.followUpType || 'other'),
-          contactPerson: getContactText(followup.contactPerson || 'other'),
-          followUpResult: getFollowupResultText(followup.followUpResult || 'other'),
-          content: followup.content,
-          remark: followup.remark || '',
-          images: followup.images || [],
-          attachments: followup.attachments || [],
-          filesInfo: filesInfo,
-          createTime: formatDateTime(followup.createTime),
-        }
+        followup: followup,
       };
-
+      
       console.log('发送飞书webhook:', webhookPayload);
       
       const webhookResponse = await fetch('/api/webhook/feishu', {
@@ -229,22 +155,22 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         return;
       }
 
-      // 2. 构造新的跟进记录（使用与案件详情页面一致的字段）
+      // 2. 构造新的跟进记录
       const followupRecord: FollowUp = {
         id: Date.now().toString(),
         follower: currentUser?.name || "未登记人",
-        followTime: newFollowup.followTime || new Date().toISOString(),
+        followTime: new Date().toISOString(),
         followType: newFollowup.followType as any,
         contact: newFollowup.contact as any,
         followResult: newFollowup.followResult as any,
         followRecord: newFollowup.followRecord || "",
-        fileInfo: uploadedCaseFiles,
+        fileInfo: uploadedCaseFiles as any,
         createdAt: new Date().toISOString(),
         createdBy: currentUser?.name || "未登记人",
       };
 
       // 3. 更新当前案件
-      const updatedCase: LoanCaseV2 = {
+      const updatedCase: any = {
         ...caseData,
         followups: [followupRecord, ...(caseData.followups || [])],
         updateTime: new Date().toISOString(),
@@ -264,42 +190,10 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
       setSavedSuccess(true);
       toast.success("跟进记录保存成功！");
       
-      // 5. 后台异步处理其他任务（不阻塞用户）
+      // 5. 后台异步处理其他任务
       (async () => {
         try {
-          // 后台同步飞书多维表格
           await syncToFeishuWebhook(updatedCase, followupRecord);
-
-          // 后台更新相同用户ID的其他案件
-          if (caseData.userId) {
-            const allCasesResponse = await fetch("/api/cases/cases-v2");
-            if (allCasesResponse.ok) {
-              const result = await allCasesResponse.json();
-              const allCases = result.success ? result.data : [];
-              const relatedCases = allCases.filter(
-                (c: LoanCaseV2) => c.userId === caseData.userId && c.id !== caseData.id
-              );
-              
-              await Promise.all(
-                relatedCases.map(async (relatedCase: LoanCaseV2) => {
-                  const updatedRelatedCase = {
-                    ...relatedCase,
-                    followups: [followupRecord, ...(relatedCase.followups || [])],
-                    updateTime: new Date().toISOString(),
-                  };
-                  try {
-                    await fetch(`/api/cases/cases-v2/${relatedCase.id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(updatedRelatedCase),
-                    });
-                  } catch (err) {
-                    console.error("更新关联案件失败:", err);
-                  }
-                })
-              );
-            }
-          }
         } catch (err) {
           console.error("后台任务处理失败:", err);
         }
@@ -352,14 +246,14 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               <div>
                 <p className="text-sm text-slate-500">逾期金额</p>
                 <p className="font-medium text-red-600 font-mono tabular-nums">
-                  ¥{caseData.overdueAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                  ¥{caseData.overdueAmount?.toLocaleString?.('zh-CN', { minimumFractionDigits: 2 }) || caseData.overdueAmount}
                 </p>
               </div>
             </div>
           ) : (
             <div className="text-center py-8">
               <p className="text-slate-500">案件信息加载中或案件不存在</p>
-              <p className="text-sm text-slate-400 mt-2">案件ID: {params.id}</p>
+              <p className="text-sm text-slate-400 mt-2">案件ID: {id}</p>
             </div>
           )}
         </div>
