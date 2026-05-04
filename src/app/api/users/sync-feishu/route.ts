@@ -6,7 +6,6 @@ import {
   getFeishuAppCredentials 
 } from '@/storage/database/feishu-config-storage';
 import { userStorage } from '@/storage/database/user-storage';
-import { User } from '@/types/user';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import { existsSync, readFileSync } from 'fs';
@@ -85,8 +84,8 @@ export async function POST(request: NextRequest) {
     for (const feishuUser of feishuUsers) {
       // 查找是否已存在该用户（通过open_id/union_id/user_id）
       const existingUser = existingUsers.find(u => 
-        u.openId === feishuUser.openId || 
-        u.unionId === feishuUser.unionId ||
+        (u as any).openId === feishuUser.openId || 
+        (u as any).unionId === feishuUser.unionId ||
         u.username === feishuUser.userId
       );
       
@@ -96,8 +95,10 @@ export async function POST(request: NextRequest) {
           realName: feishuUser.name,
           email: feishuUser.email || existingUser.email,
           phone: feishuUser.mobile || existingUser.phone,
-          openId: feishuUser.openId || existingUser.openId,
-          unionId: feishuUser.unionId || existingUser.unionId,
+          ...({
+            openId: feishuUser.openId || (existingUser as any).openId,
+            unionId: feishuUser.unionId || (existingUser as any).unionId,
+          } as any),
         });
         updatedUsersCount++;
         console.log(`🔄 更新用户: ${feishuUser.name} (${feishuUser.userId})`);
@@ -112,9 +113,11 @@ export async function POST(request: NextRequest) {
           position: '',
           role: 'agent',
           status: feishuUser.status === 'active' ? 'active' : 'inactive',
-          openId: feishuUser.openId || '',
-          unionId: feishuUser.unionId || '',
           allowedIps: [],
+          ...({
+            openId: feishuUser.openId || '',
+            unionId: feishuUser.unionId || '',
+          } as any),
         });
         newUsersCount++;
         console.log(`➕ 新增用户: ${feishuUser.name} (${feishuUser.userId})`);
