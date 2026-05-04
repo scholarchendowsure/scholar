@@ -175,9 +175,8 @@ export default function FollowupPage() {
         relatedCases = [caseData];
       }
 
-      // 对每个相同用户ID的案件都添加跟进记录
-      let updatedCount = 0;
-      for (const relatedCase of relatedCases) {
+      // 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度
+      const updatePromises = relatedCases.map(async (relatedCase) => {
         const updatedCase: Case = {
           ...relatedCase,
           followups: [...(relatedCase.followups || []), followup],
@@ -191,10 +190,11 @@ export default function FollowupPage() {
           body: JSON.stringify(updatedCase),
         });
         
-        if (res.ok) {
-          updatedCount++;
-        }
-      }
+        return res.ok;
+      });
+      
+      const results = await Promise.all(updatePromises);
+      const updatedCount = results.filter(Boolean).length;
 
       if (updatedCount > 0) {
         // 调用后端API同步到飞书Webhook

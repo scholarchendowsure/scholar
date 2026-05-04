@@ -1214,9 +1214,8 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleStr
                       }
                     }
                     
-                    // 对每个相同用户ID的案件都添加跟进记录
-                    let updatedCount = 0;
-                    for (const relatedCase of relatedCases) {
+                    // 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度
+                    const updatePromises = relatedCases.map(async (relatedCase) => {
                       const updatedCase: Case = {
                         ...relatedCase,
                         followups: [...(relatedCase.followups || []), followup],
@@ -1230,14 +1229,16 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleStr
                         body: JSON.stringify(updatedCase),
                       });
                       
-                      if (res.ok) {
-                        updatedCount++;
+                      if (res.ok && relatedCase.id === params.id) {
                         // 如果是当前案件，更新本地状态
-                        if (relatedCase.id === params.id) {
-                          setCaseData(updatedCase);
-                        }
+                        setCaseData(updatedCase);
                       }
-                    }
+                      
+                      return res.ok;
+                    });
+                    
+                    const results = await Promise.all(updatePromises);
+                    const updatedCount = results.filter(Boolean).length;
                     
                     // 调用后端API同步到飞书Webhook（避免CORS问题）
                     // 时间格式化
