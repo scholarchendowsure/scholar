@@ -1244,15 +1244,35 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                       id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                     }));
                     
+                    // 立即更新本地状态，让用户第一时间看到新增的记录
+                    if (caseData) {
+                      const immediateUpdatedCase: Case = {
+                        ...caseData,
+                        followups: [...(caseData.followups || []), followup],
+                        files: [...(caseData.files || []), ...newFiles],
+                        updatedAt: new Date().toISOString(),
+                      };
+                      setCaseData(immediateUpdatedCase);
+                    }
+                    
                     // 获取所有相同用户ID的案件
                     const userId = caseData?.userId;
                     let relatedCases: Case[] = [];
                     if (userId) {
-                      const relatedRes = await fetch(`/api/cases/user/${userId}`);
-                      const relatedJson = await relatedRes.json();
-                      if (relatedJson.success) {
-                        relatedCases = relatedJson.data;
+                      try {
+                        const relatedRes = await fetch(`/api/cases/user/${userId}`);
+                        const relatedJson = await relatedRes.json();
+                        if (relatedJson.success) {
+                          relatedCases = relatedJson.data;
+                        }
+                      } catch (error) {
+                        console.error('获取相关案件失败:', error);
                       }
+                    }
+                    
+                    // 如果没有相关案件，至少包含当前案件
+                    if (relatedCases.length === 0 && caseData) {
+                      relatedCases = [caseData];
                     }
                     
                     // 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度
@@ -1269,11 +1289,6 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updatedCase),
                       });
-                      
-                      if (res.ok && relatedCase.id === params.id) {
-                        // 如果是当前案件，更新本地状态
-                        setCaseData(updatedCase);
-                      }
                       
                       return res.ok;
                     });
