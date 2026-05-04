@@ -13,7 +13,7 @@
     "role": "super_admin",
     "status": "active",
     "createdAt": "2026-05-03T05:36:31.389Z",
-    "updatedAt": "2026-05-04T17:14:47.882Z",
+    "updatedAt": "2026-05-04T17:24:43.247Z",
     "mustChangePassword": false,
     "passwordHistory": [
       "a504d9a117bcda8284778e86c7591431b9b4a62544271e7a1a06d1d1752e8f22cb2bf3a58e8271e49e87812b821c891a86a3e8e95a756250f5f67b4073ceb228"
@@ -23,7 +23,8 @@
     "lastLoginTime": "2026-05-04T14:37:01.788Z",
     "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
     "passwordChangedAt": "2026-05-04T14:37:22.761Z",
-    "unionId": "on_500fa3cd143c7f1ee8b3106503736e9a"
+    "unionId": "on_500fa3cd143c7f1ee8b3106503736e9a",
+    "openId": "ou_f8bf0f553338438d89338033cc255a5e"
   },
   {
     "id": "2",
@@ -113,8 +114,8 @@
   },
   {
     "username": "ou_f8bf0f553338438d89338033cc255a5e",
-    "realName": "高乐 | Scholar\nDC贷后管理\n",
-    "email": "scholarchen@dowsure.com",
+    "realName": "萧何 | Frank\nMM办公室\n",
+    "email": "frankxiao@dowsure.com",
     "phone": "",
     "department": "",
     "position": "",
@@ -128,7 +129,7 @@
     "password": "25125cedfb6cf43fd551f6e8b7e429e3ef125e8b82f35005eba452ff94d24914dacb159466e0bff115569a855fdc2eca58b0957adf0274f375e3a5b89b241cf8",
     "passwordSalt": "c5e72df7c9433fd92375b03a6171fda5",
     "createdAt": "2026-05-04T17:17:09.292Z",
-    "updatedAt": "2026-05-04T17:17:09.292Z",
+    "updatedAt": "2026-05-04T17:23:57.214Z",
     "mustChangePassword": true,
     "passwordHistory": [],
     "loginAttempts": 0

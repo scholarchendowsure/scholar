@@ -10,8 +10,8 @@
     "mobile": "",
     "avatarUrl": "",
     "status": "active",
-    "createdAt": "2026-05-04T16:56:58.853Z",
-    "updatedAt": "2026-05-04T16:56:58.853Z"
+    "createdAt": "2026-05-04T17:18:45.569Z",
+    "updatedAt": "2026-05-04T17:18:45.569Z"
   },
   {
     "id": "ou_aa877f292fec75cd5415477d7c679249",
@@ -24,8 +24,8 @@
     "mobile": "",
     "avatarUrl": "",
     "status": "active",
-    "createdAt": "2026-05-04T16:56:58.857Z",
-    "updatedAt": "2026-05-04T16:56:58.857Z"
+    "createdAt": "2026-05-04T17:18:45.572Z",
+    "updatedAt": "2026-05-04T17:18:45.572Z"
   },
   {
     "id": "ou_a6c1929d297c616fbdff10da8472e263",
@@ -59,7 +59,7 @@
     "id": "ou_f9299d347bbd3300a258ba0cb4747233",
     "unionId": "",
     "userId": "ou_f9299d347bbd3300a258ba0cb4747233",
-    "openId": "",
+    "openId": "ou_f9299d347bbd3300a258ba0cb4747233",
     "name": "平阳 | Chrys\nDH财富\n",
     "enName": "",
     "email": "chryslian@dowsure.com",
@@ -68,5 +68,19 @@
     "status": "active",
     "createdAt": "2026-05-04T17:01:56.810Z",
     "updatedAt": "2026-05-04T17:01:56.810Z"
+  },
+  {
+    "id": "ou_2c1f925b213aab1f930e1c71f5b4641c",
+    "unionId": "",
+    "userId": "ou_2c1f925b213aab1f930e1c71f5b4641c",
+    "openId": "",
+    "name": "萧何 | Frank\nMM办公室\n",
+    "enName": "",
+    "email": "frankxiao@dowsure.com",
+    "mobile": "",
+    "avatarUrl": "",
+    "status": "active",
+    "createdAt": "2026-05-04T17:19:03.139Z",
+    "updatedAt": "2026-05-04T17:19:03.139Z"
   }
 ]

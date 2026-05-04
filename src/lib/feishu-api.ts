@@ -111,7 +111,140 @@ export async function getTenantAccessToken(appId: string, appSecret: string): Pr
 }
 
 /**
- * 获取企业用户列表
+ * 获取部门列表
+ */
+export async function getFeishuDepartments(
+  appId: string,
+  appSecret: string,
+  pageSize: number = 50,
+  pageToken?: string
+): Promise<{ departments: any[]; pageToken?: string; hasMore: boolean }> {
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+
+  console.log('🏢 开始获取飞书部门列表');
+  console.log('📄 分页参数:', { pageSize, pageToken });
+
+  let url = `${FEISHU_API_BASE}/contact/v3/departments?page_size=${pageSize}`;
+  if (pageToken) {
+    url += `&page_token=${pageToken}`;
+  }
+
+  console.log('🌐 部门请求URL:', url);
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  console.log('📡 部门API响应状态:', response.status);
+  
+  const data = await response.json();
+  console.log('📊 部门API完整响应:', JSON.stringify(data, null, 2));
+  
+  if (data.code !== 0) {
+    console.error('❌ 获取飞书部门列表失败:', { code: data.code, msg: data.msg });
+    if (data.code === 9994001) {
+      throw new Error('权限不足：请在飞书开放平台配置"获取通讯录"权限，并选择"全员"范围');
+    } else if (data.code === 9994002) {
+      throw new Error('权限未生效：请确保应用已发布并通过审核');
+    }
+    throw new Error(`获取飞书部门列表失败: code=${data.code}, msg=${data.msg}`);
+  }
+
+  const items = data.data?.items || [];
+  console.log(`✅ 成功获取 ${items.length} 个部门`);
+
+  return {
+    departments: items,
+    pageToken: data.data?.page_token,
+    hasMore: data.data?.has_more || false,
+  };
+}
+
+/**
+ * 获取部门下的用户列表
+ */
+export async function getFeishuDepartmentUsers(
+  appId: string,
+  appSecret: string,
+  departmentId: string,
+  pageSize: number = 50,
+  pageToken?: string
+): Promise<{ users: FeishuUser[]; pageToken?: string; hasMore: boolean }> {
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+
+  console.log(`👥 开始获取部门 ${departmentId} 的用户列表`);
+  console.log('📄 分页参数:', { pageSize, pageToken });
+
+  let url = `${FEISHU_API_BASE}/contact/v3/departments/${departmentId}/users?page_size=${pageSize}`;
+  if (pageToken) {
+    url += `&page_token=${pageToken}`;
+  }
+
+  console.log('🌐 部门用户请求URL:', url);
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  console.log('📡 部门用户API响应状态:', response.status);
+  
+  const data = await response.json();
+  console.log('📊 部门用户API完整响应:', JSON.stringify(data, null, 2));
+  
+  if (data.code !== 0) {
+    console.error('❌ 获取部门用户列表失败:', { code: data.code, msg: data.msg });
+    if (data.code === 9994001) {
+      throw new Error('权限不足：请在飞书开放平台配置"获取通讯录"权限，并选择"全员"范围');
+    } else if (data.code === 9994002) {
+      throw new Error('权限未生效：请确保应用已发布并通过审核');
+    }
+    throw new Error(`获取部门用户列表失败: code=${data.code}, msg=${data.msg}`);
+  }
+
+  const items = data.data?.items || [];
+  console.log(`📋 部门 ${departmentId} 原始用户数据数量:`, items.length);
+
+  const users: FeishuUser[] = items.map((item: any, index: number) => {
+    console.log(`👤 处理用户 ${index + 1}:`, {
+      union_id: item.union_id,
+      user_id: item.user_id,
+      open_id: item.open_id,
+      name: item.name,
+    });
+    
+    return {
+      unionId: item.union_id || '',
+      userId: item.user_id || item.open_id || '',
+      openId: item.open_id || '',
+      name: item.name || '未知用户',
+      enName: item.en_name,
+      email: item.email,
+      mobile: item.mobile,
+      avatarUrl: item.avatar?.avatar_72 || item.avatar?.avatar_240,
+      status: item.status?.is_frozen ? 'inactive' : 'active',
+      departmentIds: item.department_ids,
+    };
+  });
+
+  console.log(`✅ 成功解析 ${users.length} 个部门用户`);
+
+  return {
+    users,
+    pageToken: data.data?.page_token,
+    hasMore: data.data?.has_more || false,
+  };
+}
+
+/**
+ * 获取企业用户列表（直接获取，不通过部门）
  */
 export async function getFeishuUsers(
   appId: string, 
@@ -121,7 +254,7 @@ export async function getFeishuUsers(
 ): Promise<{ users: FeishuUser[]; pageToken?: string; hasMore: boolean }> {
   const accessToken = await getTenantAccessToken(appId, appSecret);
 
-  console.log('👥 开始获取飞书用户列表');
+  console.log('👥 开始获取飞书用户列表（直接获取）');
   console.log('📄 分页参数:', { pageSize, pageToken });
 
   let url = `${FEISHU_API_BASE}/contact/v3/users?page_size=${pageSize}`;
@@ -145,6 +278,12 @@ export async function getFeishuUsers(
   console.log('📊 用户API完整响应:', JSON.stringify(data, null, 2));
   
   if (data.code !== 0) {
+    console.error('❌ 获取飞书用户列表失败:', { code: data.code, msg: data.msg });
+    if (data.code === 9994001) {
+      throw new Error('权限不足：请在飞书开放平台配置"获取通讯录"权限，并选择"全员"范围');
+    } else if (data.code === 9994002) {
+      throw new Error('权限未生效：请确保应用已发布并通过审核');
+    }
     throw new Error(`获取飞书用户列表失败: code=${data.code}, msg=${data.msg}`);
   }
 
@@ -162,6 +301,7 @@ export async function getFeishuUsers(
     return {
       unionId: item.union_id || '',
       userId: item.user_id || item.open_id || '',
+      openId: item.open_id || '',
       name: item.name || '未知用户',
       enName: item.en_name,
       email: item.email,
@@ -186,10 +326,42 @@ export async function getFeishuUsers(
 }
 
 /**
- * 获取所有飞书用户（自动分页）
+ * 获取所有部门（自动分页）
  */
-export async function getAllFeishuUsers(appId: string, appSecret: string): Promise<FeishuUser[]> {
-  console.log('🚀 开始获取所有飞书用户...');
+export async function getAllFeishuDepartments(appId: string, appSecret: string): Promise<any[]> {
+  console.log('🏢 开始获取所有飞书部门...');
+  
+  const allDepartments: any[] = [];
+  let pageToken: string | undefined;
+  let hasMore = true;
+  let page = 1;
+
+  while (hasMore) {
+    console.log(`📄 正在获取第 ${page} 页部门...`);
+    
+    const result = await getFeishuDepartments(appId, appSecret, 50, pageToken);
+    allDepartments.push(...result.departments);
+    
+    pageToken = result.pageToken;
+    hasMore = result.hasMore;
+    page++;
+    
+    console.log(`📊 当前已获取 ${allDepartments.length} 个部门`);
+  }
+
+  console.log(`🎉 完成！共获取 ${allDepartments.length} 个飞书部门`);
+  return allDepartments;
+}
+
+/**
+ * 获取部门下所有用户（自动分页）
+ */
+export async function getAllDepartmentUsers(
+  appId: string, 
+  appSecret: string, 
+  departmentId: string
+): Promise<FeishuUser[]> {
+  console.log(`🏢 开始获取部门 ${departmentId} 的所有用户...`);
   
   const allUsers: FeishuUser[] = [];
   let pageToken: string | undefined;
@@ -197,16 +369,85 @@ export async function getAllFeishuUsers(appId: string, appSecret: string): Promi
   let page = 1;
 
   while (hasMore) {
-    console.log(`📄 正在获取第 ${page} 页用户...`);
+    console.log(`📄 正在获取部门 ${departmentId} 第 ${page} 页用户...`);
     
-    const result = await getFeishuUsers(appId, appSecret, 50, pageToken);
+    const result = await getFeishuDepartmentUsers(appId, appSecret, departmentId, 50, pageToken);
     allUsers.push(...result.users);
     
     pageToken = result.pageToken;
     hasMore = result.hasMore;
     page++;
     
-    console.log(`📊 当前已获取 ${allUsers.length} 个用户`);
+    console.log(`📊 部门 ${departmentId} 当前已获取 ${allUsers.length} 个用户`);
+  }
+
+  console.log(`🎉 部门 ${departmentId} 完成！共获取 ${allUsers.length} 个用户`);
+  return allUsers;
+}
+
+/**
+ * 获取所有飞书用户（优先通过部门获取，失败则直接获取）
+ */
+export async function getAllFeishuUsers(appId: string, appSecret: string): Promise<FeishuUser[]> {
+  console.log('🚀 开始获取所有飞书用户...');
+  
+  const allUsers: FeishuUser[] = [];
+  const seenUserIds = new Set<string>();
+  
+  try {
+    // 方案1：先获取所有部门，然后通过部门获取用户
+    console.log('📋 方案1：通过部门获取用户...');
+    const departments = await getAllFeishuDepartments(appId, appSecret);
+    console.log(`🏢 共获取 ${departments.length} 个部门`);
+    
+    for (const dept of departments) {
+      console.log(`🏢 正在获取部门 ${dept.name || dept.department_id} 的用户...`);
+      try {
+        const deptUsers = await getAllDepartmentUsers(appId, appSecret, dept.department_id);
+        
+        for (const user of deptUsers) {
+          if (!seenUserIds.has(user.userId)) {
+            seenUserIds.add(user.userId);
+            allUsers.push(user);
+          }
+        }
+      } catch (deptError: any) {
+        console.warn(`⚠️ 获取部门 ${dept.department_id} 用户失败:`, deptError.message);
+      }
+    }
+    
+    if (allUsers.length > 0) {
+      console.log(`✅ 方案1成功！共获取 ${allUsers.length} 个用户`);
+    } else {
+      console.log('⚠️ 方案1获取用户为空，尝试方案2...');
+      throw new Error('方案1获取用户为空');
+    }
+  } catch (error: any) {
+    console.warn('⚠️ 方案1失败，使用方案2：直接获取用户...');
+    
+    // 方案2：直接获取用户列表
+    let pageToken: string | undefined;
+    let hasMore = true;
+    let page = 1;
+
+    while (hasMore) {
+      console.log(`📄 正在获取第 ${page} 页用户...`);
+      
+      const result = await getFeishuUsers(appId, appSecret, 50, pageToken);
+      
+      for (const user of result.users) {
+        if (!seenUserIds.has(user.userId)) {
+          seenUserIds.add(user.userId);
+          allUsers.push(user);
+        }
+      }
+      
+      pageToken = result.pageToken;
+      hasMore = result.hasMore;
+      page++;
+      
+      console.log(`📊 当前已获取 ${allUsers.length} 个用户`);
+    }
   }
 
   console.log(`🎉 完成！共获取 ${allUsers.length} 个飞书用户`);

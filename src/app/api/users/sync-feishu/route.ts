@@ -29,33 +29,49 @@ export async function POST(request: NextRequest) {
   console.log('🔄 开始同步飞书用户到用户管理...');
   
   try {
-    // 优先读取 feishu_users.json 的数据
     let feishuUsers: FeishuUser[] = [];
+    let source: string = '';
     
-    if (existsSync(FEISHU_USERS_FILE)) {
-      console.log('📄 发现 feishu_users.json，优先使用此文件数据');
-      const fileContent = readFileSync(FEISHU_USERS_FILE, 'utf-8');
-      feishuUsers = JSON.parse(fileContent);
-      console.log(`✅ 从 feishu_users.json 读取到 ${feishuUsers.length} 个用户`);
-    } else {
-      // 如果没有 feishu_users.json，才从飞书API获取
-      console.log('📥 feishu_users.json 不存在，从飞书API获取用户列表...');
+    // 1. 优先从企业自建应用API获取（最新数据）
+    try {
+      console.log('🚀 尝试从企业自建应用API获取用户...');
       const credentials = await getFeishuAppCredentials();
       
       if (!credentials.appId || !credentials.appSecret) {
-        return NextResponse.json({
-          success: false,
-          error: '请先配置飞书企业应用（App ID 和 App Secret）',
-        }, { status: 400 });
+        console.log('⚠️ 未配置企业自建应用，尝试从备份文件读取');
+        throw new Error('未配置企业自建应用');
       }
       
       feishuUsers = await getAllFeishuUsers(credentials.appId, credentials.appSecret);
       
-      // 保存到feishu-users.json（保持原有逻辑）
-      await syncFeishuUsersToStorage(feishuUsers);
+      if (feishuUsers.length > 0) {
+        source = '企业自建应用API';
+        console.log(`✅ 从企业自建应用API获取了 ${feishuUsers.length} 个飞书用户`);
+      } else {
+        console.log('⚠️ API返回用户为空，尝试从备份文件读取');
+        throw new Error('API返回用户为空');
+      }
+    } catch (apiError) {
+      console.log('⚠️ 企业自建应用API获取失败:', apiError);
+      source = '备份文件';
+      
+      // 2. 从备份文件读取（备用方案）
+      if (existsSync(FEISHU_USERS_FILE)) {
+        console.log('📄 发现 feishu_users.json，使用此文件数据');
+        const fileContent = readFileSync(FEISHU_USERS_FILE, 'utf-8');
+        feishuUsers = JSON.parse(fileContent);
+        console.log(`✅ 从 feishu_users.json 读取到 ${feishuUsers.length} 个用户`);
+      } else {
+        throw new Error('既无法从API获取用户，也没有备份文件');
+      }
     }
     
-    console.log(`✅ 共获取到 ${feishuUsers.length} 个飞书用户`);
+    console.log(`✅ 共获取到 ${feishuUsers.length} 个飞书用户（来源: ${source}）`);
+    
+    // 保存到feishu-users.json（保持原有逻辑）
+    if (source === '企业自建应用API') {
+      await syncFeishuUsersToStorage(feishuUsers);
+    }
     
     // 读取现有用户
     const existingUsers = userStorage.findAll();
@@ -105,7 +121,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log(`💾 用户管理同步完成！共处理 ${feishuUsers.length} 个用户`);
+    console.log(`💾 用户管理同步完成！共处理 ${feishuUsers.length} 个用户（来源: ${source}）`);
     
     // 返回用户名单
     const userList = feishuUsers.map((u, index) => ({
@@ -114,6 +130,7 @@ export async function POST(request: NextRequest) {
       姓名: u.name,
       邮箱: u.email || '',
       状态: u.status,
+      数据来源: source,
     }));
     
     return NextResponse.json({
@@ -124,8 +141,9 @@ export async function POST(request: NextRequest) {
         updatedUsers: updatedUsersCount,
         users: feishuUsers,
         userList: userList,
+        source: source,
       },
-      message: `同步成功！新增 ${newUsersCount} 个用户，更新 ${updatedUsersCount} 个用户`,
+      message: `同步成功！新增 ${newUsersCount} 个用户，更新 ${updatedUsersCount} 个用户（来源: ${source}）`,
     });
     
   } catch (error: any) {
