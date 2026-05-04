@@ -139,28 +139,6 @@
     "mobile": ""
   },
   {
-    "username": "ou_aa877f292fec75cd5415477d7c679249",
-    "realName": "高乐｜Scholar(陈伟旭)\n图九信息咨询（深圳）有限公司\n",
-    "email": "",
-    "phone": "",
-    "department": "",
-    "position": "",
-    "role": "agent",
-    "status": "active",
-    "openId": "ou_aa877f292fec75cd5415477d7c679249",
-    "unionId": "",
-    "allowedIps": [],
-    "id": "1777915029298",
-    "sequence": 7,
-    "password": "b75dce5f9338b13d70767a7434f5ae52efe807e41f7f07dd63a6f080311f82be59a372de04039279b18fcaadf67343ff87e130596c964be5ef0f63a278cbdf38",
-    "passwordSalt": "d37848b69d24faf4473eefc5418d04b6",
-    "createdAt": "2026-05-04T17:17:09.298Z",
-    "updatedAt": "2026-05-04T17:17:09.298Z",
-    "mustChangePassword": true,
-    "passwordHistory": [],
-    "loginAttempts": 0
-  },
-  {
     "username": "ou_a6c1929d297c616fbdff10da8472e263",
     "realName": "晨忻 | Katherine\nDH财富\n",
     "email": "katherinehe@dowsure.com",
