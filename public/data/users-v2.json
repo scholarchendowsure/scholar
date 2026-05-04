@@ -4,7 +4,7 @@
     "sequence": 1,
     "username": "admin",
     "realName": "未知用户",
-    "email": "admin@example.com",
+    "email": "scholarchen@dowsure.com",
     "phone": "13800138000",
     "password": "692bc49826a8775e33d4cd13c992ab40c30cff0eeef771ba0a1b7c35953dd4a257569b5ed28c1c008d7b3de8947efc34a8883f2263f988521f2cf66e7522ec1e",
     "passwordSalt": "3f7f8fa551d8ed7d267d00976502cb04",
@@ -13,7 +13,7 @@
     "role": "super_admin",
     "status": "active",
     "createdAt": "2026-05-03T05:36:31.389Z",
-    "updatedAt": "2026-05-04T17:24:43.247Z",
+    "updatedAt": "2026-05-04T17:49:04.483Z",
     "mustChangePassword": false,
     "passwordHistory": [
       "a504d9a117bcda8284778e86c7591431b9b4a62544271e7a1a06d1d1752e8f22cb2bf3a58e8271e49e87812b821c891a86a3e8e95a756250f5f67b4073ceb228"
@@ -24,7 +24,9 @@
     "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
     "passwordChangedAt": "2026-05-04T14:37:22.761Z",
     "unionId": "on_500fa3cd143c7f1ee8b3106503736e9a",
-    "openId": "ou_f8bf0f553338438d89338033cc255a5e"
+    "openId": "ou_f8bf0f553338438d89338033cc255a5e",
+    "name": "高乐",
+    "mobile": ""
   },
   {
     "id": "2",
@@ -115,7 +117,7 @@
   {
     "username": "ou_f8bf0f553338438d89338033cc255a5e",
     "realName": "萧何 | Frank\nMM办公室\n",
-    "email": "frankxiao@dowsure.com",
+    "email": "faymefu@dowsure.com",
     "phone": "",
     "department": "",
     "position": "",
@@ -129,10 +131,12 @@
     "password": "25125cedfb6cf43fd551f6e8b7e429e3ef125e8b82f35005eba452ff94d24914dacb159466e0bff115569a855fdc2eca58b0957adf0274f375e3a5b89b241cf8",
     "passwordSalt": "c5e72df7c9433fd92375b03a6171fda5",
     "createdAt": "2026-05-04T17:17:09.292Z",
-    "updatedAt": "2026-05-04T17:23:57.214Z",
+    "updatedAt": "2026-05-04T17:49:04.485Z",
     "mustChangePassword": true,
     "passwordHistory": [],
-    "loginAttempts": 0
+    "loginAttempts": 0,
+    "name": "朵拉",
+    "mobile": ""
   },
   {
     "username": "ou_aa877f292fec75cd5415477d7c679249",
