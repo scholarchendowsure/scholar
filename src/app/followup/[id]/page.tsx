@@ -229,21 +229,18 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         return;
       }
 
-      // 2. 构造新的跟进记录
+      // 2. 构造新的跟进记录（使用与案件详情页面一致的字段）
       const followupRecord: FollowUp = {
-        id: generateId(),
-        visitUser: currentUser?.name || "未登记人",
-        visitDate: new Date().toISOString(),
-        visitType: newFollowup.followType as any,
-        followUpType: newFollowup.followType as any,
-        contactPerson: newFollowup.contact as any,
-        followUpResult: newFollowup.followResult as any,
-        content: newFollowup.followRecord,
-        remark: newFollowup.remark,
-        images: [],
-        attachments: uploadedCaseFiles.map(f => f.url),
-        createTime: new Date().toISOString(),
-        updateTime: new Date().toISOString(),
+        id: Date.now().toString(),
+        follower: currentUser?.name || "未登记人",
+        followTime: newFollowup.followTime || new Date().toISOString(),
+        followType: newFollowup.followType as any,
+        contact: newFollowup.contact as any,
+        followResult: newFollowup.followResult as any,
+        followRecord: newFollowup.followRecord || "",
+        fileInfo: uploadedCaseFiles,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser?.name || "未登记人",
       };
 
       // 3. 更新当前案件
