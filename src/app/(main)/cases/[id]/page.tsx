@@ -109,8 +109,9 @@ export default function CaseDetailPage() {
         const usersRes = await fetch('/api/feishu-users');
         if (usersRes.ok) {
           const usersData = await usersRes.json();
-          if (usersData.users) {
-            const foundUser = usersData.users.find((u: any) => u.name === roleName);
+          const userList = usersData.data || usersData.users || usersData;
+          if (userList && Array.isArray(userList)) {
+            const foundUser = userList.find((u: any) => u.name === roleName);
             if (foundUser?.openId) {
               openId = foundUser.openId;
             }
