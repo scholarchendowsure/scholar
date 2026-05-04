@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,98 +20,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Upload, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-
-// 跟进类型选项
-const FOLLOWUP_TYPE_OPTIONS = [
-  { label: '电话', value: 'phone' },
-  { label: '上门', value: 'visit' },
-  { label: '微信', value: 'wechat' },
-  { label: '短信', value: 'sms' },
-  { label: '其他', value: 'other' },
-];
-
-// 联系人选项
-const CONTACT_OPTIONS = [
-  { label: '本人', value: 'self' },
-  { label: '配偶', value: 'spouse' },
-  { label: '父母', value: 'parents' },
-  { label: '子女', value: 'children' },
-  { label: '其他亲属', value: 'relatives' },
-  { label: '朋友', value: 'friends' },
-  { label: '同事', value: 'colleagues' },
-  { label: '其他', value: 'others' },
-];
-
-// 跟进结果选项
-const FOLLOWUP_RESULT_OPTIONS = [
-  { label: '承诺还款', value: 'promise_to_pay' },
-  { label: '部分还款', value: 'partial_payment' },
-  { label: '全额还款', value: 'full_payment' },
-  { label: '无能力还款', value: 'no_ability' },
-  { label: '拒绝沟通', value: 'refuse' },
-  { label: '无人接听', value: 'no_answer' },
-  { label: '失联', value: 'lost' },
-  { label: '其他', value: 'other' },
-];
-
-// 案件文件类型
-interface CaseFile {
-  id: string;
-  name: string;
-  type: 'image' | 'pdf' | 'doc' | 'other';
-  data?: string;
-  createdAt: string;
-}
-
-// 跟进记录类型
-interface FollowUp {
-  id: string;
-  follower: string;
-  followTime: string;
-  followType: 'phone' | 'visit' | 'wechat' | 'sms' | 'other';
-  contact: 'self' | 'spouse' | 'parents' | 'children' | 'relatives' | 'friends' | 'colleagues' | 'others';
-  followResult: 'promise_to_pay' | 'partial_payment' | 'full_payment' | 'no_ability' | 'refuse' | 'no_answer' | 'lost' | 'other';
-  followRecord: string;
-  fileInfo?: CaseFile[];
-  createdAt: string;
-  createdBy: string;
-}
-
-// 案件类型
-interface Case {
-  id: string;
-  caseNumber: string;
-  userId: string;
-  userName: string;
-  companyName: string;
-  status: 'pending_assign' | 'pending_visit' | 'following' | 'closed';
-  overdueDays: number;
-  overdueAmount: number;
-  currency: string;
-  riskLevel: 'low' | 'medium' | 'high';
-  salesPerson: string;
-  repaymentDate: string;
-  balance: number;
-}
+import { 
+  FOLLOWUP_TYPE_OPTIONS, 
+  CONTACT_OPTIONS, 
+  FOLLOWUP_RESULT_OPTIONS, 
+  FollowUp, 
+  CaseFile,
+  Case
+} from '@/types/case';
 
 export default function FollowupPage() {
   const params = useParams();
-  const router = useRouter();
   const caseId = params.id as string;
   
   const [showDialog, setShowDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<CaseFile[]>([]);
-  const [newFollowup, setNewFollowup] = useState({
-    follower: '',
-    followTime: new Date().toISOString(),
-    followType: 'phone' as const,
-    contact: 'self' as const,
-    followResult: 'promise_to_pay' as const,
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
+    follower: '未登记人',
+    followType: 'online',
+    contact: 'legal_representative',
+    followResult: 'normal_repayment',
     followRecord: '',
+    fileInfo: [],
   });
 
   useEffect(() => {
@@ -143,9 +78,10 @@ export default function FollowupPage() {
         const newFile: CaseFile = {
           id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'other',
+          type: file.type.startsWith('image/') ? 'image' : 'document',
           data: event.target?.result as string,
-          createdAt: new Date().toISOString(),
+          uploadTime: new Date().toISOString(),
+          uploadBy: newFollowup.follower || '未登记人',
         };
         setUploadedCaseFiles(prev => [...prev, newFile]);
         toast.success(`文件 "${file.name}" 已添加`);
@@ -174,7 +110,8 @@ export default function FollowupPage() {
               name: `photo-${new Date().toISOString().slice(0, 10)}.jpg`,
               type: 'image',
               data: dataUrl,
-              createdAt: new Date().toISOString(),
+              uploadTime: new Date().toISOString(),
+              uploadBy: newFollowup.follower || '未登记人',
             };
             setUploadedCaseFiles(prev => [...prev, newFile]);
             toast.success('拍照成功');
@@ -200,10 +137,10 @@ export default function FollowupPage() {
       const followup: FollowUp = {
         id: Date.now().toString(),
         follower: newFollowup.follower || '未登记人',
-        followTime: newFollowup.followTime || new Date().toISOString(),
-        followType: newFollowup.followType,
-        contact: newFollowup.contact,
-        followResult: newFollowup.followResult,
+        followTime: new Date().toISOString(),
+        followType: (newFollowup.followType as 'online' | 'offline') || 'online',
+        contact: (newFollowup.contact as 'legal_representative' | 'actual_controller') || 'legal_representative',
+        followResult: (newFollowup.followResult as 'normal_repayment' | 'warning_rise' | 'overdue_promise') || 'normal_repayment',
         followRecord: newFollowup.followRecord || '',
         fileInfo: uploadedCaseFiles,
         createdAt: new Date().toISOString(),
@@ -220,7 +157,7 @@ export default function FollowupPage() {
       if (json.success) {
         toast.success('跟进记录保存成功');
         setShowDialog(false);
-        router.push('/');
+        setSaveSuccess(true);
       } else {
         toast.error('保存失败: ' + json.error);
       }
@@ -245,7 +182,18 @@ export default function FollowupPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-600 mb-4">案件不存在</p>
-          <Button onClick={() => router.push('/')}>返回首页</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (saveSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50/50 to-emerald-50/50">
+        <div className="text-center">
+          <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold text-green-800 mb-4">记录保存成功！</h1>
+          <p className="text-green-600 text-lg">您的跟进记录已成功保存到案件中</p>
         </div>
       </div>
     );
@@ -258,20 +206,20 @@ export default function FollowupPage() {
           <h1 className="text-xl font-bold text-slate-900 mb-4">案件信息</h1>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-slate-500">案件编号</p>
-              <p className="font-medium">{caseData.caseNumber}</p>
+              <p className="text-sm text-slate-500">贷款单号</p>
+              <p className="font-medium font-mono">{caseData.loanNo}</p>
             </div>
             <div>
-              <p className="text-sm text-slate-500">客户姓名</p>
-              <p className="font-medium">{caseData.userName}</p>
+              <p className="text-sm text-slate-500">借款人姓名</p>
+              <p className="font-medium">{caseData.borrowerName}</p>
             </div>
             <div>
               <p className="text-sm text-slate-500">公司名称</p>
-              <p className="font-medium">{caseData.companyName}</p>
+              <p className="font-medium">{caseData.companyName || '-'}</p>
             </div>
             <div>
               <p className="text-sm text-slate-500">逾期金额</p>
-              <p className="font-medium text-red-600">
+              <p className="font-medium text-red-600 font-mono tabular-nums">
                 ¥{caseData.overdueAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -279,10 +227,7 @@ export default function FollowupPage() {
         </div>
 
         {/* 新增跟进记录对话框 */}
-        <Dialog open={showDialog} onOpenChange={(open) => {
-          setShowDialog(open);
-          if (!open) router.push('/');
-        }}>
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>新增跟进记录</DialogTitle>
@@ -299,7 +244,7 @@ export default function FollowupPage() {
               <div className="space-y-2">
                 <Label>跟进时间</Label>
                 <Input 
-                  value={newFollowup.followTime ? new Date(newFollowup.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')}
+                  value={new Date().toLocaleString('zh-CN')}
                   disabled
                   className="bg-slate-50"
                 />
@@ -404,10 +349,7 @@ export default function FollowupPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setShowDialog(false);
-                router.push('/');
-              }}>
+              <Button variant="outline" onClick={() => setShowDialog(false)}>
                 取消
               </Button>
               <Button 
