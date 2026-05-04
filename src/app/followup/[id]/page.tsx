@@ -57,9 +57,10 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
         if (result.success) {
           setCaseData(result.data);
         }
+        // 即使找不到案件，也不显示错误，直接显示弹窗
       } catch (error) {
         console.error('加载案件失败:', error);
-        toast.error('加载案件失败');
+        // 即使加载失败，也不显示toast错误
       } finally {
         setLoading(false);
       }
@@ -207,7 +208,10 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
 
   // 保存跟进记录
   const handleSaveFollowup = async () => {
-    if (!caseData) return;
+    if (!caseData) {
+      toast.error("案件不存在，无法保存跟进记录");
+      return;
+    }
 
     try {
       // 1. 验证必填字段
@@ -308,14 +312,6 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
     );
   }
 
-  if (!caseData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-red-500">案件不存在</p>
-      </div>
-    );
-  }
-
   if (saveSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50/50 to-emerald-50/50">
@@ -333,26 +329,33 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
           <h1 className="text-xl font-bold text-slate-900 mb-4">案件信息</h1>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-slate-500">贷款单号</p>
-              <p className="font-medium font-mono">{caseData.loanNo}</p>
+          {caseData ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-slate-500">贷款单号</p>
+                <p className="font-medium font-mono">{caseData.loanNo}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">借款人姓名</p>
+                <p className="font-medium">{caseData.borrowerName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">公司名称</p>
+                <p className="font-medium">{caseData.companyName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">逾期金额</p>
+                <p className="font-medium text-red-600 font-mono tabular-nums">
+                  ¥{caseData.overdueAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-slate-500">借款人姓名</p>
-              <p className="font-medium">{caseData.borrowerName}</p>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-slate-500">案件信息加载中或案件不存在</p>
+              <p className="text-sm text-slate-400 mt-2">案件ID: {params.id}</p>
             </div>
-            <div>
-              <p className="text-sm text-slate-500">公司名称</p>
-              <p className="font-medium">{caseData.companyName || '-'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">逾期金额</p>
-              <p className="font-medium text-red-600 font-mono tabular-nums">
-                ¥{caseData.overdueAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* 新增跟进记录对话框 */}
