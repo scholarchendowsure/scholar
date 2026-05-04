@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckCircle, Camera, Upload, X } from 'lucide-react';
+import { CheckCircle, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { FollowUp } from '@/types/case';
 import {
@@ -96,16 +96,6 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         e.target.value = '';
       }
     }
-  };
-
-  // 拍照上传
-  const handleCameraUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.onchange = (e) => handleFileUpload(e as any);
-    input.click();
   };
 
   // 删除文件
@@ -357,10 +347,6 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
                   <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload-followup')?.click()}>
                     <Upload className="w-4 h-4 mr-2" />
                     选择文件上传
-                  </Button>
-                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
-                    <Camera className="w-4 h-4 mr-2" />
-                    拍照上传
                   </Button>
                 </div>
                 {uploadedCaseFiles.length > 0 && (
