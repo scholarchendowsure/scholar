@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Suspense, useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,7 +65,7 @@ interface PaginatedResponse {
   totalPages: number;
 }
 
-export default function CasesPage() {
+function CasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -456,5 +456,15 @@ export default function CasesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function CasesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+    </div>}>
+      <CasesContent />
+    </Suspense>
   );
 }
