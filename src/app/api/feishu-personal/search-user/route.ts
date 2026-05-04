@@ -20,6 +20,51 @@ async function saveToFeishuUsers(user: FeishuUser) {
     }
   } catch (error) {
     console.warn('读取 feishu-users.json 失败，使用空数组');
+    
+    // 如果主文件损坏，尝试从备份恢复
+    try {
+      if (fs.existsSync(FEISHU_USERS_BACKUP)) {
+        const backupContent = fs.readFileSync(FEISHU_USERS_BACKUP, 'utf8');
+        users = JSON.parse(backupContent);
+        console.log('✅ 从备份文件恢复了用户数据');
+      }
+    } catch (backupError) {
+      console.warn('从备份恢复也失败，使用空数组');
+    }
+  }
+  
+  // 备份现有数据（在修改前）
+  if (users.length > 0) {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(process.cwd(), 'public', 'data', `feishu-users-backup-${timestamp}.json`);
+      fs.writeFileSync(backupPath, JSON.stringify(users, null, 2), 'utf8');
+      console.log(`📦 修改前备份已创建: ${backupPath}`);
+      
+      // 只保留最近10个备份
+      const dataDir = path.join(process.cwd(), 'public', 'data');
+      if (fs.existsSync(dataDir)) {
+        const files = fs.readdirSync(dataDir);
+        const backupFiles = files
+          .filter(f => f.startsWith('feishu-users-backup-') && f.endsWith('.json'))
+          .sort()
+          .reverse();
+        
+        if (backupFiles.length > 10) {
+          const filesToDelete = backupFiles.slice(10);
+          for (const file of filesToDelete) {
+            try {
+              fs.unlinkSync(path.join(dataDir, file));
+              console.log(`🗑️  清理旧备份: ${file}`);
+            } catch (e) {
+              console.warn(`清理备份失败: ${file}`, e);
+            }
+          }
+        }
+      }
+    } catch (backupError) {
+      console.warn('创建修改前备份失败:', backupError);
+    }
   }
   
   // 检查用户是否已存在

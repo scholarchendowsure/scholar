@@ -145,10 +145,22 @@ export async function syncFeishuUsers(apiUsers: ApiFeishuUser[]): Promise<Feishu
   const existingUsers = await getFeishuUsers();
   const existingUserMap = new Map(existingUsers.map(u => [u.unionId, u]));
   
+  // ⚠️ 安全措施：如果 API 返回的用户数量明显少于现有用户，拒绝同步
+  if (apiUsers.length > 0 && existingUsers.length > 0 && apiUsers.length < existingUsers.length * 0.5) {
+    console.warn(`⚠️ 安全拒绝同步：API返回 ${apiUsers.length} 个用户，现有 ${existingUsers.length} 个用户，差异过大`);
+    return existingUsers;
+  }
+  
   const now = Date.now();
-  const syncedUsers: FeishuUser[] = apiUsers.map(apiUser => {
+  const syncedUsers: FeishuUser[] = [];
+  
+  // 1. 先保留所有现有用户
+  const mergedUserMap = new Map(existingUsers.map(u => [u.unionId, u]));
+  
+  // 2. 更新或添加 API 返回的用户
+  for (const apiUser of apiUsers) {
     const existing = existingUserMap.get(apiUser.unionId);
-    return {
+    const updatedUser: FeishuUser = {
       id: existing?.id || apiUser.unionId,
       unionId: apiUser.unionId,
       userId: apiUser.userId,
@@ -162,10 +174,53 @@ export async function syncFeishuUsers(apiUsers: ApiFeishuUser[]): Promise<Feishu
       createdAt: existing?.createdAt || now,
       updatedAt: now,
     };
-  });
+    mergedUserMap.set(apiUser.unionId, updatedUser);
+  }
   
-  await saveFeishuUsers(syncedUsers);
-  return syncedUsers;
+  // 3. 转换为数组
+  const finalUsers = Array.from(mergedUserMap.values());
+  
+  // 4. 先备份再保存
+  await backupFeishuUsers(existingUsers);
+  
+  await saveFeishuUsers(finalUsers);
+  console.log(`✅ 安全同步完成：保留 ${existingUsers.length} 个用户，新增/更新 ${apiUsers.length} 个用户，最终 ${finalUsers.length} 个用户`);
+  return finalUsers;
+}
+
+// 额外的备份函数
+async function backupFeishuUsers(users: FeishuUser[]): Promise<void> {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = path.join(process.cwd(), 'public', 'data', `feishu-users-backup-${timestamp}.json`);
+  
+  try {
+    saveToFile(backupPath, users);
+    console.log(`📦 已创建备份: ${backupPath}`);
+    
+    // 只保留最近10个备份
+    const dataDir = path.join(process.cwd(), 'public', 'data');
+    if (fs.existsSync(dataDir)) {
+      const files = fs.readdirSync(dataDir);
+      const backupFiles = files
+        .filter(f => f.startsWith('feishu-users-backup-') && f.endsWith('.json'))
+        .sort()
+        .reverse();
+      
+      if (backupFiles.length > 10) {
+        const filesToDelete = backupFiles.slice(10);
+        for (const file of filesToDelete) {
+          try {
+            fs.unlinkSync(path.join(dataDir, file));
+            console.log(`🗑️  清理旧备份: ${file}`);
+          } catch (e) {
+            console.warn(`清理备份失败: ${file}`, e);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('创建备份失败:', error);
+  }
 }
 
 export async function getFeishuUserById(id: string): Promise<FeishuUser | undefined> {

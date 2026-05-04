@@ -15,7 +15,7 @@ import {
   Loader2, RefreshCw, Save, Users, MessageSquare, Send, 
   Bell, Key, CheckCircle, Terminal, Settings, 
   AlertTriangle, Clock, ShieldCheck, Unlink, Search, 
-  Database, Trash2
+  Database, Trash2, Download
 } from 'lucide-react';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
@@ -129,6 +129,53 @@ export default function FeishuMessagePage() {
       }
     } catch (error) {
       toast.error('删除失败');
+    }
+  };
+
+  // 导出用户数据
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/feishu-users?action=export');
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `feishu-users-export-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('导出成功');
+      } else {
+        toast.error('导出失败');
+      }
+    } catch (error) {
+      toast.error('导出失败');
+    }
+  };
+
+  // 导入用户数据
+  const handleImport = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/feishu-users', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success(data.message || '导入成功');
+        loadSavedUsers();
+      } else {
+        toast.error(data.error || '导入失败');
+      }
+    } catch (error) {
+      toast.error('导入失败');
     }
   };
 
@@ -1242,10 +1289,37 @@ POST /api/coze-api/send-reminder
                       <div className="text-sm text-muted-foreground">
                         共 {savedUsers.length} 个用户
                       </div>
-                      <Button onClick={loadSavedUsers} size="sm">
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        刷新
-                      </Button>
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          id="import-file"
+                          accept=".json"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImport(file);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => document.getElementById('import-file')?.click()}
+                        >
+                          <Database className="w-4 h-4 mr-2" />
+                          导入
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={handleExport}>
+                          <Download className="w-4 h-4 mr-2" />
+                          导出
+                        </Button>
+                        <Button onClick={loadSavedUsers} size="sm">
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          刷新
+                        </Button>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full border rounded-lg overflow-hidden">
