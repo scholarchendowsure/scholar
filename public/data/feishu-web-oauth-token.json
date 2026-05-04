@@ -1,11 +1,12 @@
 {
-  "accessToken": "u-c2T6n6Y0xfP9OkRvqnLz9u5lnfeRhlMjo0Ea7wM00CDF",
-  "refreshToken": "ur-d3xM_blr10lbPKkEjcZPne5ll5AlhlWppMEajwA00zSF",
+  "accessToken": "u-dulXcz3PdbvVeOtEFYjaNs4kjeYM5liXOUaaINg00AP.",
+  "refreshToken": "ur-fAwYaNsil3bVEufk1aP7pO4khA.g5lUPh8aaYQ000ACL",
   "expiresIn": 6900,
-  "expiresAt": 1777846514961,
+  "expiresAt": 1777913935613,
   "tokenType": "Bearer",
   "userId": "8cgee58f",
   "userName": "高乐 | Scholar",
   "userAvatar": "https://s1-imfile.feishucdn.com/static-resource/v1/v3_00112_e19cd4d5-d024-401b-846e-19630623371g~?image_size=72x72&cut_type=&quality=&format=image&sticker_format=.webp",
-  "createdAt": 1777839614961
+  "userEmail": "",
+  "createdAt": 1777907035613
 }
