@@ -97,12 +97,17 @@
     "allowedIps": [],
     "id": "1777897888289",
     "sequence": 5,
-    "password": "5197f6312b721172f2563246b8f5a0dbca7ab6c90d35d2c14baac960ebe2048dbc208aa73dab28578688cfb41e6fe03fb66de1a49d563d42df7b34a72d025f4a",
-    "passwordSalt": "4a91e02e7bd609cafad27c0fc74c1f3d",
+    "password": "b228acc85748d5f81343e31fc66b96a06a19f8029e6ab2e3062de5d42e6e7c9ac361111cae4d476eb1bb10de0130634b4c0cf70e38ca79028239bb2156e40609",
+    "passwordSalt": "946563b2d3b9b021c3e7d69e5fc2790f",
     "createdAt": "2026-05-04T12:31:28.288Z",
-    "updatedAt": "2026-05-04T14:37:45.156Z",
-    "mustChangePassword": true,
-    "passwordHistory": [],
-    "loginAttempts": 0
+    "updatedAt": "2026-05-04T14:52:34.690Z",
+    "mustChangePassword": false,
+    "passwordHistory": [
+      "5197f6312b721172f2563246b8f5a0dbca7ab6c90d35d2c14baac960ebe2048dbc208aa73dab28578688cfb41e6fe03fb66de1a49d563d42df7b34a72d025f4a"
+    ],
+    "loginAttempts": 0,
+    "lastLoginTime": "2026-05-04T14:52:34.690Z",
+    "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
+    "passwordChangedAt": "2026-05-04T14:52:01.009Z"
   }
 ]
