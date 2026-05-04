@@ -111,7 +111,26 @@ export default function CaseDetailPage() {
           const usersData = await usersRes.json();
           const userList = usersData.data || usersData.users || usersData;
           if (userList && Array.isArray(userList)) {
-            const foundUser = userList.find((u: any) => u.name === roleName);
+            // 更灵活的用户匹配逻辑
+            const foundUser = userList.find((u: any) => {
+              const userName = (u.name || '').toLowerCase().trim();
+              const targetName = roleName.toLowerCase().trim();
+              
+              // 1. 精确匹配
+              if (userName === targetName) return true;
+              
+              // 2. 包含匹配（目标名称是用户名的一部分）
+              if (userName.includes(targetName)) return true;
+              
+              // 3. 反过来：用户名是目标名称的一部分
+              if (targetName.includes(userName)) return true;
+              
+              // 4. 处理特殊格式："高乐｜Scholar(陈伟旭)" 匹配 "高乐"
+              const namePart = userName.split('｜')[0].split('|')[0].trim();
+              if (namePart === targetName) return true;
+              
+              return false;
+            });
             if (foundUser?.openId) {
               openId = foundUser.openId;
             }
