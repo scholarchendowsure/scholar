@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,487 +16,482 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Camera, Upload, CheckCircle } from 'lucide-react';
+import { CheckCircle, Camera, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { 
-  FOLLOWUP_TYPE_OPTIONS, 
-  CONTACT_OPTIONS, 
-  FOLLOWUP_RESULT_OPTIONS, 
-  FollowUp, 
-  CaseFile,
-  Case
+import type { LoanCaseV2, FollowUp } from '@/types/case';
+import {
+  FOLLOWUP_TYPE_OPTIONS,
+  CONTACT_OPTIONS,
+  FOLLOWUP_RESULT_OPTIONS,
 } from '@/types/case';
+import { generateId } from '@/lib/utils';
+import { fileStorage } from '@/storage/file-storage';
 
-export default function FollowupPage() {
-  const params = useParams();
-  const caseId = params.id as string;
-  
-  const [showDialog, setShowDialog] = useState(false);
+// 生成短链接的函数
+const generateShortLink = (url: string) =&gt; {
+  return url;
+};
+
+export default function FollowupPage({ params }: { params: { id: string } }) {
+  const { currentUser } = useAuth();
+  const [caseData, setCaseData] = useState&lt;LoanCaseV2 | null&gt;(null);
   const [loading, setLoading] = useState(true);
-  const [caseData, setCaseData] = useState<Case | null>(null);
-  const [uploadedCaseFiles, setUploadedCaseFiles] = useState<CaseFile[]>([]);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
-    follower: '未登记人',
+  const [showDialog, setShowDialog] = useState(true);
+  const [saveSuccess, setSavedSuccess] = useState(false);
+  
+  const [newFollowup, setNewFollowup] = useState({
+    follower: currentUser?.name || '',
     followType: 'online',
-    contact: 'legal_representative',
+    contact: 'legal_person',
     followResult: 'normal_repayment',
     followRecord: '',
-    fileInfo: [],
+    remark: '',
   });
+  
+  const [uploadedCaseFiles, setUploadedCaseFiles] = useState&lt;{ name: string; url: string }[]&gt;([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
-  useEffect(() => {
-    loadCaseData();
-  }, [caseId]);
-
-  const loadCaseData = async () => {
-    try {
-      const res = await fetch(`/api/cases/${caseId}`);
-      const json = await res.json();
-      if (json.success) {
-        setCaseData(json.data);
-        setShowDialog(true);
-      } else {
-        toast.error('加载案件失败');
-      }
-    } catch (error) {
-      toast.error('加载案件失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const newFile: CaseFile = {
-          id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : 'document',
-          data: event.target?.result as string,
-          uploadTime: new Date().toISOString(),
-          uploadBy: newFollowup.follower || '未登记人',
-        };
-        setUploadedCaseFiles(prev => [...prev, newFile]);
-        toast.success(`文件 "${file.name}" 已添加`);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleCameraUpload = () => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          const video = document.createElement('video');
-          video.srcObject = stream;
-          video.play();
-          
-          setTimeout(() => {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d')?.drawImage(video, 0, 0);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            const newFile: CaseFile = {
-              id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              name: `photo-${new Date().toISOString().slice(0, 10)}.jpg`,
-              type: 'image',
-              data: dataUrl,
-              uploadTime: new Date().toISOString(),
-              uploadBy: newFollowup.follower || '未登记人',
-            };
-            setUploadedCaseFiles(prev => [...prev, newFile]);
-            toast.success('拍照成功');
-            
-            stream.getTracks().forEach(track => track.stop());
-          }, 1000);
-        })
-        .catch(err => {
-          toast.error('无法访问摄像头: ' + err.message);
-        });
-    } else {
-      toast.error('您的浏览器不支持摄像头功能');
-    }
-  };
-
-  const handleSaveFollowup = async () => {
-    if (!newFollowup.follower || !newFollowup.followRecord) {
-      toast.error('请填写跟进人和跟进记录');
-      return;
-    }
-
-    if (!caseData) {
-      toast.error('案件数据不存在');
-      return;
-    }
-
-    try {
-      const followup: FollowUp = {
-        id: Date.now().toString(),
-        follower: newFollowup.follower || '未登记人',
-        followTime: new Date().toISOString(),
-        followType: (newFollowup.followType as 'online' | 'offline') || 'online',
-        contact: (newFollowup.contact as 'legal_representative' | 'actual_controller') || 'legal_representative',
-        followResult: (newFollowup.followResult as 'normal_repayment' | 'warning_rise' | 'overdue_promise') || 'normal_repayment',
-        followRecord: newFollowup.followRecord || '',
-        fileInfo: uploadedCaseFiles,
-        createdAt: new Date().toISOString(),
-        createdBy: newFollowup.follower || '未登记人',
-      };
-
-      // 同步保存文件信息到案件中
-      const currentFiles = caseData?.files || [];
-      const newFiles: CaseFile[] = uploadedCaseFiles.map(file => ({
-        ...file,
-        id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      }));
-
-      // 获取所有相同用户ID的案件
-      const userId = caseData?.userId;
-      let relatedCases: Case[] = [];
-      if (userId) {
-        const relatedRes = await fetch(`/api/cases/user/${userId}`);
-        const relatedJson = await relatedRes.json();
-        if (relatedJson.success) {
-          relatedCases = relatedJson.data;
+  // 加载案件信息
+  useEffect(() =&gt; {
+    const loadCase = async () =&gt; {
+      try {
+        const response = await fetch(`/api/cases/cases-v2/${params.id}`);
+        const result = await response.json();
+        if (result.success) {
+          setCaseData(result.data);
         }
+      } catch (error) {
+        console.error('加载案件失败:', error);
+        toast.error('加载案件失败');
+      } finally {
+        setLoading(false);
       }
+    };
+    
+    loadCase();
+  }, [params.id]);
 
-      // 如果没有找到相关案件，就只处理当前案件
-      if (relatedCases.length === 0) {
-        relatedCases = [caseData];
+  // 文件上传处理
+  const handleFileUpload = async (e: React.ChangeEvent&lt;HTMLInputElement&gt;) =&gt; {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    setUploadingFiles(true);
+    try {
+      const uploaded = await Promise.all(
+        files.map(async (file) =&gt; {
+          const url = await fileStorage.uploadFile(file);
+          return { name: file.name, url };
+        })
+      );
+      setUploadedCaseFiles(prev =&gt; [...prev, ...uploaded]);
+      toast.success(`成功上传 ${uploaded.length} 个文件`);
+    } catch (error) {
+      console.error('文件上传失败:', error);
+      toast.error('文件上传失败');
+    } finally {
+      setUploadingFiles(false);
+      if (e.target) {
+        e.target.value = '';
       }
+    }
+  };
 
-      // 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度
-      const updatePromises = relatedCases.map(async (relatedCase) => {
-        const updatedCase: Case = {
-          ...relatedCase,
-          followups: [...(relatedCase.followups || []), followup],
-          files: [...(relatedCase.files || []), ...newFiles],
-          updatedAt: new Date().toISOString(),
+  // 拍照上传
+  const handleCameraUpload = () =&gt; {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.onchange = (e) =&gt; handleFileUpload(e as any);
+    input.click();
+  };
+
+  // 删除文件
+  const removeFile = (index: number) =&gt; {
+    setUploadedCaseFiles(prev =&gt; prev.filter((_, i) =&gt; i !== index));
+  };
+
+  // 同步飞书webhook
+  const syncToFeishuWebhook = async (caseData: LoanCaseV2, followup: FollowUp) =&gt; {
+    try {
+      // 时间格式化函数
+      const formatDateTime = (dateStr: string) =&gt; {
+        const date = new Date(dateStr);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+
+      // 枚举值转中文
+      const getFollowupTypeText = (type: string) =&gt; {
+        const map: Record&lt;string, string&gt; = {
+          'online': '线上',
+          'offline': '线下',
+          'other': '其他',
         };
-        
-        const res = await fetch(`/api/cases/${relatedCase.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedCase),
-        });
-        
-        return res.ok;
-      });
+        return map[type] || type;
+      };
+
+      const getContactText = (contact: string) =&gt; {
+        const map: Record&lt;string, string&gt; = {
+          'legal_person': '法人',
+          'actual_controller': '实控人',
+          'other': '其他',
+        };
+        return map[contact] || contact;
+      };
+
+      const getFollowupResultText = (result: string) =&gt; {
+        const map: Record&lt;string, string&gt; = {
+          'normal_repayment': '正常还款',
+          'warning_rise': '预警上升',
+          'overdue_promise': '逾期承诺',
+          'other': '其他',
+        };
+        return map[result] || result;
+      };
+
+      // 文件信息生成
+      let filesInfo = '';
+      if (followup.attachments &amp;&amp; followup.attachments.length &gt; 0) {
+        const fileLinks = followup.attachments.map(url =&gt; generateShortLink(url));
+        filesInfo = fileLinks.join('\\n');
+      }
+
+      const webhookPayload = {
+        action: 'case_followup',
+        caseId: caseData.id,
+        loanNo: caseData.loanNo,
+        userId: caseData.userId || '',
+        borrowerName: caseData.borrowerName,
+        companyName: caseData.companyName || '',
+        followup: {
+          id: followup.id,
+          visitUser: followup.visitUser,
+          visitDate: formatDateTime(followup.visitDate || followup.createTime),
+          visitType: getFollowupTypeText(followup.visitType || followup.followUpType || 'other'),
+          contactPerson: getContactText(followup.contactPerson || 'other'),
+          followUpResult: getFollowupResultText(followup.followUpResult || 'other'),
+          content: followup.content,
+          remark: followup.remark || '',
+          images: followup.images || [],
+          attachments: followup.attachments || [],
+          filesInfo: filesInfo,
+          createTime: formatDateTime(followup.createTime),
+        }
+      };
+
+      console.log('发送飞书webhook:', webhookPayload);
       
-      const results = await Promise.all(updatePromises);
-      const updatedCount = results.filter(Boolean).length;
+      const webhookResponse = await fetch('/api/webhook/feishu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(webhookPayload),
+      });
 
-      if (updatedCount > 0) {
-        // 调用后端API同步到飞书Webhook
-        // 时间格式化
-        const formatDateTime = (dateStr: string) => {
-          const date = new Date(dateStr);
-          const year = date.getFullYear();
-          const month = date.getMonth() + 1;
-          const day = date.getDate();
-          const hours = String(date.getHours()).padStart(2, '0');
-          const minutes = String(date.getMinutes()).padStart(2, '0');
-          const seconds = String(date.getSeconds()).padStart(2, '0');
-          return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-        };
-        
-        // 枚举值转中文
-        const getFollowTypeText = (type: string) => {
-          switch(type) {
-            case 'online': return '线上';
-            case 'offline': return '线下';
-            case 'other': return '其他';
-            default: return type;
-          }
-        };
-        
-        const getContactText = (contact: string) => {
-          switch(contact) {
-            case 'legal_representative': return '法人';
-            case 'actual_controller': return '实控人';
-            case 'other': return '其他';
-            default: return contact;
-          }
-        };
-        
-        const getFollowResultText = (result: string) => {
-          switch(result) {
-            case 'normal_repayment': return '正常还款';
-            case 'warning_rise': return '预警上升';
-            case 'overdue_promise': return '逾期承诺';
-            case 'other': return '其他';
-            default: return result;
-          }
-        };
-        
-        // 文件信息生成短链接
-        const formatFileInfo = (files: any, caseIdParam: string) => {
-          if (!files || files.length === 0) return [];
-          return (files as any[]).map((file: any) => {
-            let fileName = '';
-            let fileType = 'file';
-            
-            if (file.name) {
-              fileName = file.name;
-              fileType = file.type || 'file';
-            } else if (typeof file === 'string') {
-              fileName = file;
-            }
-            
-            // 生成短链接：/api/files/[caseId]/[fileName]
-            const shortUrl = `/api/files/${caseIdParam}/${encodeURIComponent(fileName)}`;
-            
-            return { 
-              name: fileName, 
-              type: fileType,
-              url: shortUrl
-            };
-          });
-        };
-        
-        fetch('/api/webhook/feishu', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            event_type: 'follow_up_created',
-            case_data: {
-              user_id: caseData.userId,
-              loan_number: caseData.loanNo
-            },
-            followup_data: {
-              follower: followup.follower,
-              follow_time: formatDateTime(followup.followTime),
-              follow_type: getFollowTypeText(followup.followType),
-              contact: getContactText(followup.contact),
-              follow_result: getFollowResultText(followup.followResult),
-              follow_record: followup.followRecord,
-              file_info: formatFileInfo(followup.fileInfo, caseId)
-            }
-          })
-        }).catch((webhookError) => {
-          console.error('Webhook调用失败:', webhookError);
-          // 不影响主流程，只记录日志
-        });
-        
-        toast.success('跟进记录保存成功');
-        setShowDialog(false);
-        setSaveSuccess(true);
+      if (!webhookResponse.ok) {
+        console.error('飞书webhook调用失败:', webhookResponse.statusText);
       } else {
-        toast.error('保存失败');
+        console.log('飞书webhook调用成功');
       }
     } catch (error) {
-      toast.error('保存失败');
+      console.error('调用飞书webhook失败:', error);
+    }
+  };
+
+  // 保存跟进记录
+  const handleSaveFollowup = async () =&gt; {
+    if (!caseData) return;
+
+    try {
+      // 1. 验证必填字段
+      if (!newFollowup.followType || !newFollowup.contact || !newFollowup.followResult || !newFollowup.followRecord) {
+        toast.error("请填写完整跟进信息");
+        return;
+      }
+
+      // 2. 构造新的跟进记录
+      const followupRecord: FollowUp = {
+        id: generateId(),
+        visitUser: currentUser?.name || "未登记人",
+        visitDate: new Date().toISOString(),
+        visitType: newFollowup.followType as any,
+        followUpType: newFollowup.followType as any,
+        contactPerson: newFollowup.contact as any,
+        followUpResult: newFollowup.followResult as any,
+        content: newFollowup.followRecord,
+        remark: newFollowup.remark,
+        images: [],
+        attachments: uploadedCaseFiles.map(f =&gt; f.url),
+        createTime: new Date().toISOString(),
+        updateTime: new Date().toISOString(),
+      };
+
+      // 3. 更新当前案件
+      const updatedCase: LoanCaseV2 = {
+        ...caseData,
+        followups: [followupRecord, ...(caseData.followups || [])],
+        updateTime: new Date().toISOString(),
+      };
+
+      // 4. 立即保存当前案件并提示成功
+      const saveResponse = await fetch(`/api/cases/cases-v2/${params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedCase),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error("保存案件失败");
+      }
+
+      setSavedSuccess(true);
+      toast.success("跟进记录保存成功！");
+      
+      // 5. 后台异步处理其他任务（不阻塞用户）
+      (async () =&gt; {
+        try {
+          // 后台同步飞书多维表格
+          await syncToFeishuWebhook(updatedCase, followupRecord);
+
+          // 后台更新相同用户ID的其他案件
+          if (caseData.userId) {
+            const allCasesResponse = await fetch("/api/cases/cases-v2");
+            if (allCasesResponse.ok) {
+              const result = await allCasesResponse.json();
+              const allCases = result.success ? result.data : [];
+              const relatedCases = allCases.filter(
+                (c: LoanCaseV2) =&gt; c.userId === caseData.userId &amp;&amp; c.id !== caseData.id
+              );
+              
+              await Promise.all(
+                relatedCases.map(async (relatedCase: LoanCaseV2) =&gt; {
+                  const updatedRelatedCase = {
+                    ...relatedCase,
+                    followups: [followupRecord, ...(relatedCase.followups || [])],
+                    updateTime: new Date().toISOString(),
+                  };
+                  try {
+                    await fetch(`/api/cases/cases-v2/${relatedCase.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(updatedRelatedCase),
+                    });
+                  } catch (err) {
+                    console.error("更新关联案件失败:", err);
+                  }
+                })
+              );
+            }
+          }
+        } catch (err) {
+          console.error("后台任务处理失败:", err);
+        }
+      })();
+    } catch (error) {
+      console.error("保存跟进记录失败:", error);
+      toast.error("保存失败，请重试");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">加载中...</p>
-        </div>
-      </div>
+      &lt;div className="min-h-screen flex items-center justify-center"&gt;
+        &lt;p className="text-slate-500"&gt;加载中...&lt;/p&gt;
+      &lt;/div&gt;
     );
   }
 
   if (!caseData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-600 mb-4">案件不存在</p>
-        </div>
-      </div>
+      &lt;div className="min-h-screen flex items-center justify-center"&gt;
+        &lt;p className="text-red-500"&gt;案件不存在&lt;/p&gt;
+      &lt;/div&gt;
     );
   }
 
   if (saveSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50/50 to-emerald-50/50">
-        <div className="text-center">
-          <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" />
-          <h1 className="text-3xl font-bold text-green-800 mb-4">记录保存成功！</h1>
-          <p className="text-green-600 text-lg">您的跟进记录已成功保存到案件中</p>
-        </div>
-      </div>
+      &lt;div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50/50 to-emerald-50/50"&gt;
+        &lt;div className="text-center"&gt;
+          &lt;CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" /&gt;
+          &lt;h1 className="text-3xl font-bold text-green-800 mb-4"&gt;记录保存成功！&lt;/h1&gt;
+          &lt;p className="text-green-600 text-lg"&gt;您的跟进记录已成功保存到案件中&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-          <h1 className="text-xl font-bold text-slate-900 mb-4">案件信息</h1>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-slate-500">贷款单号</p>
-              <p className="font-medium font-mono">{caseData.loanNo}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">借款人姓名</p>
-              <p className="font-medium">{caseData.borrowerName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">公司名称</p>
-              <p className="font-medium">{caseData.companyName || '-'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">逾期金额</p>
-              <p className="font-medium text-red-600 font-mono tabular-nums">
+    &lt;div className="min-h-screen bg-slate-50 p-4"&gt;
+      &lt;div className="max-w-4xl mx-auto"&gt;
+        &lt;div className="bg-white rounded-lg shadow-sm p-6 mb-4"&gt;
+          &lt;h1 className="text-xl font-bold text-slate-900 mb-4"&gt;案件信息&lt;/h1&gt;
+          &lt;div className="grid grid-cols-2 gap-4"&gt;
+            &lt;div&gt;
+              &lt;p className="text-sm text-slate-500"&gt;贷款单号&lt;/p&gt;
+              &lt;p className="font-medium font-mono"&gt;{caseData.loanNo}&lt;/p&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;p className="text-sm text-slate-500"&gt;借款人姓名&lt;/p&gt;
+              &lt;p className="font-medium"&gt;{caseData.borrowerName}&lt;/p&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;p className="text-sm text-slate-500"&gt;公司名称&lt;/p&gt;
+              &lt;p className="font-medium"&gt;{caseData.companyName || '-'}&lt;/p&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;p className="text-sm text-slate-500"&gt;逾期金额&lt;/p&gt;
+              &lt;p className="font-medium text-red-600 font-mono tabular-nums"&gt;
                 ¥{caseData.overdueAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </div>
-        </div>
+              &lt;/p&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
 
         {/* 新增跟进记录对话框 */}
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>新增跟进记录</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label>跟进人</Label>
-                <Input 
+        &lt;Dialog open={showDialog} onOpenChange={setShowDialog}&gt;
+          &lt;DialogContent className="sm:max-w-2xl"&gt;
+            &lt;DialogHeader&gt;
+              &lt;DialogTitle&gt;新增跟进记录&lt;/DialogTitle&gt;
+            &lt;/DialogHeader&gt;
+            &lt;div className="grid grid-cols-2 gap-4 py-4"&gt;
+              &lt;div className="space-y-2"&gt;
+                &lt;Label&gt;跟进人&lt;/Label&gt;
+                &lt;Input 
                   value={newFollowup.follower || ''}
-                  onChange={(e) => setNewFollowup({ ...newFollowup, follower: e.target.value })}
+                  onChange={(e) =&gt; setNewFollowup({ ...newFollowup, follower: e.target.value })}
                   placeholder="请输入跟进人"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>跟进时间</Label>
-                <Input 
+                /&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2"&gt;
+                &lt;Label&gt;跟进时间&lt;/Label&gt;
+                &lt;Input 
                   value={new Date().toLocaleString('zh-CN')}
                   disabled
                   className="bg-slate-50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>跟进类型</Label>
-                <Select 
+                /&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2"&gt;
+                &lt;Label&gt;跟进类型&lt;/Label&gt;
+                &lt;Select 
                   value={newFollowup.followType} 
-                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followType: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="请选择跟进类型" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FOLLOWUP_TYPE_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                  onValueChange={(value: any) =&gt; setNewFollowup({ ...newFollowup, followType: value })}
+                &gt;
+                  &lt;SelectTrigger&gt;
+                    &lt;SelectValue placeholder="请选择跟进类型" /&gt;
+                  &lt;/SelectTrigger&gt;
+                  &lt;SelectContent&gt;
+                    {FOLLOWUP_TYPE_OPTIONS.map(opt =&gt; (
+                      &lt;SelectItem key={opt.value} value={opt.value}&gt;
                         {opt.label}
-                      </SelectItem>
+                      &lt;/SelectItem&gt;
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>联系人</Label>
-                <Select 
+                  &lt;/SelectContent&gt;
+                &lt;/Select&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2"&gt;
+                &lt;Label&gt;联系人&lt;/Label&gt;
+                &lt;Select 
                   value={newFollowup.contact} 
-                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, contact: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="请选择联系人" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONTACT_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                  onValueChange={(value: any) =&gt; setNewFollowup({ ...newFollowup, contact: value })}
+                &gt;
+                  &lt;SelectTrigger&gt;
+                    &lt;SelectValue placeholder="请选择联系人" /&gt;
+                  &lt;/SelectTrigger&gt;
+                  &lt;SelectContent&gt;
+                    {CONTACT_OPTIONS.map(opt =&gt; (
+                      &lt;SelectItem key={opt.value} value={opt.value}&gt;
                         {opt.label}
-                      </SelectItem>
+                      &lt;/SelectItem&gt;
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>跟进结果</Label>
-                <Select 
+                  &lt;/SelectContent&gt;
+                &lt;/Select&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2 col-span-2"&gt;
+                &lt;Label&gt;跟进结果&lt;/Label&gt;
+                &lt;Select 
                   value={newFollowup.followResult} 
-                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followResult: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="请选择跟进结果" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FOLLOWUP_RESULT_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                  onValueChange={(value: any) =&gt; setNewFollowup({ ...newFollowup, followResult: value })}
+                &gt;
+                  &lt;SelectTrigger&gt;
+                    &lt;SelectValue placeholder="请选择跟进结果" /&gt;
+                  &lt;/SelectTrigger&gt;
+                  &lt;SelectContent&gt;
+                    {FOLLOWUP_RESULT_OPTIONS.map(opt =&gt; (
+                      &lt;SelectItem key={opt.value} value={opt.value}&gt;
                         {opt.label}
-                      </SelectItem>
+                      &lt;/SelectItem&gt;
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>跟进记录</Label>
-                <Textarea 
+                  &lt;/SelectContent&gt;
+                &lt;/Select&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2 col-span-2"&gt;
+                &lt;Label&gt;跟进记录&lt;/Label&gt;
+                &lt;Textarea 
                   value={newFollowup.followRecord || ''}
-                  onChange={(e) => setNewFollowup({ ...newFollowup, followRecord: e.target.value })}
+                  onChange={(e) =&gt; setNewFollowup({ ...newFollowup, followRecord: e.target.value })}
                   placeholder="请输入跟进记录内容"
                   rows={6}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label>文件信息</Label>
-                <div className="flex gap-2">
-                  <input 
+                /&gt;
+              &lt;/div&gt;
+              &lt;div className="space-y-2 col-span-2"&gt;
+                &lt;Label&gt;文件信息&lt;/Label&gt;
+                &lt;div className="flex gap-2"&gt;
+                  &lt;input 
                     type="file" 
                     id="file-upload-followup" 
                     multiple 
                     className="hidden" 
                     onChange={handleFileUpload}
-                  />
-                  <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload-followup')?.click()}>
-                    <Upload className="w-4 h-4 mr-2" />
+                  /&gt;
+                  &lt;Button variant="outline" type="button" onClick={() =&gt; document.getElementById('file-upload-followup')?.click()}&gt;
+                    &lt;Upload className="w-4 h-4 mr-2" /&gt;
                     选择文件上传
-                  </Button>
-                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
-                    <Camera className="w-4 h-4 mr-2" />
+                  &lt;/Button&gt;
+                  &lt;Button variant="outline" type="button" onClick={handleCameraUpload}&gt;
+                    &lt;Camera className="w-4 h-4 mr-2" /&gt;
                     拍照上传
-                  </Button>
-                </div>
-                {uploadedCaseFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {uploadedCaseFiles.map((file, idx) => (
-                      <div key={file.id} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
-                        {file.name}
-                        <button 
-                          onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx))}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          ×
-                        </button>
-                      </div>
+                  &lt;/Button&gt;
+                &lt;/div&gt;
+                {uploadedCaseFiles.length &gt; 0 &amp;&amp; (
+                  &lt;div className="mt-3 space-y-2"&gt;
+                    {uploadedCaseFiles.map((file, index) =&gt; (
+                      &lt;div key={index} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg"&gt;
+                        &lt;span className="text-sm text-slate-700"&gt;{file.name}&lt;/span&gt;
+                        &lt;Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() =&gt; removeFile(index)}
+                          className="h-8 w-8 p-0"
+                        &gt;
+                          &lt;X className="h-4 w-4" /&gt;
+                        &lt;/Button&gt;
+                      &lt;/div&gt;
                     ))}
-                  </div>
+                  &lt;/div&gt;
                 )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDialog(false)}>
+              &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div className="flex justify-end gap-3"&gt;
+              &lt;Button variant="outline" onClick={() =&gt; setShowDialog(false)}&gt;
                 取消
-              </Button>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={handleSaveFollowup}
-              >
+              &lt;/Button&gt;
+              &lt;Button onClick={handleSaveFollowup}&gt;
                 保存
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </div>
+              &lt;/Button&gt;
+            &lt;/div&gt;
+          &lt;/DialogContent&gt;
+        &lt;/Dialog&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
   );
 }
