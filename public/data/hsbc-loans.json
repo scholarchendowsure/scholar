@@ -21731,13 +21731,21 @@
       {
         "date": "2026-04-27",
         "amount": 2381.93
+      },
+      {
+        "date": "2026-04-30",
+        "amount": 290.81
+      },
+      {
+        "date": "2026-04-30",
+        "amount": 937.56
       }
     ],
-    "balance": 11085.779999999984,
-    "pastdueAmount": 11085.779999999984,
+    "balance": 9857.409999999989,
+    "pastdueAmount": 9857.409999999989,
     "overdueDays": 181,
     "status": "overdue",
-    "totalRepaid": 88914.22000000002,
+    "totalRepaid": 90142.59000000001,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -26173,13 +26181,17 @@
       {
         "date": "2026-04-28",
         "amount": 403.72
+      },
+      {
+        "date": "2026-04-30",
+        "amount": 151.03
       }
     ],
-    "balance": 183982.05000000005,
-    "pastdueAmount": 183982.05000000005,
+    "balance": 183831.02000000005,
+    "pastdueAmount": 183831.02000000005,
     "overdueDays": 138,
     "status": "overdue",
-    "totalRepaid": 210017.94999999995,
+    "totalRepaid": 210168.97999999995,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -34472,12 +34484,17 @@
     "totalInterestRate": 0.0769251,
     "loanTenor": "121D",
     "maturityDate": "2026-02-20",
-    "repaymentSchedule": [],
-    "balance": 250000,
-    "pastdueAmount": 250000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-04-30",
+        "amount": 7500
+      }
+    ],
+    "balance": 242500,
+    "pastdueAmount": 242500,
     "overdueDays": 73,
     "status": "overdue",
-    "totalRepaid": 0,
+    "totalRepaid": 7500,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -38291,9 +38308,9 @@
     "loanStartDate": "",
     "loanCurrency": "CNY",
     "loanAmount": 2120000,
-    "loanInterest": "LOAN BOOKING:119D HBR + 4%\nEXTENSION:90D HBR + 4%",
+    "loanInterest": "LOAN BOOKING:119D HBR + 4%\r\nEXTENSION:90D HBR + 4%",
     "totalInterestRate": 0,
-    "loanTenor": "LOAN BOOKING:119D\nEXTENSION:90D",
+    "loanTenor": "LOAN BOOKING:119D\r\nEXTENSION:90D",
     "maturityDate": "2026-06-18",
     "repaymentSchedule": [],
     "balance": 2120000,
@@ -38908,9 +38925,9 @@
     "loanStartDate": "",
     "loanCurrency": "CNY",
     "loanAmount": 7000000,
-    "loanInterest": "120D HBR + 4%\nExtend int rate: 90D HBR + 4%",
+    "loanInterest": "120D HBR + 4%\r\nExtend int rate: 90D HBR + 4%",
     "totalInterestRate": 5.83485,
-    "loanTenor": "122D\nExtend tenor: 91D",
+    "loanTenor": "122D\r\nExtend tenor: 91D",
     "maturityDate": "2026-06-29",
     "repaymentSchedule": [
       {
@@ -38936,7 +38953,7 @@
     "status": "normal",
     "totalRepaid": 2134322.75,
     "batchDate": "2026-05-04",
-    "remarks": "90 days loan extension completed on 10 Apr2026.\nRelease freezed psp account with dowsure confirmation received on 13Apr2026 5.50pm (previous TH approval with original due date 30Mar2026 obtained on 8apr2026)"
+    "remarks": "90 days loan extension completed on 10 Apr2026.\r\nRelease freezed psp account with dowsure confirmation received on 13Apr2026 5.50pm (previous TH approval with original due date 30Mar2026 obtained on 8apr2026)"
   },
   {
     "id": "hsbc-2026-05-04-1348",
@@ -40111,9 +40128,9 @@
     "loanStartDate": "",
     "loanCurrency": "CNY",
     "loanAmount": 1960000,
-    "loanInterest": "120D HBR + 4%\nExtend int rate: 90D HBR + 4%",
+    "loanInterest": "120D HBR + 4%\r\nExtend int rate: 90D HBR + 4%",
     "totalInterestRate": 5.82197,
-    "loanTenor": "120D\nExtend tenor: 90D",
+    "loanTenor": "120D\r\nExtend tenor: 90D",
     "maturityDate": "2026-07-13",
     "repaymentSchedule": [
       {
@@ -40127,7 +40144,7 @@
     "status": "normal",
     "totalRepaid": 688016.7,
     "batchDate": "2026-05-04",
-    "remarks": "90 days loan extension completed on 16 Apr2026.\n(previous TH approval of not freezing account or force debit with original due date 14Apr2026 obtained on 15Apr2026)"
+    "remarks": "90 days loan extension completed on 16 Apr2026.\r\n(previous TH approval of not freezing account or force debit with original due date 14Apr2026 obtained on 15Apr2026)"
   },
   {
     "id": "hsbc-2026-05-04-1391",
@@ -40187,9 +40204,9 @@
     "loanStartDate": "",
     "loanCurrency": "USD",
     "loanAmount": 97000,
-    "loanInterest": "119D SOFR TERM + 4%\nExtend int rate: 90D SOFR TERM + 4%",
+    "loanInterest": "119D SOFR TERM + 4%\r\nExtend int rate: 90D SOFR TERM + 4%",
     "totalInterestRate": 7.66729,
-    "loanTenor": "119D\nExtend tenor: 91D",
+    "loanTenor": "119D\r\nExtend tenor: 91D",
     "maturityDate": "2026-07-13",
     "repaymentSchedule": [
       {
@@ -40203,7 +40220,7 @@
     "status": "normal",
     "totalRepaid": 10194.47,
     "batchDate": "2026-05-04",
-    "remarks": "90 days loan extension completed on 14 Apr2026.\n(previous TH approval with original due date 13Apr2026 obtained on 14Apr2026)"
+    "remarks": "90 days loan extension completed on 14 Apr2026.\r\n(previous TH approval with original due date 13Apr2026 obtained on 14Apr2026)"
   },
   {
     "id": "hsbc-2026-05-04-1394",
@@ -40593,9 +40610,9 @@
     "loanStartDate": "",
     "loanCurrency": "CNY",
     "loanAmount": 320000,
-    "loanInterest": "120D HBR + 4%\nExtend loan int:90D HBR + 4%",
+    "loanInterest": "120D HBR + 4%\r\nExtend loan int:90D HBR + 4%",
     "totalInterestRate": 5.81652,
-    "loanTenor": "120D\nExtend tenor: 90D",
+    "loanTenor": "120D\r\nExtend tenor: 90D",
     "maturityDate": "2026-07-16",
     "repaymentSchedule": [],
     "balance": 320000,
@@ -40750,9 +40767,9 @@
     "loanStartDate": "",
     "loanCurrency": "CNY",
     "loanAmount": 1800000,
-    "loanInterest": "120D HBR + 4%\nExtend int rate: 90D HBR + 4%",
+    "loanInterest": "120D HBR + 4%\r\nExtend int rate: 90D HBR + 4%",
     "totalInterestRate": 5.8,
-    "loanTenor": "122D\nExtend tenor: 91D",
+    "loanTenor": "122D\r\nExtend tenor: 91D",
     "maturityDate": "2026-07-20",
     "repaymentSchedule": [],
     "balance": 1800000,
@@ -41455,9 +41472,9 @@
     "loanStartDate": "",
     "loanCurrency": "CNY",
     "loanAmount": 1680000,
-    "loanInterest": "120D HBR + 4%\nExtend LOAN INT:90D HBR + 4%",
+    "loanInterest": "120D HBR + 4%\r\nExtend LOAN INT:90D HBR + 4%",
     "totalInterestRate": 5.8,
-    "loanTenor": "120D\nExtend TENOR:90D",
+    "loanTenor": "120D\r\nExtend TENOR:90D",
     "maturityDate": "2026-07-27",
     "repaymentSchedule": [],
     "balance": 1680000,
@@ -42049,12 +42066,17 @@
     "totalInterestRate": 0.058,
     "loanTenor": "120D",
     "maturityDate": "2026-04-30",
-    "repaymentSchedule": [],
-    "balance": 300000,
-    "pastdueAmount": 300000,
-    "overdueDays": 4,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-04-30",
+        "amount": 300000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 300000,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -42071,12 +42093,17 @@
     "totalInterestRate": 0.058,
     "loanTenor": "120D",
     "maturityDate": "2026-04-30",
-    "repaymentSchedule": [],
-    "balance": 100000,
-    "pastdueAmount": 100000,
-    "overdueDays": 4,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-04-30",
+        "amount": 100000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 100000,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -42191,12 +42218,21 @@
     "totalInterestRate": 0.0757418,
     "loanTenor": "120D",
     "maturityDate": "2026-05-05",
-    "repaymentSchedule": [],
-    "balance": 76000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-04-30",
+        "amount": 52000
+      },
+      {
+        "date": "2026-05-04",
+        "amount": 24000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 76000,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -42881,12 +42917,17 @@
     "totalInterestRate": 0.0757493,
     "loanTenor": "120D",
     "maturityDate": "2026-05-08",
-    "repaymentSchedule": [],
-    "balance": 38260,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-04",
+        "amount": 20000
+      }
+    ],
+    "balance": 18260,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 20000,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -44953,12 +44994,17 @@
     "totalInterestRate": 0.0762759,
     "loanTenor": "120D",
     "maturityDate": "2026-05-26",
-    "repaymentSchedule": [],
-    "balance": 60000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-04",
+        "amount": 60000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 60000,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -46857,13 +46903,17 @@
       {
         "date": "2026-04-30",
         "amount": 600000
+      },
+      {
+        "date": "2026-04-30",
+        "amount": 400000
       }
     ],
-    "balance": 400000,
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 600000,
+    "totalRepaid": 1000000,
     "batchDate": "2026-05-04",
     "remarks": ""
   },
@@ -53002,6 +53052,94 @@
     "maturityDate": "2026-08-10",
     "repaymentSchedule": [],
     "balance": 200000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-04",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-04-1946",
+    "loanReference": "EMFAM1026350",
+    "merchantId": "71880",
+    "merchantName": "",
+    "borrowerName": "HK ZHENGDASHENG PACKING CO LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 400000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0766856,
+    "loanTenor": "120D",
+    "maturityDate": "2026-08-28",
+    "repaymentSchedule": [],
+    "balance": 400000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-04",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-04-1947",
+    "loanReference": "EMFAM1026356",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 50000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0766856,
+    "loanTenor": "120D",
+    "maturityDate": "2026-08-28",
+    "repaymentSchedule": [],
+    "balance": 50000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-04",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-04-1948",
+    "loanReference": "EMFAM1026359",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 52000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0766856,
+    "loanTenor": "120D",
+    "maturityDate": "2026-08-28",
+    "repaymentSchedule": [],
+    "balance": 52000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-04",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-04-1949",
+    "loanReference": "EMFAM1026362",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 68000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0766856,
+    "loanTenor": "120D",
+    "maturityDate": "2026-08-28",
+    "repaymentSchedule": [],
+    "balance": 68000,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",

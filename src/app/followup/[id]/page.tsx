@@ -158,7 +158,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
       // 2. 构造新的跟进记录
       const followupRecord: FollowUp = {
         id: Date.now().toString(),
-        follower: currentUser?.name || "未登记人",
+        follower: newFollowup.follower || "未登记人",
         followTime: new Date().toISOString(),
         followType: newFollowup.followType as any,
         contact: newFollowup.contact as any,
@@ -166,7 +166,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         followRecord: newFollowup.followRecord || "",
         fileInfo: uploadedCaseFiles as any,
         createdAt: new Date().toISOString(),
-        createdBy: currentUser?.name || "未登记人",
+        createdBy: newFollowup.follower || "未登记人",
       };
 
       // 3. 更新当前案件
