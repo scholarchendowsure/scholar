@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { caseStorage } from '@/storage/database/case-storage';
 import { addSecurityHeaders } from '@/lib/security';
 
+// 辅助函数：获取或查找案件（支持UUID或贷款单号）
+async function getCaseByIdOrLoanNo(idOrLoanNo: string) {
+  // 先尝试用UUID查找
+  let caseData = await caseStorage.getById(idOrLoanNo);
+  if (caseData) return caseData;
+
+  // 如果UUID找不到，尝试用贷款单号查找
+  const allCases = await caseStorage.getAll();
+  return allCases.find((c: any) => c.loanNo === idOrLoanNo);
+}
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const caseData = await caseStorage.getById(params.id);
+    const { id } = await params;
+    const caseData = await getCaseByIdOrLoanNo(id);
 
     if (!caseData) {
       const response = NextResponse.json(
@@ -35,11 +47,24 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
-    const updatedCase = await caseStorage.update(params.id, body);
+    
+    // 先查找案件（支持UUID或贷款单号）
+    const existingCase = await getCaseByIdOrLoanNo(id);
+    if (!existingCase) {
+      const response = NextResponse.json(
+        { success: false, error: '案件不存在' },
+        { status: 404 }
+      );
+      return addSecurityHeaders(response);
+    }
+
+    // 使用真实的案件UUID更新
+    const updatedCase = await caseStorage.update(existingCase.id, body);
 
     if (!updatedCase) {
       const response = NextResponse.json(
@@ -67,10 +92,22 @@ export async function PUT(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const success = await caseStorage.delete(params.id);
+    const { id } = await params;
+    
+    // 先查找案件（支持UUID或贷款单号）
+    const existingCase = await getCaseByIdOrLoanNo(id);
+    if (!existingCase) {
+      const response = NextResponse.json(
+        { success: false, error: '案件不存在' },
+        { status: 404 }
+      );
+      return addSecurityHeaders(response);
+    }
+
+    const success = await caseStorage.delete(existingCase.id);
 
     if (!success) {
       const response = NextResponse.json(
