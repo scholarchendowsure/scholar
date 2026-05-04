@@ -133,6 +133,11 @@ export default function FollowupPage() {
       return;
     }
 
+    if (!caseData) {
+      toast.error('案件数据不存在');
+      return;
+    }
+
     try {
       const followup: FollowUp = {
         id: Date.now().toString(),
@@ -147,19 +152,56 @@ export default function FollowupPage() {
         createdBy: newFollowup.follower || '未登记人',
       };
 
-      const res = await fetch(`/api/cases/${caseId}/followups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(followup),
-      });
+      // 同步保存文件信息到案件中
+      const currentFiles = caseData?.files || [];
+      const newFiles: CaseFile[] = uploadedCaseFiles.map(file => ({
+        ...file,
+        id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      }));
 
-      const json = await res.json();
-      if (json.success) {
+      // 获取所有相同用户ID的案件
+      const userId = caseData?.userId;
+      let relatedCases: Case[] = [];
+      if (userId) {
+        const relatedRes = await fetch(`/api/cases/user/${userId}`);
+        const relatedJson = await relatedRes.json();
+        if (relatedJson.success) {
+          relatedCases = relatedJson.data;
+        }
+      }
+
+      // 如果没有找到相关案件，就只处理当前案件
+      if (relatedCases.length === 0) {
+        relatedCases = [caseData];
+      }
+
+      // 对每个相同用户ID的案件都添加跟进记录
+      let updatedCount = 0;
+      for (const relatedCase of relatedCases) {
+        const updatedCase: Case = {
+          ...relatedCase,
+          followups: [...(relatedCase.followups || []), followup],
+          files: [...(relatedCase.files || []), ...newFiles],
+          updatedAt: new Date().toISOString(),
+        };
+        
+        const res = await fetch(`/api/cases/${relatedCase.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedCase),
+        });
+        
+        if (res.ok) {
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
         toast.success('跟进记录保存成功');
         setShowDialog(false);
         setSaveSuccess(true);
       } else {
-        toast.error('保存失败: ' + json.error);
+        toast.error('保存失败');
       }
     } catch (error) {
       toast.error('保存失败');

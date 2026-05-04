@@ -123,12 +123,24 @@ export default function CaseDetailPage() {
       }
 
       // 2. 构造消息内容
-      const dueDate = caseData.repaymentDate ? new Date(caseData.repaymentDate).toLocaleDateString('zh-CN') : '未知';
+      const dueDate = caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate ? 
+        new Date(caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || '').toLocaleDateString('zh-CN') : '未知';
       const followLink = `${window.location.origin}/followup/${caseData.id}`;
-      const balance = caseData.balance || caseData.overdueAmount || 0;
-      const currency = caseData.currency || '元';
+      const balance = caseData.outstandingBalance || caseData.overdueAmount || 0;
       
-      const message = `${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}${currency} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
+      // 处理币种显示
+      let currency = caseData.currency || 'CNY';
+      let currencySymbol = '';
+      if (currency === 'CNY') {
+        currencySymbol = '元';
+      } else if (currency === 'USD') {
+        currencySymbol = '美元';
+      } else {
+        currencySymbol = currency;
+      }
+      
+      const message = `【案件跟进提醒】
+${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}${currencySymbol} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
 
       // 3. 发送消息（使用和飞书配置页面一样的API）
       const sendResponse = await fetch('/api/feishu-send-direct', {
