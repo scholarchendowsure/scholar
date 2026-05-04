@@ -28,7 +28,6 @@ import {
   FOLLOWUP_RESULT_OPTIONS,
 } from '@/types/case';
 import { generateId } from '@/lib/utils';
-import { fileStorage } from '@/storage/file-storage';
 
 export default function FollowupPage({ params }: { params: { id: string } }) {
   const { currentUser } = useAuth();
@@ -69,21 +68,20 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
     loadCase();
   }, [params.id]);
 
-  // 文件上传处理
+  // 文件上传处理（简化版）
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     
     setUploadingFiles(true);
     try {
-      const uploaded = await Promise.all(
-        files.map(async (file) => {
-          const url = await fileStorage.uploadFile(file);
-          return { name: file.name, url };
-        })
-      );
+      const uploaded = files.map((file) => {
+        // 使用临时URL，实际项目中应该上传到存储服务
+        const url = URL.createObjectURL(file);
+        return { name: file.name, url };
+      });
       setUploadedCaseFiles(prev => [...prev, ...uploaded]);
-      toast.success(`成功上传 ${uploaded.length} 个文件`);
+      toast.success(`成功添加 ${uploaded.length} 个文件`);
     } catch (error) {
       console.error('文件上传失败:', error);
       toast.error('文件上传失败');
