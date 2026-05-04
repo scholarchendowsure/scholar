@@ -73,7 +73,7 @@
     "id": "ou_2c1f925b213aab1f930e1c71f5b4641c",
     "unionId": "",
     "userId": "ou_2c1f925b213aab1f930e1c71f5b4641c",
-    "openId": "",
+    "openId": "ou_2c1f925b213aab1f930e1c71f5b4641c",
     "name": "萧何 | Frank\nMM办公室\n",
     "enName": "",
     "email": "frankxiao@dowsure.com",
@@ -82,5 +82,33 @@
     "status": "active",
     "createdAt": "2026-05-04T17:19:03.139Z",
     "updatedAt": "2026-05-04T17:19:03.139Z"
+  },
+  {
+    "id": "ou_e0e61efdf9e65ac71561af7cb83786da",
+    "unionId": "",
+    "userId": "ou_e0e61efdf9e65ac71561af7cb83786da",
+    "openId": "ou_e0e61efdf9e65ac71561af7cb83786da",
+    "name": "大海 | Alex\nDC贷后管理\n",
+    "enName": "",
+    "email": "alexwang@dowsure.com",
+    "mobile": "",
+    "avatarUrl": "",
+    "status": "active",
+    "createdAt": "2026-05-04T17:29:26.395Z",
+    "updatedAt": "2026-05-04T17:29:26.396Z"
+  },
+  {
+    "id": "ou_977d83429bc031ca6a9860a3076bbb0d",
+    "unionId": "",
+    "userId": "ou_977d83429bc031ca6a9860a3076bbb0d",
+    "openId": "",
+    "name": "大海|陈振海\n\n",
+    "enName": "",
+    "email": "",
+    "mobile": "",
+    "avatarUrl": "",
+    "status": "active",
+    "createdAt": "2026-05-04T17:29:26.401Z",
+    "updatedAt": "2026-05-04T17:29:26.401Z"
   }
 ]
