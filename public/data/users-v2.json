@@ -3,7 +3,7 @@
     "id": "1",
     "sequence": 1,
     "username": "admin",
-    "realName": "超级管理员",
+    "realName": "未知用户",
     "email": "admin@example.com",
     "phone": "13800138000",
     "password": "692bc49826a8775e33d4cd13c992ab40c30cff0eeef771ba0a1b7c35953dd4a257569b5ed28c1c008d7b3de8947efc34a8883f2263f988521f2cf66e7522ec1e",
@@ -13,7 +13,7 @@
     "role": "super_admin",
     "status": "active",
     "createdAt": "2026-05-03T05:36:31.389Z",
-    "updatedAt": "2026-05-04T14:37:22.761Z",
+    "updatedAt": "2026-05-04T17:13:38.194Z",
     "mustChangePassword": false,
     "passwordHistory": [
       "a504d9a117bcda8284778e86c7591431b9b4a62544271e7a1a06d1d1752e8f22cb2bf3a58e8271e49e87812b821c891a86a3e8e95a756250f5f67b4073ceb228"
@@ -22,7 +22,8 @@
     "allowedIps": [],
     "lastLoginTime": "2026-05-04T14:37:01.788Z",
     "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
-    "passwordChangedAt": "2026-05-04T14:37:22.761Z"
+    "passwordChangedAt": "2026-05-04T14:37:22.761Z",
+    "unionId": "on_500fa3cd143c7f1ee8b3106503736e9a"
   },
   {
     "id": "2",

@@ -350,6 +350,31 @@ export default function UsersPage() {
     }
   };
 
+  const handleSyncFeishu = async () => {
+    if (!confirm('确定要从飞书同步用户吗？这将会新增或更新系统用户。')) return;
+
+    try {
+      const toastId = toast.loading('正在从飞书同步用户...');
+      
+      const res = await fetch('/api/users/sync-feishu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await res.json();
+      
+      if (result.success) {
+        toast.success(result.message || '同步成功', { id: toastId });
+        // 刷新用户列表
+        fetchUsers();
+      } else {
+        toast.error(result.error || '同步失败', { id: toastId });
+      }
+    } catch (error) {
+      toast.error('同步失败');
+    }
+  };
+
   const handleExport = async () => {
     try {
       const params = new URLSearchParams();
@@ -553,6 +578,13 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">用户管理</h1>
         <div className="flex items-center gap-2">
+          <Button 
+            onClick={handleSyncFeishu} 
+            variant="secondary"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            同步飞书用户
+          </Button>
           <Button onClick={handleExport} variant="secondary">
             <Download className="h-4 w-4 mr-2" />
             导出用户
