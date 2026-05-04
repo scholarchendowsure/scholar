@@ -95,7 +95,7 @@ export default function LoginPage() {
         }
       } else {
         // 根据错误类型显示不同的提示
-        const errorMessage = json.error || '登录失败';
+        const errorMessage = json.message || json.error || '登录失败';
         console.log('Login error message:', errorMessage);
         
         // 检查是否是验证码相关错误
