@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function isHSBCLocked() {
-  return true
+  return false
 }
 
 export function checkHSBCLock(request: NextRequest) {
