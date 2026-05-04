@@ -5,6 +5,17 @@
     "action": "login",
     "module": "auth",
     "description": "用户登录成功",
+    "ip": "::1",
+    "userAgent": "",
+    "id": "1777919513623",
+    "createdAt": "2026-05-04T18:31:53.623Z"
+  },
+  {
+    "userId": "1777897888289",
+    "username": "Scholar",
+    "action": "login",
+    "module": "auth",
+    "description": "用户登录成功",
     "ip": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
     "id": "1777918850036",

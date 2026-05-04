@@ -13,12 +13,12 @@
     "role": "super_admin",
     "status": "active",
     "createdAt": "2026-05-03T05:36:31.389Z",
-    "updatedAt": "2026-05-04T17:57:22.537Z",
+    "updatedAt": "2026-05-04T18:31:53.602Z",
     "mustChangePassword": false,
     "passwordHistory": [
       "a504d9a117bcda8284778e86c7591431b9b4a62544271e7a1a06d1d1752e8f22cb2bf3a58e8271e49e87812b821c891a86a3e8e95a756250f5f67b4073ceb228"
     ],
-    "loginAttempts": 0,
+    "loginAttempts": 1,
     "allowedIps": [],
     "lastLoginTime": "2026-05-04T14:37:01.788Z",
     "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
@@ -41,14 +41,14 @@
     "password": "b228acc85748d5f81343e31fc66b96a06a19f8029e6ab2e3062de5d42e6e7c9ac361111cae4d476eb1bb10de0130634b4c0cf70e38ca79028239bb2156e40609",
     "passwordSalt": "946563b2d3b9b021c3e7d69e5fc2790f",
     "createdAt": "2026-05-04T12:31:28.288Z",
-    "updatedAt": "2026-05-04T18:20:50.035Z",
+    "updatedAt": "2026-05-04T18:31:53.622Z",
     "mustChangePassword": false,
     "passwordHistory": [
       "5197f6312b721172f2563246b8f5a0dbca7ab6c90d35d2c14baac960ebe2048dbc208aa73dab28578688cfb41e6fe03fb66de1a49d563d42df7b34a72d025f4a"
     ],
     "loginAttempts": 0,
-    "lastLoginTime": "2026-05-04T18:20:50.035Z",
-    "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
+    "lastLoginTime": "2026-05-04T18:31:53.622Z",
+    "lastLoginIp": "::1",
     "passwordChangedAt": "2026-05-04T14:52:01.009Z"
   },
   {
