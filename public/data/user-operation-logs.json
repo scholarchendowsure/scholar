@@ -7,6 +7,17 @@
     "description": "用户登录成功",
     "ip": "::1",
     "userAgent": "",
+    "id": "1777920574627",
+    "createdAt": "2026-05-04T18:49:34.627Z"
+  },
+  {
+    "userId": "1777897888289",
+    "username": "Scholar",
+    "action": "login",
+    "module": "auth",
+    "description": "用户登录成功",
+    "ip": "::1",
+    "userAgent": "",
     "id": "1777919513623",
     "createdAt": "2026-05-04T18:31:53.623Z"
   },
