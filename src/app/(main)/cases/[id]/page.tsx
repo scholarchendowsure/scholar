@@ -141,7 +141,7 @@ export default function CaseDetailPage() {
       // 3. 构造消息内容
       const dueDate = caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || caseData.repaymentDate ? 
         new Date(caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || caseData.repaymentDate || '').toLocaleDateString('zh-CN') : '未知';
-      const followLink = `${window.location.origin}/followup/${caseData.id}`;
+      const followLink = `${window.location.origin}/followup/${caseData.loanNo}`;
       const balance = caseData.outstandingBalance || caseData.overdueAmount || caseData.inLoanBalance || 0;
       
       // 处理币种显示

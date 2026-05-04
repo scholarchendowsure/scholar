@@ -52,10 +52,18 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const loadCase = async () => {
       try {
-        const response = await fetch(`/api/cases/cases-v2/${params.id}`);
-        const result = await response.json();
+        // 先尝试用UUID查找
+        let response = await fetch(`/api/cases/cases-v2/${params.id}`);
+        let result = await response.json();
         if (result.success) {
           setCaseData(result.data);
+        } else {
+          // 如果UUID找不到，尝试用贷款单号查找
+          const listResponse = await fetch(`/api/cases?loanNo=${params.id}`);
+          const listResult = await listResponse.json();
+          if (listResult.success && listResult.data && listResult.data.length > 0) {
+            setCaseData(listResult.data[0]);
+          }
         }
         // 即使找不到案件，也不显示错误，直接显示弹窗
       } catch (error) {
