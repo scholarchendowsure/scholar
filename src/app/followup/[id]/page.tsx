@@ -254,7 +254,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
       };
 
       // 4. 立即保存当前案件并提示成功
-      const saveResponse = await fetch(`/api/cases/cases-v2/${params.id}`, {
+      const saveResponse = await fetch(`/api/cases/cases-v2/${caseData?.id || id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedCase),
