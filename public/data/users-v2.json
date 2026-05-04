@@ -6,18 +6,23 @@
     "realName": "超级管理员",
     "email": "admin@example.com",
     "phone": "13800138000",
-    "password": "a504d9a117bcda8284778e86c7591431b9b4a62544271e7a1a06d1d1752e8f22cb2bf3a58e8271e49e87812b821c891a86a3e8e95a756250f5f67b4073ceb228",
-    "passwordSalt": "228e533dc860785c184820c6289c7836",
+    "password": "692bc49826a8775e33d4cd13c992ab40c30cff0eeef771ba0a1b7c35953dd4a257569b5ed28c1c008d7b3de8947efc34a8883f2263f988521f2cf66e7522ec1e",
+    "passwordSalt": "3f7f8fa551d8ed7d267d00976502cb04",
     "department": "管理部",
     "position": "总监",
     "role": "super_admin",
     "status": "active",
     "createdAt": "2026-05-03T05:36:31.389Z",
-    "updatedAt": "2026-05-04T14:20:52.558Z",
-    "mustChangePassword": true,
-    "passwordHistory": [],
-    "loginAttempts": 1,
-    "allowedIps": []
+    "updatedAt": "2026-05-04T14:37:22.761Z",
+    "mustChangePassword": false,
+    "passwordHistory": [
+      "a504d9a117bcda8284778e86c7591431b9b4a62544271e7a1a06d1d1752e8f22cb2bf3a58e8271e49e87812b821c891a86a3e8e95a756250f5f67b4073ceb228"
+    ],
+    "loginAttempts": 0,
+    "allowedIps": [],
+    "lastLoginTime": "2026-05-04T14:37:01.788Z",
+    "lastLoginIp": "240e:3bb:2e75:45f0:882d:7a91:b1f7:9ed3",
+    "passwordChangedAt": "2026-05-04T14:37:22.761Z"
   },
   {
     "id": "2",
@@ -92,12 +97,12 @@
     "allowedIps": [],
     "id": "1777897888289",
     "sequence": 5,
-    "password": "23c8296a1417d5144759e62730b69e98c76d86f08d0a486dfd7b7c8b5158863ef5f76e8d7654af3a0febf4758ab3c6a7bf1f67f68ecc0532e9c91f01354aa2b3",
-    "passwordSalt": "8dfda9a419e1dbcf17acf502a8960527",
+    "password": "5197f6312b721172f2563246b8f5a0dbca7ab6c90d35d2c14baac960ebe2048dbc208aa73dab28578688cfb41e6fe03fb66de1a49d563d42df7b34a72d025f4a",
+    "passwordSalt": "4a91e02e7bd609cafad27c0fc74c1f3d",
     "createdAt": "2026-05-04T12:31:28.288Z",
-    "updatedAt": "2026-05-04T14:33:37.368Z",
+    "updatedAt": "2026-05-04T14:37:45.156Z",
     "mustChangePassword": true,
     "passwordHistory": [],
-    "loginAttempts": 4
+    "loginAttempts": 0
   }
 ]
