@@ -102,31 +102,46 @@ export default function CaseDetailPage() {
 
     setSendingReminder(roleType);
     try {
-      // 1. 搜索飞书用户（使用和飞书配置页面一样的API）
-      const searchResponse = await fetch(
-        `/api/feishu-search-save?action=search-and-save&keyword=${encodeURIComponent(roleName)}`
-      );
-
-      const searchResult = await searchResponse.json();
+      // 1. 先从已保存用户列表中查找
+      let openId: string | null = null;
       
-      if (!searchResult.success || !searchResult.users || searchResult.users.length === 0) {
-        toast.error(`未找到飞书用户: ${roleName}`);
-        return;
+      try {
+        const usersRes = await fetch('/api/feishu-users');
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          if (usersData.users) {
+            const foundUser = usersData.users.find((u: any) => u.name === roleName);
+            if (foundUser?.openId) {
+              openId = foundUser.openId;
+            }
+          }
+        }
+      } catch (e) {
+        console.log('从已保存用户列表查找失败，继续搜索');
+      }
+      
+      // 2. 如果没找到，再搜索用户
+      if (!openId) {
+        const searchRes = await fetch(`/api/feishu-personal/search-user?keyword=${encodeURIComponent(roleName)}`);
+        
+        if (!searchRes.ok) {
+          throw new Error('搜索用户失败');
+        }
+        
+        const searchData = await searchRes.json();
+        
+        if (!searchData.success || !searchData.user?.openId) {
+          throw new Error(`未找到用户: ${roleName}`);
+        }
+        
+        openId = searchData.user.openId;
       }
 
-      const targetUser = searchResult.users[0];
-      const userId = targetUser.userId || targetUser.user_id || targetUser.open_id || targetUser.id;
-
-      if (!userId) {
-        toast.error('无法获取用户ID');
-        return;
-      }
-
-      // 2. 构造消息内容
-      const dueDate = caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate ? 
-        new Date(caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || '').toLocaleDateString('zh-CN') : '未知';
+      // 3. 构造消息内容
+      const dueDate = caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || caseData.repaymentDate ? 
+        new Date(caseData.firstOverdueTime || caseData.dueDate || caseData.compensationDate || caseData.repaymentDate || '').toLocaleDateString('zh-CN') : '未知';
       const followLink = `${window.location.origin}/followup/${caseData.id}`;
-      const balance = caseData.outstandingBalance || caseData.overdueAmount || 0;
+      const balance = caseData.outstandingBalance || caseData.overdueAmount || caseData.inLoanBalance || 0;
       
       // 处理币种显示
       let currency = caseData.currency || 'CNY';
@@ -140,16 +155,15 @@ export default function CaseDetailPage() {
       }
       
       const message = `【案件跟进提醒】
-${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}${currencySymbol} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
+${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}${currencySymbol} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
 
-      // 3. 发送消息（使用和飞书配置页面一样的API）
-      const sendResponse = await fetch('/api/feishu-send-direct', {
+      // 4. 发送消息
+      const sendResponse = await fetch('/api/feishu-personal/send-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: userId,
-          message: message,
-          idType: 'user_id'
+          openId: openId,
+          message: message
         })
       });
 
@@ -158,11 +172,12 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${balance.toLocaleStr
       if (sendResult.success) {
         toast.success(`已发送提醒给 ${roleName}`);
       } else {
-        toast.error(sendResult.message || '发送失败');
+        toast.error(sendResult.error || '发送失败');
       }
 
     } catch (error) {
-      toast.error('发送提醒失败');
+      console.error('发送提醒失败:', error);
+      toast.error(error instanceof Error ? error.message : '发送提醒失败');
     } finally {
       setSendingReminder(null);
     }
