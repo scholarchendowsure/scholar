@@ -123,19 +123,25 @@ export default function CaseDetailPage() {
       
       // 2. 如果没找到，再搜索用户
       if (!openId) {
-        const searchRes = await fetch(`/api/feishu-personal/search-user?keyword=${encodeURIComponent(roleName)}`);
-        
-        if (!searchRes.ok) {
-          throw new Error('搜索用户失败');
+        try {
+          const searchRes = await fetch(`/api/feishu-personal/search-user?keyword=${encodeURIComponent(roleName)}`);
+          
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            
+            if (searchData.success && searchData.user?.openId) {
+              openId = searchData.user.openId;
+            }
+          }
+        } catch (searchError) {
+          console.log('搜索用户失败，继续尝试发送消息或跳过:', searchError);
         }
-        
-        const searchData = await searchRes.json();
-        
-        if (!searchData.success || !searchData.user?.openId) {
-          throw new Error(`未找到用户: ${roleName}`);
-        }
-        
-        openId = searchData.user.openId;
+      }
+      
+      // 如果还是没找到 openId，给出提示
+      if (!openId) {
+        toast.warning(`未找到用户 ${roleName} 的飞书账号，请先在数据存储表中保存该用户信息`);
+        return;
       }
 
       // 3. 构造消息内容
