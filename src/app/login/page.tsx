@@ -93,11 +93,16 @@ export default function LoginPage() {
           router.push('/');
         }
       } else {
-        toast.error(json.error || '登录失败');
-        // 登录失败时刷新验证码
-        if (json.error?.includes('验证码')) {
+        // 根据错误类型显示不同的提示
+        const errorMessage = json.error || '登录失败';
+        if (errorMessage.includes('验证码')) {
+          toast.error('图形验证码错误');
           fetchCaptcha();
           setCaptcha('');
+        } else if (errorMessage.includes('用户名或密码')) {
+          toast.error('用户名或密码错误');
+        } else {
+          toast.error(errorMessage);
         }
       }
     } catch (error) {
