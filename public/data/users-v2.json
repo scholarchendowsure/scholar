@@ -92,12 +92,12 @@
     "allowedIps": [],
     "id": "1777897888289",
     "sequence": 5,
-    "password": "4928a7c1c72dace8edde10121bacb02022fceafbe8f964fc80cf46b85ee73e6158450c39c9c803efdf19e446ce61f307f9676b92f6172cbf1c43acd387cdbd4d",
-    "passwordSalt": "82ecc2235afdbf431f706ba883e33d1e",
+    "password": "23c8296a1417d5144759e62730b69e98c76d86f08d0a486dfd7b7c8b5158863ef5f76e8d7654af3a0febf4758ab3c6a7bf1f67f68ecc0532e9c91f01354aa2b3",
+    "passwordSalt": "8dfda9a419e1dbcf17acf502a8960527",
     "createdAt": "2026-05-04T12:31:28.288Z",
-    "updatedAt": "2026-05-04T14:30:47.848Z",
+    "updatedAt": "2026-05-04T14:33:37.368Z",
     "mustChangePassword": true,
     "passwordHistory": [],
-    "loginAttempts": 0
+    "loginAttempts": 4
   }
 ]
