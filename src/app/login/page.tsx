@@ -80,6 +80,7 @@ export default function LoginPage() {
       });
 
       const json = await res.json();
+      console.log('Login API response:', json);
 
       if (json.success) {
         toast.success('登录成功');
@@ -95,13 +96,28 @@ export default function LoginPage() {
       } else {
         // 根据错误类型显示不同的提示
         const errorMessage = json.error || '登录失败';
-        if (errorMessage.includes('验证码')) {
+        console.log('Login error message:', errorMessage);
+        
+        // 检查是否是验证码相关错误
+        if (
+          errorMessage.includes('验证码') || 
+          errorMessage.includes('captcha') ||
+          errorMessage.includes('验证码已过期')
+        ) {
           toast.error('图形验证码错误');
           fetchCaptcha();
           setCaptcha('');
-        } else if (errorMessage.includes('用户名或密码')) {
+        } 
+        // 检查是否是用户名或密码错误
+        else if (
+          errorMessage.includes('用户名或密码') || 
+          errorMessage.includes('user') || 
+          errorMessage.includes('password')
+        ) {
           toast.error('用户名或密码错误');
-        } else {
+        } 
+        // 其他错误
+        else {
           toast.error(errorMessage);
         }
       }
