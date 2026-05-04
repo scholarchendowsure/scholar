@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,8 @@ import {
 } from '@/types/case';
 import { generateId } from '@/lib/utils';
 
-export default function FollowupPage({ params }: { params: { id: string } }) {
+export default function FollowupPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { currentUser } = useAuth();
   const [caseData, setCaseData] = useState<LoanCaseV2 | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,13 +54,13 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
     const loadCase = async () => {
       try {
         // 先尝试用UUID查找
-        let response = await fetch(`/api/cases/cases-v2/${params.id}`);
+        let response = await fetch(`/api/cases/cases-v2/${id}`);
         let result = await response.json();
         if (result.success) {
           setCaseData(result.data);
         } else {
           // 如果UUID找不到，尝试用贷款单号查找
-          const listResponse = await fetch(`/api/cases?loanNo=${params.id}`);
+          const listResponse = await fetch(`/api/cases?loanNo=${id}`);
           const listResult = await listResponse.json();
           if (listResult.success && listResult.data && listResult.data.length > 0) {
             setCaseData(listResult.data[0]);
@@ -75,7 +76,7 @@ export default function FollowupPage({ params }: { params: { id: string } }) {
     };
     
     loadCase();
-  }, [params.id]);
+  }, [id]);
 
   // 文件上传处理（简化版）
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
