@@ -1,6 +1,7 @@
 export interface FeishuBitableConfig {
   id: string;
   appId: string;
+  appSecret: string;
   appToken: string;
   tableId: string;
   syncEnabled: boolean;

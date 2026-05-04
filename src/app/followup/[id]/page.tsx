@@ -184,6 +184,28 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
       (async () => {
         try {
           await syncToFeishuWebhook(updatedCase, followupRecord);
+          
+          // 6. 同步到飞书多维表格
+          console.log("🔄 开始同步到飞书多维表格...");
+          const syncResponse = await fetch("/api/feishu-bitable/followup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              followup: followupRecord,
+              caseData: updatedCase
+            }),
+          });
+          
+          const syncResult = await syncResponse.json();
+          console.log("📊 多维表格同步结果:", syncResult);
+          
+          if (syncResult.success && syncResult.successCount > 0) {
+            console.log("✅ 多维表格同步成功:", syncResult.message);
+          } else if (syncResult.skipped) {
+            console.log("ℹ️ 多维表格同步已跳过（无启用配置）");
+          } else {
+            console.warn("⚠️ 多维表格同步存在问题:", syncResult);
+          }
         } catch (err) {
           console.error("后台任务处理失败:", err);
         }

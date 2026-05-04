@@ -650,6 +650,127 @@ export async function searchFeishuUsersDirectly(
 }
 
 /**
+ * 向飞书多维表格添加记录
+ */
+export async function addBitableRecord(
+  appId: string,
+  appSecret: string,
+  appToken: string,
+  tableId: string,
+  fields: Record<string, any>
+): Promise<{ success: boolean; recordId?: string; error?: string }> {
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+  
+  console.log('📝 开始向飞书多维表格添加记录');
+  console.log('📊 应用Token:', appToken.substring(0, 12) + '...');
+  console.log('📋 表格ID:', tableId);
+  console.log('📝 字段数据:', fields);
+
+  try {
+    const response = await fetch(
+      `${FEISHU_API_BASE}/bitable/v1/apps/${appToken}/tables/${tableId}/records`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fields: fields
+        }),
+      }
+    );
+
+    console.log('📡 多维表格API响应状态:', response.status);
+    
+    const data = await response.json();
+    console.log('📊 多维表格API完整响应:', JSON.stringify(data, null, 2));
+    
+    if (data.code === 0) {
+      console.log('✅ 多维表格记录添加成功，记录ID:', data.data?.record?.record_id);
+      return {
+        success: true,
+        recordId: data.data?.record?.record_id
+      };
+    } else {
+      console.error('❌ 多维表格记录添加失败:', data);
+      return {
+        success: false,
+        error: `${data.msg} (code: ${data.code})`
+      };
+    }
+  } catch (error) {
+    console.error('❌ 添加多维表格记录异常:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '添加失败'
+    };
+  }
+}
+
+/**
+ * 批量向飞书多维表格添加记录
+ */
+export async function batchAddBitableRecords(
+  appId: string,
+  appSecret: string,
+  appToken: string,
+  tableId: string,
+  recordsList: Array<Record<string, any>>
+): Promise<{ success: boolean; recordIds?: string[]; error?: string }> {
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+  
+  console.log('📝 开始批量向飞书多维表格添加记录');
+  console.log('📊 应用Token:', appToken.substring(0, 12) + '...');
+  console.log('📋 表格ID:', tableId);
+  console.log('📝 记录数量:', recordsList.length);
+
+  try {
+    const records = recordsList.map(fields => ({ fields }));
+    
+    const response = await fetch(
+      `${FEISHU_API_BASE}/bitable/v1/apps/${appToken}/tables/${tableId}/records/batch_create`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          records: records
+        }),
+      }
+    );
+
+    console.log('📡 批量多维表格API响应状态:', response.status);
+    
+    const data = await response.json();
+    console.log('📊 批量多维表格API完整响应:', JSON.stringify(data, null, 2));
+    
+    if (data.code === 0) {
+      const recordIds = data.data?.records?.map((r: any) => r.record_id) || [];
+      console.log('✅ 批量多维表格记录添加成功，记录数量:', recordIds.length);
+      return {
+        success: true,
+        recordIds: recordIds
+      };
+    } else {
+      console.error('❌ 批量多维表格记录添加失败:', data);
+      return {
+        success: false,
+        error: `${data.msg} (code: ${data.code})`
+      };
+    }
+  } catch (error) {
+    console.error('❌ 批量添加多维表格记录异常:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '添加失败'
+    };
+  }
+}
+
+/**
  * 使用个人用户 OAuth token 发送飞书消息
  */
 export async function sendFeishuMessageWithUserToken(

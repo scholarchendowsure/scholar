@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { appId, appToken, tableId, syncEnabled, syncDirection, fieldMapping } = body;
+    const { appId, appSecret, appToken, tableId, syncEnabled, syncDirection, fieldMapping } = body;
 
     if (!appId || !appToken || !tableId) {
       return NextResponse.json(
@@ -31,13 +31,19 @@ export async function POST(request: Request) {
 
     const existingConfig = bitableConfigStorage.findByAppId(appId);
     if (existingConfig) {
-      const updated = bitableConfigStorage.update(existingConfig.id, {
+      const updateData: any = {
         appToken,
         tableId,
         syncEnabled,
         syncDirection,
         fieldMapping,
-      });
+      };
+      // 只有提供了新的appSecret才更新
+      if (appSecret) {
+        updateData.appSecret = appSecret;
+      }
+      
+      const updated = bitableConfigStorage.update(existingConfig.id, updateData);
 
       return NextResponse.json({
         success: true,
@@ -46,6 +52,7 @@ export async function POST(request: Request) {
     } else {
       const newConfig = bitableConfigStorage.create({
         appId,
+        appSecret: appSecret || '',
         appToken,
         tableId,
         syncEnabled: syncEnabled ?? true,
