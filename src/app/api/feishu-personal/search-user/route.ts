@@ -1,14 +1,12 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeishuWebOAuthStorage } from '@/storage/database/feishu-web-oauth-storage';
 import { searchFeishuUsersWithUserToken } from '@/lib/feishu-api';
 import { saveFeishuUser, FeishuUser } from '@/storage/database/feishu-user-storage';
 
-export async function POST(request: NextRequest) {
+// 同时支持 GET 和 POST 请求
+async function handleSearch(request: NextRequest, queryParam: string) {
   try {
-    const { query } = await request.json();
-
-    if (!query) {
+    if (!queryParam) {
       return NextResponse.json(
         { success: false, error: '请输入搜索关键词' },
         { status: 400 }
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 使用个人 OAuth token 搜索用户
-    const users = await searchFeishuUsersWithUserToken(token.accessToken, query);
+    const users = await searchFeishuUsersWithUserToken(token.accessToken, queryParam);
 
     // 自动保存搜索到的用户到数据库
     for (const user of users) {
@@ -56,9 +54,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 返回第一个用户作为单个用户对象（兼容前端期望格式）
+    const firstUser = users[0];
     return NextResponse.json({
       success: true,
-      users: users
+      users: users,
+      user: firstUser ? {
+        openId: firstUser.openId,
+        name: firstUser.name
+      } : null
     });
 
   } catch (error) {
@@ -68,4 +72,18 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// POST 请求
+export async function POST(request: NextRequest) {
+  const { query, keyword } = await request.json();
+  return handleSearch(request, query || keyword);
+}
+
+// GET 请求
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const query = searchParams.get('query');
+  const keyword = searchParams.get('keyword');
+  return handleSearch(request, query || keyword || '');
 }
