@@ -13,6 +13,11 @@ const CACHE_TTL = 5000; // 5秒缓存
 let queryCacheHits = 0;
 let queryCacheMisses = 0;
 
+// 导出缓存清除函数，供其他API（如followups）在数据变更后调用
+export function clearQueryCache() {
+  queryCache.clear();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

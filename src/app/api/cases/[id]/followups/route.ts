@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { caseStorage } from '@/storage/database/case-storage';
+import { clearQueryCache } from '@/app/api/cases/route';
 import type { FollowUp } from '@/types/case';
 
 /**
@@ -85,6 +86,9 @@ export async function POST(
     // 3. 添加跟进记录到当前案件
     const updatedFollowups = [...(caseData.followups || []), followupRecord];
     await caseStorage.update(id, { followups: updatedFollowups });
+
+    // 清除列表API的查询缓存，确保后续请求返回最新数据
+    clearQueryCache();
 
     let syncedCount = 0;
 

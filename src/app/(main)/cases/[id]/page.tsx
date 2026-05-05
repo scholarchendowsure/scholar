@@ -319,6 +319,27 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     }
   }, [params.id]);
 
+  // 页面获得焦点时自动刷新数据（确保从提醒链接保存后能看到最新跟进记录）
+  useEffect(() => {
+    const handleFocus = () => {
+      if (params.id) {
+        fetchCase(params.id as string);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    // 同时监听 visibilitychange，处理移动端场景
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && params.id) {
+        fetchCase(params.id as string);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [params.id]);
+
   const fetchCase = async (id: string) => {
     try {
       setLoading(true);

@@ -37,6 +37,9 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   // Referrer-Policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
+  // Cache-Control - 防止浏览器缓存API响应（确保数据实时性）
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
   // Strict-Transport-Security (HSTS)
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 

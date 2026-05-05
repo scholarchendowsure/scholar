@@ -236,7 +236,15 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         <div className="text-center">
           <CheckCircle className="w-24 h-24 text-green-500 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-green-800 mb-4">记录保存成功！</h1>
-          <p className="text-green-600 text-lg">您的跟进记录已成功保存到案件中</p>
+          <p className="text-green-600 text-lg mb-8">您的跟进记录已成功保存到案件中</p>
+          {caseData && (
+            <button
+              onClick={() => window.open(`/cases/${caseData.id}`, '_blank')}
+              className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-lg font-medium transition-colors"
+            >
+              查看案件详情
+            </button>
+          )}
         </div>
       </div>
     );
