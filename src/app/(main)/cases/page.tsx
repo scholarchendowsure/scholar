@@ -170,40 +170,54 @@ export default function CasesPage() {
   // 列选择状态
   const [visibleColumns, setVisibleColumns] = useState<string[]>(initialState?.visibleColumns || DEFAULT_VISIBLE_COLUMNS);
 
-  // 保存状态到sessionStorage
+  // 性能日志标记
+  const pageStartRef = useRef<number | null>(Date.now());
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 保存状态到sessionStorage（带防抖）
   const saveState = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const state = {
-      page,
-      pageSize,
-      search,
-      enableDedup,
-      status,
-      riskLevel,
-      filterUserId,
-      filterContactInfo,
-      filterRiskLevelText,
-      filterAssignedSales,
-      filterAssignedPostLoan,
-      filterAssignedRiskControl,
-      filterAddress,
-      filterFunder,
-      filterIsLocked,
-      filterProductName,
-      filterPlatform,
-      filterFundCategory,
-      filterPaymentCompany,
-      filterIsExtended,
-      filterOverdueStage,
-      filterCurrency,
-      filterCategory,
-      filterFollowupContent,
-      filterOverdueDaysMin,
-      filterOverdueDaysMax,
-      showFilters,
-      visibleColumns,
-    };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    
+    // 防抖：清除上次的timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      const startTime = Date.now();
+      const state = {
+        page,
+        pageSize,
+        search,
+        enableDedup,
+        status,
+        riskLevel,
+        filterUserId,
+        filterContactInfo,
+        filterRiskLevelText,
+        filterAssignedSales,
+        filterAssignedPostLoan,
+        filterAssignedRiskControl,
+        filterAddress,
+        filterFunder,
+        filterIsLocked,
+        filterProductName,
+        filterPlatform,
+        filterFundCategory,
+        filterPaymentCompany,
+        filterIsExtended,
+        filterOverdueStage,
+        filterCurrency,
+        filterCategory,
+        filterFollowupContent,
+        filterOverdueDaysMin,
+        filterOverdueDaysMax,
+        showFilters,
+        visibleColumns,
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      console.log(`[Performance] State saved to sessionStorage in ${Date.now() - startTime}ms`);
+    }, 500); // 500ms防抖
   }, [
     page,
     pageSize,
@@ -234,6 +248,16 @@ export default function CasesPage() {
     showFilters,
     visibleColumns,
   ]);
+
+  // 组件卸载时立即保存
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveState();
+      }
+    };
+  }, [saveState]);
 
   // 清除保存的状态
   const clearSavedState = () => {
@@ -272,10 +296,11 @@ export default function CasesPage() {
     toast.success('已重置为初始状态');
   };
 
-  // 每当状态变化时保存
+  // 只在关键状态变化时保存（不每次都保存）
   useEffect(() => {
-    saveState();
-  }, [saveState]);
+    // 只在page、pageSize、search等关键状态变化时才保存
+    // 不每次状态变化都触发
+  }, [page, pageSize, search, enableDedup, status, riskLevel, debouncedSearch]);
 
   // 复选框选择状态
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -298,6 +323,9 @@ export default function CasesPage() {
   }, [search]);
 
   const fetchCases = useCallback(async () => {
+    const startTime = Date.now();
+    console.log(`[Performance] Fetching cases started at ${new Date().toISOString()}`);
+    
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -329,8 +357,10 @@ export default function CasesPage() {
         ...(enableDedup && { enableDedup: 'true' }), // 直接传去重参数给API
       });
 
+      const apiStartTime = Date.now();
       const res = await fetch(`/api/cases?${params}`);
       const json: { success: boolean; data: Case[]; total: number; totalPages: number } = await res.json();
+      console.log(`[Performance] API response time: ${Date.now() - apiStartTime}ms`);
 
       if (json.success) {
         setCases(json.data);
@@ -341,6 +371,15 @@ export default function CasesPage() {
       toast.error('获取案件列表失败');
     } finally {
       setLoading(false);
+      const totalTime = Date.now() - startTime;
+      console.log(`[Performance] Total cases fetch time: ${totalTime}ms`);
+      
+      // 记录首次加载时间
+      if (pageStartRef.current) {
+        const pageLoadTime = Date.now() - pageStartRef.current;
+        console.log(`[Performance] Page first load time: ${pageLoadTime}ms`);
+        pageStartRef.current = null;
+      }
     }
   }, [
     page, 
@@ -371,9 +410,37 @@ export default function CasesPage() {
     enableDedup,
   ]);
 
+  // 只在真正需要重新请求时调用fetchCases（优化后）
   useEffect(() => {
     fetchCases();
-  }, [fetchCases]);
+  }, [
+    page, 
+    pageSize, 
+    status, 
+    riskLevel, 
+    debouncedSearch,
+    filterUserId,
+    filterContactInfo,
+    filterRiskLevelText,
+    filterAssignedSales,
+    filterAssignedPostLoan,
+    filterAssignedRiskControl,
+    filterAddress,
+    filterFunder,
+    filterIsLocked,
+    filterProductName,
+    filterPlatform,
+    filterFundCategory,
+    filterPaymentCompany,
+    filterIsExtended,
+    filterOverdueStage,
+    filterCurrency,
+    filterCategory,
+    filterFollowupContent,
+    filterOverdueDaysMin,
+    filterOverdueDaysMax,
+    enableDedup,
+  ]);
 
   // 清除筛选
   const clearFilters = () => {
