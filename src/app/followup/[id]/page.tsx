@@ -47,12 +47,12 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<{ name: string; url: string }[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
-  // 加载案件信息
+  // 加载案件信息（与案件详情页面完全一致）
   useEffect(() => {
     const loadCase = async () => {
       try {
-        // 先尝试用UUID查找
-        let response = await fetch(`/api/cases/cases-v2/${id}`);
+        // 先尝试用UUID查找（与案件详情页面一致）
+        let response = await fetch(`/api/cases/${id}`);
         let result = await response.json();
         if (result.success) {
           setCaseData(result.data);
@@ -232,8 +232,8 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         updateTime: new Date().toISOString(),
       };
 
-      // 4. 立即保存当前案件并提示成功
-      const saveResponse = await fetch(`/api/cases/cases-v2/${caseData?.id || id}`, {
+      // 4. 立即保存当前案件并提示成功（与案件详情页面完全一致）
+      const saveResponse = await fetch(`/api/cases/${caseData?.id || id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedCase),
