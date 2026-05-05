@@ -301,9 +301,8 @@ export default function CasesPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        // 不启用去重时才传分页
-        ...(!enableDedup && { page: String(page) }),
-        ...(!enableDedup && { pageSize: String(pageSize) }),
+        page: String(page),
+        pageSize: String(pageSize),
         ...(status !== 'all' && { status }),
         ...(riskLevel !== 'all' && { riskLevel }),
         ...(debouncedSearch && { search: debouncedSearch }),
@@ -327,92 +326,16 @@ export default function CasesPage() {
         ...(filterFollowupContent && { filterFollowupContent }),
         ...(filterOverdueDaysMin && { filterOverdueDaysMin }),
         ...(filterOverdueDaysMax && { filterOverdueDaysMax }),
+        ...(enableDedup && { enableDedup: 'true' }), // 直接传去重参数给API
       });
 
       const res = await fetch(`/api/cases?${params}`);
       const json: { success: boolean; data: Case[]; total: number; totalPages: number } = await res.json();
 
       if (json.success) {
-        let processedData = json.data;
-        let processedTotal = json.total;
-        let processedTotalPages = json.totalPages;
-
-        // 用户去重逻辑
-        if (enableDedup) {
-          // 先获取所有数据（因为去重需要对比所有数据）
-          // 为了简化，假设 API 在不分页时返回所有数据（或者我们使用一个足够大的 pageSize）
-          if (page === 1 && pageSize === 10) {
-            // 重新获取所有数据
-            const allParams = new URLSearchParams({
-              pageSize: '10000', // 足够大的数量
-              ...(status !== 'all' && { status }),
-              ...(riskLevel !== 'all' && { riskLevel }),
-              ...(debouncedSearch && { search: debouncedSearch }),
-              ...(filterUserId && { filterUserId }),
-              ...(filterContactInfo && { filterContactInfo }),
-              ...(filterRiskLevelText && { filterRiskLevelText }),
-              ...(filterAssignedSales && { filterAssignedSales }),
-              ...(filterAssignedPostLoan && { filterAssignedPostLoan }),
-              ...(filterAssignedRiskControl && { filterAssignedRiskControl }),
-              ...(filterAddress && { filterAddress }),
-              ...(filterFunder && { filterFunder }),
-              ...(filterIsLocked && { filterIsLocked }),
-              ...(filterProductName && { filterProductName }),
-              ...(filterPlatform && { filterPlatform }),
-              ...(filterFundCategory && { filterFundCategory }),
-              ...(filterPaymentCompany && { filterPaymentCompany }),
-              ...(filterIsExtended && { filterIsExtended }),
-              ...(filterOverdueStage && { filterOverdueStage }),
-              ...(filterCurrency && { filterCurrency }),
-              ...(filterCategory && { filterCategory }),
-              ...(filterFollowupContent && { filterFollowupContent }),
-              ...(filterOverdueDaysMin && { filterOverdueDaysMin }),
-              ...(filterOverdueDaysMax && { filterOverdueDaysMax }),
-            });
-
-            const allRes = await fetch(`/api/cases?${allParams}`);
-            const allJson: { success: boolean; data: Case[]; total: number; totalPages: number } = await allRes.json();
-
-            if (allJson.success) {
-              // 去重逻辑：按用户ID分组，保留逾期金额最大的
-              const userMap = new Map<string, Case>();
-              
-              allJson.data.forEach(c => {
-                const existing = userMap.get(c.userId);
-                if (!existing) {
-                  userMap.set(c.userId, c);
-                } else {
-                  // 比较逾期金额，保留大的
-                  const currentOverdue = c.overdueAmount || 0;
-                  const existingOverdue = existing.overdueAmount || 0;
-                  
-                  if (currentOverdue > existingOverdue) {
-                    userMap.set(c.userId, c);
-                  } else if (currentOverdue === existingOverdue) {
-                    // 逾期金额相同时随机保留（这里简单处理，保留原来的）
-                    // 或者根据随机数决定
-                    if (Math.random() > 0.5) {
-                      userMap.set(c.userId, c);
-                    }
-                  }
-                }
-              });
-
-              const dedupedData = Array.from(userMap.values());
-              processedTotal = dedupedData.length;
-              processedTotalPages = Math.ceil(processedTotal / pageSize);
-              
-              // 应用分页
-              const start = (page - 1) * pageSize;
-              const end = start + pageSize;
-              processedData = dedupedData.slice(start, end);
-            }
-          }
-        }
-
-        setCases(processedData);
-        setTotal(processedTotal);
-        setTotalPages(processedTotalPages);
+        setCases(json.data);
+        setTotal(json.total);
+        setTotalPages(json.totalPages);
       }
     } catch (error) {
       toast.error('获取案件列表失败');
