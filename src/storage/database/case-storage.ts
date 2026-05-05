@@ -17,7 +17,7 @@ let cacheHits = 0;
 let cacheMisses = 0;
 
 // 剥离大字段，生成轻量版Case（用于列表展示）
-function stripLargeFields(c: Case): Case {
+export function stripLargeFields(c: Case): Case {
   const stripped = { ...c };
   // 剥离 files 中的 base64 data
   if (stripped.files && Array.isArray(stripped.files)) {
@@ -33,6 +33,66 @@ function stripLargeFields(c: Case): Case {
       return rest as FollowUp;
     });
   }
+  return stripped;
+}
+
+/**
+ * 🛡️ 防止base64大字段写入JSON文件（用于Partial<Case>类型）
+ * 设计规范：禁止在JSON文件中存储base64编码的文件数据
+ * 文件数据应存储在对象存储（S3/OSS）中，JSON只存URL引用
+ */
+function stripLargeFieldsFromPartial(data: Partial<Case>): Partial<Case> {
+  const stripped = { ...data };
+
+  // 剥离files中的base64 data
+  if (stripped.files && Array.isArray(stripped.files)) {
+    stripped.files = stripped.files.map((f: CaseFile) => {
+      if (f.data && typeof f.data === 'string' && f.data.length > 100) {
+        console.warn('⚠️ 阻止写入base64文件数据到JSON，字段长度:', f.data.length);
+        const { data: _data, ...rest } = f;
+        return rest as CaseFile;
+      }
+      return f;
+    });
+  }
+
+  // 剥离followups中的fileInfo base64 data
+  if (stripped.followups && Array.isArray(stripped.followups)) {
+    stripped.followups = (stripped.followups as unknown as Record<string, unknown>[]).map((f: Record<string, unknown>) => {
+      const fileInfo = f.fileInfo;
+      if (fileInfo && typeof fileInfo === 'object') {
+        let newFileInfo: unknown;
+        if (Array.isArray(fileInfo)) {
+          newFileInfo = (fileInfo as Record<string, unknown>[]).map((item: Record<string, unknown>) => {
+            if (item.data && typeof item.data === 'string' && item.data.length > 100) {
+              console.warn('⚠️ 阻止写入跟进记录base64数据到JSON，字段长度:', item.data.length);
+              const { data: _data, ...rest } = item;
+              return rest;
+            }
+            return item;
+          });
+        } else {
+          // 对象形式（如 {"0": {...}}）
+          const newObj: Record<string, unknown> = {};
+          let hasLargeData = false;
+          for (const [key, val] of Object.entries(fileInfo as Record<string, unknown>)) {
+            if (val && typeof val === 'object' && (val as Record<string, unknown>).data && typeof (val as Record<string, unknown>).data === 'string' && ((val as Record<string, unknown>).data as string).length > 100) {
+              console.warn('⚠️ 阻止写入跟进记录base64数据到JSON（对象形式），字段长度:', ((val as Record<string, unknown>).data as string).length);
+              const { data: _data, ...rest } = val as Record<string, unknown>;
+              newObj[key] = rest;
+              hasLargeData = true;
+            } else {
+              newObj[key] = val;
+            }
+          }
+          newFileInfo = hasLargeData ? newObj : fileInfo;
+        }
+        return { ...f, fileInfo: newFileInfo } as unknown as FollowUp;
+      }
+      return f as unknown as FollowUp;
+    }) as unknown as FollowUp[];
+  }
+
   return stripped;
 }
 
@@ -221,12 +281,15 @@ export const caseStorage = {
   },
 
   async create(data: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>): Promise<Case> {
+    // 🛡️ 防止base64大字段写入JSON文件
+    const safeData = stripLargeFieldsFromPartial(data);
+
     const newCase: Case = {
-      ...data,
+      ...(safeData as Partial<Case>),
       id: uuidv4(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    } as Case;
 
     console.log('Creating new case:', newCase.loanNo);
     
@@ -245,13 +308,16 @@ export const caseStorage = {
   },
 
   async update(id: string, data: Partial<Case>): Promise<Case | null> {
+    // 🛡️ 防止base64大字段写入JSON文件
+    const safeData = stripLargeFieldsFromPartial(data);
+
     const cases = await this.getAll();
     const index = cases.findIndex(c => c.id === id);
     if (index === -1) return null;
 
     cases[index] = {
       ...cases[index],
-      ...data,
+      ...safeData,
       updatedAt: new Date().toISOString(),
     };
 

@@ -17,44 +17,61 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '案件不存在' }, { status: 404 });
     }
     
-    // 在文件信息和跟进记录中查找文件
-    let foundFile: any = null;
+    // 查找文件数据
+    let fileData: { name?: string; data?: string; type?: string } | null = null;
     
     // 先在案件的文件信息中查找
-    if (caseData.files) {
-      foundFile = (caseData.files as any[]).find((f: any) => 
-        f.name === fileName || f === fileName
-      );
-    }
-    
-    // 如果没找到，在跟进记录中查找
-    if (!foundFile && caseData.followups) {
-      for (const followup of caseData.followups) {
-        if (followup.fileInfo) {
-          foundFile = (followup.fileInfo as any[]).find((f: any) => 
-            f.name === fileName || f === fileName
-          );
-          if (foundFile) break;
+    if (caseData.files && Array.isArray(caseData.files)) {
+      for (const f of caseData.files) {
+        if (typeof f === 'object' && f !== null && 'name' in f && f.name === fileName) {
+          fileData = f as { name?: string; data?: string; type?: string };
+          break;
         }
       }
     }
     
-    if (!foundFile) {
+    // 如果没找到，在跟进记录中查找
+    if (!fileData && caseData.followups) {
+      for (const followup of caseData.followups) {
+        if (followup.fileInfo) {
+          const fileInfoArr = Array.isArray(followup.fileInfo) 
+            ? followup.fileInfo 
+            : Object.values(followup.fileInfo);
+          
+          for (const f of fileInfoArr) {
+            if (typeof f === 'object' && f !== null && 'name' in f && (f as Record<string, unknown>).name === fileName) {
+              fileData = f as { name?: string; data?: string; type?: string };
+              break;
+            }
+          }
+          if (fileData) break;
+        }
+      }
+    }
+    
+    if (!fileData) {
       return NextResponse.json({ error: '文件不存在' }, { status: 404 });
     }
     
     // 处理文件数据
-    let fileData: any = foundFile;
-    let mimeType = 'application/octet-stream';
-    
-    if (fileData && typeof fileData === 'object' && fileData.data) {
-      // 如果是CaseFile类型
+    if (fileData.data) {
+      const dataStr = fileData.data;
+      
+      // 🛡️ 检查base64数据是否已被剥离（设计规范：文件数据应存储在对象存储中）
+      if (dataStr === '[stripped]' || dataStr.length < 100) {
+        return NextResponse.json({ 
+          error: '文件数据不可用', 
+          message: '该文件数据已归档至对象存储，本地副本已清理以优化系统性能。请联系管理员获取文件。'
+        }, { status: 410 }); // 410 Gone - 资源已永久删除
+      }
+      
+      // 判断文件类型
       const isImage = fileData.type === 'image' || 
         /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(fileData.name || '');
       
-      mimeType = isImage ? 'image/jpeg' : 'application/octet-stream';
+      const mimeType = isImage ? 'image/jpeg' : 'application/octet-stream';
       
-      let dataUrl = fileData.data;
+      let dataUrl = dataStr;
       if (!dataUrl.startsWith('data:')) {
         dataUrl = isImage 
           ? `data:image/jpeg;base64,${dataUrl}` 

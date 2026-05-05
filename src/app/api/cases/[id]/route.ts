@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { caseStorage } from '@/storage/database/case-storage';
+import { caseStorage, stripLargeFields } from '@/storage/database/case-storage';
 import { addSecurityHeaders } from '@/lib/security';
 
 export async function GET(
@@ -18,9 +18,13 @@ export async function GET(
       return addSecurityHeaders(response);
     }
 
+    // 🛡️ 默认剥离大字段（base64文件数据），除非明确请求完整数据
+    const includeFiles = req.nextUrl.searchParams.get('includeFiles') === 'true';
+    const responseData = includeFiles ? caseData : stripLargeFields(caseData);
+
     const response = NextResponse.json({
       success: true,
-      data: caseData,
+      data: responseData,
     });
 
     return addSecurityHeaders(response);
