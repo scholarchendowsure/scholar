@@ -1,4 +1,4 @@
-import { Case } from '@/types/case';
+import { Case, CaseFile, FollowUp } from '@/types/case';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
@@ -7,11 +7,34 @@ import path from 'path';
 const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
 const RECYCLE_BIN_FILE = path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 
-// ============ P0优化：内存缓存 ============
+// ============ P0优化：双缓存机制 ============
+// 完整缓存（用于详情页等需要全部数据的场景）
 let cachedCases: Case[] | null = null;
+// 轻量缓存（用于列表页，剥离了files.data和followups.fileInfo大字段）
+let cachedCasesLight: Case[] | null = null;
 let lastModifiedTime: number = 0;
 let cacheHits = 0;
 let cacheMisses = 0;
+
+// 剥离大字段，生成轻量版Case（用于列表展示）
+function stripLargeFields(c: Case): Case {
+  const stripped = { ...c };
+  // 剥离 files 中的 base64 data
+  if (stripped.files && Array.isArray(stripped.files)) {
+    stripped.files = stripped.files.map((f: CaseFile) => {
+      const { data, ...rest } = f;
+      return rest as CaseFile;
+    });
+  }
+  // 剥离 followups 中的 fileInfo 大字段
+  if (stripped.followups && Array.isArray(stripped.followups)) {
+    stripped.followups = stripped.followups.map((f: FollowUp) => {
+      const { fileInfo, ...rest } = f;
+      return rest as FollowUp;
+    });
+  }
+  return stripped;
+}
 
 // 获取文件修改时间
 function getFileMtime(filePath: string): number {
@@ -81,8 +104,8 @@ function writeToFile(cases: Case[]) {
   }
 }
 
-// ============ P0优化：内存缓存读取 ============
-// 从文件读取数据 - 增强版 + 内存缓存
+// ============ P0优化：双缓存读取 ============
+// 从文件读取完整数据（用于详情页等）
 function readFromFile(): Case[] {
   ensureStorageDir();
   
@@ -90,7 +113,6 @@ function readFromFile(): Case[] {
   const currentMtime = getFileMtime(STORAGE_FILE);
   
   if (cachedCases && currentMtime === lastModifiedTime) {
-    // ✅ 缓存命中！
     cacheHits++;
     if (cacheHits % 100 === 0) {
       console.log(`[Cache] Hits: ${cacheHits}, Misses: ${cacheMisses}`);
@@ -98,31 +120,62 @@ function readFromFile(): Case[] {
     return cachedCases;
   }
   
-  // ❌ 缓存未命中，从磁盘读取
+  // 缓存未命中，从磁盘读取
   cacheMisses++;
   lastModifiedTime = currentMtime;
   
   try {
     if (fs.existsSync(STORAGE_FILE)) {
+      const startTime = Date.now();
       const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      // 如果内容为空或只有空白字符，返回空数组
+      const readTime = Date.now() - startTime;
+      
       if (!content || content.trim().length === 0) {
         console.log('Storage file is empty');
         cachedCases = [];
+        cachedCasesLight = [];
         return cachedCases;
       }
+      
+      const parseStart = Date.now();
       cachedCases = JSON.parse(content);
-      console.log(`[Cache] Refreshed, cases count: ${cachedCases!.length}, Hits: ${cacheHits}, Misses: ${cacheMisses}`);
+      const parseTime = Date.now() - parseStart;
+      
+      // ✅ 同时生成轻量缓存（剥离大字段）
+      const stripStart = Date.now();
+      cachedCasesLight = cachedCases!.map(stripLargeFields);
+      const stripTime = Date.now() - stripStart;
+      
+      const fullSizeMB = (JSON.stringify(cachedCases!).length / 1024 / 1024).toFixed(1);
+      const lightSizeMB = (JSON.stringify(cachedCasesLight).length / 1024 / 1024).toFixed(1);
+      
+      console.log(`[Cache] Refreshed, cases: ${cachedCases!.length}, Read: ${readTime}ms, Parse: ${parseTime}ms, Strip: ${stripTime}ms, Full: ${fullSizeMB}MB, Light: ${lightSizeMB}MB`);
       return cachedCases!;
     }
   } catch (error) {
     console.error('Error reading from file:', error);
-    // 如果JSON解析失败，返回空数组而不是崩溃
     cachedCases = [];
+    cachedCasesLight = [];
     return cachedCases;
   }
   cachedCases = [];
+  cachedCasesLight = [];
   return cachedCases;
+}
+
+// 从文件读取轻量数据（用于列表页，不包含base64大字段）
+function readFromFileLight(): Case[] {
+  ensureStorageDir();
+  
+  const currentMtime = getFileMtime(STORAGE_FILE);
+  
+  if (cachedCasesLight && currentMtime === lastModifiedTime) {
+    return cachedCasesLight;
+  }
+  
+  // 轻量缓存未命中，先读取完整数据（会同时生成轻量缓存）
+  readFromFile();
+  return cachedCasesLight!;
 }
 
 // 写入回收站数据
@@ -137,6 +190,12 @@ function writeRecycleBin(items: RecycleBinItem[]) {
 }
 
 export const caseStorage = {
+  // ✅ 轻量版 - 用于列表页（不包含files.data和followups.fileInfo）
+  async getAllLight(): Promise<Case[]> {
+    const cases = readFromFileLight();
+    return cases;
+  },
+
   async getAll(): Promise<Case[]> {
     const cases = readFromFile();
     // 如果文件为空，初始化空数组
@@ -303,6 +362,7 @@ export const caseStorage = {
     status?: string;
     riskLevel?: string;
     search?: string;
+    useLightData?: boolean;
     [key: string]: any;
   }): Promise<{
     data: Case[];
@@ -315,10 +375,12 @@ export const caseStorage = {
       status,
       riskLevel,
       search,
+      useLightData = false,
       ...filters
     } = options;
 
-    let cases = await this.getAll();
+    // ✅ 关键优化：列表查询使用轻量数据，避免加载80MB的base64字段
+    let cases = useLightData ? await this.getAllLight() : await this.getAll();
     
     // 筛选
     if (status && status !== 'all') {
@@ -344,7 +406,7 @@ export const caseStorage = {
     
     // 其他筛选条件
     const filterKeys = Object.keys(filters).filter(key => 
-      !['status', 'riskLevel', 'search', 'page', 'pageSize'].includes(key)
+      !['status', 'riskLevel', 'search', 'page', 'pageSize', 'useLightData'].includes(key)
     );
     
     if (filterKeys.length > 0) {

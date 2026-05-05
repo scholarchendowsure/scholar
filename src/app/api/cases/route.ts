@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
       pageSize: enableDedup ? 10000 : pageSize,
       status, 
       riskLevel, 
-      search 
+      search,
+      useLightData: true  // ✅ 使用轻量数据（不包含base64大字段）
     };
     
     // 添加所有筛选字段
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
     // 使用统一的查询
     const result = await caseStorage.query(options);
 
+    // 不再需要在API层剥离大字段，因为query已经使用轻量数据
     let processedData = result.data;
     let processedTotal = result.total;
     let processedTotalPages = result.totalPages;
