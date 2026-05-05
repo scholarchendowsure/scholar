@@ -1,6 +1,0 @@
-{
-  "webhookUrl": "https://open.feishu.cn/open-apis/bot/v2/hook/5f3577fa-d262-4cfb-87ee-7027e10e92a1",
-  "appId": "cli_a9652497d7389bd6",
-  "appSecretEncrypted": "Py0aRiENKjcRVgo9DWslMUw7SgB8Uy8zBjBYFBpBASw=",
-  "sendMode": "private"
-}
