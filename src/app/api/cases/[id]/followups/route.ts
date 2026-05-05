@@ -85,6 +85,7 @@ export async function POST(
 
     // 3. 添加跟进记录到当前案件
     const updatedFollowups = [...(caseData.followups || []), followupRecord];
+    console.log(`[Followup API] 添加跟进记录到案件 ${id}, 原有${caseData.followups?.length || 0}条, 新增后${updatedFollowups.length}条`);
     await caseStorage.update(id, { followups: updatedFollowups });
 
     // 清除列表API的查询缓存，确保后续请求返回最新数据

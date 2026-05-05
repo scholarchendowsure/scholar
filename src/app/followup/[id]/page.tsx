@@ -72,17 +72,17 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
     const loadCase = async () => {
       try {
         // 先尝试用UUID查找
-        let response = await fetch(`/api/cases/${id}`);
+        let response = await fetch(`/api/cases/${id}?_t=${Date.now()}`, { cache: 'no-store' });
         let result = await response.json();
         if (result.success) {
           setCaseData(result.data);
         } else {
           // UUID找不到，尝试用贷款单号精确查找
-          const listResponse = await fetch(`/api/cases?loanNo=${encodeURIComponent(id)}&pageSize=1`);
+          const listResponse = await fetch(`/api/cases?loanNo=${encodeURIComponent(id)}&pageSize=1&_t=${Date.now()}`, { cache: 'no-store' });
           const listResult = await listResponse.json();
           if (listResult.success && listResult.data && listResult.data.length > 0) {
             // 找到案件后，用完整数据（通过ID获取详情，确保拿到所有字段）
-            const detailResponse = await fetch(`/api/cases/${listResult.data[0].id}`);
+            const detailResponse = await fetch(`/api/cases/${listResult.data[0].id}?_t=${Date.now()}`, { cache: 'no-store' });
             const detailResult = await detailResponse.json();
             if (detailResult.success) {
               setCaseData(detailResult.data);

@@ -343,10 +343,18 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
   const fetchCase = async (id: string) => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/cases/${id}`);
+      // 添加时间戳参数防止任何级别的缓存
+      const res = await fetch(`/api/cases/${id}?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache',
+        },
+      });
       const json: { success: boolean; data: Case } = await res.json();
 
       if (json.success) {
+        console.log(`[fetchCase] 获取案件成功, followups数量: ${json.data.followups?.length || 0}`);
         setCaseData(json.data);
       } else {
         toast.error('获取案件详情失败');
@@ -990,11 +998,14 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
             {/* 跟进记录列表 */}
             {caseData?.followups && caseData.followups.length > 0 ? (
               <div className="space-y-3">
-                {/* 最新记录排序，最新在最上面 */}
-                {[...caseData.followups].sort((a, b) => 
-                  new Date(b.followTime || b.createdAt || '').getTime() - 
-                  new Date(a.followTime || a.createdAt || '').getTime()
-                ).map((followup) => (
+                {/* 最新记录排序，最新在最上面，无效日期排底部 */}
+                {[...caseData.followups].sort((a, b) => {
+                  const getTime = (f: any) => {
+                    const t = new Date(f.followTime || f.createdAt || '').getTime();
+                    return isNaN(t) ? 0 : t;
+                  };
+                  return getTime(b) - getTime(a);
+                }).map((followup) => (
                   <div key={followup.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                     {/* 所有内容都在一行显示 */}
                     <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -1395,6 +1406,9 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                     
                     setUploadedCaseFiles([]);
                     toast.success(`跟进记录添加成功，已同步到 ${syncedCount + 1} 个案件`);
+                    
+                    // 强制重新获取案件数据，确保页面显示最新跟进记录
+                    fetchCase(params.id as string);
                   } catch (error) {
                     console.error('保存跟进记录失败:', error);
                     toast.error('跟进记录添加失败');
