@@ -258,8 +258,8 @@ export const caseStorage = {
 
   async getAll(): Promise<Case[]> {
     const cases = readFromFile();
-    // 如果文件为空，初始化空数组
-    if (cases.length === 0) {
+    // 避免不必要的写入：只有当文件不存在或内容无效时才初始化
+    if (!fs.existsSync(STORAGE_FILE)) {
       writeToFile([]);
     }
     return cases;
@@ -401,12 +401,19 @@ export const caseStorage = {
     
     // 同时从 cases-v2.json 中删除对应的案件数据（防止数据不一致）
     try {
-      const allCases = await this.getAll();
-      const beforeCount = allCases.length;
-      const filteredCases = allCases.filter((c: Case) => !ids.includes(c.id));
-      if (filteredCases.length < beforeCount) {
-        cachedCases = filteredCases;
-        writeToFile(filteredCases);
+      // 直接读取文件，不经过 getAll() 避免不必要的写入
+      ensureStorageDir();
+      if (fs.existsSync(STORAGE_FILE)) {
+        const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
+        if (content && content.trim().length > 0) {
+          const allCases = JSON.parse(content) as Case[];
+          const beforeCount = allCases.length;
+          const filteredCases = allCases.filter((c: Case) => !ids.includes(c.id));
+          if (filteredCases.length < beforeCount) {
+            cachedCases = filteredCases;
+            writeToFile(filteredCases);
+          }
+        }
       }
     } catch (e) {
       // 如果 cases-v2.json 不存在或为空，忽略错误
