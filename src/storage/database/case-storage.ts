@@ -7,6 +7,9 @@ import path from 'path';
 const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
 const RECYCLE_BIN_FILE = path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 
+// 判断是否是生产环境（生产环境不使用临时文件策略）
+const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
+
 // ============ P0优化：双缓存机制 ============
 // 完整缓存（用于详情页等需要全部数据的场景）
 let cachedCases: Case[] | null = null;
@@ -144,29 +147,45 @@ function safeReadJSON<T>(filePath: string, defaultValue: T): T {
 }
 
 /**
- * 安全写入JSON文件，先写临时文件再重命名，防止文件损坏
+ * 🔴 超级安全的JSON写入函数
+ * 防止写入过程中断导致文件损坏
+ * 生产环境不使用临时文件策略（因为文件系统只读）
  */
 function safeWriteJSON(filePath: string, data: any): void {
-  try {
-    const tempFile = filePath + '.tmp.' + Date.now();
-    
-    // 确保目录存在
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  
+  if (isProd) {
+    // 生产环境：直接写入
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      console.log(`safeWriteJSON: 生产环境直接写入成功: ${filePath}`);
+    } catch (error) {
+      console.error(`safeWriteJSON: 生产环境写入失败: ${filePath}`, error);
+      throw error;
     }
-    
-    // 写入临时文件
-    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
-    console.log(`safeWriteJSON: 临时文件写入成功: ${tempFile}`);
-    
-    // 原子重命名操作
-    fs.renameSync(tempFile, filePath);
-    console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
-    
-  } catch (error) {
-    console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
-    throw error;
+  } else {
+    // 开发环境：先写临时文件，再原子重命名
+    const tempFile = `${filePath}.tmp.${Date.now()}`;
+    try {
+      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+      console.log(`safeWriteJSON: 临时文件写入成功: ${tempFile}`);
+      
+      // 原子重命名
+      fs.renameSync(tempFile, filePath);
+      console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
+    } catch (error) {
+      console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
+      // 清理临时文件
+      if (fs.existsSync(tempFile)) {
+        try {
+          fs.unlinkSync(tempFile);
+        } catch {}
+      }
+      throw error;
+    }
   }
 }
 
