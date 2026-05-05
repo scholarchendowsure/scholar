@@ -131,7 +131,73 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
     }
   };
 
-  // 保存跟进记录
+  // 时间格式化（与案件详情页面保持一致）
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+  };
+  
+  // 枚举值转中文（与案件详情页面保持一致）
+  const getFollowTypeText = (type: string) => {
+    switch(type) {
+      case 'online': return '线上';
+      case 'offline': return '线下';
+      case 'other': return '其他';
+      default: return type;
+    }
+  };
+  
+  const getContactText = (contact: string) => {
+    switch(contact) {
+      case 'legal_representative': return '法人';
+      case 'actual_controller': return '实控人';
+      case 'other': return '其他';
+      default: return contact;
+    }
+  };
+  
+  const getFollowResultText = (result: string) => {
+    switch(result) {
+      case 'normal_repayment': return '正常还款';
+      case 'warning_rise': return '预警上升';
+      case 'overdue_promise': return '逾期承诺';
+      case 'other': return '其他';
+      default: return result;
+    }
+  };
+  
+  // 文件信息生成短链接（与案件详情页面保持一致）
+  const formatFileInfo = (files: any, caseId: string) => {
+    if (!files || files.length === 0) return [];
+    return (files as any[]).map((file: any) => {
+      let fileName = '';
+      let fileType = 'file';
+      
+      if (file.name) {
+        fileName = file.name;
+        fileType = file.type || 'file';
+      } else if (typeof file === 'string') {
+        fileName = file;
+      }
+      
+      // 生成短链接：/api/files/[caseId]/[fileName]
+      const shortUrl = `/api/files/${caseId}/${encodeURIComponent(fileName)}`;
+      
+      return { 
+        name: fileName, 
+        type: fileType,
+        url: shortUrl
+      };
+    });
+  };
+
+  // 保存跟进记录（与案件详情页面完全一致）
   const handleSaveFollowup = async () => {
     if (!caseData) {
       toast.error("案件不存在，无法保存跟进记录");
@@ -180,13 +246,38 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
       setSavedSuccess(true);
       toast.success("跟进记录保存成功！");
       
-      // 5. 后台异步处理其他任务
+      // 5. 后台异步处理其他任务（与案件详情页面完全一致）
       (async () => {
         try {
-          await syncToFeishuWebhook(updatedCase, followupRecord);
+          // 首先调用案件详情页面使用的 webhook（保持一致）
+          console.log("📤 调用飞书Webhook（与案件详情页面一致）...");
+          fetch('/api/webhook/feishu', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              event_type: 'follow_up_created',
+              case_data: {
+                user_id: caseData.userId,
+                loan_number: caseData.loanNo
+              },
+              followup_data: {
+                follower: followupRecord.follower,
+                follow_time: formatDateTime(followupRecord.followTime),
+                follow_type: getFollowTypeText(followupRecord.followType),
+                contact: getContactText(followupRecord.contact),
+                follow_result: getFollowResultText(followupRecord.followResult),
+                follow_record: followupRecord.followRecord,
+                file_info: formatFileInfo(followupRecord.fileInfo, id as string)
+              }
+            })
+          }).catch((webhookError) => {
+            console.error('Webhook调用失败:', webhookError);
+          });
           
-          // 6. 同步到飞书多维表格
-          console.log("🔄 开始同步到飞书多维表格...");
+          // 同时也同步到飞书多维表格
+          console.log("🔄 同时也同步到飞书多维表格...");
           const syncResponse = await fetch("/api/feishu-bitable/followup", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

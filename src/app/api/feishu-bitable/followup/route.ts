@@ -2,7 +2,48 @@ import { NextResponse } from 'next/server';
 import { bitableConfigStorage } from '@/storage/database/feishu-bitable-storage';
 import { addBitableRecord } from '@/lib/feishu-api';
 
-// 跟进记录同步到飞书多维表格
+// 时间格式化（与案件详情页面保持一致）
+const formatDateTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+};
+
+// 枚举值转中文（与案件详情页面保持一致）
+const getFollowTypeText = (type: string) => {
+  switch(type) {
+    case 'online': return '线上';
+    case 'offline': return '线下';
+    case 'other': return '其他';
+    default: return type;
+  }
+};
+
+const getContactText = (contact: string) => {
+  switch(contact) {
+    case 'legal_representative': return '法人';
+    case 'actual_controller': return '实控人';
+    case 'other': return '其他';
+    default: return contact;
+  }
+};
+
+const getFollowResultText = (result: string) => {
+  switch(result) {
+    case 'normal_repayment': return '正常还款';
+    case 'warning_rise': return '预警上升';
+    case 'overdue_promise': return '逾期承诺';
+    case 'other': return '其他';
+    default: return result;
+  }
+};
+
+// 跟进记录同步到飞书多维表格（与案件详情页面保持一致）
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -15,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('📝 开始同步跟进记录到飞书多维表格');
+    console.log('📝 开始同步跟进记录到飞书多维表格（与案件详情页面一致）');
     console.log('📋 案件信息:', {
       loanNo: caseData.loanNo,
       borrowerName: caseData.borrowerName,
@@ -43,19 +84,19 @@ export async function POST(request: Request) {
         // 使用配置中的App Secret
         const appSecret = config.appSecret;
         
-        // 构造多维表格字段（根据实际字段映射调整）
+        // 构造多维表格字段（使用与案件详情页面完全一致的转换逻辑）
         const fields: Record<string, any> = {
           '贷款单号': caseData.loanNo,
           '借款人姓名': caseData.borrowerName,
           '公司名称': caseData.companyName || '',
           '逾期金额': caseData.overdueAmount,
           '记录人': followup.follower,
-          '记录时间': new Date(followup.followTime).toLocaleString('zh-CN'),
-          '跟进类型': followup.followType,
-          '联系人': followup.contact,
-          '跟进结果': followup.followResult,
+          '记录时间': formatDateTime(followup.followTime), // 使用与案件详情页面一致的格式化
+          '跟进类型': getFollowTypeText(followup.followType), // 枚举值转中文
+          '联系人': getContactText(followup.contact), // 枚举值转中文
+          '跟进结果': getFollowResultText(followup.followResult), // 枚举值转中文
           '记录内容': followup.followRecord,
-          '同步时间': new Date().toLocaleString('zh-CN'),
+          '同步时间': formatDateTime(new Date().toISOString()),
         };
         
         // 如果有自定义字段映射，应用映射
