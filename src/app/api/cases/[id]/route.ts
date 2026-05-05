@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { caseStorageOptimized } from '@/storage/database/case-storage-optimized';
+import { caseStorage } from '@/storage/database/case-storage';
 import { addSecurityHeaders } from '@/lib/security';
 
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const caseData = await caseStorageOptimized.getById(id);
+    const caseData = await caseStorage.getById(id);
 
     if (!caseData) {
       const response = NextResponse.json(
@@ -41,7 +41,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const updatedCase = await caseStorageOptimized.update(id, body);
+    const updatedCase = await caseStorage.update(id, body);
 
     if (!updatedCase) {
       const response = NextResponse.json(
@@ -73,7 +73,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const success = await caseStorageOptimized.delete(id);
+    const success = await caseStorage.delete(id);
 
     if (!success) {
       const response = NextResponse.json(

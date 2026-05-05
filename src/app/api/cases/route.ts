@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { caseStorageOptimized } from '@/storage/database/case-storage-optimized';
+import { caseStorage } from '@/storage/database/case-storage';
 import { addSecurityHeaders } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 使用优化后的查询
-    const result = await caseStorageOptimized.query(options);
+    // 使用统一的查询
+    const result = await caseStorage.query(options);
 
     return addSecurityHeaders(NextResponse.json({
       success: true,

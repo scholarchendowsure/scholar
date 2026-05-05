@@ -254,6 +254,118 @@ export const caseStorage = {
     return importedCases;
   },
 
+  async query(options: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    riskLevel?: string;
+    search?: string;
+    [key: string]: any;
+  }): Promise<{
+    data: Case[];
+    total: number;
+    totalPages: number;
+  }> {
+    const {
+      page = 1,
+      pageSize = 10,
+      status,
+      riskLevel,
+      search,
+      ...filters
+    } = options;
+
+    let cases = await this.getAll();
+    
+    // 筛选
+    if (status && status !== 'all') {
+      cases = cases.filter(c => c.status === status);
+    }
+    
+    if (riskLevel && riskLevel !== 'all') {
+      cases = cases.filter(c => c.riskLevel === riskLevel);
+    }
+    
+    // 搜索
+    if (search) {
+      const searchLower = search.toLowerCase();
+      cases = cases.filter(c => 
+        c.loanNo.toLowerCase().includes(searchLower) ||
+        c.userId.toLowerCase().includes(searchLower) ||
+        c.borrowerName.toLowerCase().includes(searchLower) ||
+        (c.contactInfo?.toLowerCase().includes(searchLower) || '') ||
+        (c.borrowerPhone?.toLowerCase().includes(searchLower) || '') ||
+        (c.companyAddress?.toLowerCase().includes(searchLower) || '')
+      );
+    }
+    
+    // 其他筛选条件
+    const filterKeys = Object.keys(filters).filter(key => 
+      !['status', 'riskLevel', 'search', 'page', 'pageSize'].includes(key)
+    );
+    
+    if (filterKeys.length > 0) {
+      cases = cases.filter(c => {
+        for (const key of filterKeys) {
+          const value = filters[key];
+          if (!value) continue;
+          
+          switch (key) {
+            case 'filterUserId':
+              const terms = value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+              if (terms.length > 0 && !terms.some((term: string) => c.userId.toLowerCase().includes(term))) {
+                return false;
+              }
+              break;
+            case 'filterContactInfo':
+              const val = value.toLowerCase();
+              const contactInfo = c.contactInfo?.toLowerCase() || '';
+              const borrowerPhone = c.borrowerPhone?.toLowerCase() || '';
+              const registeredPhone = c.registeredPhone?.toLowerCase() || '';
+              if (!contactInfo.includes(val) && !borrowerPhone.includes(val) && !registeredPhone.includes(val)) {
+                return false;
+              }
+              break;
+            case 'filterAddress':
+              const addrVal = value.toLowerCase();
+              const companyAddr = c.companyAddress?.toLowerCase() || '';
+              const homeAddr = c.homeAddress?.toLowerCase() || '';
+              const householdAddr = c.householdAddress?.toLowerCase() || '';
+              if (!companyAddr.includes(addrVal) && !homeAddr.includes(addrVal) && !householdAddr.includes(addrVal)) {
+                return false;
+              }
+              break;
+            default:
+              // 通用字符串筛选
+              const fieldKey = key.replace('filter', '');
+              const camelKey = fieldKey.charAt(0).toLowerCase() + fieldKey.slice(1);
+              const fieldVal = (c as any)[camelKey];
+              if (fieldVal !== undefined && fieldVal !== null) {
+                if (!String(fieldVal).toLowerCase().includes(value.toLowerCase())) {
+                  return false;
+                }
+              }
+          }
+        }
+        return true;
+      });
+    }
+
+    const total = cases.length;
+    const totalPages = Math.ceil(total / pageSize);
+    
+    // 分页
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedCases = cases.slice(start, end);
+
+    return {
+      data: paginatedCases,
+      total,
+      totalPages,
+    };
+  },
+
   async getStats(): Promise<{ total: number; byStatus: Record<string, number>; byRiskLevel: Record<string, number> }> {
     const cases = await this.getAll();
     const byStatus: Record<string, number> = {};
