@@ -154,11 +154,17 @@ function readRecycleBin(): RecycleBinItem[] {
 function writeToFile(cases: Case[]) {
   ensureStorageDir();
   try {
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(cases, null, 2), 'utf-8');
-    // ✅ 写入后清除缓存，强制下次重新读取
+    // 🔴 关键修复：安全写入策略 - 先写临时文件再重命名，防止写入过程中断导致文件损坏
+    const tempFile = STORAGE_FILE + '.tmp';
+    fs.writeFileSync(tempFile, JSON.stringify(cases, null, 2), 'utf-8');
+    // 原子操作重命名
+    fs.renameSync(tempFile, STORAGE_FILE);
+    
+    // ✅ 写入后清除所有缓存，强制下次重新读取
     cachedCases = null;
+    cachedCasesLight = null;
     lastModifiedTime = 0;
-    console.log('Written to file, cases count:', cases.length, 'Cache cleared');
+    console.log('Written to file, cases count:', cases.length, 'All caches cleared');
   } catch (error) {
     console.error('Error writing to file:', error);
   }
@@ -242,7 +248,10 @@ function readFromFileLight(): Case[] {
 function writeRecycleBin(items: RecycleBinItem[]) {
   ensureStorageDir();
   try {
-    fs.writeFileSync(RECYCLE_BIN_FILE, JSON.stringify(items, null, 2), 'utf-8');
+    // 🔴 关键修复：安全写入策略 - 先写临时文件再重命名
+    const tempFile = RECYCLE_BIN_FILE + '.tmp';
+    fs.writeFileSync(tempFile, JSON.stringify(items, null, 2), 'utf-8');
+    fs.renameSync(tempFile, RECYCLE_BIN_FILE);
     console.log('Written to recycle bin, items count:', items.length);
   } catch (error) {
     console.error('Error writing recycle bin:', error);
