@@ -441,12 +441,18 @@ export const caseStorage = {
       status,
       riskLevel,
       search,
+      loanNo,
       useLightData = false,
       ...filters
     } = options;
 
     // ✅ 关键优化：列表查询使用轻量数据，避免加载80MB的base64字段
     let cases = useLightData ? await this.getAllLight() : await this.getAll();
+    
+    // 按贷款单号精确筛选
+    if (loanNo) {
+      cases = cases.filter(c => c.loanNo === loanNo);
+    }
     
     // 筛选
     if (status && status !== 'all') {

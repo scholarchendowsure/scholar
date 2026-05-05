@@ -77,11 +77,18 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         if (result.success) {
           setCaseData(result.data);
         } else {
-          // 如果UUID找不到，尝试用贷款单号查找
-          const listResponse = await fetch(`/api/cases?loanNo=${id}`);
+          // UUID找不到，尝试用贷款单号精确查找
+          const listResponse = await fetch(`/api/cases?loanNo=${encodeURIComponent(id)}&pageSize=1`);
           const listResult = await listResponse.json();
           if (listResult.success && listResult.data && listResult.data.length > 0) {
-            setCaseData(listResult.data[0]);
+            // 找到案件后，用完整数据（通过ID获取详情，确保拿到所有字段）
+            const detailResponse = await fetch(`/api/cases/${listResult.data[0].id}`);
+            const detailResult = await detailResponse.json();
+            if (detailResult.success) {
+              setCaseData(detailResult.data);
+            } else {
+              setCaseData(listResult.data[0]);
+            }
           }
         }
       } catch (error) {

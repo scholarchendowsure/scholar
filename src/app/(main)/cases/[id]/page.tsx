@@ -1359,6 +1359,19 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                       // 不影响主流程，只记录日志
                     });
                     
+                    // 同步到飞书多维表格
+                    fetch('/api/feishu-bitable/followup', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        followup: followup,
+                        caseData: caseData
+                      }),
+                    }).catch((bitableError) => {
+                      console.error('飞书多维表格同步失败:', bitableError);
+                      // 不影响主流程，只记录日志
+                    });
+                    
                     setUploadedCaseFiles([]);
                     toast.success(`跟进记录添加成功，已同步到 ${syncedCount + 1} 个案件`);
                   } catch (error) {

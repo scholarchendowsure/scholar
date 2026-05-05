@@ -58,6 +58,10 @@ export async function GET(request: NextRequest) {
       if (key.startsWith('filter')) {
         options[key] = value;
       }
+      // 支持按贷款单号精确查找
+      if (key === 'loanNo') {
+        options.loanNo = value;
+      }
     }
 
     // 使用统一的查询
