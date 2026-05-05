@@ -360,7 +360,20 @@ export const caseStorage = {
     // 🛡️ 防止base64大字段写入JSON文件
     const safeData = stripLargeFieldsFromPartial(data);
 
-    const cases = await this.getAll();
+    // 🔴 关键修复1：开始时立即清除缓存，避免读取过期数据
+    cachedCases = null;
+    cachedCasesLight = null;
+
+    // 🔴 关键修复2：直接从文件读取最新数据，不走缓存
+    ensureStorageDir();
+    let cases: Case[] = [];
+    if (fs.existsSync(STORAGE_FILE)) {
+      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
+      if (content && content.trim().length > 0) {
+        cases = JSON.parse(content);
+      }
+    }
+
     const index = cases.findIndex(c => c.id === id);
     if (index === -1) return null;
 

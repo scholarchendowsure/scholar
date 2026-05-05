@@ -45,10 +45,33 @@
     "assignedSales": "高乐",
     "assignedRiskControl": "高乐",
     "assignedPostLoan": "大海",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1778009667460",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:34:27.460Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "333333333333333333",
+        "createdAt": "2026-05-05T19:34:27.460Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778009817783",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:36:57.783Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "测试跟进记录-1778009817787",
+        "createdAt": "2026-05-05T19:36:57.787Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
     "createdAt": "2026-05-05T19:28:56.788Z",
-    "updatedAt": "2026-05-05T19:28:56.788Z"
+    "updatedAt": "2026-05-05T19:36:58.066Z"
   },
   {
     "batchNo": "66610",
@@ -81,9 +104,32 @@
     "borrowerPhone": "15818602669",
     "assignedSales": "高乐",
     "assignedPostLoan": "君澜",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1778009667460",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:34:27.460Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "333333333333333333",
+        "createdAt": "2026-05-05T19:34:27.460Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778009817783",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:36:57.783Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "测试跟进记录-1778009817787",
+        "createdAt": "2026-05-05T19:36:57.787Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "aa0b8b71-b35d-429b-a40a-38b49d5bb8cc",
     "createdAt": "2026-05-05T19:28:54.299Z",
-    "updatedAt": "2026-05-05T19:28:54.299Z"
+    "updatedAt": "2026-05-05T19:36:58.074Z"
   }
 ]
