@@ -108,6 +108,114 @@ function getFileMtime(filePath: string): number {
   return 0;
 }
 
+// ============ 🛡️ 超级安全的JSON读写函数 ============
+/**
+ * 安全读取JSON文件，处理所有可能的错误情况
+ */
+function safeReadJSON<T>(filePath: string, defaultValue: T): T {
+  try {
+    if (!fs.existsSync(filePath)) {
+      console.log(`safeReadJSON: 文件不存在，返回默认值: ${filePath}`);
+      return defaultValue;
+    }
+    
+    const content = fs.readFileSync(filePath, 'utf-8');
+    
+    // 检查内容是否为空或空白
+    if (!content || content.trim().length === 0) {
+      console.log(`safeReadJSON: 文件内容为空，返回默认值: ${filePath}`);
+      return defaultValue;
+    }
+    
+    // 尝试解析JSON
+    try {
+      const data = JSON.parse(content);
+      console.log(`safeReadJSON: 成功读取文件: ${filePath}, 数据类型: ${typeof data}, 是数组: ${Array.isArray(data)}`);
+      return data;
+    } catch (parseError) {
+      console.error(`safeReadJSON: JSON解析失败: ${filePath}`, parseError);
+      console.error(`safeReadJSON: 失败的内容:`, JSON.stringify(content.substring(0, 200)));
+      return defaultValue;
+    }
+  } catch (error) {
+    console.error(`safeReadJSON: 读取文件失败: ${filePath}`, error);
+    return defaultValue;
+  }
+}
+
+/**
+ * 安全写入JSON文件，先写临时文件再重命名，防止文件损坏
+ */
+function safeWriteJSON(filePath: string, data: any): void {
+  try {
+    const tempFile = filePath + '.tmp.' + Date.now();
+    
+    // 确保目录存在
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // 写入临时文件
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+    console.log(`safeWriteJSON: 临时文件写入成功: ${tempFile}`);
+    
+    // 原子重命名操作
+    fs.renameSync(tempFile, filePath);
+    console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
+    
+  } catch (error) {
+    console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
+    throw error;
+  }
+}
+
+/**
+ * 确保存储目录存在
+ */
+function ensureStorageDir() {
+  const dir = path.join(process.cwd(), 'public', 'data');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+// ============ 读取函数（使用安全版本） ============
+function readFromFile(): Case[] {
+  ensureStorageDir();
+  return safeReadJSON<Case[]>(STORAGE_FILE, []);
+}
+
+function readRecycleBin(): RecycleBinItem[] {
+  ensureStorageDir();
+  return safeReadJSON<RecycleBinItem[]>(RECYCLE_BIN_FILE, []);
+}
+
+// ============ P0优化：写入后清除缓存 ============
+// 写入数据到文件
+function writeToFile(cases: Case[]) {
+  ensureStorageDir();
+  try {
+    safeWriteJSON(STORAGE_FILE, cases);
+  } finally {
+    // 🔴 写入后必须清除所有缓存
+    cachedCases = null;
+    cachedCasesLight = null;
+    lastModifiedTime = getFileMtime(STORAGE_FILE);
+    console.log('writeToFile: 已清除所有缓存');
+  }
+}
+
+function writeRecycleBin(items: RecycleBinItem[]) {
+  ensureStorageDir();
+  try {
+    safeWriteJSON(RECYCLE_BIN_FILE, items);
+  } finally {
+    // 🔴 写入后必须更新修改时间（没有其他缓存需要清除）
+    console.log('writeRecycleBin: 写入成功');
+  }
+}
+
 // 回收站案件类型
 interface RecycleBinItem {
   id: string;
@@ -116,63 +224,9 @@ interface RecycleBinItem {
   deletedBy: string;
 }
 
-// 确保存储目录存在
-function ensureStorageDir() {
-  const dir = path.dirname(STORAGE_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-
-
-// 从回收站读取数据
-function readRecycleBin(): RecycleBinItem[] {
-  ensureStorageDir();
-  try {
-    if (fs.existsSync(RECYCLE_BIN_FILE)) {
-      const content = fs.readFileSync(RECYCLE_BIN_FILE, 'utf-8');
-      // 如果内容为空或只有空白字符，返回空数组
-      if (!content || content.trim().length === 0) {
-        console.log('Recycle bin file is empty');
-        return [];
-      }
-      const data = JSON.parse(content);
-      console.log('Read from recycle bin, items count:', data.length);
-      return data;
-    }
-  } catch (error) {
-    console.error('Error reading recycle bin:', error);
-    // 如果JSON解析失败，返回空数组而不是崩溃
-    return [];
-  }
-  return [];
-}
-
-// ============ P0优化：写入后清除缓存 ============
-// 写入数据到文件
-function writeToFile(cases: Case[]) {
-  ensureStorageDir();
-  try {
-    // 🔴 关键修复：安全写入策略 - 先写临时文件再重命名，防止写入过程中断导致文件损坏
-    const tempFile = STORAGE_FILE + '.tmp';
-    fs.writeFileSync(tempFile, JSON.stringify(cases, null, 2), 'utf-8');
-    // 原子操作重命名
-    fs.renameSync(tempFile, STORAGE_FILE);
-    
-    // ✅ 写入后清除所有缓存，强制下次重新读取
-    cachedCases = null;
-    cachedCasesLight = null;
-    lastModifiedTime = 0;
-    console.log('Written to file, cases count:', cases.length, 'All caches cleared');
-  } catch (error) {
-    console.error('Error writing to file:', error);
-  }
-}
-
 // ============ P0优化：双缓存读取 ============
 // 从文件读取完整数据（用于详情页等）
-function readFromFile(): Case[] {
+function readFromFileCached(): Case[] {
   ensureStorageDir();
   
   // 检查缓存是否有效
@@ -240,22 +294,8 @@ function readFromFileLight(): Case[] {
   }
   
   // 轻量缓存未命中，先读取完整数据（会同时生成轻量缓存）
-  readFromFile();
+  readFromFileCached();
   return cachedCasesLight!;
-}
-
-// 写入回收站数据
-function writeRecycleBin(items: RecycleBinItem[]) {
-  ensureStorageDir();
-  try {
-    // 🔴 关键修复：安全写入策略 - 先写临时文件再重命名
-    const tempFile = RECYCLE_BIN_FILE + '.tmp';
-    fs.writeFileSync(tempFile, JSON.stringify(items, null, 2), 'utf-8');
-    fs.renameSync(tempFile, RECYCLE_BIN_FILE);
-    console.log('Written to recycle bin, items count:', items.length);
-  } catch (error) {
-    console.error('Error writing recycle bin:', error);
-  }
 }
 
 export const caseStorage = {
@@ -266,7 +306,7 @@ export const caseStorage = {
   },
 
   async getAll(): Promise<Case[]> {
-    const cases = readFromFile();
+    const cases = readFromFileCached();
     // 避免不必要的写入：只有当文件不存在或内容无效时才初始化
     if (!fs.existsSync(STORAGE_FILE)) {
       writeToFile([]);
