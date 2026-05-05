@@ -326,7 +326,20 @@ export const caseStorage = {
   },
 
   async delete(id: string): Promise<boolean> {
-    const cases = await this.getAll();
+    // 🔴 关键修复1：开始时立即清除缓存，避免读取过期数据
+    cachedCases = null;
+    cachedCasesLight = null;
+    
+    // 🔴 关键修复2：直接从文件读取最新数据，不走缓存
+    ensureStorageDir();
+    let cases: Case[] = [];
+    if (fs.existsSync(STORAGE_FILE)) {
+      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
+      if (content && content.trim().length > 0) {
+        cases = JSON.parse(content);
+      }
+    }
+    
     const index = cases.findIndex(c => c.id === id);
     if (index === -1) return false;
 
@@ -384,6 +397,10 @@ export const caseStorage = {
   },
 
   async permanentDelete(ids: string[]): Promise<number> {
+    // 🔴 关键修复：开始时立即清除缓存
+    cachedCases = null;
+    cachedCasesLight = null;
+    
     const recycleBin = readRecycleBin();
     
     let deletedCount = 0;
@@ -401,7 +418,6 @@ export const caseStorage = {
     
     // 同时从 cases-v2.json 中删除对应的案件数据（防止数据不一致）
     try {
-      // 直接读取文件，不经过 getAll() 避免不必要的写入
       ensureStorageDir();
       if (fs.existsSync(STORAGE_FILE)) {
         const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
@@ -416,12 +432,9 @@ export const caseStorage = {
         }
       }
     } catch (e) {
-      // 如果 cases-v2.json 不存在或为空，忽略错误
+      // 如果 cases-v2.json 不存在、为空或解析失败，忽略错误
       console.warn('permanentDelete: 清理cases-v2.json时出错（可忽略）:', e);
     }
-    
-    // 清除缓存
-    cachedCases = null;
     
     return deletedCount;
   },
