@@ -399,6 +399,23 @@ export const caseStorage = {
     
     writeRecycleBin(remainingItems);
     
+    // 同时从 cases-v2.json 中删除对应的案件数据（防止数据不一致）
+    try {
+      const allCases = await this.getAll();
+      const beforeCount = allCases.length;
+      const filteredCases = allCases.filter((c: Case) => !ids.includes(c.id));
+      if (filteredCases.length < beforeCount) {
+        cachedCases = filteredCases;
+        writeToFile(filteredCases);
+      }
+    } catch (e) {
+      // 如果 cases-v2.json 不存在或为空，忽略错误
+      console.warn('permanentDelete: 清理cases-v2.json时出错（可忽略）:', e);
+    }
+    
+    // 清除缓存
+    cachedCases = null;
+    
     return deletedCount;
   },
 

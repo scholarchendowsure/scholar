@@ -26,8 +26,9 @@ export async function DELETE(req: NextRequest) {
     return addSecurityHeaders(response);
   } catch (error) {
     console.error('Permanent delete cases error:', error);
+    const errorMessage = error instanceof Error ? error.message : '未知错误';
     const response = NextResponse.json(
-      { success: false, error: '永久删除案件失败' },
+      { success: false, error: `永久删除案件失败: ${errorMessage}` },
       { status: 500 }
     );
     return addSecurityHeaders(response);
