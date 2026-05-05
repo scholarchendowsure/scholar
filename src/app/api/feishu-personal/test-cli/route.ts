@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
-
+/**
+ * 飞书个人 CLI 测试 API
+ * 
+ * 【已注释】：避免使用 child_process 触发沙箱资源限制
+ * 如需恢复，请取消下方注释
+ */
 export async function POST(request: NextRequest) {
+  /*
   try {
     const { cliPath = 'lark' } = await request.json();
     
     // 测试lark-cli是否可用
     try {
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+
       const { stdout, stderr } = await execAsync(`${cliPath} --version`);
       return NextResponse.json({
         success: true,
@@ -19,6 +26,10 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       // 如果--version失败，尝试help
       try {
+        const { exec } = require('child_process');
+        const { promisify } = require('util');
+        const execAsync = promisify(exec);
+
         const { stdout, stderr } = await execAsync(`${cliPath} --help`);
         return NextResponse.json({
           success: true,
@@ -39,4 +50,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  */
+
+  // 临时返回：避免触发 child_process
+  console.log('feishu-personal CLI 测试 API 已临时禁用（避免沙箱资源限制）');
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'feishu-personal 功能临时禁用' 
+    },
+    { status: 503 }
+  );
 }

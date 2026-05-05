@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
-
+/**
+ * 飞书个人授权初始化 API
+ * 
+ * 【已注释】：避免使用 child_process 触发沙箱资源限制
+ * 如需恢复，请取消下方注释
+ */
 export async function POST(request: NextRequest) {
+  /*
   try {
     // 设置配置目录（避免与系统配置冲突）
     const configDir = '/tmp/lark-cli-config';
     
     // 尝试直接使用已有的配置
     try {
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+
       const checkResult = await execAsync('/usr/bin/lark-cli auth status', {
         env: {
           ...process.env,
@@ -31,6 +38,10 @@ export async function POST(request: NextRequest) {
 
     // 初始化配置
     try {
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+
       await execAsync('/usr/bin/lark-cli config init --new', {
         env: {
           ...process.env,
@@ -45,6 +56,7 @@ export async function POST(request: NextRequest) {
     // 启动授权登录（获取验证URL）
     // 注意：lark-cli auth login --recommend 是交互式的，我们需要特殊处理
     // 让我们尝试直接运行并捕获输出
+    const { exec } = require('child_process');
     const authProcess = exec('/usr/bin/lark-cli auth login --recommend', {
       env: {
         ...process.env,
@@ -83,4 +95,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+  */
+
+  // 临时返回：避免触发 child_process
+  console.log('feishu-personal 授权初始化 API 已临时禁用（避免沙箱资源限制）');
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'feishu-personal 功能临时禁用' 
+    },
+    { status: 503 }
+  );
 }

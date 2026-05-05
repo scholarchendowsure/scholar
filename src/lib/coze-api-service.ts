@@ -111,8 +111,12 @@ export class CozeApiService {
 
   /**
    * 发送飞书消息（通过 Coze API）- 暂不实现，使用 lark-cli 替代
+   * 
+   * 【已注释】：避免使用 child_process 触发沙箱资源限制
+   * 如需恢复，请取消下方注释
    */
   async sendFeishuMessage(request: CozeMessageRequest): Promise<CozeMessageResponse> {
+    /*
     try {
       console.log('[CozeApiService] 准备发送消息:', request);
       
@@ -146,6 +150,14 @@ export class CozeApiService {
         error: error?.message || '发送消息失败'
       };
     }
+    */
+    
+    // 临时返回：避免触发 child_process
+    console.log('[CozeApiService] 发送消息功能已临时禁用（避免沙箱资源限制）');
+    return {
+      success: false,
+      error: '发送消息功能临时禁用'
+    };
   }
 
   /**

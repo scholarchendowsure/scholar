@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
-
+/**
+ * 飞书个人授权状态 API
+ * 
+ * 【已注释】：避免使用 child_process 触发沙箱资源限制
+ * 如需恢复，请取消下方注释
+ */
 export async function GET() {
+  /*
   try {
     const configDir = '/tmp/lark-cli-config';
     
     try {
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+
       const result = await execAsync('/usr/bin/lark-cli auth status', {
         env: {
           ...process.env,
@@ -35,4 +42,15 @@ export async function GET() {
       { status: 500 }
     );
   }
+  */
+
+  // 临时返回：避免触发 child_process
+  console.log('feishu-personal 授权状态 API 已临时禁用（避免沙箱资源限制）');
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: 'feishu-personal 功能临时禁用' 
+    },
+    { status: 503 }
+  );
 }
