@@ -211,7 +211,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         return;
       }
 
-      // 2. 构造新的跟进记录
+      // 2. 构造新的跟进记录（与案件详情页面完全一致）
       const followupRecord: FollowUp = {
         id: Date.now().toString(),
         follower: newFollowup.follower || "未登记人",
@@ -225,28 +225,67 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         createdBy: newFollowup.follower || "未登记人",
       };
 
-      // 3. 更新当前案件
-      const updatedCase: any = {
+      // 3. 同步保存文件信息到案件中（与案件详情页面完全一致）
+      const currentFiles = caseData?.files || [];
+      const newFiles: any[] = uploadedCaseFiles.map((file: any) => ({
+        ...file,
+        id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      }));
+
+      // 4. 立即更新本地状态，让用户第一时间看到新增的记录（与案件详情页面完全一致）
+      const immediateUpdatedCase: any = {
         ...caseData,
-        followups: [followupRecord, ...(caseData.followups || [])],
-        updateTime: new Date().toISOString(),
+        followups: [...(caseData.followups || []), followupRecord],
+        files: [...(caseData.files || []), ...newFiles],
+        updatedAt: new Date().toISOString(),
       };
+      setCaseData(immediateUpdatedCase);
 
-      // 4. 立即保存当前案件并提示成功（与案件详情页面完全一致）
-      const saveResponse = await fetch(`/api/cases/${caseData?.id || id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedCase),
-      });
-
-      if (!saveResponse.ok) {
-        throw new Error("保存案件失败");
+      // 5. 获取所有相同用户ID的案件（与案件详情页面完全一致）
+      const userId = caseData?.userId;
+      let relatedCases: any[] = [];
+      if (userId) {
+        try {
+          const relatedRes = await fetch(`/api/cases/user/${userId}`);
+          const relatedJson = await relatedRes.json();
+          if (relatedJson.success) {
+            relatedCases = relatedJson.data;
+          }
+        } catch (error) {
+          console.error('获取相关案件失败:', error);
+        }
       }
 
+      // 如果没有相关案件，至少包含当前案件
+      if (relatedCases.length === 0) {
+        relatedCases = [caseData];
+      }
+
+      // 6. 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度（与案件详情页面完全一致）
+      const updatePromises = relatedCases.map(async (relatedCase: any) => {
+        const updatedCase: any = {
+          ...relatedCase,
+          followups: [...(relatedCase.followups || []), followupRecord],
+          files: [...(relatedCase.files || []), ...newFiles],
+          updatedAt: new Date().toISOString(),
+        };
+
+        const res = await fetch(`/api/cases/${relatedCase.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedCase),
+        });
+
+        return res.ok;
+      });
+
+      const results = await Promise.all(updatePromises);
+      const updatedCount = results.filter(Boolean).length;
+
       setSavedSuccess(true);
-      toast.success("跟进记录保存成功！");
+      toast.success(`跟进记录保存成功！已同步更新 ${updatedCount} 个案件`);
       
-      // 5. 后台异步处理其他任务（与案件详情页面完全一致）
+      // 7. 后台异步处理其他任务（与案件详情页面完全一致）
       (async () => {
         try {
           // 首先调用案件详情页面使用的 webhook（保持一致）
@@ -283,7 +322,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               followup: followupRecord,
-              caseData: updatedCase
+              caseData: immediateUpdatedCase
             }),
           });
           
