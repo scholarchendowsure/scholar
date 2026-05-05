@@ -897,7 +897,7 @@ export default function FeishuConfigPage() {
             <Settings className="w-4 h-4 mr-2" />
             应用配置
           </TabsTrigger>
-          <TabsTrigger value="users">
+          {/* <TabsTrigger value="users">
             <Users className="w-4 h-4 mr-2" />
             用户管理
           </TabsTrigger>
@@ -908,7 +908,7 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="message-test">
             <MessageSquare className="w-4 h-4 mr-2" />
             消息测试
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="bitable-sync">
             <Database className="w-4 h-4 mr-2" />
             多维表格同步
@@ -921,10 +921,10 @@ export default function FeishuConfigPage() {
             <ArrowRightLeft className="w-4 h-4 mr-2" />
             多维案件更新
           </TabsTrigger>
-          <TabsTrigger value="personal-account">
+          {/* <TabsTrigger value="personal-account">
             <Users className="w-4 h-4 mr-2" />
             个人账号绑定
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         {/* 应用配置 */}
@@ -1000,72 +1000,13 @@ export default function FeishuConfigPage() {
           </Card>
         </TabsContent>
 
-        {/* 用户管理 */}
+        {/* 用户管理 - 已删除
         <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>飞书用户</CardTitle>
-                  <CardDescription>
-                    从飞书企业同步用户列表，用于消息发送
-                  </CardDescription>
-                </div>
-                <Button onClick={syncFeishuUsers} disabled={syncingUsers || !appId}>
-                  {syncingUsers ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      同步中...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      同步用户
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {feishuUsers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  暂无用户，请先配置应用并同步用户
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>姓名</TableHead>
-                      <TableHead>邮箱</TableHead>
-                      <TableHead>手机号</TableHead>
-                      <TableHead>状态</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {feishuUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
-                        <TableCell>{user.mobile || '-'}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            user.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {user.status === 'active' ? '活跃' : '未激活'}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          ...
         </TabsContent>
+        */}
 
-        {/* 映射配置 */}
+        {/* 映射配置 - 已删除
         <TabsContent value="mappings" className="space-y-4">
           <Card>
             <CardHeader>

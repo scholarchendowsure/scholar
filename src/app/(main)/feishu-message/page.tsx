@@ -90,12 +90,12 @@ export default function FeishuMessagePage() {
       window.history.replaceState({}, '', window.location.pathname);
     }
 
-    // 定期检查授权状态（每分钟检查一次）
-    const statusInterval = setInterval(() => {
-      loadOAuthStatus();
-    }, 60000);
+    // 定期检查授权状态已关闭
+    // const statusInterval = setInterval(() => {
+    //   loadOAuthStatus();
+    // }, 60000);
 
-    return () => clearInterval(statusInterval);
+    // return () => clearInterval(statusInterval);
   }, []);
 
   // 加载已保存的用户
@@ -577,10 +577,10 @@ export default function FeishuMessagePage() {
             <Users className="w-4 h-4 mr-2" />
             个人账号绑定
           </TabsTrigger>
-          <TabsTrigger value="coze-message">
+          {/* <TabsTrigger value="coze-message">
             <MessageSquare className="w-4 h-4 mr-2" />
             扣子AI消息
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="user-storage">
             <Database className="w-4 h-4 mr-2" />
             数据存储表
@@ -821,273 +821,11 @@ export default function FeishuMessagePage() {
           </div>
         </TabsContent>
 
-        {/* 扣子AI消息 */}
+        {/* 扣子AI消息 - 已删除
         <TabsContent value="coze-message" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 左侧：扣子AI消息发送 */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Settings className="w-5 h-5 mr-2 text-indigo-600" />
-                    Coze API 配置
-                  </CardTitle>
-                  <CardDescription>
-                    配置 Coze API Key 和 Bot ID
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="coze-api-key">API Key</Label>
-                    <Input
-                      id="coze-api-key"
-                      type="password"
-                      value={cozeApiKey}
-                      onChange={(e) => setCozeApiKey(e.target.value)}
-                      placeholder="请输入 Coze API Key"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="coze-bot-id">Bot ID</Label>
-                    <Input
-                      id="coze-bot-id"
-                      value={cozeBotId}
-                      onChange={(e) => setCozeBotId(e.target.value)}
-                      placeholder="请输入 Bot ID"
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="coze-enabled"
-                      checked={cozeEnabled}
-                      onCheckedChange={setCozeEnabled}
-                    />
-                    <Label htmlFor="coze-enabled">启用 Coze 消息</Label>
-                  </div>
-
-                  <Button onClick={saveCozeConfig} disabled={loading}>
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    保存配置
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MessageSquare className="w-5 h-5 mr-2 text-indigo-600" />
-                    消息测试
-                  </CardTitle>
-                  <CardDescription>
-                    发送普通消息给飞书同事
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="coze-receive-id">接收人 ID</Label>
-                    <Input
-                      id="coze-receive-id"
-                      value={cozeReceiveId}
-                      onChange={(e) => setCozeReceiveId(e.target.value)}
-                      placeholder="请输入接收人的 Open ID"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="coze-message">消息内容</Label>
-                    <Textarea
-                      id="coze-message"
-                      value={cozeMessage}
-                      onChange={(e) => setCozeMessage(e.target.value)}
-                      placeholder="请输入要发送的消息内容"
-                      rows={4}
-                    />
-                  </div>
-
-                  <Button
-                    onClick={sendCozeMessage}
-                    disabled={cozeSending || !cozeReceiveId || !cozeMessage}
-                    className="w-full"
-                  >
-                    {cozeSending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4 mr-2" />
-                    )}
-                    发送消息
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* 右侧：贷后提醒测试 */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Bell className="w-5 h-5 mr-2 text-orange-600" />
-                    贷后提醒测试
-                  </CardTitle>
-                  <CardDescription>
-                    发送贷后提醒给飞书同事
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="coze-reminder-receive-id">接收人 ID</Label>
-                    <Input
-                      id="coze-reminder-receive-id"
-                      value={cozeReceiveId}
-                      onChange={(e) => setCozeReceiveId(e.target.value)}
-                      placeholder="请输入接收人的 Open ID"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="coze-reminder-type">提醒类型</Label>
-                    <Select value={cozeReminderType} onValueChange={(value: any) => setCozeReminderType(value)}>
-                      <SelectTrigger id="coze-reminder-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="overdue">🔴 逾期催收提醒</SelectItem>
-                        <SelectItem value="due">🟠 还款到期提醒</SelectItem>
-                        <SelectItem value="followup">🔵 跟进任务提醒</SelectItem>
-                        <SelectItem value="custom">🟣 自定义消息</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {cozeReminderType !== 'custom' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="coze-case-id">案件 ID</Label>
-                        <Input
-                          id="coze-case-id"
-                          value={cozeCaseId}
-                          onChange={(e) => setCozeCaseId(e.target.value)}
-                          placeholder="请输入案件 ID"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="coze-customer-name">客户姓名</Label>
-                        <Input
-                          id="coze-customer-name"
-                          value={cozeCustomerName}
-                          onChange={(e) => setCozeCustomerName(e.target.value)}
-                          placeholder="请输入客户姓名"
-                        />
-                      </div>
-
-                      {cozeReminderType === 'overdue' && (
-                        <>
-                          <div className="space-y-2">
-                            <Label htmlFor="coze-overdue-amount">逾期金额</Label>
-                            <Input
-                              id="coze-overdue-amount"
-                              type="number"
-                              value={cozeOverdueAmount}
-                              onChange={(e) => setCozeOverdueAmount(e.target.value)}
-                              placeholder="请输入逾期金额"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="coze-overdue-days">逾期天数</Label>
-                            <Input
-                              id="coze-overdue-days"
-                              type="number"
-                              value={cozeOverdueDays}
-                              onChange={(e) => setCozeOverdueDays(e.target.value)}
-                              placeholder="请输入逾期天数"
-                            />
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {cozeReminderType === 'custom' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="coze-custom-message">自定义消息</Label>
-                      <Textarea
-                        id="coze-custom-message"
-                        value={cozeMessage}
-                        onChange={(e) => setCozeMessage(e.target.value)}
-                        placeholder="请输入自定义消息内容"
-                        rows={4}
-                      />
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={sendCozeReminder}
-                    disabled={cozeSending || !cozeReceiveId}
-                    className="w-full"
-                  >
-                    {cozeSending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Bell className="w-4 h-4 mr-2" />
-                    )}
-                    发送提醒
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Key className="w-5 h-5 mr-2 text-gray-600" />
-                    API 调用文档
-                  </CardTitle>
-                  <CardDescription>
-                    贷后系统调用示例
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                    <pre className="text-sm text-gray-300">
-{`// 发送逾期催收提醒
-POST /api/coze-api/send-reminder
-{
-  "receiveId": "接收人ID",
-  "reminderType": "overdue",
-  "caseId": "CASE001",
-  "customerName": "张三",
-  "overdueAmount": 5000,
-  "overdueDays": 30
-}
-
-// 发送还款到期提醒
-POST /api/coze-api/send-reminder
-{
-  "receiveId": "接收人ID",
-  "reminderType": "due",
-  "caseId": "CASE002",
-  "customerName": "李四"
-}
-
-// 发送自定义消息
-POST /api/coze-api/send-reminder
-{
-  "receiveId": "接收人ID",
-  "customMessage": "自定义消息内容"
-}`}
-                    </pre>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          ...
         </TabsContent>
+        */}
 
         {/* 飞书网页应用OAuth授权卡片 */}
         <div className="mt-8">

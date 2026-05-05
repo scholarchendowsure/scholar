@@ -78,11 +78,6 @@ const navItems: NavItem[] = [
     icon: <Building2 className="h-5 w-5" />
   },
   {
-    title: '商户销售管理',
-    href: '/hsbc-panel/merchant-sales',
-    icon: <UserCog className="h-5 w-5" />
-  },
-  {
     title: '飞书配置',
     href: '/hsbc-panel/feishu-config',
     icon: <MessageSquare className="h-5 w-5" />
@@ -91,11 +86,6 @@ const navItems: NavItem[] = [
     title: '飞书消息',
     href: '/feishu-message',
     icon: <MessageSquare className="h-5 w-5" />
-  },
-  {
-    title: 'MCP数据仓库',
-    href: '/mcp-warehouse',
-    icon: <Database className="h-5 w-5" />
   },
   {
     title: '回收站',
