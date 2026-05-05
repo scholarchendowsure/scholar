@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/dialog';
 import { CheckCircle, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { FollowUp } from '@/types/case';
 import {
   FOLLOWUP_TYPE_OPTIONS,
   CONTACT_OPTIONS,
@@ -34,24 +33,45 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
   const [caseData, setCaseData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(true);
-  const [saveSuccess, setSavedSuccess] = useState(false);
-  
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // 从URL参数中获取提醒人名称
+  const [followerFromUrl, setFollowerFromUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const follower = urlParams.get('follower');
+      if (follower) {
+        setFollowerFromUrl(decodeURIComponent(follower));
+      }
+    }
+  }, []);
+
   const [newFollowup, setNewFollowup] = useState({
-    follower: currentUser?.name || '',
+    follower: '',
     followType: 'online',
-    contact: 'legal_person',
+    contact: 'legal_representative',
     followResult: 'normal_repayment',
     followRecord: '',
   });
-  
+
+  // 当followerFromUrl变化时，自动填入跟进人
+  useEffect(() => {
+    if (followerFromUrl) {
+      setNewFollowup(prev => ({ ...prev, follower: followerFromUrl }));
+    }
+  }, [followerFromUrl]);
+
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<{ name: string; url: string }[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
-  // 加载案件信息（与案件详情页面完全一致）
+  // 加载案件信息
   useEffect(() => {
     const loadCase = async () => {
       try {
-        // 先尝试用UUID查找（与案件详情页面一致）
+        // 先尝试用UUID查找
         let response = await fetch(`/api/cases/${id}`);
         let result = await response.json();
         if (result.success) {
@@ -70,15 +90,15 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
         setLoading(false);
       }
     };
-    
+
     loadCase();
   }, [id]);
 
-  // 文件上传处理（简化版）
+  // 文件上传处理
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    
+
     setUploadingFiles(true);
     try {
       const uploaded = files.map((file) => {
@@ -103,246 +123,95 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
     setUploadedCaseFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  // 同步飞书webhook（简化版）
-  const syncToFeishuWebhook = async (caseData: any, followup: FollowUp) => {
-    try {
-      const webhookPayload = {
-        action: 'case_followup',
-        caseId: caseData.id,
-        loanNo: caseData.loanNo,
-        followup: followup,
-      };
-      
-      console.log('发送飞书webhook:', webhookPayload);
-      
-      const webhookResponse = await fetch('/api/webhook/feishu', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(webhookPayload),
-      });
-
-      if (!webhookResponse.ok) {
-        console.error('飞书webhook调用失败:', webhookResponse.statusText);
-      } else {
-        console.log('飞书webhook调用成功');
-      }
-    } catch (error) {
-      console.error('调用飞书webhook失败:', error);
-    }
-  };
-
-  // 时间格式化（与案件详情页面保持一致）
-  const formatDateTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-  };
-  
-  // 枚举值转中文（与案件详情页面保持一致）
-  const getFollowTypeText = (type: string) => {
-    switch(type) {
-      case 'online': return '线上';
-      case 'offline': return '线下';
-      case 'other': return '其他';
-      default: return type;
-    }
-  };
-  
-  const getContactText = (contact: string) => {
-    switch(contact) {
-      case 'legal_representative': return '法人';
-      case 'actual_controller': return '实控人';
-      case 'other': return '其他';
-      default: return contact;
-    }
-  };
-  
-  const getFollowResultText = (result: string) => {
-    switch(result) {
-      case 'normal_repayment': return '正常还款';
-      case 'warning_rise': return '预警上升';
-      case 'overdue_promise': return '逾期承诺';
-      case 'other': return '其他';
-      default: return result;
-    }
-  };
-  
-  // 文件信息生成短链接（与案件详情页面保持一致）
-  const formatFileInfo = (files: any, caseId: string) => {
-    if (!files || files.length === 0) return [];
-    return (files as any[]).map((file: any) => {
-      let fileName = '';
-      let fileType = 'file';
-      
-      if (file.name) {
-        fileName = file.name;
-        fileType = file.type || 'file';
-      } else if (typeof file === 'string') {
-        fileName = file;
-      }
-      
-      // 生成短链接：/api/files/[caseId]/[fileName]
-      const shortUrl = `/api/files/${caseId}/${encodeURIComponent(fileName)}`;
-      
-      return { 
-        name: fileName, 
-        type: fileType,
-        url: shortUrl
-      };
-    });
-  };
-
-  // 保存跟进记录（与案件详情页面完全一致）
+  // 保存跟进记录 - 使用专门的 followups API
   const handleSaveFollowup = async () => {
     if (!caseData) {
       toast.error("案件不存在，无法保存跟进记录");
       return;
     }
 
-    try {
-      // 1. 验证必填字段
-      if (!newFollowup.followType || !newFollowup.contact || !newFollowup.followResult || !newFollowup.followRecord) {
-        toast.error("请填写完整跟进信息");
-        return;
-      }
+    if (!newFollowup.followType || !newFollowup.contact || !newFollowup.followResult || !newFollowup.followRecord) {
+      toast.error("请填写完整跟进信息");
+      return;
+    }
 
-      // 2. 构造新的跟进记录（与案件详情页面完全一致）
-      const followupRecord: FollowUp = {
+    setSaving(true);
+    try {
+      // 1. 构造跟进记录
+      const followupRecord = {
         id: Date.now().toString(),
         follower: newFollowup.follower || "未登记人",
         followTime: new Date().toISOString(),
-        followType: newFollowup.followType as any,
-        contact: newFollowup.contact as any,
-        followResult: newFollowup.followResult as any,
+        followType: newFollowup.followType,
+        contact: newFollowup.contact,
+        followResult: newFollowup.followResult,
         followRecord: newFollowup.followRecord || "",
-        fileInfo: uploadedCaseFiles as any,
+        fileInfo: uploadedCaseFiles.length > 0 ? uploadedCaseFiles : undefined,
         createdAt: new Date().toISOString(),
         createdBy: newFollowup.follower || "未登记人",
       };
 
-      // 3. 同步保存文件信息到案件中（与案件详情页面完全一致）
-      const currentFiles = caseData?.files || [];
-      const newFiles: any[] = uploadedCaseFiles.map((file: any) => ({
-        ...file,
-        id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      }));
-
-      // 4. 立即更新本地状态，让用户第一时间看到新增的记录（与案件详情页面完全一致）
-      const immediateUpdatedCase: any = {
-        ...caseData,
-        followups: [...(caseData.followups || []), followupRecord],
-        files: [...(caseData.files || []), ...newFiles],
-        updatedAt: new Date().toISOString(),
-      };
-      setCaseData(immediateUpdatedCase);
-
-      // 5. 获取所有相同用户ID的案件（与案件详情页面完全一致）
-      const userId = caseData?.userId;
-      let relatedCases: any[] = [];
-      if (userId) {
-        try {
-          const relatedRes = await fetch(`/api/cases/user/${userId}`);
-          const relatedJson = await relatedRes.json();
-          if (relatedJson.success) {
-            relatedCases = relatedJson.data;
-          }
-        } catch (error) {
-          console.error('获取相关案件失败:', error);
-        }
-      }
-
-      // 如果没有相关案件，至少包含当前案件
-      if (relatedCases.length === 0) {
-        relatedCases = [caseData];
-      }
-
-      // 6. 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度（与案件详情页面完全一致）
-      const updatePromises = relatedCases.map(async (relatedCase: any) => {
-        const updatedCase: any = {
-          ...relatedCase,
-          followups: [...(relatedCase.followups || []), followupRecord],
-          files: [...(relatedCase.files || []), ...newFiles],
-          updatedAt: new Date().toISOString(),
-        };
-
-        const res = await fetch(`/api/cases/${relatedCase.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedCase),
-        });
-
-        return res.ok;
+      // 2. 调用 followups API 保存（自动同步到同用户ID的所有案件）
+      const res = await fetch(`/api/cases/${caseData.id}/followups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          followup: followupRecord,
+          syncToSameUser: true,
+        }),
       });
 
-      const results = await Promise.all(updatePromises);
-      const updatedCount = results.filter(Boolean).length;
+      const result = await res.json();
 
-      setSavedSuccess(true);
-      toast.success(`跟进记录保存成功！已同步更新 ${updatedCount} 个案件`);
-      
-      // 7. 后台异步处理其他任务（与案件详情页面完全一致）
-      (async () => {
-        try {
-          // 首先调用案件详情页面使用的 webhook（保持一致）
-          console.log("📤 调用飞书Webhook（与案件详情页面一致）...");
-          fetch('/api/webhook/feishu', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              event_type: 'follow_up_created',
-              case_data: {
-                user_id: caseData.userId,
-                loan_number: caseData.loanNo
-              },
-              followup_data: {
-                follower: followupRecord.follower,
-                follow_time: formatDateTime(followupRecord.followTime),
-                follow_type: getFollowTypeText(followupRecord.followType),
-                contact: getContactText(followupRecord.contact),
-                follow_result: getFollowResultText(followupRecord.followResult),
-                follow_record: followupRecord.followRecord,
-                file_info: formatFileInfo(followupRecord.fileInfo, id as string)
-              }
-            })
-          }).catch((webhookError) => {
-            console.error('Webhook调用失败:', webhookError);
-          });
-          
-          // 同时也同步到飞书多维表格
-          console.log("🔄 同时也同步到飞书多维表格...");
-          const syncResponse = await fetch("/api/feishu-bitable/followup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              followup: followupRecord,
-              caseData: immediateUpdatedCase
-            }),
-          });
-          
-          const syncResult = await syncResponse.json();
-          console.log("📊 多维表格同步结果:", syncResult);
-          
-          if (syncResult.success && syncResult.successCount > 0) {
-            console.log("✅ 多维表格同步成功:", syncResult.message);
-          } else if (syncResult.skipped) {
-            console.log("ℹ️ 多维表格同步已跳过（无启用配置）");
-          } else {
-            console.warn("⚠️ 多维表格同步存在问题:", syncResult);
+      if (result.success) {
+        setSaveSuccess(true);
+        toast.success(result.message || `跟进记录保存成功，已同步到 ${result.syncedCount + 1} 个案件`);
+
+        // 3. 后台异步同步到飞书
+        (async () => {
+          try {
+            // 同步到飞书Webhook
+            fetch('/api/webhook/feishu', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                event_type: 'follow_up_created',
+                case_data: {
+                  user_id: caseData.userId,
+                  loan_number: caseData.loanNo
+                },
+                followup_data: {
+                  follower: followupRecord.follower,
+                  follow_time: new Date().toLocaleString('zh-CN'),
+                  follow_type: newFollowup.followType === 'online' ? '线上' : newFollowup.followType === 'offline' ? '线下' : '其他',
+                  contact: newFollowup.contact === 'legal_representative' ? '法人' : newFollowup.contact === 'actual_controller' ? '实控人' : '其他',
+                  follow_result: newFollowup.followResult === 'normal_repayment' ? '正常还款' : newFollowup.followResult === 'warning_rise' ? '预警上升' : newFollowup.followResult === 'overdue_promise' ? '逾期承诺' : '其他',
+                  follow_record: followupRecord.followRecord,
+                }
+              })
+            }).catch(() => {});
+
+            // 同步到飞书多维表格
+            fetch("/api/feishu-bitable/followup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                followup: followupRecord,
+                caseData: caseData
+              }),
+            }).catch(() => {});
+          } catch (err) {
+            console.error("后台同步任务失败:", err);
           }
-        } catch (err) {
-          console.error("后台任务处理失败:", err);
-        }
-      })();
+        })();
+      } else {
+        toast.error(result.error || '保存失败，请重试');
+      }
     } catch (error) {
       console.error("保存跟进记录失败:", error);
       toast.error("保存失败，请重试");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -409,7 +278,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label>跟进人</Label>
-                <Input 
+                <Input
                   value={newFollowup.follower || ''}
                   onChange={(e) => setNewFollowup({ ...newFollowup, follower: e.target.value })}
                   placeholder="请输入跟进人"
@@ -417,7 +286,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               </div>
               <div className="space-y-2">
                 <Label>跟进时间</Label>
-                <Input 
+                <Input
                   value={new Date().toLocaleString('zh-CN')}
                   disabled
                   className="bg-slate-50"
@@ -425,8 +294,8 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               </div>
               <div className="space-y-2">
                 <Label>跟进类型</Label>
-                <Select 
-                  value={newFollowup.followType} 
+                <Select
+                  value={newFollowup.followType}
                   onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followType: value })}
                 >
                   <SelectTrigger>
@@ -443,8 +312,8 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               </div>
               <div className="space-y-2">
                 <Label>联系人</Label>
-                <Select 
-                  value={newFollowup.contact} 
+                <Select
+                  value={newFollowup.contact}
                   onValueChange={(value: any) => setNewFollowup({ ...newFollowup, contact: value })}
                 >
                   <SelectTrigger>
@@ -461,8 +330,8 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>跟进结果</Label>
-                <Select 
-                  value={newFollowup.followResult} 
+                <Select
+                  value={newFollowup.followResult}
                   onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followResult: value })}
                 >
                   <SelectTrigger>
@@ -479,7 +348,7 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               </div>
               <div className="space-y-2 col-span-2">
                 <Label>跟进记录</Label>
-                <Textarea 
+                <Textarea
                   value={newFollowup.followRecord || ''}
                   onChange={(e) => setNewFollowup({ ...newFollowup, followRecord: e.target.value })}
                   placeholder="请输入跟进记录内容"
@@ -489,11 +358,11 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               <div className="space-y-2 col-span-2">
                 <Label>文件信息</Label>
                 <div className="flex gap-2">
-                  <input 
-                    type="file" 
-                    id="file-upload-followup" 
-                    multiple 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    id="file-upload-followup"
+                    multiple
+                    className="hidden"
                     onChange={handleFileUpload}
                   />
                   <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload-followup')?.click()}>
@@ -506,9 +375,9 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
                     {uploadedCaseFiles.map((file, index) => (
                       <div key={index} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg">
                         <span className="text-sm text-slate-700">{file.name}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => removeFile(index)}
                           className="h-8 w-8 p-0"
                         >
@@ -524,8 +393,8 @@ export default function FollowupPage({ params }: { params: Promise<{ id: string 
               <Button variant="outline" onClick={() => setShowDialog(false)}>
                 取消
               </Button>
-              <Button onClick={handleSaveFollowup}>
-                保存
+              <Button onClick={handleSaveFollowup} disabled={saving}>
+                {saving ? '保存中...' : '保存'}
               </Button>
             </div>
           </DialogContent>

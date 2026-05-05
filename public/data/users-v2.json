@@ -50,5 +50,25 @@
     "lastLoginTime": "2026-05-04T18:49:34.626Z",
     "lastLoginIp": "::1",
     "passwordChangedAt": "2026-05-04T14:52:01.009Z"
+  },
+  {
+    "username": "223",
+    "realName": "443",
+    "email": "23",
+    "phone": "11",
+    "department": "334",
+    "position": "4",
+    "role": "agent",
+    "status": "active",
+    "allowedIps": [],
+    "id": "1778002928796",
+    "sequence": 3,
+    "password": "9aa39dbabcae226a46f9b2c937e489382de2750e576130a60b921ddc3a7a27b6c2ce08b19474f0d4125a44fd71359e5b29d39bf5091ab40e4bd3ac8aa5ae6713",
+    "passwordSalt": "5b8d85f13abc67b5f8a8398bba9299fc",
+    "createdAt": "2026-05-05T17:42:08.795Z",
+    "updatedAt": "2026-05-05T17:42:08.795Z",
+    "mustChangePassword": true,
+    "passwordHistory": [],
+    "loginAttempts": 0
   }
 ]

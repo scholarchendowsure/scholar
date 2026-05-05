@@ -1,61 +1,121 @@
-import { NextResponse } from 'next/server';
-import { successResponse, errorResponse } from '@/lib/auth';
-import { formatDateTime } from '@/lib/utils';
+import { NextRequest, NextResponse } from 'next/server';
+import { caseStorage } from '@/storage/database/case-storage';
+import type { FollowUp } from '@/types/case';
 
-// Mock跟进数据
-const mockFollowups = [
-  { id: '1', caseId: '2', visitUser: '张三', visitTime: '2024-01-16T14:00:00Z', visitResult: '成功拜访', communicationContent: '借款人表示愿意还款，但目前资金紧张', repaymentIntention: '有', nextPlan: '两周后再联系', promiseRepaymentDate: '2024-02-01', promiseRepaymentAmount: '50000', createdAt: '2024-01-16T15:00:00Z' },
-  { id: '2', caseId: '3', visitUser: '张三', visitTime: '2024-01-17T10:30:00Z', visitResult: '成功拜访', communicationContent: '借款人承诺下周五还款', repaymentIntention: '有', nextPlan: '等待还款', promiseRepaymentDate: '2024-01-25', promiseRepaymentAmount: '30000', createdAt: '2024-01-17T11:00:00Z' },
-];
-
-// 获取案件的跟进记录
+/**
+ * GET /api/cases/[id]/followups - 获取案件的跟进记录
+ */
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const followups = mockFollowups
-      .filter(f => f.caseId === id)
-      .map(f => ({
-        ...f,
-        visitTime: formatDateTime(f.visitTime),
-        createdAt: formatDateTime(f.createdAt),
-      }));
+    const caseData = await caseStorage.getById(id);
 
-    return NextResponse.json(successResponse(followups));
+    if (!caseData) {
+      return NextResponse.json(
+        { success: false, error: '案件不存在' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: caseData.followups || [],
+    });
   } catch (error) {
-    console.error('Get followups error:', error);
-    return NextResponse.json(errorResponse('获取跟进记录失败'), { status: 500 });
+    console.error('获取跟进记录失败:', error);
+    return NextResponse.json(
+      { success: false, error: '获取跟进记录失败' },
+      { status: 500 }
+    );
   }
 }
 
-// 创建跟进记录
+/**
+ * POST /api/cases/[id]/followups - 创建跟进记录
+ * 支持同步到同用户ID的所有案件
+ * 
+ * 请求体:
+ * {
+ *   followup: FollowUp,           // 跟进记录数据
+ *   syncToSameUser?: boolean,     // 是否同步到同用户ID的所有案件（默认true）
+ * }
+ */
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
     const body = await request.json();
-    
-    const newFollowup = {
-      id: String(mockFollowups.length + 1),
-      caseId: id,
-      ...body,
-      visitTime: body.visitTime || new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
-    
-    mockFollowups.push(newFollowup);
+    const { followup, syncToSameUser = true } = body;
 
-    return NextResponse.json(successResponse({
-      ...newFollowup,
-      visitTime: formatDateTime(newFollowup.visitTime),
-      createdAt: formatDateTime(newFollowup.createdAt),
-    }));
+    if (!followup) {
+      return NextResponse.json(
+        { success: false, error: '缺少跟进记录数据' },
+        { status: 400 }
+      );
+    }
+
+    // 1. 获取当前案件
+    const caseData = await caseStorage.getById(id);
+    if (!caseData) {
+      return NextResponse.json(
+        { success: false, error: '案件不存在' },
+        { status: 404 }
+      );
+    }
+
+    // 2. 构造跟进记录
+    const followupRecord: FollowUp = {
+      id: followup.id || Date.now().toString(),
+      follower: followup.follower || '未登记人',
+      followTime: followup.followTime || new Date().toISOString(),
+      followType: followup.followType,
+      contact: followup.contact,
+      followResult: followup.followResult,
+      followRecord: followup.followRecord || '',
+      fileInfo: followup.fileInfo,
+      createdAt: followup.createdAt || new Date().toISOString(),
+      createdBy: followup.createdBy || followup.follower || '未登记人',
+    };
+
+    // 3. 添加跟进记录到当前案件
+    const updatedFollowups = [...(caseData.followups || []), followupRecord];
+    await caseStorage.update(id, { followups: updatedFollowups });
+
+    let syncedCount = 0;
+
+    // 4. 如果需要，同步到同用户ID的所有案件
+    if (syncToSameUser && caseData.userId) {
+      const relatedCases = await caseStorage.getByUserId(caseData.userId);
+      const otherCases = relatedCases.filter(c => c.id !== id);
+
+      // 对每个其他案件也添加跟进记录
+      for (const relatedCase of otherCases) {
+        try {
+          const relatedFollowups = [...(relatedCase.followups || []), followupRecord];
+          await caseStorage.update(relatedCase.id, { followups: relatedFollowups });
+          syncedCount++;
+        } catch (err) {
+          console.error(`同步跟进记录到案件 ${relatedCase.id} 失败:`, err);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: followupRecord,
+      syncedCount,
+      message: `跟进记录保存成功${syncedCount > 0 ? `，已同步到 ${syncedCount} 个相关案件` : ''}`,
+    });
   } catch (error) {
-    console.error('Create followup error:', error);
-    return NextResponse.json(errorResponse('创建跟进记录失败'), { status: 500 });
+    console.error('创建跟进记录失败:', error);
+    return NextResponse.json(
+      { success: false, error: '创建跟进记录失败' },
+      { status: 500 }
+    );
   }
 }

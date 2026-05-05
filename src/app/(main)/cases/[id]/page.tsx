@@ -166,7 +166,7 @@ export default function CaseDetailPage() {
       // 3. 构造消息内容
       const dateStr = (caseData as any).firstOverdueTime || (caseData as any).dueDate || (caseData as any).compensationDate || (caseData as any).repaymentDate;
       const dueDate = dateStr ? new Date(dateStr).toLocaleDateString('zh-CN') : '未知';
-      const followLink = `${window.location.origin}/followup/${caseData.loanNo}`;
+      const followLink = `${window.location.origin}/followup/${caseData.loanNo}?follower=${encodeURIComponent(roleName)}`;
       const balance = (caseData as any).outstandingBalance || (caseData as any).overdueAmount || (caseData as any).inLoanBalance || 0;
       
       // 处理币种显示
@@ -1237,64 +1237,34 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                       createdBy: newFollowup.follower || '未登记人',
                     };
                     
-                    // 同步保存文件信息到案件中
-                    const currentFiles = caseData?.files || [];
-                    const newFiles: CaseFile[] = uploadedCaseFiles.map(file => ({
-                      ...file,
-                      id: file.id || `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    }));
-                    
                     // 立即更新本地状态，让用户第一时间看到新增的记录
                     if (caseData) {
                       const immediateUpdatedCase: Case = {
                         ...caseData,
                         followups: [...(caseData.followups || []), followup],
-                        files: [...(caseData.files || []), ...newFiles],
                         updatedAt: new Date().toISOString(),
                       };
                       setCaseData(immediateUpdatedCase);
                     }
                     
-                    // 获取所有相同用户ID的案件
-                    const userId = caseData?.userId;
-                    let relatedCases: Case[] = [];
-                    if (userId) {
-                      try {
-                        const relatedRes = await fetch(`/api/cases/user/${userId}`);
-                        const relatedJson = await relatedRes.json();
-                        if (relatedJson.success) {
-                          relatedCases = relatedJson.data;
-                        }
-                      } catch (error) {
-                        console.error('获取相关案件失败:', error);
-                      }
-                    }
-                    
-                    // 如果没有相关案件，至少包含当前案件
-                    if (relatedCases.length === 0 && caseData) {
-                      relatedCases = [caseData];
-                    }
-                    
-                    // 对每个相同用户ID的案件都添加跟进记录，并行处理提高速度
-                    const updatePromises = relatedCases.map(async (relatedCase) => {
-                      const updatedCase: Case = {
-                        ...relatedCase,
-                        followups: [...(relatedCase.followups || []), followup],
-                        files: [...(relatedCase.files || []), ...newFiles],
-                        updatedAt: new Date().toISOString(),
-                      };
-                      
-                      const res = await fetch(`/api/cases/${relatedCase.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(updatedCase),
-                      });
-                      
-                      return res.ok;
+                    // 使用 followups API 保存（自动同步到同用户ID的所有案件）
+                    const followupRes = await fetch(`/api/cases/${caseData?.id}/followups`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        followup,
+                        syncToSameUser: true,
+                      }),
                     });
                     
-                    const results = await Promise.all(updatePromises);
-                    const updatedCount = results.filter(Boolean).length;
+                    const followupResult = await followupRes.json();
+                    
+                    if (!followupResult.success) {
+                      toast.error(followupResult.error || '跟进记录添加失败');
+                      return;
+                    }
+                    
+                    const syncedCount = followupResult.syncedCount || 0;
                     
                     // 调用后端API同步到飞书Webhook（避免CORS问题）
                     // 时间格式化
@@ -1390,7 +1360,7 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                     });
                     
                     setUploadedCaseFiles([]);
-                    toast.success(`跟进记录添加成功，已同步到 ${updatedCount + 1} 个案件`);
+                    toast.success(`跟进记录添加成功，已同步到 ${syncedCount + 1} 个案件`);
                   } catch (error) {
                     console.error('保存跟进记录失败:', error);
                     toast.error('跟进记录添加失败');
