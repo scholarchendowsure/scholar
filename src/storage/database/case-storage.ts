@@ -7,6 +7,24 @@ import path from 'path';
 const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
 const RECYCLE_BIN_FILE = path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 
+// ============ P0优化：内存缓存 ============
+let cachedCases: Case[] | null = null;
+let lastModifiedTime: number = 0;
+let cacheHits = 0;
+let cacheMisses = 0;
+
+// 获取文件修改时间
+function getFileMtime(filePath: string): number {
+  try {
+    if (fs.existsSync(filePath)) {
+      return fs.statSync(filePath).mtimeMs;
+    }
+  } catch {
+    // 忽略错误
+  }
+  return 0;
+}
+
 // 回收站案件类型
 interface RecycleBinItem {
   id: string;
@@ -48,38 +66,63 @@ function readRecycleBin(): RecycleBinItem[] {
   return [];
 }
 
+// ============ P0优化：写入后清除缓存 ============
 // 写入数据到文件
 function writeToFile(cases: Case[]) {
   ensureStorageDir();
   try {
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(cases, null, 2), 'utf-8');
-    console.log('Written to file, cases count:', cases.length);
+    // ✅ 写入后清除缓存，强制下次重新读取
+    cachedCases = null;
+    lastModifiedTime = 0;
+    console.log('Written to file, cases count:', cases.length, 'Cache cleared');
   } catch (error) {
     console.error('Error writing to file:', error);
   }
 }
 
-// 从文件读取数据 - 增强版，更健壮
+// ============ P0优化：内存缓存读取 ============
+// 从文件读取数据 - 增强版 + 内存缓存
 function readFromFile(): Case[] {
   ensureStorageDir();
+  
+  // 检查缓存是否有效
+  const currentMtime = getFileMtime(STORAGE_FILE);
+  
+  if (cachedCases && currentMtime === lastModifiedTime) {
+    // ✅ 缓存命中！
+    cacheHits++;
+    if (cacheHits % 100 === 0) {
+      console.log(`[Cache] Hits: ${cacheHits}, Misses: ${cacheMisses}`);
+    }
+    return cachedCases;
+  }
+  
+  // ❌ 缓存未命中，从磁盘读取
+  cacheMisses++;
+  lastModifiedTime = currentMtime;
+  
   try {
     if (fs.existsSync(STORAGE_FILE)) {
       const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
       // 如果内容为空或只有空白字符，返回空数组
       if (!content || content.trim().length === 0) {
         console.log('Storage file is empty');
-        return [];
+        cachedCases = [];
+        return cachedCases;
       }
-      const data = JSON.parse(content);
-      console.log('Read from file, cases count:', data.length);
-      return data;
+      cachedCases = JSON.parse(content);
+      console.log(`[Cache] Refreshed, cases count: ${cachedCases!.length}, Hits: ${cacheHits}, Misses: ${cacheMisses}`);
+      return cachedCases!;
     }
   } catch (error) {
     console.error('Error reading from file:', error);
     // 如果JSON解析失败，返回空数组而不是崩溃
-    return [];
+    cachedCases = [];
+    return cachedCases;
   }
-  return [];
+  cachedCases = [];
+  return cachedCases;
 }
 
 // 写入回收站数据
