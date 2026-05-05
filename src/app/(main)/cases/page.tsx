@@ -296,6 +296,9 @@ export default function CasesPage() {
     toast.success('已重置为初始状态');
   };
 
+  // ✅ 像汇丰仪表盘那样，只在首次加载时执行一次！
+  const initialLoadRef = useRef(true);
+
   // 只在关键状态变化时保存（不每次都保存）
   useEffect(() => {
     // 只在page、pageSize、search等关键状态变化时才保存
@@ -410,37 +413,10 @@ export default function CasesPage() {
     enableDedup,
   ]);
 
-  // 只在真正需要重新请求时调用fetchCases（优化后）
+  // ✅ 像汇丰仪表盘那样，只在首次加载时执行一次！
   useEffect(() => {
     fetchCases();
-  }, [
-    page, 
-    pageSize, 
-    status, 
-    riskLevel, 
-    debouncedSearch,
-    filterUserId,
-    filterContactInfo,
-    filterRiskLevelText,
-    filterAssignedSales,
-    filterAssignedPostLoan,
-    filterAssignedRiskControl,
-    filterAddress,
-    filterFunder,
-    filterIsLocked,
-    filterProductName,
-    filterPlatform,
-    filterFundCategory,
-    filterPaymentCompany,
-    filterIsExtended,
-    filterOverdueStage,
-    filterCurrency,
-    filterCategory,
-    filterFollowupContent,
-    filterOverdueDaysMin,
-    filterOverdueDaysMax,
-    enableDedup,
-  ]);
+  }, []); // ✅ 空依赖数组，只执行一次！
 
   // 清除筛选
   const clearFilters = () => {
