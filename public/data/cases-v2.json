@@ -67,11 +67,22 @@
         "followRecord": "测试跟进记录-1778009817787",
         "createdAt": "2026-05-05T19:36:57.787Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1778010341790",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:45:41.790Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "888888888888888888888888",
+        "createdAt": "2026-05-05T19:45:41.790Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
     "createdAt": "2026-05-05T19:28:56.788Z",
-    "updatedAt": "2026-05-05T19:36:58.066Z"
+    "updatedAt": "2026-05-05T19:45:40.972Z"
   },
   {
     "batchNo": "66610",
@@ -126,10 +137,21 @@
         "followRecord": "测试跟进记录-1778009817787",
         "createdAt": "2026-05-05T19:36:57.787Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1778010341790",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:45:41.790Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "888888888888888888888888",
+        "createdAt": "2026-05-05T19:45:41.790Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "aa0b8b71-b35d-429b-a40a-38b49d5bb8cc",
     "createdAt": "2026-05-05T19:28:54.299Z",
-    "updatedAt": "2026-05-05T19:36:58.074Z"
+    "updatedAt": "2026-05-05T19:45:40.974Z"
   }
 ]

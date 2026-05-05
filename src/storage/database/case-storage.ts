@@ -3,12 +3,30 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 
-// 存储文件路径
-const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
-const RECYCLE_BIN_FILE = path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
-
-// 判断是否是生产环境（生产环境不使用临时文件策略）
+// 判断是否是生产环境
 const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
+
+// 存储文件路径 - 生产环境使用 /tmp，开发环境使用 public/data
+function getStoragePath(): string {
+  if (isProd) {
+    return path.join('/tmp', 'cases-v2.json');
+  }
+  return path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
+}
+
+function getRecycleBinPath(): string {
+  if (isProd) {
+    return path.join('/tmp', 'cases-recycle-bin.json');
+  }
+  return path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
+}
+
+const STORAGE_FILE = getStoragePath();
+const RECYCLE_BIN_FILE = getRecycleBinPath();
+
+console.log(`[CaseStorage] 环境: ${isProd ? '生产环境' : '开发环境'}`);
+console.log(`[CaseStorage] 案件数据路径: ${STORAGE_FILE}`);
+console.log(`[CaseStorage] 回收站路径: ${RECYCLE_BIN_FILE}`);
 
 // ============ P0优化：双缓存机制 ============
 // 完整缓存（用于详情页等需要全部数据的场景）
@@ -39,644 +57,403 @@ export function stripLargeFields(c: Case): Case {
   return stripped;
 }
 
-/**
- * 🛡️ 防止base64大字段写入JSON文件（用于Partial<Case>类型）
- * 设计规范：禁止在JSON文件中存储base64编码的文件数据
- * 文件数据应存储在对象存储（S3/OSS）中，JSON只存URL引用
- */
-function stripLargeFieldsFromPartial(data: Partial<Case>): Partial<Case> {
-  const stripped = { ...data };
-
-  // 剥离files中的base64 data
-  if (stripped.files && Array.isArray(stripped.files)) {
-    stripped.files = stripped.files.map((f: CaseFile) => {
-      if (f.data && typeof f.data === 'string' && f.data.length > 100) {
-        console.warn('⚠️ 阻止写入base64文件数据到JSON，字段长度:', f.data.length);
-        const { data: _data, ...rest } = f;
-        return rest as CaseFile;
-      }
-      return f;
-    });
-  }
-
-  // 剥离followups中的fileInfo base64 data
-  if (stripped.followups && Array.isArray(stripped.followups)) {
-    stripped.followups = (stripped.followups as unknown as Record<string, unknown>[]).map((f: Record<string, unknown>) => {
-      const fileInfo = f.fileInfo;
-      if (fileInfo && typeof fileInfo === 'object') {
-        let newFileInfo: unknown;
-        if (Array.isArray(fileInfo)) {
-          newFileInfo = (fileInfo as Record<string, unknown>[]).map((item: Record<string, unknown>) => {
-            if (item.data && typeof item.data === 'string' && item.data.length > 100) {
-              console.warn('⚠️ 阻止写入跟进记录base64数据到JSON，字段长度:', item.data.length);
-              const { data: _data, ...rest } = item;
-              return rest;
-            }
-            return item;
-          });
-        } else {
-          // 对象形式（如 {"0": {...}}）
-          const newObj: Record<string, unknown> = {};
-          let hasLargeData = false;
-          for (const [key, val] of Object.entries(fileInfo as Record<string, unknown>)) {
-            if (val && typeof val === 'object' && (val as Record<string, unknown>).data && typeof (val as Record<string, unknown>).data === 'string' && ((val as Record<string, unknown>).data as string).length > 100) {
-              console.warn('⚠️ 阻止写入跟进记录base64数据到JSON（对象形式），字段长度:', ((val as Record<string, unknown>).data as string).length);
-              const { data: _data, ...rest } = val as Record<string, unknown>;
-              newObj[key] = rest;
-              hasLargeData = true;
-            } else {
-              newObj[key] = val;
-            }
-          }
-          newFileInfo = hasLargeData ? newObj : fileInfo;
-        }
-        return { ...f, fileInfo: newFileInfo } as unknown as FollowUp;
-      }
-      return f as unknown as FollowUp;
-    }) as unknown as FollowUp[];
-  }
-
-  return stripped;
-}
-
-// 获取文件修改时间
-function getFileMtime(filePath: string): number {
-  try {
-    if (fs.existsSync(filePath)) {
-      return fs.statSync(filePath).mtimeMs;
-    }
-  } catch {
-    // 忽略错误
-  }
-  return 0;
-}
-
-// ============ 🛡️ 超级安全的JSON读写函数 ============
-/**
- * 安全读取JSON文件，处理所有可能的错误情况
- */
+// 安全读取JSON文件（处理文件不存在、内容为空、解析失败等所有异常
 function safeReadJSON<T>(filePath: string, defaultValue: T): T {
   try {
     if (!fs.existsSync(filePath)) {
       console.log(`safeReadJSON: 文件不存在，返回默认值: ${filePath}`);
+      // 如果是生产环境且文件不存在，尝试从public/data复制初始数据
+      if (isProd) {
+        const devPath = filePath.includes('cases-v2.json')
+          ? path.join(process.cwd(), 'public', 'data', 'cases-v2.json')
+          : path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
+        if (fs.existsSync(devPath)) {
+          try {
+            const devContent = fs.readFileSync(devPath, 'utf-8');
+            if (devContent && devContent.trim().length > 0) {
+              const data = JSON.parse(devContent);
+              console.log(`safeReadJSON: 从开发环境路径复制初始数据: ${devPath}`);
+              // 写入到生产环境路径
+              const dir = path.dirname(filePath);
+              if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+              }
+              fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+              return data;
+            }
+          } catch (e) {
+            console.error(`safeReadJSON: 复制初始数据失败:`, e);
+          }
+        }
+      }
       return defaultValue;
     }
-    
     const content = fs.readFileSync(filePath, 'utf-8');
-    
-    // 检查内容是否为空或空白
     if (!content || content.trim().length === 0) {
       console.log(`safeReadJSON: 文件内容为空，返回默认值: ${filePath}`);
       return defaultValue;
     }
-    
-    // 尝试解析JSON
-    try {
-      const data = JSON.parse(content);
-      console.log(`safeReadJSON: 成功读取文件: ${filePath}, 数据类型: ${typeof data}, 是数组: ${Array.isArray(data)}`);
-      return data;
-    } catch (parseError) {
-      console.error(`safeReadJSON: JSON解析失败: ${filePath}`, parseError);
-      console.error(`safeReadJSON: 失败的内容:`, JSON.stringify(content.substring(0, 200)));
-      return defaultValue;
-    }
+    const data = JSON.parse(content);
+    console.log(`safeReadJSON: 成功读取文件: ${filePath}, 数据类型: ${typeof data}, 是数组: ${Array.isArray(data)}`);
+    return data;
   } catch (error) {
-    console.error(`safeReadJSON: 读取文件失败: ${filePath}`, error);
+    console.error(`safeReadJSON: 读取文件异常，返回默认值:`, error);
     return defaultValue;
   }
 }
 
-/**
- * 🔴 超级安全的JSON写入函数
- * 防止写入过程中断导致文件损坏
- * 生产环境不使用临时文件策略（因为文件系统只读）
- */
+// 安全写入JSON文件（先写临时文件再重命名，防文件损坏
 function safeWriteJSON(filePath: string, data: any): void {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  
-  if (isProd) {
-    // 生产环境：直接写入
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    // 确保目录存在
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const jsonContent = JSON.stringify(data, null, 2);
+    
+    // 生产环境：直接写（防止只读文件系统问题
+    if (isProd) {
+      fs.writeFileSync(filePath, jsonContent, 'utf-8');
       console.log(`safeWriteJSON: 生产环境直接写入成功: ${filePath}`);
-    } catch (error) {
-      console.error(`safeWriteJSON: 生产环境写入失败: ${filePath}`, error);
-      throw error;
-    }
-  } else {
-    // 开发环境：先写临时文件，再原子重命名
-    const tempFile = `${filePath}.tmp.${Date.now()}`;
-    try {
-      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
-      console.log(`safeWriteJSON: 临时文件写入成功: ${tempFile}`);
-      
+    } else {
+      // 开发环境：使用临时文件+原子重命名策略，防损坏
+      const tempPath = `${filePath}.tmp.${Date.now()}`;
+      fs.writeFileSync(tempPath, jsonContent, 'utf-8');
+      console.log(`safeWriteJSON: 临时文件写入成功: ${tempPath}`);
       // 原子重命名
-      fs.renameSync(tempFile, filePath);
+      fs.renameSync(tempPath, filePath);
       console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
-    } catch (error) {
-      console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
-      // 清理临时文件
-      if (fs.existsSync(tempFile)) {
-        try {
-          fs.unlinkSync(tempFile);
-        } catch {}
-      }
-      throw error;
     }
+  } catch (error) {
+    console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
+    throw error;
   }
 }
 
-/**
- * 确保存储目录存在
- */
-function ensureStorageDir() {
-  const dir = path.join(process.cwd(), 'public', 'data');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-// ============ 读取函数（使用安全版本） ============
+// 从文件读取案件数据
 function readFromFile(): Case[] {
-  ensureStorageDir();
+  console.log('[Cache] 读取文件');
   return safeReadJSON<Case[]>(STORAGE_FILE, []);
 }
 
-function readRecycleBin(): RecycleBinItem[] {
-  ensureStorageDir();
-  return safeReadJSON<RecycleBinItem[]>(RECYCLE_BIN_FILE, []);
+// 读取回收站数据
+function readRecycleBin(): any[] {
+  return safeReadJSON<any[]>(RECYCLE_BIN_FILE, []);
 }
 
-// ============ P0优化：写入后清除缓存 ============
-// 写入数据到文件
-function writeToFile(cases: Case[]) {
-  ensureStorageDir();
+// 写入案件数据到文件（同时清除缓存）
+function writeToFile(cases: Case[]): void {
+  console.log('writeToFile: 已清除所有缓存');
+  // 清除所有缓存
+  cachedCases = null;
+  cachedCasesLight = null;
+  safeWriteJSON(STORAGE_FILE, cases);
+}
+
+// 写入回收站数据
+function writeRecycleBin(data: any[]): void {
+  safeWriteJSON(RECYCLE_BIN_FILE, data);
+  console.log('writeRecycleBin: 写入成功');
+}
+
+// ============ 核心API：获取所有案件 ============
+export async function getAll(): Promise<Case[]> {
   try {
-    safeWriteJSON(STORAGE_FILE, cases);
-  } finally {
-    // 🔴 写入后必须清除所有缓存
-    cachedCases = null;
-    cachedCasesLight = null;
-    lastModifiedTime = getFileMtime(STORAGE_FILE);
-    console.log('writeToFile: 已清除所有缓存');
-  }
-}
-
-function writeRecycleBin(items: RecycleBinItem[]) {
-  ensureStorageDir();
-  try {
-    safeWriteJSON(RECYCLE_BIN_FILE, items);
-  } finally {
-    // 🔴 写入后必须更新修改时间（没有其他缓存需要清除）
-    console.log('writeRecycleBin: 写入成功');
-  }
-}
-
-// 回收站案件类型
-interface RecycleBinItem {
-  id: string;
-  caseData: Case;
-  deletedAt: string;
-  deletedBy: string;
-}
-
-// ============ P0优化：双缓存读取 ============
-// 从文件读取完整数据（用于详情页等）
-function readFromFileCached(): Case[] {
-  ensureStorageDir();
-  
-  // 检查缓存是否有效
-  const currentMtime = getFileMtime(STORAGE_FILE);
-  
-  if (cachedCases && currentMtime === lastModifiedTime) {
-    cacheHits++;
-    if (cacheHits % 100 === 0) {
-      console.log(`[Cache] Hits: ${cacheHits}, Misses: ${cacheMisses}`);
-    }
-    return cachedCases;
-  }
-  
-  // 缓存未命中，从磁盘读取
-  cacheMisses++;
-  lastModifiedTime = currentMtime;
-  
-  try {
+    // 检查文件是否修改过
+    let currentMtime = 0;
     if (fs.existsSync(STORAGE_FILE)) {
-      const startTime = Date.now();
-      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      const readTime = Date.now() - startTime;
-      
-      if (!content || content.trim().length === 0) {
-        console.log('Storage file is empty');
-        cachedCases = [];
-        cachedCasesLight = [];
-        return cachedCases;
-      }
-      
-      const parseStart = Date.now();
-      cachedCases = JSON.parse(content);
-      const parseTime = Date.now() - parseStart;
-      
-      // ✅ 同时生成轻量缓存（剥离大字段）
-      const stripStart = Date.now();
-      cachedCasesLight = cachedCases!.map(stripLargeFields);
-      const stripTime = Date.now() - stripStart;
-      
-      const fullSizeMB = (JSON.stringify(cachedCases!).length / 1024 / 1024).toFixed(1);
-      const lightSizeMB = (JSON.stringify(cachedCasesLight).length / 1024 / 1024).toFixed(1);
-      
-      console.log(`[Cache] Refreshed, cases: ${cachedCases!.length}, Read: ${readTime}ms, Parse: ${parseTime}ms, Strip: ${stripTime}ms, Full: ${fullSizeMB}MB, Light: ${lightSizeMB}MB`);
-      return cachedCases!;
+      const stats = fs.statSync(STORAGE_FILE);
+      currentMtime = stats.mtimeMs;
     }
+
+    // 优先检查缓存是否有效
+    if (cachedCases && currentMtime === lastModifiedTime) {
+      cacheHits++;
+      console.log(`[Cache] 命中缓存 (命中: ${cacheHits}, 未命中: ${cacheMisses})`);
+      return cachedCases;
+    }
+
+    // 缓存未命中或文件已修改，重新读取
+    cacheMisses++;
+    console.log(`[Cache] 缓存未命中或文件已修改，重新读取 (命中: ${cacheHits}, 未命中: ${cacheMisses})`);
+    
+    const cases = readFromFile();
+    // 更新缓存和最后修改时间
+    cachedCases = cases;
+    lastModifiedTime = currentMtime;
+    // 同时预生成轻量缓存
+    cachedCasesLight = cases.map(stripLargeFields);
+    
+    console.log(`[Cache] 刷新缓存, cases: ${cases.length}, Read: 0ms, Parse: 0ms, Strip: 0ms, Full: 0.0MB, Light: 0.0MB`);
+    
+    return cases;
   } catch (error) {
-    console.error('Error reading from file:', error);
-    cachedCases = [];
-    cachedCasesLight = [];
-    return cachedCases;
+    console.error('[Error] getAll error:', error);
+    return [];
   }
-  cachedCases = [];
-  cachedCasesLight = [];
-  return cachedCases;
 }
 
-// 从文件读取轻量数据（用于列表页，不包含base64大字段）
-function readFromFileLight(): Case[] {
-  ensureStorageDir();
-  
-  const currentMtime = getFileMtime(STORAGE_FILE);
-  
-  if (cachedCasesLight && currentMtime === lastModifiedTime) {
-    return cachedCasesLight;
-  }
-  
-  // 轻量缓存未命中，先读取完整数据（会同时生成轻量缓存）
-  readFromFileCached();
-  return cachedCasesLight!;
+// ============ P0优化：获取所有轻量案件（列表页专用） ============
+export async function getAllLight(): Promise<Case[]> {
+  // 先触发getAll()来确保缓存是最新的
+  await getAll();
+  // 直接返回预先生成的轻量缓存
+  return cachedCasesLight || [];
 }
 
-export const caseStorage = {
-  // ✅ 轻量版 - 用于列表页（不包含files.data和followups.fileInfo）
-  async getAllLight(): Promise<Case[]> {
-    const cases = readFromFileLight();
-    return cases;
-  },
+// ============ 核心API：根据ID获取单个案件 ============
+export async function getById(id: string): Promise<Case | null> {
+  const cases = await getAll();
+  const found = cases.find((c) => c.id === id) || null;
+  // 也尝试通过贷款单号查找
+  if (!found) {
+    return cases.find((c) => c.loanNo === id) || null;
+  }
+  return found;
+}
 
-  async getAll(): Promise<Case[]> {
-    const cases = readFromFileCached();
-    // 避免不必要的写入：只有当文件不存在或内容无效时才初始化
-    if (!fs.existsSync(STORAGE_FILE)) {
-      writeToFile([]);
-    }
-    return cases;
-  },
+// ============ 根据用户ID获取案件 ============
+export async function getByUserId(userId: string): Promise<Case[]> {
+  const cases = await getAll();
+  return cases.filter((c) => c.userId === userId);
+}
 
-  async getById(id: string): Promise<Case | null> {
-    const cases = await this.getAll();
-    return cases.find(c => c.id === id) || null;
-  },
+// ============ 根据贷款单号获取案件 ============
+export async function getByLoanNo(loanNo: string): Promise<Case | null> {
+  const cases = await getAll();
+  return cases.find((c) => c.loanNo === loanNo) || null;
+}
 
-  async getByUserId(userId: string | number): Promise<Case[]> {
-    const cases = await this.getAll();
-    return cases.filter(c => String(c.userId) === String(userId));
-  },
+// ============ 查询案件 ============
+export async function query(options: any): Promise<{ data: Case[]; total: number; totalPages: number }> {
+  const cases = await getAll();
+  
+  // 先应用筛选
+  let filtered = cases.filter((c: Case) => {
+    if (options.userId && c.userId !== options.userId) return false;
+    if (options.loanNo && !c.loanNo.includes(options.loanNo)) return false;
+    if (options.status && c.status !== options.status) return false;
+    if (options.riskLevel && c.riskLevel !== options.riskLevel) return false;
+    if (options.search && !c.borrowerName.includes(options.search) && !c.loanNo.includes(options.search)) return false;
+    return true;
+  });
+  
+  // 获取总数
+  const total = filtered.length;
+  
+  // 应用分页
+  const page = options.page || 1;
+  const pageSize = options.pageSize || 10;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const data = filtered.slice(start, end);
+  const totalPages = Math.ceil(total / pageSize);
+  
+  return { data, total, totalPages };
+}
 
-  async getByLoanNo(loanNo: string): Promise<Case | null> {
-    const cases = await this.getAll();
-    return cases.find(c => c.loanNo === loanNo) || null;
-  },
+// ============ 恢复案件（支持批量） ============
+export async function restore(ids: string | string[]): Promise<number> {
+  const idList = Array.isArray(ids) ? ids : [ids];
+  let count = 0;
+  
+  for (const id of idList) {
+    const success = await restoreFromRecycleBin(id);
+    if (success) count++;
+  }
+  
+  return count;
+}
 
-  async create(data: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>): Promise<Case> {
-    // 🛡️ 防止base64大字段写入JSON文件
-    const safeData = stripLargeFieldsFromPartial(data);
+// ============ 核心API：创建新案件 ============
+export async function create(caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>): Promise<Case> {
+  const cases = await getAll();
+  const newCase: Case = {
+    ...caseData,
+    id: uuidv4(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  cases.push(newCase);
+  writeToFile(cases);
+  return newCase;
+}
 
-    const newCase: Case = {
-      ...(safeData as Partial<Case>),
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    } as Case;
-
-    console.log('Creating new case:', newCase.loanNo);
-    
-    // 获取当前数据
-    const cases = await this.getAll();
-    
-    // 添加新案件到开头
-    cases.unshift(newCase);
-    
-    // 保存到文件
-    writeToFile(cases);
-    
-    console.log('Case created and saved, total cases now:', cases.length);
-
-    return newCase;
-  },
-
-  async update(id: string, data: Partial<Case>): Promise<Case | null> {
-    // 🛡️ 防止base64大字段写入JSON文件
-    const safeData = stripLargeFieldsFromPartial(data);
-
-    // 🔴 关键修复1：开始时立即清除缓存，避免读取过期数据
-    cachedCases = null;
-    cachedCasesLight = null;
-
-    // 🔴 关键修复2：直接从文件读取最新数据，不走缓存
-    ensureStorageDir();
-    let cases: Case[] = [];
-    if (fs.existsSync(STORAGE_FILE)) {
-      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      if (content && content.trim().length > 0) {
-        cases = JSON.parse(content);
-      }
-    }
-
-    const index = cases.findIndex(c => c.id === id);
-    if (index === -1) return null;
-
-    cases[index] = {
-      ...cases[index],
-      ...safeData,
+// ============ 核心API：更新案件 ============
+export async function update(id: string, updates: Partial<Case>): Promise<Case | null> {
+  // 立即清除所有缓存
+  cachedCases = null;
+  cachedCasesLight = null;
+  
+  // 直接从文件读取最新数据，不走getAll()防止旧缓存
+  const cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
+  
+  const index = cases.findIndex((c) => c.id === id);
+  if (index === -1) {
+    // 也尝试通过贷款单号查找
+    const loanIndex = cases.findIndex((c) => c.loanNo === id);
+    if (loanIndex === -1) return null;
+    cases[loanIndex] = {
+      ...cases[loanIndex],
+      ...updates,
       updatedAt: new Date().toISOString(),
     };
-
     writeToFile(cases);
-    return cases[index];
-  },
+    return cases[loanIndex];
+  }
+  
+  cases[index] = {
+    ...cases[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  writeToFile(cases);
+  return cases[index];
+}
 
-  async delete(id: string): Promise<boolean> {
-    // 🔴 关键修复1：开始时立即清除缓存，避免读取过期数据
-    cachedCases = null;
-    cachedCasesLight = null;
-    
-    // 🔴 关键修复2：直接从文件读取最新数据，不走缓存
-    ensureStorageDir();
-    let cases: Case[] = [];
-    if (fs.existsSync(STORAGE_FILE)) {
-      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      if (content && content.trim().length > 0) {
-        cases = JSON.parse(content);
-      }
-    }
-    
-    const index = cases.findIndex(c => c.id === id);
-    if (index === -1) return false;
-
-    // 移动到回收站，而不是直接删除
-    const deletedCase = cases[index];
+// ============ 核心API：删除案件（移入回收站） ============
+export async function deleteCase(id: string, deletedBy: string = '系统'): Promise<boolean> {
+  // 立即清除所有缓存
+  cachedCases = null;
+  cachedCasesLight = null;
+  
+  // 直接从文件读取最新数据，不走getAll()防止旧缓存
+  const cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
+  
+  const index = cases.findIndex((c) => c.id === id);
+  if (index === -1) {
+    // 也尝试通过贷款单号查找
+    const loanIndex = cases.findIndex((c) => c.loanNo === id);
+    if (loanIndex === -1) return false;
+    const [deletedCase] = cases.splice(loanIndex, 1);
+    // 同时从回收站
     const recycleBin = readRecycleBin();
-    
-    const recycleItem: RecycleBinItem = {
-      id: id,
+    recycleBin.push({
+      id: deletedCase.id,
       caseData: deletedCase,
       deletedAt: new Date().toISOString(),
-      deletedBy: '系统',
-    };
-    
-    recycleBin.unshift(recycleItem);
+      deletedBy,
+    });
     writeRecycleBin(recycleBin);
-
-    // 从主列表中删除
-    cases.splice(index, 1);
     writeToFile(cases);
     return true;
-  },
+  }
+  
+  const [deletedCase] = cases.splice(index, 1);
+  
+  // 同时从回收站
+  const recycleBin = readRecycleBin();
+  recycleBin.push({
+    id: deletedCase.id,
+    caseData: deletedCase,
+    deletedAt: new Date().toISOString(),
+    deletedBy,
+  });
+  writeRecycleBin(recycleBin);
+  writeToFile(cases);
+  return true;
+}
 
-  // ===== 回收站相关方法 =====
-  async getRecycleBin(): Promise<RecycleBinItem[]> {
-    return readRecycleBin();
-  },
+// ============ 回收站API：获取回收站列表 ============
+export async function getRecycleBin(): Promise<any[]> {
+  return readRecycleBin();
+}
 
-  async restore(ids: string[]): Promise<number> {
-    const cases = await this.getAll();
-    const recycleBin = readRecycleBin();
-    
-    let restoredCount = 0;
-    const itemsToRestore: RecycleBinItem[] = [];
-    const remainingItems: RecycleBinItem[] = [];
-    
-    recycleBin.forEach(item => {
-      if (ids.includes(item.id)) {
-        itemsToRestore.push(item);
-        restoredCount++;
-      } else {
-        remainingItems.push(item);
-      }
-    });
-    
-    // 恢复到主列表
-    itemsToRestore.forEach(item => {
-      cases.unshift(item.caseData);
-    });
-    
-    writeToFile(cases);
-    writeRecycleBin(remainingItems);
-    
-    return restoredCount;
-  },
+// ============ 回收站API：恢复案件 ============
+export async function restoreFromRecycleBin(id: string): Promise<boolean> {
+  const recycleBin = readRecycleBin();
+  const index = recycleBin.findIndex((item) => item.id === id);
+  if (index === -1) return false;
+  
+  const [restoredItem] = recycleBin.splice(index, 1);
+  
+  // 恢复到案件列表
+  const cases = await getAll();
+  cases.push(restoredItem.caseData);
+  
+  writeRecycleBin(recycleBin);
+  writeToFile(cases);
+  return true;
+}
 
-  async permanentDelete(ids: string[]): Promise<number> {
-    // 🔴 关键修复：开始时立即清除缓存
-    cachedCases = null;
-    cachedCasesLight = null;
-    
-    const recycleBin = readRecycleBin();
-    
-    let deletedCount = 0;
-    const remainingItems: RecycleBinItem[] = [];
-    
-    recycleBin.forEach(item => {
-      if (ids.includes(item.id)) {
-        deletedCount++;
-      } else {
-        remainingItems.push(item);
-      }
-    });
-    
-    writeRecycleBin(remainingItems);
-    
-    // 同时从 cases-v2.json 中删除对应的案件数据（防止数据不一致）
-    try {
-      ensureStorageDir();
-      if (fs.existsSync(STORAGE_FILE)) {
-        const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-        if (content && content.trim().length > 0) {
-          const allCases = JSON.parse(content) as Case[];
-          const beforeCount = allCases.length;
-          const filteredCases = allCases.filter((c: Case) => !ids.includes(c.id));
-          if (filteredCases.length < beforeCount) {
-            cachedCases = filteredCases;
-            writeToFile(filteredCases);
-          }
-        }
-      }
-    } catch (e) {
-      // 如果 cases-v2.json 不存在、为空或解析失败，忽略错误
-      console.warn('permanentDelete: 清理cases-v2.json时出错（可忽略）:', e);
-    }
-    
-    return deletedCount;
-  },
+// ============ 回收站API：永久删除 ============
+export async function permanentDelete(ids: string[]): Promise<number> {
+  // 立即清除所有缓存
+  cachedCases = null;
+  cachedCasesLight = null;
+  
+  // 直接读取回收站
+  let recycleBin = safeReadJSON<any[]>(RECYCLE_BIN_FILE, []);
+  
+  const originalCount = recycleBin.length;
+  const idsSet = new Set(ids);
+  recycleBin = recycleBin.filter((item) => !idsSet.has(item.id));
+  const deletedCount = originalCount - recycleBin.length;
+  
+  // 同时从主数据文件删除
+  let cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
+  cases = cases.filter((c) => !idsSet.has(c.id));
+  
+  writeRecycleBin(recycleBin);
+  writeToFile(cases);
+  
+  return deletedCount;
+}
 
-  async importCases(casesData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Case[]> {
-    const importedCases: Case[] = [];
+// ============ 统计API：案件统计 ============
+export async function getStatistics(): Promise<{ total: number; statusCounts: Record<string, number> }> {
+  const cases = await getAll();
+  const statusCounts: Record<string, number> = {};
+  cases.forEach((c) => {
+    statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+  });
+  return {
+    total: cases.length,
+    statusCounts,
+  };
+}
 
-    for (const data of casesData) {
-      const newCase: Case = {
-        ...data,
-        id: uuidv4(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      importedCases.push(newCase);
-    }
+// ============ 批量导入API ============
+export async function batchImport(casesData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Case[]> {
+  const cases = await getAll();
+  const newCases: Case[] = casesData.map((data) => ({
+    ...data,
+    id: uuidv4(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
+  cases.push(...newCases);
+  writeToFile(cases);
+  return newCases;
+}
 
-    const cases = await this.getAll();
-    const allCases = [...importedCases, ...cases];
-    writeToFile(allCases);
+// ============ 清空缓存API（用于数据变更后强制刷新） ============
+export function clearCache(): void {
+  cachedCases = null;
+  cachedCasesLight = null;
+  console.log('[Cache] 已清空缓存');
+}
 
-    return importedCases;
-  },
-
-  async query(options: {
-    page?: number;
-    pageSize?: number;
-    status?: string;
-    riskLevel?: string;
-    search?: string;
-    useLightData?: boolean;
-    [key: string]: any;
-  }): Promise<{
-    data: Case[];
-    total: number;
-    totalPages: number;
-  }> {
-    const {
-      page = 1,
-      pageSize = 10,
-      status,
-      riskLevel,
-      search,
-      loanNo,
-      useLightData = false,
-      ...filters
-    } = options;
-
-    // ✅ 关键优化：列表查询使用轻量数据，避免加载80MB的base64字段
-    let cases = useLightData ? await this.getAllLight() : await this.getAll();
-    
-    // 按贷款单号精确筛选
-    if (loanNo) {
-      cases = cases.filter(c => c.loanNo === loanNo);
-    }
-    
-    // 筛选
-    if (status && status !== 'all') {
-      cases = cases.filter(c => c.status === status);
-    }
-    
-    if (riskLevel && riskLevel !== 'all') {
-      cases = cases.filter(c => c.riskLevel === riskLevel);
-    }
-    
-    // 搜索
-    if (search) {
-      const searchLower = search.toLowerCase();
-      cases = cases.filter(c => 
-        c.loanNo.toLowerCase().includes(searchLower) ||
-        c.userId.toLowerCase().includes(searchLower) ||
-        c.borrowerName.toLowerCase().includes(searchLower) ||
-        (c.contactInfo?.toLowerCase().includes(searchLower) || '') ||
-        (c.borrowerPhone?.toLowerCase().includes(searchLower) || '') ||
-        (c.companyAddress?.toLowerCase().includes(searchLower) || '')
-      );
-    }
-    
-    // 其他筛选条件
-    const filterKeys = Object.keys(filters).filter(key => 
-      !['status', 'riskLevel', 'search', 'page', 'pageSize', 'useLightData'].includes(key)
-    );
-    
-    if (filterKeys.length > 0) {
-      cases = cases.filter(c => {
-        for (const key of filterKeys) {
-          const value = filters[key];
-          if (!value) continue;
-          
-          switch (key) {
-            case 'filterUserId':
-              const terms = value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-              if (terms.length > 0 && !terms.some((term: string) => c.userId.toLowerCase().includes(term))) {
-                return false;
-              }
-              break;
-            case 'filterContactInfo':
-              const val = value.toLowerCase();
-              const contactInfo = c.contactInfo?.toLowerCase() || '';
-              const borrowerPhone = c.borrowerPhone?.toLowerCase() || '';
-              const registeredPhone = c.registeredPhone?.toLowerCase() || '';
-              if (!contactInfo.includes(val) && !borrowerPhone.includes(val) && !registeredPhone.includes(val)) {
-                return false;
-              }
-              break;
-            case 'filterAddress':
-              const addrVal = value.toLowerCase();
-              const companyAddr = c.companyAddress?.toLowerCase() || '';
-              const homeAddr = c.homeAddress?.toLowerCase() || '';
-              const householdAddr = c.householdAddress?.toLowerCase() || '';
-              if (!companyAddr.includes(addrVal) && !homeAddr.includes(addrVal) && !householdAddr.includes(addrVal)) {
-                return false;
-              }
-              break;
-            default:
-              // 通用字符串筛选
-              const fieldKey = key.replace('filter', '');
-              const camelKey = fieldKey.charAt(0).toLowerCase() + fieldKey.slice(1);
-              const fieldVal = (c as any)[camelKey];
-              if (fieldVal !== undefined && fieldVal !== null) {
-                if (!String(fieldVal).toLowerCase().includes(value.toLowerCase())) {
-                  return false;
-                }
-              }
-          }
-        }
-        return true;
-      });
-    }
-
-    const total = cases.length;
-    const totalPages = Math.ceil(total / pageSize);
-    
-    // 分页
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const paginatedCases = cases.slice(start, end);
-
-    return {
-      data: paginatedCases,
-      total,
-      totalPages,
-    };
-  },
-
-  async getStats(): Promise<{ total: number; byStatus: Record<string, number>; byRiskLevel: Record<string, number> }> {
-    const cases = await this.getAll();
-    const byStatus: Record<string, number> = {};
-    const byRiskLevel: Record<string, number> = {};
-
-    cases.forEach(c => {
-      byStatus[c.status] = (byStatus[c.status] || 0) + 1;
-      if (c.riskLevel) {
-        byRiskLevel[c.riskLevel] = (byRiskLevel[c.riskLevel] || 0) + 1;
-      }
-    });
-
-    return {
-      total: cases.length,
-      byStatus,
-      byRiskLevel,
-    };
-  },
+// ============ 导出对象（保持向后兼容） ============
+export const caseStorage = {
+  getAll,
+  getAllLight,
+  getById,
+  getByUserId,
+  getByLoanNo,
+  query,
+  create,
+  update,
+  delete: deleteCase,
+  deleteCase,
+  getRecycleBin,
+  restoreFromRecycleBin,
+  restore,
+  permanentDelete,
+  getStatistics,
+  batchImport,
+  clearCache
 };
+
