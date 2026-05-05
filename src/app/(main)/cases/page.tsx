@@ -413,10 +413,10 @@ export default function CasesPage() {
     enableDedup,
   ]);
 
-  // ✅ 像汇丰仪表盘那样，只在首次加载时执行一次！
+  // 当分页、筛选等条件变化时重新获取数据
   useEffect(() => {
     fetchCases();
-  }, []); // ✅ 空依赖数组，只执行一次！
+  }, [fetchCases]);
 
   // 清除筛选
   const clearFilters = () => {
