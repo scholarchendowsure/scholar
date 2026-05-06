@@ -156,14 +156,14 @@ function readHistoryFromFile(): CaseHistory[] {
 }
 
 // 写入历史记录文件
-function writeHistoryToFile(history: CaseHistory[]): void {
+async function writeHistoryToFile(history: CaseHistory[]): Promise<void> {
   console.log('[History] 写入历史记录文件，记录数:', history.length);
-  safeWriteJSON(HISTORY_FILE, history);
+  await safeWriteJSON(HISTORY_FILE, history);
   cachedHistory = history;
 }
 
 // 添加修改历史记录
-function addHistory(
+async function addHistory(
   caseId: string,
   userName: string,
   fieldName: string,
@@ -171,7 +171,7 @@ function addHistory(
   oldValue: any,
   newValue: any,
   userId?: string
-): void {
+): Promise<void> {
   const historyItem: CaseHistory = {
     id: uuidv4(),
     caseId,
@@ -186,7 +186,7 @@ function addHistory(
   
   const history = readHistoryFromFile();
   history.unshift(historyItem); // 最新记录在最前面
-  writeHistoryToFile(history);
+  await writeHistoryToFile(history);
   
   console.log(`[History] 添加历史记录: 案件=${caseId}, 字段=${fieldName}`);
 }
@@ -197,17 +197,17 @@ function readRecycleBin(): any[] {
 }
 
 // 写入案件数据到文件（同时清除缓存）
-function writeToFile(cases: Case[]): void {
+async function writeToFile(cases: Case[]): Promise<void> {
   console.log('writeToFile: 已清除所有缓存');
   // 清除所有缓存
   cachedCases = null;
   cachedCasesLight = null;
-  safeWriteJSON(STORAGE_FILE, cases);
+  await safeWriteJSON(STORAGE_FILE, cases);
 }
 
 // 写入回收站数据
-function writeRecycleBin(data: any[]): void {
-  safeWriteJSON(RECYCLE_BIN_FILE, data);
+async function writeRecycleBin(data: any[]): Promise<void> {
+  await safeWriteJSON(RECYCLE_BIN_FILE, data);
   console.log('writeRecycleBin: 写入成功');
 }
 
@@ -360,11 +360,11 @@ export async function update(
       ...updates,
       updatedAt: new Date().toISOString(),
     };
-    writeToFile(cases);
+    await writeToFile(cases);
     
     // 记录历史
     if (options && !options.skipHistory) {
-      recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
+      await recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
     }
     
     return cases[loanIndex];
@@ -376,23 +376,23 @@ export async function update(
     ...updates,
     updatedAt: new Date().toISOString(),
   };
-  writeToFile(cases);
+  await writeToFile(cases);
   
   // 记录历史
   if (options && !options.skipHistory) {
-    recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
+    await recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
   }
   
   return cases[index];
 }
 
 // 记录修改历史的辅助函数
-function recordHistory(
+async function recordHistory(
   originalCase: Case, 
   updates: Partial<Case>, 
   userName: string, 
   userId?: string
-): void {
+): Promise<void> {
   // 定义字段标签映射
   const fieldLabels: Record<string, string> = {
     borrowerName: '借款人姓名',
@@ -408,16 +408,16 @@ function recordHistory(
     assignedPostLoan: '分配贷后',
     isLocked: '是否锁定',
     remark: '备注',
-    caseTags: '案件标签'
+    caseLabels: '案件标签'
   };
   
   // 逐个检查修改的字段
-  Object.entries(updates).forEach(([key, newValue]) => {
+  for (const [key, newValue] of Object.entries(updates)) {
     const oldValue = originalCase[key as keyof Case];
     
     // 比较值是否有变化
     if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-      addHistory(
+      await addHistory(
         originalCase.id,
         userName,
         key,
@@ -427,7 +427,7 @@ function recordHistory(
         userId
       );
     }
-  });
+  }
 }
 
 // 获取案件的修改历史

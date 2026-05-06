@@ -375,7 +375,8 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
       if (data.success) {
         toast.success('保存成功');
         setShowEditDialog(false);
-        await fetchCase(caseData.id);
+        // 直接更新本地数据，不依赖重新获取API
+        setCaseData(prev => prev ? { ...prev, ...editData } : null);
       } else {
         toast.error(data.error || '保存失败');
       }

@@ -45,7 +45,17 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const updatedCase = await caseStorage.update(id, body);
+    // 从body中提取updates，modifiedBy等参数
+    const updates = body.updates || body;
+    const modifiedBy = body.modifiedBy;
+    const userId = body.userId;
+    const skipHistory = body.skipHistory;
+    
+    const updatedCase = await caseStorage.update(id, updates, {
+      userName: modifiedBy,
+      userId,
+      skipHistory
+    });
 
     if (!updatedCase) {
       const response = NextResponse.json(
