@@ -163,10 +163,19 @@ export async function GET(request: NextRequest) {
     // 获取可用的还款月份
     const availableMonths = getAvailableRepaymentMonths(filteredLoans);
     
-    // 确定目标月份：优先使用用户指定的月份，否则使用最新的还款月份
+    // 确定目标月份：优先使用用户指定的月份，否则使用当前月份（当月），如果没有则使用最新的还款月份
     let finalMonth = yearMonth || '';
-    if (!finalMonth && availableMonths.length > 0) {
-      finalMonth = availableMonths[0]; // 默认使用最新的还款月份
+    if (!finalMonth) {
+      // 获取当前月份
+      const now = new Date();
+      const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      // 如果当前月份在可用月份中，使用当前月份；否则使用最新的还款月份
+      if (availableMonths.includes(currentYearMonth)) {
+        finalMonth = currentYearMonth;
+      } else if (availableMonths.length > 0) {
+        finalMonth = availableMonths[0];
+      }
     }
     
     // 计算指定月份的还款统计

@@ -585,7 +585,9 @@ export default function HSBCPanelPage() {
   const [dashboardCurrency, setDashboardCurrency] = useState<'CNY' | 'USD' | 'ALL'>('CNY');
 
   // 数据日期计算日状态
-  const [selectedCalcDate, setSelectedCalcDate] = useState<string>('2026-04-29');
+  const [selectedCalcDate, setSelectedCalcDate] = useState<string>(() => {
+    return new Date().toISOString().slice(0, 10);
+  });
 
   // 商户-销售映射关系
   const [merchantSalesMappings, setMerchantSalesMappings] = useState<any[]>([]);

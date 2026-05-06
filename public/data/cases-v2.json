@@ -42,9 +42,9 @@
     "borrowerPhone": "18505928787",
     "registeredPhone": "13410103355",
     "contactInfo": "13420230131",
-    "assignedSales": "高乐",
+    "assignedSales": "嘉鑫",
     "assignedRiskControl": "高乐",
-    "assignedPostLoan": "大海",
+    "assignedPostLoan": "嘉鑫",
     "followups": [
       {
         "id": "1778009667460",
@@ -87,7 +87,6 @@
         "contact": "legal_representative",
         "followResult": "normal_repayment",
         "followRecord": "................025528528",
-        "fileInfo": [],
         "createdBy": "飞书Webhook"
       },
       {
@@ -98,7 +97,6 @@
         "contact": "legal_representative",
         "followResult": "normal_repayment",
         "followRecord": "/852/82382",
-        "fileInfo": [],
         "createdBy": "飞书Webhook"
       },
       {
@@ -126,7 +124,7 @@
     ],
     "id": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
     "createdAt": "2026-05-05T19:28:56.788Z",
-    "updatedAt": "2026-05-06T03:54:36.733Z",
+    "updatedAt": "2026-05-06T04:01:50.663Z",
     "updates": {
       "batchNo": "66670",
       "loanNo": "USL17318524267857127",

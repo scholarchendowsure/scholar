@@ -1,0 +1,194 @@
+[
+  {
+    "id": "d68640bd-6e61-4766-b591-f51ca9be0a36",
+    "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
+    "userName": "系统",
+    "modifiedAt": "2026-05-06T04:01:50.673Z",
+    "fieldName": "updatedAt",
+    "oldValue": "2026-05-06T04:01:41.264Z",
+    "newValue": "2026-05-06T03:54:36.733Z"
+  },
+  {
+    "id": "b9e77ccb-2b56-4a6c-aca7-d0a77b228ea2",
+    "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
+    "userName": "系统",
+    "modifiedAt": "2026-05-06T04:01:50.669Z",
+    "fieldName": "assignedSales",
+    "fieldLabel": "分配销售",
+    "oldValue": "高乐",
+    "newValue": "嘉鑫"
+  },
+  {
+    "id": "08fc5dc5-e0c7-4633-8ca3-a6cd08b28e22",
+    "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
+    "userName": "系统",
+    "modifiedAt": "2026-05-06T04:01:41.270Z",
+    "fieldName": "followups",
+    "oldValue": [
+      {
+        "id": "1778009667460",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:34:27.460Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "333333333333333333",
+        "createdAt": "2026-05-05T19:34:27.460Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778009817783",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:36:57.783Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "测试跟进记录-1778009817787",
+        "createdAt": "2026-05-05T19:36:57.787Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778010341790",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:45:41.790Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "888888888888888888888888",
+        "createdAt": "2026-05-05T19:45:41.790Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "17780109807775zysvld4u",
+        "follower": "高乐 | Scholar",
+        "followTime": "2026-05-05T19:56:20.777Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "................025528528",
+        "fileInfo": [],
+        "createdBy": "飞书Webhook"
+      },
+      {
+        "id": "1778010991198htapj03w9",
+        "follower": "高乐 | Scholar",
+        "followTime": "2026-05-05T19:56:31.198Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "/852/82382",
+        "fileInfo": [],
+        "createdBy": "飞书Webhook"
+      },
+      {
+        "id": "1778030581557",
+        "follower": "高乐",
+        "followTime": "2026-05-06T01:23:01.557Z",
+        "followType": "other",
+        "contact": "actual_controller",
+        "followResult": "warning_rise",
+        "followRecord": "565465465767",
+        "createdAt": "2026-05-06T01:23:01.557Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778030656246",
+        "follower": "高乐",
+        "followTime": "2026-05-06T01:24:16.246Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "厉害了我的哥",
+        "createdAt": "2026-05-06T01:24:16.246Z",
+        "createdBy": "高乐"
+      }
+    ],
+    "newValue": [
+      {
+        "id": "1778009667460",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:34:27.460Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "333333333333333333",
+        "createdAt": "2026-05-05T19:34:27.460Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778009817783",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:36:57.783Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "测试跟进记录-1778009817787",
+        "createdAt": "2026-05-05T19:36:57.787Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778010341790",
+        "follower": "高乐",
+        "followTime": "2026-05-05T19:45:41.790Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "888888888888888888888888",
+        "createdAt": "2026-05-05T19:45:41.790Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "17780109807775zysvld4u",
+        "follower": "高乐 | Scholar",
+        "followTime": "2026-05-05T19:56:20.777Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "................025528528",
+        "createdBy": "飞书Webhook"
+      },
+      {
+        "id": "1778010991198htapj03w9",
+        "follower": "高乐 | Scholar",
+        "followTime": "2026-05-05T19:56:31.198Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "/852/82382",
+        "createdBy": "飞书Webhook"
+      },
+      {
+        "id": "1778030581557",
+        "follower": "高乐",
+        "followTime": "2026-05-06T01:23:01.557Z",
+        "followType": "other",
+        "contact": "actual_controller",
+        "followResult": "warning_rise",
+        "followRecord": "565465465767",
+        "createdAt": "2026-05-06T01:23:01.557Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778030656246",
+        "follower": "高乐",
+        "followTime": "2026-05-06T01:24:16.246Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "厉害了我的哥",
+        "createdAt": "2026-05-06T01:24:16.246Z",
+        "createdBy": "高乐"
+      }
+    ]
+  },
+  {
+    "id": "04fac3a0-010f-4067-b733-168cacd13945",
+    "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
+    "userName": "系统",
+    "modifiedAt": "2026-05-06T04:01:41.268Z",
+    "fieldName": "assignedPostLoan",
+    "fieldLabel": "分配贷后",
+    "oldValue": "大海",
+    "newValue": "嘉鑫"
+  }
+]
