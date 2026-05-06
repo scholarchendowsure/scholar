@@ -195,3 +195,16 @@ export function isDocumentFile(fileName: string): boolean {
   return ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext || '');
 }
 
+// ===== 修改历史记录类型定义
+export interface CaseHistory {
+  id: string;
+  caseId: string; // 案件ID
+  userId?: string; // 修改人用户ID
+  userName: string; // 修改人姓名
+  modifiedAt: string; // 修改时间
+  fieldName: string; // 修改的字段名
+  fieldLabel?: string; // 字段显示名称
+  oldValue: any; // 原值
+  newValue: any; // 新值
+}
+

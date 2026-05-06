@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { FOLLOWUP_TYPE_OPTIONS, CONTACT_OPTIONS, FOLLOWUP_RESULT_OPTIONS, FollowUp, CaseFile, isImageFile, isDocumentFile } from '@/types/case';
+import { FOLLOWUP_TYPE_OPTIONS, CONTACT_OPTIONS, FOLLOWUP_RESULT_OPTIONS, FollowUp, CaseFile, isImageFile, isDocumentFile, CaseHistory } from '@/types/case';
 import { Button } from '@/components/ui/button';
 
 const NAVIGATION_KEY = 'cases-navigation-state';
@@ -242,6 +242,150 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
   
   // 图片预览状态
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // 编辑和历史对话框状态
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [editData, setEditData] = useState<Partial<Case>>({});
+  const [caseHistory, setCaseHistory] = useState<CaseHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  
+  // 编辑和历史处理函数
+  const handleEditCase = () => {
+    if (!caseData) return;
+    setEditData({ ...caseData });
+    setShowEditDialog(true);
+  };
+  
+  const handleViewHistory = async () => {
+    if (!caseData?.id) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/cases/${caseData.id}/history`);
+      const data = await res.json();
+      if (data.success) {
+        setCaseHistory(data.history || []);
+        setShowHistoryDialog(true);
+      } else {
+        toast.error(data.error || '获取历史记录失败');
+      }
+    } catch (error) {
+      console.error('获取历史记录失败:', error);
+      toast.error('获取历史记录失败');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+  
+  const handleCompareChanges = (oldData: any, newData: any, modifiedBy: string) => {
+    const changes: Array<{ field: string; oldValue: string; newValue: string }> = [];
+    const allFields = new Set([...Object.keys(oldData || {}), ...Object.keys(newData || {})]);
+    
+    const fieldLabels: Record<string, string> = {
+      borrowerName: '借款人姓名',
+      companyName: '公司名称',
+      borrowerPhone: '联系电话',
+      status: '案件状态',
+      riskLevel: '风险等级',
+      outstandingBalance: '未结余额',
+      overdueAmount: '逾期金额',
+      overdueDays: '逾期天数',
+      caseTags: '案件标签',
+      assignedSales: '分配销售',
+      assignedPostLoan: '分配贷后'
+    };
+    
+    allFields.forEach(field => {
+      const oldValue = oldData?.[field];
+      const newValue = newData?.[field];
+      const oldStr = JSON.stringify(oldValue);
+      const newStr = JSON.stringify(newValue);
+      
+      if (oldStr !== newStr) {
+        changes.push({
+          field: fieldLabels[field] || field,
+          oldValue: oldStr,
+          newValue: newStr
+        });
+      }
+    });
+    
+    return changes;
+  };
+  
+  // 计算历史记录的展示格式（按时间分组）
+  const groupedHistory = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    caseHistory.forEach(record => {
+      const key = record.modifiedAt + '-' + record.userName;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(record);
+    });
+    // 转换为数组并排序
+    return Object.values(groups).map(group => ({
+      id: group[0].modifiedAt + '-' + group[0].userName,
+      modifiedBy: group[0].userName,
+      modifiedAt: group[0].modifiedAt,
+      changes: group.map(g => ({
+        field: g.fieldLabel || g.fieldName,
+        oldValue: String(g.oldValue || ''),
+        newValue: String(g.newValue || '')
+      }))
+    })).sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+  }, [caseHistory]);
+  
+  const handleSaveEdit = async () => {
+    if (!caseData?.id) return;
+    setSavingEdit(true);
+    try {
+      // 获取当前用户
+      let currentUser = '系统';
+      try {
+        const authRes = await fetch('/api/auth/session');
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData?.user?.name) {
+            currentUser = authData.user.name;
+          }
+        }
+      } catch {}
+      
+      const changes = handleCompareChanges(caseData, editData, currentUser);
+      
+      if (changes.length === 0) {
+        toast.info('没有修改内容');
+        setShowEditDialog(false);
+        return;
+      }
+      
+      const res = await fetch(`/api/cases/${caseData.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          updates: editData,
+          modifiedBy: currentUser,
+          changeSummary: `修改了 ${changes.length} 个字段`
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast.success('保存成功');
+        setShowEditDialog(false);
+        await fetchCase(caseData.id);
+      } else {
+        toast.error(data.error || '保存失败');
+      }
+    } catch (error) {
+      console.error('保存失败:', error);
+      toast.error('保存失败');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
   
   // 查看完整记录内容状态
   const [viewFullRecord, setViewFullRecord] = useState<string | null>(null);
@@ -923,11 +1067,11 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                   <Separator orientation="vertical" className="h-8" />
                 </>
               )}
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2" onClick={handleViewHistory}>
                 <Eye className="w-4 h-4" />
                 查看历史
               </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+              <Button className="bg-blue-600 hover:bg-blue-700 gap-2" onClick={handleEditCase}>
                 <Edit className="w-4 h-4" />
                 编辑
               </Button>
@@ -1478,6 +1622,220 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* 编辑案件对话框 */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>编辑案件信息</DialogTitle>
+            </DialogHeader>
+            {caseData && (
+              <div className="space-y-6 py-4">
+                {/* 核心信息 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">核心信息</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>借款人姓名</Label>
+                      <Input 
+                        value={editData.borrowerName || ''} 
+                        onChange={(e) => setEditData({...editData, borrowerName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>公司名称</Label>
+                      <Input 
+                        value={editData.companyName || ''} 
+                        onChange={(e) => setEditData({...editData, companyName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>联系电话</Label>
+                      <Input 
+                        value={editData.borrowerPhone || ''} 
+                        onChange={(e) => setEditData({...editData, borrowerPhone: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>案件状态</Label>
+                      <Select 
+                        value={editData.status || ''} 
+                        onValueChange={(val) => setEditData({...editData, status: val})}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="待分配">待分配</SelectItem>
+                          <SelectItem value="待外访">待外访</SelectItem>
+                          <SelectItem value="跟进中">跟进中</SelectItem>
+                          <SelectItem value="已结案">已结案</SelectItem>
+                          <SelectItem value="逾期">逾期</SelectItem>
+                          <SelectItem value="正常">正常</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>风险等级</Label>
+                      <Select 
+                        value={editData.riskLevel || ''} 
+                        onValueChange={(val) => setEditData({...editData, riskLevel: val})}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="低风险">低风险</SelectItem>
+                          <SelectItem value="中风险">中风险</SelectItem>
+                          <SelectItem value="高风险">高风险</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 金额信息 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">金额信息</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>未结余额</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.outstandingBalance || ''} 
+                        onChange={(e) => setEditData({...editData, outstandingBalance: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>逾期金额</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.overdueAmount || ''} 
+                        onChange={(e) => setEditData({...editData, overdueAmount: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>逾期天数</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.overdueDays || ''} 
+                        onChange={(e) => setEditData({...editData, overdueDays: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>贷款金额</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.loanAmount || ''} 
+                        onChange={(e) => setEditData({...editData, loanAmount: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 信息详情 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">信息详情</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>分配销售</Label>
+                      <Input 
+                        value={editData.assignedSales || ''} 
+                        onChange={(e) => setEditData({...editData, assignedSales: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>分配贷后</Label>
+                      <Input 
+                        value={editData.assignedPostLoan || ''} 
+                        onChange={(e) => setEditData({...editData, assignedPostLoan: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label>产品名称</Label>
+                      <Input 
+                        value={editData.productName || ''} 
+                        onChange={(e) => setEditData({...editData, productName: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                取消
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? '保存中...' : '保存'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 查看历史对话框 */}
+        <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+          <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>修改历史记录</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              {historyLoading ? (
+                <div className="py-12 text-center text-slate-500">
+                  加载中...
+                </div>
+              ) : caseHistory.length === 0 ? (
+                <div className="py-12 text-center text-slate-500">
+                  暂无修改历史
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {groupedHistory.map((record) => (
+                    <div key={record.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium text-slate-900">
+                            {record.modifiedBy}
+                          </span>
+                          <span className="text-sm text-slate-500">
+                            {new Date(record.modifiedAt).toLocaleString('zh-CN')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {record.changes && record.changes.length > 0 && (
+                        <div className="space-y-2 mt-3 border-t border-slate-100 pt-3">
+                          <h4 className="text-sm font-medium text-slate-700">修改详情：</h4>
+                          <div className="space-y-2">
+                            {record.changes.map((change: any, idx: number) => (
+                              <div key={idx} className="grid grid-cols-12 gap-2 items-center text-sm">
+                                <div className="col-span-3 font-medium text-slate-600">
+                                  {change.field}
+                                </div>
+                                <div className="col-span-4 text-slate-500 line-through bg-red-50 px-2 py-1 rounded text-xs">
+                                  {change.oldValue}
+                                </div>
+                                <div className="col-span-1 text-center text-slate-400">→</div>
+                                <div className="col-span-4 text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-xs">
+                                  {change.newValue}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter className="border-t border-slate-100 pt-4">
+              <Button variant="outline" onClick={() => setShowHistoryDialog(false)}>
+                关闭
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

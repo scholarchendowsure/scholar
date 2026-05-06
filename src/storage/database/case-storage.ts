@@ -1,4 +1,4 @@
-import { Case, CaseFile, FollowUp } from '@/types/case';
+import { Case, CaseFile, FollowUp, CaseHistory } from '@/types/case';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
@@ -21,18 +21,29 @@ function getRecycleBinPath(): string {
   return path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 }
 
+function getHistoryPath(): string {
+  if (isProd) {
+    return path.join('/tmp', 'cases-history.json');
+  }
+  return path.join(process.cwd(), 'public', 'data', 'cases-history.json');
+}
+
 const STORAGE_FILE = getStoragePath();
 const RECYCLE_BIN_FILE = getRecycleBinPath();
+const HISTORY_FILE = getHistoryPath();
 
 console.log(`[CaseStorage] 环境: ${isProd ? '生产环境' : '开发环境'}`);
 console.log(`[CaseStorage] 案件数据路径: ${STORAGE_FILE}`);
 console.log(`[CaseStorage] 回收站路径: ${RECYCLE_BIN_FILE}`);
+console.log(`[CaseStorage] 历史记录路径: ${HISTORY_FILE}`);
 
 // ============ P0优化：双缓存机制 ============
 // 完整缓存（用于详情页等需要全部数据的场景）
 let cachedCases: Case[] | null = null;
 // 轻量缓存（用于列表页，剥离了files.data和followups.fileInfo大字段）
 let cachedCasesLight: Case[] | null = null;
+// 历史记录缓存
+let cachedHistory: CaseHistory[] | null = null;
 let lastModifiedTime: number = 0;
 let cacheHits = 0;
 let cacheMisses = 0;
@@ -136,6 +147,48 @@ function safeWriteJSON(filePath: string, data: any): void {
 function readFromFile(): Case[] {
   console.log('[Cache] 读取文件');
   return safeReadJSON<Case[]>(STORAGE_FILE, []);
+}
+
+// 从文件读取历史记录
+function readHistoryFromFile(): CaseHistory[] {
+  console.log('[History] 读取历史记录文件');
+  return safeReadJSON<CaseHistory[]>(HISTORY_FILE, []);
+}
+
+// 写入历史记录文件
+function writeHistoryToFile(history: CaseHistory[]): void {
+  console.log('[History] 写入历史记录文件，记录数:', history.length);
+  safeWriteJSON(HISTORY_FILE, history);
+  cachedHistory = history;
+}
+
+// 添加修改历史记录
+function addHistory(
+  caseId: string,
+  userName: string,
+  fieldName: string,
+  fieldLabel: string | undefined,
+  oldValue: any,
+  newValue: any,
+  userId?: string
+): void {
+  const historyItem: CaseHistory = {
+    id: uuidv4(),
+    caseId,
+    userId,
+    userName,
+    modifiedAt: new Date().toISOString(),
+    fieldName,
+    fieldLabel,
+    oldValue,
+    newValue
+  };
+  
+  const history = readHistoryFromFile();
+  history.unshift(historyItem); // 最新记录在最前面
+  writeHistoryToFile(history);
+  
+  console.log(`[History] 添加历史记录: 案件=${caseId}, 字段=${fieldName}`);
 }
 
 // 读取回收站数据
@@ -282,7 +335,11 @@ export async function create(caseData: Omit<Case, 'id' | 'createdAt' | 'updatedA
 }
 
 // ============ 核心API：更新案件 ============
-export async function update(id: string, updates: Partial<Case>): Promise<Case | null> {
+export async function update(
+  id: string, 
+  updates: Partial<Case>, 
+  options?: { userName?: string; userId?: string; skipHistory?: boolean }
+): Promise<Case | null> {
   // 立即清除所有缓存
   cachedCases = null;
   cachedCasesLight = null;
@@ -291,26 +348,92 @@ export async function update(id: string, updates: Partial<Case>): Promise<Case |
   const cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
   
   const index = cases.findIndex((c) => c.id === id);
+  let originalCase: Case | undefined;
+  
   if (index === -1) {
     // 也尝试通过贷款单号查找
     const loanIndex = cases.findIndex((c) => c.loanNo === id);
     if (loanIndex === -1) return null;
+    originalCase = { ...cases[loanIndex] };
     cases[loanIndex] = {
       ...cases[loanIndex],
       ...updates,
       updatedAt: new Date().toISOString(),
     };
     writeToFile(cases);
+    
+    // 记录历史
+    if (options && !options.skipHistory) {
+      recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
+    }
+    
     return cases[loanIndex];
   }
   
+  originalCase = { ...cases[index] };
   cases[index] = {
     ...cases[index],
     ...updates,
     updatedAt: new Date().toISOString(),
   };
   writeToFile(cases);
+  
+  // 记录历史
+  if (options && !options.skipHistory) {
+    recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
+  }
+  
   return cases[index];
+}
+
+// 记录修改历史的辅助函数
+function recordHistory(
+  originalCase: Case, 
+  updates: Partial<Case>, 
+  userName: string, 
+  userId?: string
+): void {
+  // 定义字段标签映射
+  const fieldLabels: Record<string, string> = {
+    borrowerName: '借款人姓名',
+    borrowerPhone: '借款人电话',
+    companyName: '公司名称',
+    status: '案件状态',
+    riskLevel: '风险等级',
+    debtAmount: '欠款金额',
+    totalOutstandingBalance: '总待还余额',
+    overdueAmount: '逾期金额',
+    overdueDays: '逾期天数',
+    assignedSales: '分配销售',
+    assignedPostLoan: '分配贷后',
+    isLocked: '是否锁定',
+    remark: '备注',
+    caseTags: '案件标签'
+  };
+  
+  // 逐个检查修改的字段
+  Object.entries(updates).forEach(([key, newValue]) => {
+    const oldValue = originalCase[key as keyof Case];
+    
+    // 比较值是否有变化
+    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+      addHistory(
+        originalCase.id,
+        userName,
+        key,
+        fieldLabels[key],
+        oldValue,
+        newValue,
+        userId
+      );
+    }
+  });
+}
+
+// 获取案件的修改历史
+export function getCaseHistory(caseId: string): CaseHistory[] {
+  const history = readHistoryFromFile();
+  return history.filter(h => h.caseId === caseId);
 }
 
 // ============ 核心API：删除案件（移入回收站） ============
@@ -454,6 +577,8 @@ export const caseStorage = {
   permanentDelete,
   getStatistics,
   batchImport,
-  clearCache
+  clearCache,
+  getCaseHistory
 };
+
 
