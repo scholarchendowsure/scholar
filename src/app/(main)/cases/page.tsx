@@ -142,6 +142,7 @@ export default function CasesPage() {
   
   // 筛选条件
   const [status, setStatus] = useState<string>(initialState?.status || 'all');
+  const [filterStatusText, setFilterStatusText] = useState(initialState?.filterStatusText || '');
   const [riskLevel, setRiskLevel] = useState<string>(initialState?.riskLevel || 'all');
   const [filterUserId, setFilterUserId] = useState(initialState?.filterUserId || '');
   const [filterContactInfo, setFilterContactInfo] = useState(initialState?.filterContactInfo || '');
@@ -191,6 +192,7 @@ export default function CasesPage() {
         search,
         enableDedup,
         status,
+        filterStatusText,
         riskLevel,
         filterUserId,
         filterContactInfo,
@@ -224,6 +226,7 @@ export default function CasesPage() {
     search,
     enableDedup,
     status,
+    filterStatusText,
     riskLevel,
     filterUserId,
     filterContactInfo,
@@ -270,6 +273,7 @@ export default function CasesPage() {
     setSearch('');
     setEnableDedup(false);
     setStatus('all');
+    setFilterStatusText('');
     setRiskLevel('all');
     setFilterUserId('');
     setFilterContactInfo('');
@@ -335,6 +339,7 @@ export default function CasesPage() {
         page: String(page),
         pageSize: String(pageSize),
         ...(status !== 'all' && { status }),
+        ...(filterStatusText && { filterStatus: filterStatusText }),
         ...(riskLevel !== 'all' && { riskLevel }),
         ...(debouncedSearch && { search: debouncedSearch }),
         ...(filterUserId && { filterUserId }),
@@ -388,6 +393,7 @@ export default function CasesPage() {
     page, 
     pageSize, 
     status, 
+    filterStatusText,
     riskLevel, 
     debouncedSearch,
     filterUserId,
@@ -422,6 +428,7 @@ export default function CasesPage() {
   const clearFilters = () => {
     setSearch('');
     setStatus('all');
+    setFilterStatusText('');
     setRiskLevel('all');
     setFilterUserId('');
     setFilterContactInfo('');
@@ -856,6 +863,7 @@ export default function CasesPage() {
               筛选
               {[
                 status !== 'all',
+                filterStatusText,
                 riskLevel !== 'all',
                 filterUserId,
                 filterContactInfo,
@@ -881,6 +889,7 @@ export default function CasesPage() {
                 <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700">
                   {[
                     status !== 'all',
+                    filterStatusText,
                     riskLevel !== 'all',
                     filterUserId,
                     filterContactInfo,
@@ -1166,9 +1175,9 @@ export default function CasesPage() {
                   清除
                 </Button>
                 
-                <div className="ml-auto">
+                <div className="ml-auto flex items-end gap-2">
                   <div className="w-[180px]">
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态</label>
+                    <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态（下拉）</label>
                     <Select value={status} onValueChange={setStatus}>
                       <SelectTrigger>
                         <SelectValue placeholder="全部状态" />
@@ -1182,21 +1191,29 @@ export default function CasesPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="w-[180px]">
-                  <label className="text-sm font-medium text-slate-700 mb-2 block">风险等级</label>
-                  <Select value={riskLevel} onValueChange={setRiskLevel}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="全部风险" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">全部风险</SelectItem>
-                      <SelectItem value="low">低</SelectItem>
-                      <SelectItem value="medium">中</SelectItem>
-                      <SelectItem value="high">高</SelectItem>
-                      <SelectItem value="critical">极高</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="w-[180px]">
+                    <label className="text-sm font-medium text-slate-700 mb-2 block">案件状态（自定义）</label>
+                    <Input
+                      placeholder="请输入状态"
+                      value={filterStatusText}
+                      onChange={(e) => { setFilterStatusText(e.target.value); setPage(1); }}
+                    />
+                  </div>
+                  <div className="w-[180px]">
+                    <label className="text-sm font-medium text-slate-700 mb-2 block">风险等级</label>
+                    <Select value={riskLevel} onValueChange={setRiskLevel}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="全部风险" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">全部风险</SelectItem>
+                        <SelectItem value="low">低</SelectItem>
+                        <SelectItem value="medium">中</SelectItem>
+                        <SelectItem value="high">高</SelectItem>
+                        <SelectItem value="critical">极高</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </div>

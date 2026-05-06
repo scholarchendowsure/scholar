@@ -1,5 +1,15 @@
 [
   {
+    "id": "d536ac89-3a3b-4c15-ab6b-65eba187000a",
+    "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
+    "userName": "系统",
+    "modifiedAt": "2026-05-06T16:03:25.696Z",
+    "fieldName": "assignedPostLoan",
+    "fieldLabel": "分配贷后",
+    "oldValue": "嘉鑫",
+    "newValue": "高乐"
+  },
+  {
     "id": "d68640bd-6e61-4766-b591-f51ca9be0a36",
     "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
     "userName": "系统",

@@ -126946,13 +126946,17 @@
       {
         "date": "2026-04-16",
         "amount": 1000
+      },
+      {
+        "date": "2026-05-05",
+        "amount": 1500
       }
     ],
-    "balance": 383596.96,
-    "pastdueAmount": 383596.96,
+    "balance": 382096.96,
+    "pastdueAmount": 382096.96,
     "overdueDays": 191,
     "status": "overdue",
-    "totalRepaid": 28603.039999999997,
+    "totalRepaid": 30103.039999999997,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -148525,12 +148529,17 @@
     "totalInterestRate": 0.0757418,
     "loanTenor": "120D",
     "maturityDate": "2026-05-05",
-    "repaymentSchedule": [],
-    "balance": 40000,
-    "pastdueAmount": 40000,
-    "overdueDays": 1,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-05",
+        "amount": 40000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 40000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -148851,12 +148860,17 @@
     "totalInterestRate": 0.0757762,
     "loanTenor": "119D",
     "maturityDate": "2026-05-05",
-    "repaymentSchedule": [],
-    "balance": 50000,
-    "pastdueAmount": 50000,
-    "overdueDays": 1,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -149045,13 +149059,17 @@
       {
         "date": "2026-05-05",
         "amount": 100000
+      },
+      {
+        "date": "2026-05-06",
+        "amount": 80000
       }
     ],
-    "balance": 205000,
+    "balance": 125000,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 384000,
+    "totalRepaid": 464000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -149524,12 +149542,17 @@
     "totalInterestRate": 0.0758324,
     "loanTenor": "122D",
     "maturityDate": "2026-05-11",
-    "repaymentSchedule": [],
-    "balance": 60000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 60000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 60000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -149791,12 +149814,17 @@
     "totalInterestRate": 0.0758513,
     "loanTenor": "119D",
     "maturityDate": "2026-05-11",
-    "repaymentSchedule": [],
-    "balance": 12600,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 7000
+      }
+    ],
+    "balance": 5600,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 7000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -150749,12 +150777,17 @@
     "totalInterestRate": 0.0589258,
     "loanTenor": "116D",
     "maturityDate": "2026-05-15",
-    "repaymentSchedule": [],
-    "balance": 700000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 474536.79
+      }
+    ],
+    "balance": 225463.21000000002,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 474536.79,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -151664,12 +151697,17 @@
     "totalInterestRate": 0.076369,
     "loanTenor": "120D",
     "maturityDate": "2026-05-27",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-05",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -151686,12 +151724,17 @@
     "totalInterestRate": 0.076369,
     "loanTenor": "120D",
     "maturityDate": "2026-05-27",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -151840,12 +151883,17 @@
     "totalInterestRate": 0.0763483,
     "loanTenor": "120D",
     "maturityDate": "2026-05-28",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2025-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -151862,12 +151910,17 @@
     "totalInterestRate": 0.0763483,
     "loanTenor": "120D",
     "maturityDate": "2026-05-28",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -151884,12 +151937,17 @@
     "totalInterestRate": 0.0763483,
     "loanTenor": "120D",
     "maturityDate": "2026-05-28",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -152439,12 +152497,17 @@
     "totalInterestRate": 0.0761231,
     "loanTenor": "120D",
     "maturityDate": "2026-06-04",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -153109,12 +153172,17 @@
     "totalInterestRate": 0.0761899,
     "loanTenor": "120D",
     "maturityDate": "2026-06-09",
-    "repaymentSchedule": [],
-    "balance": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-06",
+        "amount": 50000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-06",
     "remarks": ""
   },
@@ -159646,6 +159714,160 @@
     "maturityDate": "2026-09-02",
     "repaymentSchedule": [],
     "balance": 50000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1953",
+    "loanReference": "EMFAM1026366",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 60000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0767358,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-02",
+    "repaymentSchedule": [],
+    "balance": 60000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1954",
+    "loanReference": "LAEHK1214287",
+    "merchantId": "68078",
+    "merchantName": "",
+    "borrowerName": "LIANGDENG LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 30000,
+    "loanInterest": "120D SOFR TREM +4%",
+    "totalInterestRate": 0.0767358,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-02",
+    "repaymentSchedule": [],
+    "balance": 30000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1955",
+    "loanReference": "EMFAM1026374",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 24000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0767358,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-02",
+    "repaymentSchedule": [],
+    "balance": 24000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1956",
+    "loanReference": "EMFAM1026378",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 50000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0767358,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-02",
+    "repaymentSchedule": [],
+    "balance": 50000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1957",
+    "loanReference": "EMFAM1026380",
+    "merchantId": "76001",
+    "merchantName": "",
+    "borrowerName": "K&K LIVING FURNITURE LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 50000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0767358,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-02",
+    "repaymentSchedule": [],
+    "balance": 50000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1958",
+    "loanReference": "EMFAM1026377",
+    "merchantId": "70790",
+    "merchantName": "",
+    "borrowerName": "YOUDAOX GROUP CO., LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 66000,
+    "loanInterest": "120D SOFR TERM + 4.5%",
+    "totalInterestRate": 0.0816735,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-03",
+    "repaymentSchedule": [],
+    "balance": 66000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-06",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-06-1959",
+    "loanReference": "EMFAM1026381",
+    "merchantId": "86130",
+    "merchantName": "",
+    "borrowerName": "ALFEYE TRADING LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "CNY",
+    "loanAmount": 2000000,
+    "loanInterest": "120D HBR + 4%",
+    "totalInterestRate": 0.0563515,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-03",
+    "repaymentSchedule": [],
+    "balance": 2000000,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",

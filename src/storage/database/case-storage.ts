@@ -285,11 +285,49 @@ export async function query(options: any): Promise<{ data: Case[]; total: number
   
   // 先应用筛选
   let filtered = cases.filter((c: Case) => {
+    // 基础筛选
     if (options.userId && c.userId !== options.userId) return false;
     if (options.loanNo && !c.loanNo.includes(options.loanNo)) return false;
     if (options.status && c.status !== options.status) return false;
     if (options.riskLevel && c.riskLevel !== options.riskLevel) return false;
     if (options.search && !c.borrowerName.includes(options.search) && !c.loanNo.includes(options.search)) return false;
+    
+    // 处理所有 filter 开头的筛选参数
+    for (const [key, value] of Object.entries(options)) {
+      if (!key.startsWith('filter') || !value) continue;
+      
+      const fieldName = key.replace('filter', '');
+      // 首字母小写
+      const normalizedFieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
+      
+      // 获取案件对应字段的值
+      // @ts-ignore
+      const caseValue = c[normalizedFieldName];
+      
+      // 如果案件没有该字段，跳过
+      if (caseValue === undefined || caseValue === null) continue;
+      
+      // 字符串类型字段：模糊匹配
+      if (typeof caseValue === 'string') {
+        if (!caseValue.toLowerCase().includes(String(value).toLowerCase())) {
+          return false;
+        }
+      }
+      // 数字类型字段：精确匹配
+      else if (typeof caseValue === 'number') {
+        if (caseValue !== Number(value)) {
+          return false;
+        }
+      }
+      // 布尔类型字段：精确匹配
+      else if (typeof caseValue === 'boolean') {
+        const boolValue = value === 'true' || value === true;
+        if (caseValue !== boolValue) {
+          return false;
+        }
+      }
+    }
+    
     return true;
   });
   
