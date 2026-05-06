@@ -3,11 +3,11 @@ import { getCaseHistory } from '@/storage/database/case-storage';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const caseId = params.id;
-    const history = getCaseHistory(caseId);
+    const { id: caseId } = await params;
+    const history = await getCaseHistory(caseId);
     
     return NextResponse.json({
       success: true,
