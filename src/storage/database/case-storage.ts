@@ -323,12 +323,37 @@ export async function query(options: any): Promise<{ data: Case[]; total: number
   
   // 先应用筛选
   let filtered = cases.filter((c: Case) => {
-    // 基础筛选
-    if (options.userId && c.userId !== options.userId) return false;
-    if (options.loanNo && !c.loanNo.includes(options.loanNo)) return false;
+    // 基础筛选 - 支持多个用户ID（空格分隔）
+    if (options.userId) {
+      const userIds = String(options.userId).trim().split(/\s+/).filter(id => id.trim());
+      if (userIds.length > 0 && !userIds.includes(c.userId)) return false;
+    }
+    
+    // 基础筛选 - 支持多个贷款单号（空格分隔）
+    if (options.loanNo) {
+      const loanNos = String(options.loanNo).trim().split(/\s+/).filter(no => no.trim());
+      if (loanNos.length > 0) {
+        const matched = loanNos.some(no => c.loanNo.includes(no));
+        if (!matched) return false;
+      }
+    }
+    
     if (options.status && c.status !== options.status) return false;
     if (options.riskLevel && c.riskLevel !== options.riskLevel) return false;
-    if (options.search && !c.borrowerName.includes(options.search) && !c.loanNo.includes(options.search)) return false;
+    
+    // 搜索功能 - 支持多个关键词（空格分隔）
+    if (options.search) {
+      const searchTerms = String(options.search).trim().split(/\s+/).filter(term => term.trim());
+      if (searchTerms.length > 0) {
+        // 检查是否匹配任意一个搜索关键词
+        const matched = searchTerms.some(term => 
+          c.borrowerName.includes(term) || 
+          c.loanNo.includes(term) ||
+          c.userId.includes(term)
+        );
+        if (!matched) return false;
+      }
+    }
     
     // 处理所有 filter 开头的筛选参数
     for (const [key, value] of Object.entries(options)) {
@@ -344,6 +369,27 @@ export async function query(options: any): Promise<{ data: Case[]; total: number
       
       // 如果案件没有该字段，跳过
       if (caseValue === undefined || caseValue === null) continue;
+      
+      // 特殊处理：用户ID字段支持多个值（空格分隔）
+      if (normalizedFieldName === 'userId') {
+        const userIds = String(value).trim().split(/\s+/).filter(id => id.trim());
+        if (userIds.length > 0 && !userIds.includes(caseValue)) {
+          return false;
+        }
+        continue;
+      }
+      
+      // 特殊处理：贷款单号字段支持多个值（空格分隔）
+      if (normalizedFieldName === 'loanNo') {
+        const loanNos = String(value).trim().split(/\s+/).filter(no => no.trim());
+        if (loanNos.length > 0) {
+          const matched = loanNos.some(no => caseValue.includes(no));
+          if (!matched) {
+            return false;
+          }
+        }
+        continue;
+      }
       
       // 字符串类型字段：模糊匹配
       if (typeof caseValue === 'string') {
