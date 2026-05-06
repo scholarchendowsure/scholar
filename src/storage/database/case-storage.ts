@@ -211,6 +211,42 @@ async function writeRecycleBin(data: any[]): Promise<void> {
   console.log('writeRecycleBin: 写入成功');
 }
 
+// 规范化逾期天数
+function normalizeOverdueDays(c: Case): Case {
+  const normalized = { ...c };
+  
+  // 1. 四舍五入去掉小数，只保留整数
+  if (normalized.overdueDays !== undefined && normalized.overdueDays !== null) {
+    normalized.overdueDays = Math.round(Number(normalized.overdueDays));
+  }
+  
+  // 2. 对于状态是逾期，并且逾期天数不为空值的，每天自动+1天
+  if (normalized.status === 'following' || normalized.status?.toLowerCase().includes('overdue') || normalized.status?.toLowerCase().includes('逾期')) {
+    if (normalized.overdueDays !== undefined && normalized.overdueDays !== null && normalized.dueDate) {
+      try {
+        const dueDate = new Date(normalized.dueDate);
+        const today = new Date();
+        // 只比较日期部分，忽略时间
+        dueDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        
+        // 计算从到期日到今天的天数差
+        const diffTime = today.getTime() - dueDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        // 如果差值大于0（确实逾期了），使用计算出的天数
+        if (diffDays > 0) {
+          normalized.overdueDays = diffDays;
+        }
+      } catch (e) {
+        console.error('计算逾期天数失败:', e);
+      }
+    }
+  }
+  
+  return normalized;
+}
+
 // ============ 核心API：获取所有案件 ============
 export async function getAll(): Promise<Case[]> {
   try {
@@ -233,15 +269,17 @@ export async function getAll(): Promise<Case[]> {
     console.log(`[Cache] 缓存未命中或文件已修改，重新读取 (命中: ${cacheHits}, 未命中: ${cacheMisses})`);
     
     const cases = readFromFile();
+    // 对每个案件进行逾期天数规范化
+    const normalizedCases = cases.map(normalizeOverdueDays);
     // 更新缓存和最后修改时间
-    cachedCases = cases;
+    cachedCases = normalizedCases;
     lastModifiedTime = currentMtime;
     // 同时预生成轻量缓存
-    cachedCasesLight = cases.map(stripLargeFields);
+    cachedCasesLight = normalizedCases.map(stripLargeFields);
     
-    console.log(`[Cache] 刷新缓存, cases: ${cases.length}, Read: 0ms, Parse: 0ms, Strip: 0ms, Full: 0.0MB, Light: 0.0MB`);
+    console.log(`[Cache] 刷新缓存, cases: ${normalizedCases.length}, Read: 0ms, Parse: 0ms, Strip: 0ms, Full: 0.0MB, Light: 0.0MB`);
     
-    return cases;
+    return normalizedCases;
   } catch (error) {
     console.error('[Error] getAll error:', error);
     return [];
