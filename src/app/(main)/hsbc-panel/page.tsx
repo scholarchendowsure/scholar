@@ -1113,8 +1113,8 @@ export default function HSBCPanelPage() {
       const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
       const balance = Math.max(0, totalLoanAmount - totalRepaid);
-      // 计算该商户下所有相关贷款的逾期金额相加
-      const totalPastdueAmount = merchantLoans.reduce((sum, l) => sum + (l.pastdueAmount || 0), 0);
+      // 计算该商户下所有相关贷款的逾期金额相加，使用 calcPastdueAmount 函数计算
+      const totalPastdueAmount = merchantLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0);
       
       // 计算有效到期日：过滤掉已还清的贷款（余额为0）
       const today = new Date();
