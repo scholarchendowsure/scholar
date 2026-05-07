@@ -604,6 +604,29 @@ export default function HSBCPanelPage() {
     'loanReference', 'merchantId', 'salesName', 'borrowerName', 'loanCurrency', 
     'loanStartDate', 'loanAmount', 'balance', 'pastdueAmount', 'status'
   ]);
+  
+  // 选择列状态管理
+  const [selectedLoanIds, setSelectedLoanIds] = useState<Set<string>>(new Set());
+
+  // 全选功能
+  const handleSelectAll = () => {
+    if (selectedLoanIds.size === paginatedLoans.length) {
+      setSelectedLoanIds(new Set());
+    } else {
+      setSelectedLoanIds(new Set(paginatedLoans.map(loan => loan.id)));
+    }
+  };
+
+  const handleSelectLoan = (loanId: string) => {
+    const newSelected = new Set(selectedLoanIds);
+    if (newSelected.has(loanId)) {
+      newSelected.delete(loanId);
+    } else {
+      newSelected.add(loanId);
+    }
+    setSelectedLoanIds(newSelected);
+  };
+
   const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState<string>('');
@@ -1245,6 +1268,13 @@ export default function HSBCPanelPage() {
   // 分页
   const totalPages = Math.ceil(sortedFilteredLoans.length / pageSize);
   const paginatedLoans = sortedFilteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // 当分页数据变化时，默认全部勾选
+  useEffect(() => {
+    if (paginatedLoans.length > 0) {
+      setSelectedLoanIds(new Set(paginatedLoans.map(loan => loan.id)));
+    }
+  }, [currentPage, pageSize, sortedFilteredLoans]);
 
   // 处理文件上传 - 上传到后端解析（支持加密文件）
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2332,6 +2362,15 @@ export default function HSBCPanelPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
+                      {/* 选择列 */}
+                      <TableHead className="w-[50px]">
+                        <input
+                          type="checkbox"
+                          checked={paginatedLoans.length > 0 && selectedLoanIds.size === paginatedLoans.length}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </TableHead>
                       {visibleColumns.includes('loanReference') && (
                         <TableHead className="w-[140px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanReference')}>
                           <div className="flex items-center gap-1">
@@ -2441,6 +2480,15 @@ export default function HSBCPanelPage() {
                   <TableBody>
                     {paginatedLoans.map((loan) => (
                       <TableRow key={loan.id} className="hover:bg-slate-50">
+                        {/* 选择单元格 */}
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedLoanIds.has(loan.id)}
+                            onChange={() => handleSelectLoan(loan.id)}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </TableCell>
                         {visibleColumns.includes('loanReference') && (
                           <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
                         )}
