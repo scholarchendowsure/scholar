@@ -1108,7 +1108,18 @@ export default function HSBCPanelPage() {
     // 构建去重后的贷款数据
     return Array.from(map.values()).map(item => {
       // 重新计算合并后的所有字段（基于筛选后的结果）
-      const merchantLoans = filteredLoansBeforeDedupe.filter(l => l.merchantId === item.loan.merchantId);
+      // 先按贷款编号去重，确保每笔贷款只计算一次！
+      const uniqueLoanReferences = new Set<string>();
+      const merchantLoans = filteredLoansBeforeDedupe.filter(l => {
+        if (l.merchantId === item.loan.merchantId) {
+          if (uniqueLoanReferences.has(l.loanReference)) {
+            return false; // 重复的贷款编号，跳过
+          }
+          uniqueLoanReferences.add(l.loanReference);
+          return true;
+        }
+        return false;
+      });
       
       const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
