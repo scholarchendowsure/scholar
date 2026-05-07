@@ -1102,10 +1102,6 @@ export default function HSBCPanelPage() {
           ...existing.allRepaymentSchedules,
           ...(loan.repaymentSchedule || [])
         ];
-        // 保留最早到期的日期（更容易显示逾期）
-        if (loan.maturityDate < existing.earliestMaturityDate) {
-          existing.earliestMaturityDate = loan.maturityDate;
-        }
       }
     });
     
@@ -1118,13 +1114,44 @@ export default function HSBCPanelPage() {
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
       const balance = Math.max(0, totalLoanAmount - totalRepaid);
       
+      // 计算有效到期日：过滤掉已还清的贷款（已还款金额 - 在贷余额 <= 0）
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const validMaturityDates: string[] = [];
+      merchantLoans.forEach(loan => {
+        const loanTotalRepaid = calcTotalRepaid(loan);
+        const loanBalance = calcBalance(loan);
+        // 已还款金额 - 在贷余额 <= 0，则不取该笔贷款的到期日
+        if (loanTotalRepaid - loanBalance > 0) {
+          validMaturityDates.push(loan.maturityDate);
+        }
+      });
+      
+      // 如果有有效到期日，取最靠近今日的到期日
+      let finalMaturityDate: string;
+      if (validMaturityDates.length > 0) {
+        // 计算每个到期日与今日的差值绝对值
+        validMaturityDates.sort((a, b) => {
+          const dateA = new Date(a);
+          const dateB = new Date(b);
+          const diffA = Math.abs(dateA.getTime() - today.getTime());
+          const diffB = Math.abs(dateB.getTime() - today.getTime());
+          return diffA - diffB;
+        });
+        finalMaturityDate = validMaturityDates[0]; // 最靠近今日的
+      } else {
+        // 如果没有有效到期日，用原最早的
+        finalMaturityDate = item.earliestMaturityDate;
+      }
+      
       // 批次日期是2026-04-29
       const batchDate = new Date(selectedCalcDate);
-      const maturityDate = new Date(item.earliestMaturityDate);
+      const maturityDate = new Date(finalMaturityDate);
       
       // 计算逾期天数：到期日已过且余额>0.9才算逾期
       let overdueDays = -1;
-      if (item.earliestMaturityDate) {
+      if (finalMaturityDate) {
         const diffDays = Math.floor((batchDate.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays > 0 && balance > 0.9) {
           overdueDays = diffDays;
@@ -1143,7 +1170,7 @@ export default function HSBCPanelPage() {
         pastdueAmount: pastdueAmount,
         overdueDays: overdueDays,
         status: status,
-        maturityDate: item.earliestMaturityDate,
+        maturityDate: finalMaturityDate,
         repaymentSchedule: item.allRepaymentSchedules,
       };
       
