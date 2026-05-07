@@ -1113,8 +1113,12 @@ export default function HSBCPanelPage() {
       const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
       const balance = Math.max(0, totalLoanAmount - totalRepaid);
-      // 计算该商户下所有相关贷款的逾期金额相加，使用 calcPastdueAmount 函数计算
-      const totalPastdueAmount = merchantLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0);
+      // 计算该商户下所有相关贷款的逾期金额相加
+      // 直接使用每笔贷款原始的 pastdueAmount 字段（贷款数据中已经有这个字段）
+      const totalPastdueAmount = merchantLoans.reduce((sum, l) => {
+        const loanPastdue = l.pastdueAmount !== undefined && l.pastdueAmount !== null ? Number(l.pastdueAmount) : 0;
+        return sum + loanPastdue;
+      }, 0);
       
       // 计算有效到期日：过滤掉已还清的贷款（余额为0）
       const today = new Date();
@@ -1160,8 +1164,10 @@ export default function HSBCPanelPage() {
       }
       
       // 计算逾期金额和状态
+      // 逾期金额直接使用该商户下所有相关贷款的逾期金额相加的总和
       const pastdueAmount = totalPastdueAmount;
-      const status = overdueDays > 0 ? 'overdue' : 'normal';
+      // 状态根据是否有逾期金额来判断
+      const status = totalPastdueAmount > 0 ? 'overdue' : 'normal';
       
       const mergedLoan: HSBCLoan = {
         ...item.loan,
