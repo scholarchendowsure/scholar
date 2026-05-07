@@ -2541,8 +2541,8 @@ export default function HSBCPanelPage() {
                           </TableCell>
                         )}
                         {visibleColumns.includes('pastdueAmount') && (
-                          <TableCell className={`text-right font-mono tabular-nums ${calcPastdueAmount(loan) > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                            {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
+                          <TableCell className={`text-right font-mono tabular-nums ${(loan.pastdueAmount ?? 0) > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {formatCurrency((loan.pastdueAmount ?? 0), loan.loanCurrency)}
                           </TableCell>
                         )}
                         {visibleColumns.includes('overdueDays') && (
