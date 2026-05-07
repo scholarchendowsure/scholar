@@ -81,7 +81,7 @@
     "homeAddress": "深圳市龙华新区龙华街道民欢路4号东旭大厦3楼313",
     "householdAddress": "广东省深圳市宝安区松岗联投东方2期1栋1座31B",
     "borrowerPhone": "15899879389",
-    "assignedSales": "李广艳",
+    "assignedSales": "高乐",
     "assignedPostLoan": "君澜",
     "followups": [
       {
@@ -94,11 +94,55 @@
         "followRecord": "操作：录入",
         "createdAt": "2026-05-06T17:18:19.401Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1778156102106",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:15:02.106Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐shabi",
+        "createdAt": "2026-05-07T12:15:02.108Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156637713",
+        "follower": "高乐",
+        "followTime": "2026-05-07T12:23:57.713Z",
+        "followType": "other",
+        "contact": "actual_controller",
+        "followResult": "warning_rise",
+        "followRecord": "药家鑫",
+        "createdAt": "2026-05-07T12:23:57.713Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778156890986",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:10.986Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "sbdjiqwohfqwo",
+        "createdAt": "2026-05-07T12:28:10.987Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156936985",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:56.985Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐dsb",
+        "createdAt": "2026-05-07T12:28:56.985Z",
+        "createdBy": "嘉鑫"
       }
     ],
     "id": "01119dc3-0f58-40bd-924e-1b275f013a9e",
     "createdAt": "2026-05-06T17:18:19.401Z",
-    "updatedAt": "2026-05-06T17:18:19.401Z"
+    "updatedAt": "2026-05-07T12:28:57.565Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -150,11 +194,55 @@
         "followRecord": "操作：录入",
         "createdAt": "2026-05-06T17:18:19.409Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1778156102106",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:15:02.106Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐shabi",
+        "createdAt": "2026-05-07T12:15:02.108Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156637713",
+        "follower": "高乐",
+        "followTime": "2026-05-07T12:23:57.713Z",
+        "followType": "other",
+        "contact": "actual_controller",
+        "followResult": "warning_rise",
+        "followRecord": "药家鑫",
+        "createdAt": "2026-05-07T12:23:57.713Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778156890986",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:10.986Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "sbdjiqwohfqwo",
+        "createdAt": "2026-05-07T12:28:10.987Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156936985",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:56.985Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐dsb",
+        "createdAt": "2026-05-07T12:28:56.985Z",
+        "createdBy": "嘉鑫"
       }
     ],
     "id": "ecab36a8-e1e0-4a0a-81de-8808af644b89",
     "createdAt": "2026-05-06T17:18:19.409Z",
-    "updatedAt": "2026-05-06T17:19:11.737Z"
+    "updatedAt": "2026-05-07T12:28:57.590Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -434,11 +522,55 @@
         "followRecord": "操作：录入",
         "createdAt": "2026-05-06T17:19:05.553Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1778156102106",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:15:02.106Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐shabi",
+        "createdAt": "2026-05-07T12:15:02.108Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156637713",
+        "follower": "高乐",
+        "followTime": "2026-05-07T12:23:57.713Z",
+        "followType": "other",
+        "contact": "actual_controller",
+        "followResult": "warning_rise",
+        "followRecord": "药家鑫",
+        "createdAt": "2026-05-07T12:23:57.713Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778156890986",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:10.986Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "sbdjiqwohfqwo",
+        "createdAt": "2026-05-07T12:28:10.987Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156936985",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:56.985Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐dsb",
+        "createdAt": "2026-05-07T12:28:56.985Z",
+        "createdBy": "嘉鑫"
       }
     ],
     "id": "6bd6b044-62e0-4c55-99ff-88ecdc3e9932",
     "createdAt": "2026-05-06T17:19:05.554Z",
-    "updatedAt": "2026-05-06T17:19:05.554Z"
+    "updatedAt": "2026-05-07T12:28:57.606Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -1159,10 +1291,55 @@
     "borrowerPhone": "15899879389",
     "assignedSales": "李广艳",
     "assignedPostLoan": "君澜",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1778156102106",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:15:02.106Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐shabi",
+        "createdAt": "2026-05-07T12:15:02.108Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156637713",
+        "follower": "高乐",
+        "followTime": "2026-05-07T12:23:57.713Z",
+        "followType": "other",
+        "contact": "actual_controller",
+        "followResult": "warning_rise",
+        "followRecord": "药家鑫",
+        "createdAt": "2026-05-07T12:23:57.713Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1778156890986",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:10.986Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "sbdjiqwohfqwo",
+        "createdAt": "2026-05-07T12:28:10.987Z",
+        "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1778156936985",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-07T12:28:56.985Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "高乐dsb",
+        "createdAt": "2026-05-07T12:28:56.985Z",
+        "createdBy": "嘉鑫"
+      }
+    ],
     "id": "22db2154-844c-4395-94ad-a328f7922d83",
     "createdAt": "2026-05-06T17:19:09.014Z",
-    "updatedAt": "2026-05-06T17:19:09.014Z"
+    "updatedAt": "2026-05-07T12:28:57.624Z"
   },
   {
     "batchNo": "20260507DCLR",

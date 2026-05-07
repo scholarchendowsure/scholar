@@ -1,5 +1,25 @@
 [
   {
+    "id": "014d62a9-2794-4c8a-bdf7-5776c9b51f4a",
+    "caseId": "01119dc3-0f58-40bd-924e-1b275f013a9e",
+    "userName": "系统",
+    "modifiedAt": "2026-05-07T12:23:31.019Z",
+    "fieldName": "assignedSales",
+    "fieldLabel": "分配销售",
+    "oldValue": "嘉鑫",
+    "newValue": "高乐"
+  },
+  {
+    "id": "712ed73b-6b96-465b-a247-ed4b0a4051d5",
+    "caseId": "01119dc3-0f58-40bd-924e-1b275f013a9e",
+    "userName": "系统",
+    "modifiedAt": "2026-05-07T12:13:50.864Z",
+    "fieldName": "assignedSales",
+    "fieldLabel": "分配销售",
+    "oldValue": "李广艳",
+    "newValue": "嘉鑫"
+  },
+  {
     "id": "d536ac89-3a3b-4c15-ab6b-65eba187000a",
     "caseId": "54173a74-86ed-44e8-b22f-2eabc4dc58a6",
     "userName": "系统",

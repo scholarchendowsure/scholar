@@ -2496,8 +2496,8 @@ export default function HSBCPanelPage() {
                           </TableCell>
                         )}
                         {visibleColumns.includes('overdueDays') && (
-                          <TableCell className={`text-right font-mono tabular-nums ${(loan.overdueDays ?? -1) > 0 ? 'text-red-600 font-semibold' : ''}`}>
-                            {(loan.overdueDays ?? -1) > 0 ? `${loan.overdueDays}天` : '正常'}
+                          <TableCell className={`text-right font-mono tabular-nums ${(loan.overdueDays ?? -1) > 0 && calcBalance(loan) > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {calcBalance(loan) === 0 ? '正常' : ((loan.overdueDays ?? -1) > 0 ? `${loan.overdueDays}天` : '正常')}
                           </TableCell>
                         )}
                         {visibleColumns.includes('totalRepaid') && (
