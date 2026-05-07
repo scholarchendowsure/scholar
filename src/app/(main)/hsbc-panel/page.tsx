@@ -1114,16 +1114,15 @@ export default function HSBCPanelPage() {
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
       const balance = Math.max(0, totalLoanAmount - totalRepaid);
       
-      // 计算有效到期日：过滤掉已还清的贷款（已还款金额 - 在贷余额 <= 0）
+      // 计算有效到期日：过滤掉已还清的贷款（余额为0）
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       const validMaturityDates: string[] = [];
       merchantLoans.forEach(loan => {
-        const loanTotalRepaid = calcTotalRepaid(loan);
         const loanBalance = calcBalance(loan);
-        // 已还款金额 - 在贷余额 <= 0，则不取该笔贷款的到期日
-        if (loanTotalRepaid - loanBalance > 0) {
+        // 余额为 0 的贷款不取该笔贷款的到期日（已还清）
+        if (loanBalance > 0) {
           validMaturityDates.push(loan.maturityDate);
         }
       });
