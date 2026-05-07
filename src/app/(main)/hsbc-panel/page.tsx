@@ -2522,8 +2522,8 @@ export default function HSBCPanelPage() {
                           </TableCell>
                         )}
                         {visibleColumns.includes('overdueDays') && (
-                          <TableCell className={`text-right font-mono tabular-nums ${((loan.overdueDays ?? -1) > 0) && !((loan.balance ?? 0) === 0 || calcBalance(loan) === 0 || calcTotalRepaid(loan) >= (loan.loanAmount ?? 0)) ? 'text-red-600 font-semibold' : ''}`}>
-                            {((loan.balance ?? 0) === 0 || calcBalance(loan) === 0 || calcTotalRepaid(loan) >= (loan.loanAmount ?? 0)) ? '正常' : ((loan.overdueDays ?? -1) > 0 ? `${loan.overdueDays}天` : '正常')}
+                          <TableCell className={`text-right font-mono tabular-nums ${((loan.overdueDays ?? -1) > 0) && !((loan.balance ?? 0) === 0) ? 'text-red-600 font-semibold' : ''}`}>
+                            {(loan.balance ?? 0) === 0 ? '正常' : ((loan.overdueDays ?? -1) > 0 ? `${loan.overdueDays}天` : '正常')}
                           </TableCell>
                         )}
                         {visibleColumns.includes('totalRepaid') && (
@@ -2533,7 +2533,7 @@ export default function HSBCPanelPage() {
                         )}
                         {visibleColumns.includes('status') && (
                           <TableCell className="text-center">
-                            {((loan.overdueDays ?? -1) > 0) && !((loan.balance ?? 0) === 0 || calcBalance(loan) === 0 || calcTotalRepaid(loan) >= (loan.loanAmount ?? 0)) ? (
+                            {((loan.overdueDays ?? -1) > 0) && !((loan.balance ?? 0) === 0) ? (
                               <Badge className="bg-red-100 text-red-700 border-red-200">
                                 <AlertTriangle className="w-3 h-3 mr-1" />
                                 逾期
