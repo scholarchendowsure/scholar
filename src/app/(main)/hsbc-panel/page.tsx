@@ -1253,8 +1253,8 @@ export default function HSBCPanelPage() {
     });
   }, [filteredLoans, sortField, sortOrder]);
 
-  // 计算当前筛选结果的USD和CNY统计
-  const statsLoans = filteredLoans;
+  // 计算当前筛选结果的USD和CNY统计（始终使用原始贷款列表，不因去重商户而改变）
+  const statsLoans = filteredLoansBeforeDedupe;
   const usdStats = statsLoans.reduce(
     (acc, loan: HSBCLoan) => {
       if (loan.loanCurrency === 'USD') {
