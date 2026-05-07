@@ -1083,9 +1083,13 @@ export default function HSBCPanelPage() {
   const deduplicatedLoans = useMemo(() => {
     if (!deduplicateMerchant) return filteredLoansBeforeDedupe;
     
-    // 先对 filteredLoansBeforeDedupe 按贷款编号去重，确保每笔贷款只出现一次！
+    // 第一步：只保留当前选定批次日期的贷款！
+    const batchDateFiltered = filteredLoansBeforeDedupe.filter(loan => loan.batchDate === selectedBatchDate);
+    
+    // 第二步：对 batchDateFiltered 按贷款编号去重，确保每笔贷款只出现一次！
     const seenRefs = new Set<string>();
-    const uniqueFilteredLoans = filteredLoansBeforeDedupe.filter(loan => {
+    const uniqueFilteredLoans = batchDateFiltered.filter(loan => {
+      if (!loan.loanReference) return true;
       if (seenRefs.has(loan.loanReference)) {
         return false;
       }
