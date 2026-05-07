@@ -1254,7 +1254,8 @@ export default function HSBCPanelPage() {
   }, [filteredLoans, sortField, sortOrder]);
 
   // 计算当前筛选结果的USD和CNY统计
-  const usdStats = filteredLoans.reduce(
+  const statsLoans = deduplicateMerchant ? deduplicatedLoans : filteredLoans;
+  const usdStats = statsLoans.reduce(
     (acc, loan: HSBCLoan) => {
       if (loan.loanCurrency === 'USD') {
         const balance = calcBalance(loan);
@@ -1267,7 +1268,7 @@ export default function HSBCPanelPage() {
     { totalBalance: 0, totalPastdue: 0 }
   );
 
-  const cnyStats = filteredLoans.reduce(
+  const cnyStats = statsLoans.reduce(
     (acc, loan: HSBCLoan) => {
       if (loan.loanCurrency === 'CNY') {
         const balance = calcBalance(loan);
