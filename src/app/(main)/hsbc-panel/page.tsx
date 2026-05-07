@@ -1082,13 +1082,24 @@ export default function HSBCPanelPage() {
   // 去重商户ID后的贷款数据（基于筛选后的结果去重）
   const deduplicatedLoans = useMemo(() => {
     if (!deduplicateMerchant) return filteredLoansBeforeDedupe;
+    
+    // 先对 filteredLoansBeforeDedupe 按贷款编号去重，确保每笔贷款只出现一次！
+    const seenRefs = new Set<string>();
+    const uniqueFilteredLoans = filteredLoansBeforeDedupe.filter(loan => {
+      if (seenRefs.has(loan.loanReference)) {
+        return false;
+      }
+      seenRefs.add(loan.loanReference);
+      return true;
+    });
+    
     const map = new Map<string, {
       loan: HSBCLoan;
       allRepaymentSchedules: HSBCLoan['repaymentSchedule'];
       earliestMaturityDate: string;
     }>();
     
-    filteredLoansBeforeDedupe.forEach(loan => {
+    uniqueFilteredLoans.forEach(loan => {
       if (!map.has(loan.merchantId)) {
         map.set(loan.merchantId, {
           loan: { ...loan },
@@ -1107,19 +1118,8 @@ export default function HSBCPanelPage() {
     
     // 构建去重后的贷款数据
     return Array.from(map.values()).map(item => {
-      // 重新计算合并后的所有字段（基于筛选后的结果）
-      // 先按贷款编号去重，确保每笔贷款只计算一次！
-      const uniqueLoanReferences = new Set<string>();
-      const merchantLoans = filteredLoansBeforeDedupe.filter(l => {
-        if (l.merchantId === item.loan.merchantId) {
-          if (uniqueLoanReferences.has(l.loanReference)) {
-            return false; // 重复的贷款编号，跳过
-          }
-          uniqueLoanReferences.add(l.loanReference);
-          return true;
-        }
-        return false;
-      });
+      // 重新计算合并后的所有字段（基于去重后的筛选结果）
+      const merchantLoans = uniqueFilteredLoans.filter(l => l.merchantId === item.loan.merchantId);
       
       const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
