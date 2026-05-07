@@ -29,6 +29,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -598,33 +601,41 @@ export default function HSBCPanelPage() {
   const [sendingReminder, setSendingReminder] = useState<boolean>(false);
   const [showReminderSuccess, setShowReminderSuccess] = useState<boolean>(false);
 
-  // 列选择相关状态
-  const [showColumnPicker, setShowColumnPicker] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'loanReference', 'merchantId', 'salesName', 'borrowerName', 'loanCurrency', 
-    'loanStartDate', 'loanAmount', 'balance', 'pastdueAmount', 'status'
-  ]);
-  
-  // 选择列状态管理
-  const [selectedLoanIds, setSelectedLoanIds] = useState<Set<string>>(new Set());
+  // 所有可选列配置
+  const ALL_COLUMNS = [
+    { key: 'loanReference', label: '贷款编号' },
+    { key: 'merchantId', label: '商户ID' },
+    { key: 'salesName', label: '销售' },
+    { key: 'borrowerName', label: '借款人名称' },
+    { key: 'loanCurrency', label: '币种' },
+    { key: 'loanStartDate', label: '贷款日期' },
+    { key: 'maturityDate', label: '到期日' },
+    { key: 'loanAmount', label: '贷款金额' },
+    { key: 'balance', label: '余额' },
+    { key: 'pastdueAmount', label: '逾期金额' },
+    { key: 'overdueDays', label: '逾期天数' },
+    { key: 'totalRepaid', label: '已还款总额' },
+    { key: 'status', label: '状态' },
+  ];
 
-  // 全选功能
-  const handleSelectAll = () => {
-    if (selectedLoanIds.size === paginatedLoans.length) {
-      setSelectedLoanIds(new Set());
-    } else {
-      setSelectedLoanIds(new Set(paginatedLoans.map(loan => loan.id)));
-    }
+  // 默认显示的列（全部勾选）
+  const DEFAULT_VISIBLE_COLUMNS = ALL_COLUMNS.map(col => col.key);
+
+  // 列选择状态
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
+
+  // 切换列显示
+  const toggleColumn = (columnKey: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(columnKey) 
+        ? prev.filter(k => k !== columnKey)
+        : [...prev, columnKey]
+    );
   };
 
-  const handleSelectLoan = (loanId: string) => {
-    const newSelected = new Set(selectedLoanIds);
-    if (newSelected.has(loanId)) {
-      newSelected.delete(loanId);
-    } else {
-      newSelected.add(loanId);
-    }
-    setSelectedLoanIds(newSelected);
+  // 重置列
+  const resetColumns = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
   };
 
   const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
@@ -681,29 +692,7 @@ export default function HSBCPanelPage() {
     setCurrentPage(1); // 重置分页
   };
   
-  const columnDefinitions = [
-    { key: 'loanReference', label: '贷款编号' },
-    { key: 'merchantId', label: '商户ID' },
-    { key: 'salesName', label: '销售' },
-    { key: 'borrowerName', label: '借款人名称' },
-    { key: 'loanCurrency', label: '币种' },
-    { key: 'loanStartDate', label: '贷款日期' },
-    { key: 'maturityDate', label: '到期日' },
-    { key: 'loanAmount', label: '贷款金额' },
-    { key: 'balance', label: '余额' },
-    { key: 'pastdueAmount', label: '逾期金额' },
-    { key: 'overdueDays', label: '逾期天数' },
-    { key: 'totalRepaid', label: '已还款总额' },
-    { key: 'status', label: '状态' },
-  ];
 
-  const toggleColumn = (key: string) => {
-    if (visibleColumns.includes(key)) {
-      setVisibleColumns(visibleColumns.filter(k => k !== key));
-    } else {
-      setVisibleColumns([...visibleColumns, key]);
-    }
-  };
 
   // 去重商户ID相关状态
   const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
@@ -1268,13 +1257,6 @@ export default function HSBCPanelPage() {
   // 分页
   const totalPages = Math.ceil(sortedFilteredLoans.length / pageSize);
   const paginatedLoans = sortedFilteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // 当分页数据变化时，默认全部勾选
-  useEffect(() => {
-    if (paginatedLoans.length > 0) {
-      setSelectedLoanIds(new Set(paginatedLoans.map(loan => loan.id)));
-    }
-  }, [currentPage, pageSize, sortedFilteredLoans]);
 
   // 处理文件上传 - 上传到后端解析（支持加密文件）
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2331,30 +2313,32 @@ export default function HSBCPanelPage() {
                   {deduplicateMerchant ? "已去重" : "去重商户"}
                 </Button>
                 {/* 列选择按钮 */}
-                <div className="relative">
-                  <Button variant="outline" size="sm" onClick={() => setShowColumnPicker(!showColumnPicker)} className="gap-2">
-                    <Columns className="w-4 h-4" />
-                    列选择
-                  </Button>
-                  {showColumnPicker && (
-                    <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 min-w-[200px]">
-                      <p className="text-sm font-medium text-slate-700 mb-2">选择显示的列</p>
-                      <div className="space-y-2">
-                        {columnDefinitions.map(col => (
-                          <label key={col.key} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded">
-                            <input
-                              type="checkbox"
-                              checked={visibleColumns.includes(col.key)}
-                              onChange={() => toggleColumn(col.key)}
-                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-slate-600">{col.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Columns className="w-4 h-4" />
+                      列选择
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 max-h-[400px] overflow-y-auto">
+                    <DropdownMenuLabel>显示列设置</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {ALL_COLUMNS.map((column) => (
+                      <DropdownMenuCheckboxItem
+                        key={column.key}
+                        checked={visibleColumns.includes(column.key)}
+                        onCheckedChange={() => toggleColumn(column.key)}
+                      >
+                        {column.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={resetColumns}>
+                      重置为默认
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* 表格 */}
@@ -2362,15 +2346,6 @@ export default function HSBCPanelPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50">
-                      {/* 选择列 */}
-                      <TableHead className="w-[50px]">
-                        <input
-                          type="checkbox"
-                          checked={paginatedLoans.length > 0 && selectedLoanIds.size === paginatedLoans.length}
-                          onChange={handleSelectAll}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </TableHead>
                       {visibleColumns.includes('loanReference') && (
                         <TableHead className="w-[140px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanReference')}>
                           <div className="flex items-center gap-1">
@@ -2480,15 +2455,6 @@ export default function HSBCPanelPage() {
                   <TableBody>
                     {paginatedLoans.map((loan) => (
                       <TableRow key={loan.id} className="hover:bg-slate-50">
-                        {/* 选择单元格 */}
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedLoanIds.has(loan.id)}
-                            onChange={() => handleSelectLoan(loan.id)}
-                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                          />
-                        </TableCell>
                         {visibleColumns.includes('loanReference') && (
                           <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
                         )}
@@ -2571,7 +2537,7 @@ export default function HSBCPanelPage() {
                     ))}
                     {paginatedLoans.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500">
+                        <TableCell colSpan={visibleColumns.length} className="text-center py-8 text-slate-500">
                           暂无数据
                         </TableCell>
                       </TableRow>
