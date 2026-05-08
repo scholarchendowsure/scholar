@@ -311,6 +311,182 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
+      {/* 贷后催收统计卡片 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {/* 目前总逾期在贷余额(逾期) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">目前总逾期在贷余额(逾期)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              ¥6,750,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 目前总逾期在贷余额(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">目前总逾期在贷余额(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                <AlertCircle className="w-4 h-4 text-orange-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              ¥5,200,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 本月催回金额(逾期) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本月催回金额(逾期)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">
+              ¥850,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 本月催回金额(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本月催回金额(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-teal-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-teal-600">
+              ¥620,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 本月催回率(逾期) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本月催回率(逾期)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Target className="w-4 h-4 text-blue-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              12.59%
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 第二行贷后催收统计卡片 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {/* 本月催回率(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本月催回率(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
+                <Target className="w-4 h-4 text-indigo-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-indigo-600">
+              11.92%
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 本周预估催回金额(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本周预估催回金额(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-cyan-50 flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-cyan-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-cyan-600">
+              ¥180,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 本周实际催回(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本周实际催回(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              ¥155,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 下周预估催回金额(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">下周预估催回金额(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-purple-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              ¥220,000
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 本月整体预估催回金额(贷后) */}
+        <Card className="card-hover overflow-hidden border-slate-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold text-slate-700">本月整体预估催回金额(贷后)</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 text-pink-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-pink-600">
+              ¥750,000
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* 核心统计卡片 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
