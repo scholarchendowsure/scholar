@@ -1755,6 +1755,70 @@ export default function HSBCPanelPage() {
 
 
 
+              {/* ============ 汇丰贷款笔数口径 ============ */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-4 text-slate-800">汇丰贷款笔数口径</h3>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {/* 1. 汇丰贷款笔数口径 */}
+                  <div 
+                    className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <div className="text-sm opacity-80 mb-2 font-medium">汇丰贷款笔数口径</div>
+                    <div className="text-xs space-y-1.5">
+                      <div>在贷贷款笔数: <span className="font-bold">{stats?.totalBalanceLoanCount || 0}笔</span></div>
+                      <div>商户数: <span className="font-bold">{stats?.totalBalanceMerchantCount || 0}个</span></div>
+                    </div>
+                  </div>
+
+                  {/* 2. 逾期天数>0天 */}
+                  <div 
+                    className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <div className="text-sm opacity-80 mb-2 font-medium">逾期天数&gt;0天</div>
+                    <div className="text-xs space-y-1.5">
+                      <div>逾期笔数: <span className="font-bold">{stats?.overdueByDays?.over0Days?.loanCount || 0}笔</span></div>
+                      <div>逾期率: <span className="font-bold">{((stats?.overdueByDays?.over0Days?.loanCount || 0) / (stats?.totalBalanceLoanCount || 1) * 100).toFixed(2)}%</span></div>
+                      <div>商户数: <span className="font-bold">{stats?.overdueByDays?.over0Days?.merchantCount || 0}个</span></div>
+                    </div>
+                  </div>
+
+                  {/* 3. 逾期天数>30天 */}
+                  <div 
+                    className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <div className="text-sm opacity-80 mb-2 font-medium">逾期天数&gt;30天</div>
+                    <div className="text-xs space-y-1.5">
+                      <div>逾期笔数: <span className="font-bold">{stats?.overdueByDays?.over30Days?.loanCount || 0}笔</span></div>
+                      <div>逾期率: <span className="font-bold">{((stats?.overdueByDays?.over30Days?.loanCount || 0) / (stats?.totalBalanceLoanCount || 1) * 100).toFixed(1)}%</span></div>
+                      <div>商户数: <span className="font-bold">{stats?.overdueByDays?.over30Days?.merchantCount || 0}个</span></div>
+                    </div>
+                  </div>
+
+                  {/* 4. 逾期天数>90天 */}
+                  <div 
+                    className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <div className="text-sm opacity-80 mb-2 font-medium">逾期天数&gt;90天</div>
+                    <div className="text-xs space-y-1.5">
+                      <div>逾期笔数: <span className="font-bold">{stats?.overdueByDays?.over90Days?.loanCount || 0}笔</span></div>
+                      <div>逾期率: <span className="font-bold">{((stats?.overdueByDays?.over90Days?.loanCount || 0) / (stats?.totalBalanceLoanCount || 1) * 100).toFixed(1)}%</span></div>
+                      <div>商户数: <span className="font-bold">{stats?.overdueByDays?.over90Days?.merchantCount || 0}个</span></div>
+                    </div>
+                  </div>
+
+                  {/* 5. 含预警商户 */}
+                  <div 
+                    className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <div className="text-sm opacity-80 mb-2 font-medium">含预警商户</div>
+                    <div className="text-xs space-y-1.5">
+                      <div>未到期笔数: <span className="font-bold">{stats?.warningInfo?.loanCount || 0}笔</span></div>
+                      <div>商户数: <span className="font-bold">{stats?.warningInfo?.merchantCount || 0}个</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* 核心指标 - 根据币种选择显示 */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 {/* 1. 在贷总额 */}
