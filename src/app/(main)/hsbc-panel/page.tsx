@@ -1757,7 +1757,6 @@ export default function HSBCPanelPage() {
 
               {/* ============ 汇丰贷款笔数口径 ============ */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-4 text-slate-800">汇丰贷款笔数口径</h3>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {/* 1. 汇丰贷款笔数口径 */}
                   <div 
