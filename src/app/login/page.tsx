@@ -48,8 +48,8 @@ export default function SimpleLoginPage() {
         // 调用AuthProvider的login方法
         login(userWithName, token);
         
-        // 跳转到首页
-        router.push('/');
+        // 跳转到仪表盘
+        router.push('/dashboard');
       } else {
         setError(result.message || '登录失败');
       }
