@@ -74,7 +74,12 @@ export const ShopCharts: React.FC<ShopChartsProps> = ({ data }) => {
       {/* 月度销售与回款图表（融合成一个卡片） */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">月度销售与回款趋势</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">月度销售与回款趋势</CardTitle>
+            <span className="text-sm text-slate-500 font-medium">
+              {data.reportCardDataDate ? new Date(data.reportCardDataDate).getFullYear() + '年' : '年份未知'}
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
