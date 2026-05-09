@@ -542,6 +542,13 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     }
   }, [activeTab, caseData?.userId]);
 
+  // 当activeTab切换到shop且有caseData时，自动加载已保存的店铺数据
+  useEffect(() => {
+    if (activeTab === 'shop' && caseData?.loanNo && !shopData) {
+      loadSavedShopData();
+    }
+  }, [activeTab, caseData?.loanNo]);
+
   const tabs = [
     { id: 'core', label: '核心信息', color: 'bg-blue-600 text-white' },
     { id: 'finance', label: '金额信息', color: 'bg-amber-500 text-white' },
@@ -553,21 +560,15 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     { id: 'shop', label: '店铺详情', color: 'bg-violet-600 text-white' },
   ];
   
-  // 获取店铺数据
-  const fetchShopData = async () => {
-    if (!caseData?.loanNo) {
-      toast.error('缺少贷款单号');
-      return;
-    }
+  // 获取店铺数据（从数据库加载已保存的数据）
+  const loadSavedShopData = async () => {
+    if (!caseData?.loanNo) return;
     
-    setShopDataLoading(true);
     try {
-      // 1. 先尝试从数据库获取已保存的店铺数据
       const savedRes = await fetch(`/api/shop-data?loanCode=${encodeURIComponent(caseData.loanNo)}`);
       const savedJson = await savedRes.json();
       
       if (savedJson.success && savedJson.data) {
-        // 数据库中已有数据，直接显示
         try {
           const parsedData = typeof savedJson.data.latestDataset === 'string'
             ? JSON.parse(savedJson.data.latestDataset)
@@ -576,15 +577,25 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
             ...parsedData,
             _updateTime: savedJson.data.updateTime
           });
-          toast.success('从数据库加载店铺数据成功');
-          setShopDataLoading(false);
-          return;
         } catch (e) {
           console.error('解析已保存的店铺数据失败:', e);
         }
       }
-      
-      // 2. 数据库中没有，调用贷款查询API获取
+    } catch (error) {
+      console.error('加载已保存的店铺数据失败:', error);
+    }
+  };
+
+  // 一键获取店铺运营资料（强制从贷款查询API重新获取，不走缓存）
+  const fetchShopData = async () => {
+    if (!caseData?.loanNo) {
+      toast.error('缺少贷款单号');
+      return;
+    }
+    
+    setShopDataLoading(true);
+    try {
+      // 直接调用贷款查询API重新获取，不读缓存
       const res = await fetch('/api/complex-loan-query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -614,7 +625,7 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                 _allRecords: allRecords
               });
               
-              // 3. 保存到数据库，供其他用户同步使用
+              // 保存到数据库，供其他用户同步使用
               try {
                 await fetch('/api/shop-data', {
                   method: 'POST',

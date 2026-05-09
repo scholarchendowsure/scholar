@@ -83,8 +83,15 @@ const FIELD_MAP: Record<string, string> = {
 // 店铺状态映射
 const SELLER_STATUS_MAP: Record<string, string> = {
   ACTIVE: '正常',
+  NORMAL: '正常',
   BLOCKED: '已封禁',
   SUSPENDED: '已暂停',
+  INACTIVE: '未激活',
+  PENDING: '待审核',
+  CLOSED: '已关闭',
+  TERMINATED: '已终止',
+  DEACTIVATED: '已停用',
+  UNDER_REVIEW: '审核中',
 };
 
 // 市场映射
@@ -163,7 +170,7 @@ export const ShopDataParser: React.FC<ShopDataParserProps> = ({ data }) => {
         <CardContent>
           <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Field label="店铺状态" value={
-              <Badge className={data.sellerStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+              <Badge className={['ACTIVE', 'NORMAL'].includes(data.sellerStatus) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                 {SELLER_STATUS_MAP[data.sellerStatus] || data.sellerStatus}
               </Badge>
             } highlight />
