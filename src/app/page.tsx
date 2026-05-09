@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState('');
+  const [captchaBg, setCaptchaBg] = useState('');
+  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -35,12 +37,20 @@ export default function LoginPage() {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setCaptcha(result);
+    
+    // 生成随机背景色
+    const bg = `linear-gradient(45deg, 
+      hsl(${Math.random() * 60 + 200}, 70%, 60%), 
+      hsl(${Math.random() * 60 + 260}, 70%, 60%)
+    )`;
+    setCaptchaBg(bg);
   };
 
-  // 初始化验证码
-  useState(() => {
+  // 客户端初始化
+  useEffect(() => {
+    setMounted(true);
     generateCaptcha();
-  });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +62,10 @@ export default function LoginPage() {
       toast.error('用户名或密码错误');
     }, 1500);
   };
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -165,12 +179,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={generateCaptcha}
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors select-none font-mono text-xl font-bold"
-                    style={{
-                      background: `linear-gradient(45deg, 
-                        hsl(${Math.random() * 60 + 200}, 70%, 60%), 
-                        hsl(${Math.random() * 60 + 260}, 70%, 60%)
-                      )`
-                    }}
+                    style={{ background: captchaBg }}
                   >
                     <span className="text-white tracking-widest">{captcha}</span>
                     <RefreshCw className="w-4 h-4 text-white/80" />
