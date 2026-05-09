@@ -1,695 +1,648 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Save, Loader2, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CaseEvaluationFormProps {
   caseId: string;
 }
 
-// 默认空数据
-const defaultData = {
-  // (一) 企业信息
-  legalPerson: '',
-  receptionist: '',
-  receptionistPosition: '',
-  receptionistId: '',
-  lastRepaymentDate: '',
-  lastRepaymentAmount: '',
-  lastContactTime: '',
-  repaymentPlan: '',
-  repaymentPlanAmount: '',
-  storeValue: '',
-  lastStoreValue: '',
+// Helper to check if value is empty
+const isEmpty = (v: any) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '') || (typeof v === 'number' && isNaN(v));
 
-  // (二) 访谈记录
-  interviewIdentity: '',
-  interviewReason: '',
-  interviewStoreValue: '',
-  interviewTeamSize: '',
-  interviewCashFlow: '',
-  interviewFinancing: '',
-  interviewRisk: '',
-  interviewMeasures: '',
-  interviewFollowUp: '',
-  interviewEvaluation: '',
+// Cell component - renders either a label or an input
+const Cell = ({
+  value,
+  isInput,
+  inputKey,
+  formData,
+  onChange,
+  className = '',
+  colSpan = 1,
+  rowSpan = 1,
+}: {
+  value: string;
+  isInput: boolean;
+  inputKey: string;
+  formData: Record<string, string>;
+  onChange: (key: string, val: string) => void;
+  className?: string;
+  colSpan?: number;
+  rowSpan?: number;
+}) => {
+  if (!isInput) {
+    return (
+      <td
+        colSpan={colSpan}
+        rowSpan={rowSpan}
+        className={`border border-black px-2 py-1 text-sm ${className}`}
+        style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+      >
+        {value}
+      </td>
+    );
+  }
 
-  // (三) 经营情况
-  companyYears: '',
-  employeeCount: '',
-  mainCategory: '',
-  platform: '',
-  monthlySales: '',
-  monthlyProfit: '',
-  inventoryValue: '',
-  accountReceivable: '',
-
-  // (四) 融资情况
-  financingChannel: '',
-  financingType: '',
-  creditLimit: '',
-  creditUsed: '',
-  creditRemaining: '',
-  otherFinancing: '',
-  otherFinancingAmount: '',
-  otherFinancingDate: '',
-  otherFinancingRepayment: '',
-
-  // (五) 店铺数据
-  storeMainCategory: '',
-  storeMonthlySales: '',
-  storeMonthlyRepayment: '',
-  storeSalesTrend: '',
-  storeReturnRate: '',
-  storeReviewScore: '',
-  storeViolationCount: '',
-  storeComplaintCount: '',
-
-  // (六) 承诺条款
-  commitmentSignature: '',
-  commitmentDate: '',
-
-  // (七) 评估定级
-  evaluationScore: '',
-  evaluationLevel: '',
-
-  // 跟进记录
-  followUpRecords: [] as Array<{
-    sequence: string;
-    followUpPerson: string;
-    followUpDate: string;
-    repaymentAmount: string;
-    followUpMethod: string;
-    repaymentMethod: string;
-    followUpResult: string;
-    nextFollowUpDate: string;
-  }>,
+  return (
+    <td
+      colSpan={colSpan}
+      rowSpan={rowSpan}
+      className="border border-black p-0"
+    >
+      <input
+        type="text"
+        value={formData[inputKey] || ''}
+        onChange={(e) => onChange(inputKey, e.target.value)}
+        className="w-full h-full px-2 py-1 text-sm outline-none bg-transparent"
+      />
+    </td>
+  );
 };
 
-type DataType = typeof defaultData;
-
 export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) {
-  const [data, setData] = useState<DataType>(defaultData);
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // 加载已保存的数据
+  // Load saved data
   useEffect(() => {
-    if (!caseId) return;
-
-    const loadSavedData = async () => {
+    const loadData = async () => {
       try {
+        setLoading(true);
         const response = await fetch(`/api/case-evaluation?caseId=${caseId}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setData(prev => ({ ...prev, ...result.data }));
-          }
+        const result = await response.json();
+        if (result.success && result.data) {
+          // 数据可能直接保存在根级别或嵌套在formData中
+          const loadedData = result.data.formData || result.data;
+          // 排除系统字段
+          const cleanData: Record<string, string> = {};
+          Object.entries(loadedData).forEach(([key, value]) => {
+            if (key !== 'updatedAt' && typeof value === 'string') {
+              cleanData[key] = value;
+            }
+          });
+          setFormData(cleanData);
         }
       } catch (error) {
-        console.error('加载评估表数据失败:', error);
+        console.error('Failed to load evaluation data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadSavedData();
+    if (caseId) {
+      loadData();
+    }
   }, [caseId]);
 
-  // 保存数据
-  const handleSave = useCallback(async () => {
-    if (!caseId) {
-      toast.error('案件ID不存在');
-      return;
-    }
-
-    setSaving(true);
+  // Save data
+  const saveData = useCallback(async (newData: Record<string, string>) => {
     try {
+      setSaving(true);
       const response = await fetch('/api/case-evaluation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caseId, data }),
+        body: JSON.stringify({ caseId, formData: newData }),
       });
-
-      if (response.ok) {
-        toast.success('评估表保存成功');
-      } else {
-        const error = await response.json();
-        toast.error(error.message || '保存失败');
+      const result = await response.json();
+      if (!result.success) {
+        toast.error('保存失败: ' + result.message);
       }
     } catch (error) {
-      console.error('保存评估表失败:', error);
+      console.error('Failed to save evaluation data:', error);
       toast.error('保存失败');
     } finally {
       setSaving(false);
     }
-  }, [caseId, data]);
+  }, [caseId]);
 
-  // 更新字段
-  const updateField = useCallback((field: keyof DataType, value: string) => {
-    setData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  // Auto-save on change
+  const handleChange = (key: string, value: string) => {
+    const newData = { ...formData, [key]: value };
+    setFormData(newData);
+    // Debounce save
+    setTimeout(() => {
+      saveData(newData);
+    }, 800);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black" />
+        <span className="ml-3">加载中...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* 保存按钮 */}
-      <div className="flex justify-end">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-primary hover:bg-primary/90"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              保存中...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              保存评估表
-            </>
-          )}
-        </Button>
-      </div>
+    <div className="w-full">
+      {/* Save indicator */}
+      {saving && (
+        <div className="fixed top-4 right-4 bg-gray-200 text-black px-3 py-1 rounded text-sm z-50 border border-black">
+          保存中...
+        </div>
+      )}
 
-      {/* (一) 企业信息 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary" />
-            （一）企业信息
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>法人/实控人</Label>
-              <Input
-                value={data.legalPerson}
-                onChange={e => updateField('legalPerson', e.target.value)}
-                placeholder="请输入法人/实控人姓名"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>接待人</Label>
-              <Input
-                value={data.receptionist}
-                onChange={e => updateField('receptionist', e.target.value)}
-                placeholder="请输入接待人姓名"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>接待人职位</Label>
-              <Input
-                value={data.receptionistPosition}
-                onChange={e => updateField('receptionistPosition', e.target.value)}
-                placeholder="请输入职位"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>接待人身份证号</Label>
-              <Input
-                value={data.receptionistId}
-                onChange={e => updateField('receptionistId', e.target.value)}
-                placeholder="请输入身份证号"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>最近还款日</Label>
-              <Input
-                type="date"
-                value={data.lastRepaymentDate}
-                onChange={e => updateField('lastRepaymentDate', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>最近还款金额（元）</Label>
-              <Input
-                type="number"
-                value={data.lastRepaymentAmount}
-                onChange={e => updateField('lastRepaymentAmount', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>最近联系时间</Label>
-              <Input
-                type="datetime-local"
-                value={data.lastContactTime}
-                onChange={e => updateField('lastContactTime', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>还款计划</Label>
-              <Input
-                value={data.repaymentPlan}
-                onChange={e => updateField('repaymentPlan', e.target.value)}
-                placeholder="请输入还款计划"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>还款计划金额（元）</Label>
-              <Input
-                type="number"
-                value={data.repaymentPlanAmount}
-                onChange={e => updateField('repaymentPlanAmount', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>店铺估值（元）</Label>
-              <Input
-                type="number"
-                value={data.storeValue}
-                onChange={e => updateField('storeValue', e.target.value)}
-                placeholder="请输入估值"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>上次店铺估值（元）</Label>
-              <Input
-                type="number"
-                value={data.lastStoreValue}
-                onChange={e => updateField('lastStoreValue', e.target.value)}
-                placeholder="请输入上次估值"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+        <tbody>
+          {/* Row 0: Title */}
+          <tr>
+            <td colSpan={11} className="border border-black text-center font-bold text-lg py-2">
+              企业信用资产评估表
+            </td>
+          </tr>
 
-      {/* (二) 访谈记录 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg">（二）访谈记录</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>表明身份</Label>
-              <Textarea
-                value={data.interviewIdentity}
-                onChange={e => updateField('interviewIdentity', e.target.value)}
-                placeholder="请输入表明身份情况"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>了解逾期原因</Label>
-              <Textarea
-                value={data.interviewReason}
-                onChange={e => updateField('interviewReason', e.target.value)}
-                placeholder="请输入了解到的逾期原因"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>店铺价值评估</Label>
-              <Textarea
-                value={data.interviewStoreValue}
-                onChange={e => updateField('interviewStoreValue', e.target.value)}
-                placeholder="请输入店铺价值评估"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>团队规模</Label>
-              <Input
-                value={data.interviewTeamSize}
-                onChange={e => updateField('interviewTeamSize', e.target.value)}
-                placeholder="请输入团队规模"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>现金流情况</Label>
-              <Textarea
-                value={data.interviewCashFlow}
-                onChange={e => updateField('interviewCashFlow', e.target.value)}
-                placeholder="请输入现金流情况"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>融资情况</Label>
-              <Textarea
-                value={data.interviewFinancing}
-                onChange={e => updateField('interviewFinancing', e.target.value)}
-                placeholder="请输入融资情况"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>风险点识别</Label>
-              <Textarea
-                value={data.interviewRisk}
-                onChange={e => updateField('interviewRisk', e.target.value)}
-                placeholder="请输入风险点"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>改善措施</Label>
-              <Textarea
-                value={data.interviewMeasures}
-                onChange={e => updateField('interviewMeasures', e.target.value)}
-                placeholder="请输入改善措施"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>后续跟进计划</Label>
-              <Textarea
-                value={data.interviewFollowUp}
-                onChange={e => updateField('interviewFollowUp', e.target.value)}
-                placeholder="请输入后续跟进计划"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>访谈评价</Label>
-              <Textarea
-                value={data.interviewEvaluation}
-                onChange={e => updateField('interviewEvaluation', e.target.value)}
-                placeholder="请输入访谈评价"
-                rows={3}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Row 1: Section header */}
+          <tr>
+            <td colSpan={9} className="border border-black font-bold bg-gray-100 px-2 py-1">（一）企业信息</td>
+            <td className="border border-black bg-gray-100 px-2 py-1"> </td>
+            <td className="border border-black bg-gray-100 px-2 py-1"></td>
+          </tr>
 
-      {/* (三) 经营情况 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg">（三）经营情况</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>公司经营年限</Label>
-              <Input
-                value={data.companyYears}
-                onChange={e => updateField('companyYears', e.target.value)}
-                placeholder="请输入年限"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>员工人数</Label>
-              <Input
-                type="number"
-                value={data.employeeCount}
-                onChange={e => updateField('employeeCount', e.target.value)}
-                placeholder="请输入人数"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>主营品类</Label>
-              <Input
-                value={data.mainCategory}
-                onChange={e => updateField('mainCategory', e.target.value)}
-                placeholder="请输入主营品类"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>经营平台</Label>
-              <Input
-                value={data.platform}
-                onChange={e => updateField('platform', e.target.value)}
-                placeholder="请输入平台"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>月均销售额（元）</Label>
-              <Input
-                type="number"
-                value={data.monthlySales}
-                onChange={e => updateField('monthlySales', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>月均利润（元）</Label>
-              <Input
-                type="number"
-                value={data.monthlyProfit}
-                onChange={e => updateField('monthlyProfit', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>库存价值（元）</Label>
-              <Input
-                type="number"
-                value={data.inventoryValue}
-                onChange={e => updateField('inventoryValue', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>应收账款（元）</Label>
-              <Input
-                type="number"
-                value={data.accountReceivable}
-                onChange={e => updateField('accountReceivable', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Row 2 */}
+          <tr>
+            <Cell value="法人/实控人*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r2c1" formData={formData} onChange={handleChange} />
+            <Cell value="接待人/职位*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r2c3" formData={formData} onChange={handleChange} />
+            <Cell value="ID" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r2c5" formData={formData} onChange={handleChange} />
+            <Cell value="最近还款日" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r2c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
 
-      {/* (四) 融资情况 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg">（四）融资情况</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>融资渠道</Label>
-              <Input
-                value={data.financingChannel}
-                onChange={e => updateField('financingChannel', e.target.value)}
-                placeholder="请输入渠道"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>融资类型</Label>
-              <Input
-                value={data.financingType}
-                onChange={e => updateField('financingType', e.target.value)}
-                placeholder="请输入类型"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>授信额度（元）</Label>
-              <Input
-                type="number"
-                value={data.creditLimit}
-                onChange={e => updateField('creditLimit', e.target.value)}
-                placeholder="请输入额度"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>已使用额度（元）</Label>
-              <Input
-                type="number"
-                value={data.creditUsed}
-                onChange={e => updateField('creditUsed', e.target.value)}
-                placeholder="请输入已使用额度"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>剩余额度（元）</Label>
-              <Input
-                type="number"
-                value={data.creditRemaining}
-                onChange={e => updateField('creditRemaining', e.target.value)}
-                placeholder="请输入剩余额度"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>其他融资渠道</Label>
-              <Input
-                value={data.otherFinancing}
-                onChange={e => updateField('otherFinancing', e.target.value)}
-                placeholder="请输入渠道"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>其他融资金额（元）</Label>
-              <Input
-                type="number"
-                value={data.otherFinancingAmount}
-                onChange={e => updateField('otherFinancingAmount', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>其他融资日期</Label>
-              <Input
-                type="date"
-                value={data.otherFinancingDate}
-                onChange={e => updateField('otherFinancingDate', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>其他融资还款情况</Label>
-              <Textarea
-                value={data.otherFinancingRepayment}
-                onChange={e => updateField('otherFinancingRepayment', e.target.value)}
-                placeholder="请输入还款情况"
-                rows={3}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Row 3 */}
+          <tr>
+            <Cell value="性别*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r3c1" formData={formData} onChange={handleChange} />
+            <Cell value="年龄*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r3c3" formData={formData} onChange={handleChange} />
+            <Cell value="授信额度" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r3c5" formData={formData} onChange={handleChange} />
+            <Cell value="逾期天数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r3c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
 
-      {/* (五) 店铺数据 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg">（五）店铺数据</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>主营品类</Label>
-              <Input
-                value={data.storeMainCategory}
-                onChange={e => updateField('storeMainCategory', e.target.value)}
-                placeholder="请输入品类"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>月均销售额（元）</Label>
-              <Input
-                type="number"
-                value={data.storeMonthlySales}
-                onChange={e => updateField('storeMonthlySales', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>月均回款额（元）</Label>
-              <Input
-                type="number"
-                value={data.storeMonthlyRepayment}
-                onChange={e => updateField('storeMonthlyRepayment', e.target.value)}
-                placeholder="请输入金额"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>销售趋势</Label>
-              <Input
-                value={data.storeSalesTrend}
-                onChange={e => updateField('storeSalesTrend', e.target.value)}
-                placeholder="上升/下降/平稳"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>退货率（%）</Label>
-              <Input
-                type="number"
-                value={data.storeReturnRate}
-                onChange={e => updateField('storeReturnRate', e.target.value)}
-                placeholder="请输入百分比"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>评分</Label>
-              <Input
-                value={data.storeReviewScore}
-                onChange={e => updateField('storeReviewScore', e.target.value)}
-                placeholder="请输入评分"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>违规次数</Label>
-              <Input
-                type="number"
-                value={data.storeViolationCount}
-                onChange={e => updateField('storeViolationCount', e.target.value)}
-                placeholder="请输入次数"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>投诉次数</Label>
-              <Input
-                type="number"
-                value={data.storeComplaintCount}
-                onChange={e => updateField('storeComplaintCount', e.target.value)}
-                placeholder="请输入次数"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Row 4 */}
+          <tr>
+            <Cell value="籍贯*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r4c1" formData={formData} onChange={handleChange} />
+            <Cell value="婚姻情况" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r4c3" formData={formData} onChange={handleChange} />
+            <Cell value="在贷余额" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r4c5" formData={formData} onChange={handleChange} />
+            <Cell value="联系方式" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r4c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
 
-      {/* (六) 承诺条款 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg">（六）企业资产评估资料真实性承诺及确认条款</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="bg-yellow-50 p-4 rounded-lg mb-4 text-sm text-yellow-800">
-            <p className="mb-2">本人/本公司郑重承诺：所提供的所有资料和信息真实、准确、完整，不存在任何虚假陈述或重大遗漏。</p>
-            <p className="mb-2">本人/本公司确认：理解并同意贷款机构基于上述资料进行评估，并愿意承担因提供虚假资料而产生的一切法律责任。</p>
-            <p>本人/本公司确认：已仔细阅读并理解本评估表的所有条款，无异议。</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>承诺人签名</Label>
-              <Input
-                value={data.commitmentSignature}
-                onChange={e => updateField('commitmentSignature', e.target.value)}
-                placeholder="请输入签名"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>承诺日期</Label>
-              <Input
-                type="date"
-                value={data.commitmentDate}
-                onChange={e => updateField('commitmentDate', e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Row 5 */}
+          <tr>
+            <Cell value="房产情况" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r5c1" formData={formData} onChange={handleChange} />
+            <Cell value="车辆情况" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r5c3" formData={formData} onChange={handleChange} />
+            <Cell value="贷款日期" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r5c5" formData={formData} onChange={handleChange} />
+            <Cell value="资金方" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r5c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
 
-      {/* (七) 评估定级 */}
-      <Card>
-        <CardHeader className="bg-slate-50">
-          <CardTitle className="text-lg">（七）企业评估定级报告</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>评估得分</Label>
-              <Input
-                type="number"
-                value={data.evaluationScore}
-                onChange={e => updateField('evaluationScore', e.target.value)}
-                placeholder="请输入得分"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>评估等级</Label>
-              <Input
-                value={data.evaluationLevel}
-                onChange={e => updateField('evaluationLevel', e.target.value)}
-                placeholder="A/B/C/D"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Row 6 */}
+          <tr>
+            <Cell value="学历" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r6c1" formData={formData} onChange={handleChange} />
+            <Cell value="从业经历" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r6c3" formData={formData} onChange={handleChange} />
+            <Cell value="3PAR" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r6c5" formData={formData} onChange={handleChange} />
+            <Cell value="产品名称" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r6c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 7 */}
+          <tr>
+            <Cell value="创业时长*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r7c1" formData={formData} onChange={handleChange} />
+            <Cell value="爱好" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r7c3" formData={formData} onChange={handleChange} />
+            <Cell value="双锁" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r7c5" formData={formData} onChange={handleChange} />
+            <Cell value="风险等级" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r7c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 8 */}
+          <tr>
+            <Cell value="借款企业名称" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r8c1" formData={formData} onChange={handleChange} colSpan={3} />
+            <Cell value="香港或国内运营企业名称" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r8c5" formData={formData} onChange={handleChange} colSpan={5} />
+          </tr>
+
+          {/* Row 9 */}
+          <tr>
+            <Cell value="法人代表/董事" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r9c1" formData={formData} onChange={handleChange} colSpan={3} />
+            <Cell value="法人代表/董事" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r9c5" formData={formData} onChange={handleChange} colSpan={5} />
+          </tr>
+
+          {/* Row 10 */}
+          <tr>
+            <Cell value="实控人" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r10c1" formData={formData} onChange={handleChange} />
+            <Cell value="注册时间" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r10c3" formData={formData} onChange={handleChange} />
+            <Cell value="实控人" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r10c5" formData={formData} onChange={handleChange} />
+            <Cell value="注册时间" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r10c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 11 */}
+          <tr>
+            <Cell value="注册资本" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r11c1" formData={formData} onChange={handleChange} />
+            <Cell value="关联公司数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r11c3" formData={formData} onChange={handleChange} />
+            <Cell value="注册资本" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r11c5" formData={formData} onChange={handleChange} />
+            <Cell value="关联公司数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r11c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 12 */}
+          <tr>
+            <Cell value="企业是否被执行" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r12c1" formData={formData} onChange={handleChange} />
+            <Cell value="企业是否失信" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r12c3" formData={formData} onChange={handleChange} />
+            <Cell value="企业是否被执行" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r12c5" formData={formData} onChange={handleChange} />
+            <Cell value="企业是否失信" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r12c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 13 */}
+          <tr>
+            <Cell value="关联公司数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r13c1" formData={formData} onChange={handleChange} />
+            <Cell value="是否有股权代持" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r13c3" formData={formData} onChange={handleChange} />
+            <Cell value="关联公司数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r13c5" formData={formData} onChange={handleChange} />
+            <Cell value="是否有股权代持" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r13c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 14: Section header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（二）访谈记录</td>
+          </tr>
+
+          {/* Row 15-26 */}
+          {[
+            { label: '表明身份', key: 'r15' },
+            { label: '了解原因', key: 'r16' },
+            { label: ' 店铺价值', key: 'r17' },
+            { label: '团队规模', key: 'r18' },
+            { label: ' 现金流', key: 'r19' },
+            { label: '其他资产 ', key: 'r20' },
+            { label: '库存与应收账款 ', key: 'r21' },
+            { label: '固定资产', key: 'r22' },
+            { label: '负债情况', key: 'r23' },
+            { label: '逾期风险', key: 'r24' },
+            { label: '还款计划 ', key: 'r25' },
+            { label: '书面确认 ', key: 'r26' },
+          ].map((item) => (
+            <tr key={item.key}>
+              <Cell value={item.label} isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+              <Cell value="" isInput inputKey={`${item.key}c1`} formData={formData} onChange={handleChange} colSpan={10} />
+            </tr>
+          ))}
+
+          {/* Row 27: Section header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（三）经营情况</td>
+          </tr>
+
+          {/* Row 28 */}
+          <tr>
+            <Cell value="公司经营年限*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r28c1" formData={formData} onChange={handleChange} colSpan={2} />
+            <Cell value="公司所在地*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r28c4" formData={formData} onChange={handleChange} colSpan={2} />
+            <Cell value="地址有效性" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r28c7" formData={formData} onChange={handleChange} colSpan={4} />
+          </tr>
+
+          {/* Row 29 */}
+          <tr>
+            <Cell value="员工人数*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r29c1" formData={formData} onChange={handleChange} />
+            <Cell value="公司占地面积" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r29c3" formData={formData} onChange={handleChange} />
+            <Cell value="店铺数量" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r29c5" formData={formData} onChange={handleChange} />
+            <Cell value="场地租金" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r29c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 30 */}
+          <tr>
+            <Cell value="主营品类*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r30c1" formData={formData} onChange={handleChange} />
+            <Cell value="主营站点*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r30c3" formData={formData} onChange={handleChange} />
+            <Cell value="月支出" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r30c5" formData={formData} onChange={handleChange} />
+            <Cell value="月回款" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r30c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 31 */}
+          <tr>
+            <Cell value="盈利能力" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r31c1" formData={formData} onChange={handleChange} />
+            <Cell value="增长能力" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r31c3" formData={formData} onChange={handleChange} />
+            <Cell value="现金流" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r31c5" formData={formData} onChange={handleChange} />
+            <Cell value="淡旺季" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r31c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 32 */}
+          <tr>
+            <Cell value="经营平台规模\n及占比*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r32c1" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+
+          {/* Row 33 */}
+          <tr>
+            <Cell value=" 年商品交易\n  总额合计：" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="                                 万人民币（等值）1USD=7CNY" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+
+          {/* Row 34-37: Photo records */}
+          <tr>
+            <Cell value="现场拍照*" isInput={false} inputKey="" formData={formData} onChange={handleChange} rowSpan={4} />
+            <Cell value="1、门牌" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+          <tr>
+            <Cell value="2、办公室" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+          <tr>
+            <Cell value="3、仓库" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+          <tr>
+            <Cell value="4、接待人" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+
+          {/* Row 38: Section header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（四）融资情况</td>
+          </tr>
+
+          {/* Row 39: Table header */}
+          <tr>
+            {['融资渠道', '融资类型', '授信额度', '在贷金额', '总利率', '期限', '支付公司', '锁定情况'].map((h, i) => (
+              <td key={i} colSpan={i === 7 ? 4 : 1} className="border border-black bg-gray-200 font-bold text-center px-2 py-1">
+                {h}
+              </td>
+            ))}
+          </tr>
+
+          {/* Row 40-45: Data rows */}
+          {['r40', 'r41', 'r42', 'r43', 'r44', 'r45'].map((rowKey, idx) => (
+            <tr key={rowKey}>
+              <td className="border border-black p-0">
+                <input
+                  type="text"
+                  value={formData[`${rowKey}c0`] || ''}
+                  onChange={(e) => handleChange(`${rowKey}c0`, e.target.value)}
+                  className="w-full h-full px-2 py-1 text-sm outline-none bg-transparent"
+                />
+              </td>
+              <td className="border border-black px-2 py-1 text-sm">
+                {idx === 0 ? '信用贷/ 企业贷' : ''}
+              </td>
+              {[1, 2, 3, 4, 5].map((colIdx) => (
+                <td key={colIdx} className="border border-black p-0">
+                  <input
+                    type="text"
+                    value={formData[`${rowKey}c${colIdx + 1}`] || ''}
+                    onChange={(e) => handleChange(`${rowKey}c${colIdx + 1}`, e.target.value)}
+                    className="w-full h-full px-2 py-1 text-sm outline-none bg-transparent"
+                  />
+                </td>
+              ))}
+              <td className="border border-black" colSpan={4}></td>
+            </tr>
+          ))}
+
+          {/* Row 46 */}
+          <tr>
+            <Cell value="在贷合计：" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="                        万人民币（1USD:7CNY）" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+
+          {/* Row 47: Section header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（五）店铺数据</td>
+          </tr>
+
+          {/* Row 48 */}
+          <tr>
+            <Cell value="店铺主营经营品类" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r48c1" formData={formData} onChange={handleChange} />
+            <Cell value="主要店铺数量" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r48c3" formData={formData} onChange={handleChange} />
+            <Cell value="3PAR授权店铺数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r48c5" formData={formData} onChange={handleChange} />
+            <Cell value="双锁授权店铺数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r48c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 49 */}
+          <tr>
+            <Cell value="近1年店铺销售额" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r49c1" formData={formData} onChange={handleChange} />
+            <Cell value="近1年店铺销售同比增长" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r49c3" formData={formData} onChange={handleChange} />
+            <Cell value="近1年店铺回款额" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r49c5" formData={formData} onChange={handleChange} />
+            <Cell value="近1年店铺回款同比增长" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r49c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 50 */}
+          <tr>
+            <Cell value="退货率（均值）" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r50c1" formData={formData} onChange={handleChange} />
+            <Cell value="近3月店铺销售额环比增长" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r50c3" formData={formData} onChange={handleChange} />
+            <Cell value="近1年店铺回款率" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r50c5" formData={formData} onChange={handleChange} />
+            <Cell value="近3月店铺回款额环比增长" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r50c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 51 */}
+          <tr>
+            <Cell value="FBA发货比例" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r51c1" formData={formData} onChange={handleChange} />
+            <Cell value="月投入广告费用" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r51c3" formData={formData} onChange={handleChange} />
+            <Cell value="月物流运输费用" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r51c5" formData={formData} onChange={handleChange} />
+            <Cell value="店铺经营年限" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r51c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 52 */}
+          <tr>
+            <Cell value="FBA库存价值" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r52c1" formData={formData} onChange={handleChange} />
+            <Cell value="FBA周转天数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r52c3" formData={formData} onChange={handleChange} />
+            <Cell value="店铺客单价" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r52c5" formData={formData} onChange={handleChange} />
+            <Cell value="店铺毛利率" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r52c7" formData={formData} onChange={handleChange} />
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+            <td className="border border-black"></td>
+          </tr>
+
+          {/* Row 53 */}
+          <tr>
+            <Cell value="店铺经营数据图" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+            <Cell value="" isInput inputKey="r53c1" formData={formData} onChange={handleChange} colSpan={10} />
+          </tr>
+
+          {/* Row 54-57: Shop links */}
+          {['r54', 'r55', 'r56', 'r57'].map((rowKey) => (
+            <tr key={rowKey}>
+              <Cell value="店铺链接" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
+              <Cell value="" isInput inputKey={`${rowKey}c1`} formData={formData} onChange={handleChange} colSpan={10} />
+            </tr>
+          ))}
+
+          {/* Row 58: Section header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（六）企业资产评估资料真实性承诺及确认条款</td>
+          </tr>
+
+          {/* Row 59 */}
+          <tr>
+            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+              {'一、知悉及承诺内容\n 1.本企业/本人已完整阅读、充分理解本次实地尽调企业/本人资产评估表全部内容，清楚本次资产评估、尽职调查的目的、范围与用途。\n 2.本企业/本人承诺：向尽调评估方所提供的全部资料（含财务报表、经营数据、资产权属证明、租赁合同、进销存数据、征信资料、证照资质、店铺/场地经营信息、债权债务资料及其他辅助评估材料）均真实、合法、完整、有效、无隐瞒、无篡改、无遗漏，如实反映企业/本人实际经营状况、资产现状与负债情况。\n 3.本企业/本人保证不存在伪造、变造资料、虚构资产、隐瞒负债、虚报营收、隐匿经营风险等虚假申报行为。\n 4.若因本企/本人业提供虚假材料、隐瞒关键信息、填报不实数据，导致后续出现银行抽贷、信贷终止、账户/店铺冻结、合作违约、提前结清款项、法律诉讼、经济赔偿、行政处罚等一切不良后果及损失，均由本企业/本人及签字责任人自行承担全部法律责任、经济赔偿责任及一切连带责任，与尽调评估方无关。\n 5.本企业自愿配合后续复核、补充资料、现场核验等相关工作，如有信息变更将第一时间如实告知。'}
+            </td>
+          </tr>
+
+          {/* Row 60 */}
+          <tr>
+            <td colSpan={5} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+              {'二、签署栏\n\n企业名称（盖章）：\n\n法定代表人/授权代表签字：\n\n签署日期：________年________月________日'}
+            </td>
+            <td colSpan={6} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+              {'\n签署人姓名：________ 职务：________\n\n身份证号：________________________\n\n联系电话：________________________\n\n签署日期：________年________月________日'}
+            </td>
+          </tr>
+
+          {/* Row 61: Section header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（七）企业评估定级报告</td>
+          </tr>
+
+          {/* Row 62 */}
+          <tr>
+            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+              {'   本定级结论基于本次企业实地尽调、资产核验、经营数据核查、征信及风险排查结果综合评定，结合企业资产真实性、经营稳定性、负债情况、履约能力、合规经营状况等核心维度，客观出具最终评估等级、结论说明及后续合作风控建议。'}
+            </td>
+          </tr>
+
+          {/* Row 63 */}
+          <tr>
+            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+              {'一、企业评估最终定级\n\n本次综合评估得分：______ 分\n\n评估等级：□ A级（无风险） □ B级（低风险） □ C级（高风险） □ D级（重风险）'}
+            </td>
+          </tr>
+
+          {/* Row 64 */}
+          <tr>
+            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+              {'二、综合评估结论\n\n经实地核查企业经营场地、实物资产、财务数据、证照资料、债权债务及征信信息，结合本次尽调各项指标核验结果：该企业整体经营及资产状况评定为______等级。\n\n核心优势总结：________________________________________________________________________________________________\n\n现存风险及瑕疵总结：________________________________________________________________________________________________'}
+            </td>
+          </tr>
+
+          {/* Row 65: Follow-up header */}
+          <tr>
+            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">跟进记录表</td>
+          </tr>
+
+          {/* Row 66: Follow-up table header */}
+          <tr>
+            <td className="border border-black bg-gray-200 font-bold text-center px-2 py-1">跟进序列</td>
+            <td className="border border-black bg-gray-200 font-bold text-center px-2 py-1">跟进人</td>
+            <td className="border border-black bg-gray-200 font-bold text-center px-2 py-1">跟进日期</td>
+            <td colSpan={8} className="border border-black bg-gray-200 font-bold text-center px-2 py-1">情况更新</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }

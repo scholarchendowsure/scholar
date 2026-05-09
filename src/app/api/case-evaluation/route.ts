@@ -36,13 +36,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { caseId, evaluationData } = body;
+    const { caseId, formData, evaluationData } = body;
+    const dataToSave = formData || evaluationData;
 
     if (!caseId) {
       return NextResponse.json({ success: false, message: '缺少案件ID' }, { status: 400 });
     }
 
-    saveEvaluation(caseId, evaluationData);
+    saveEvaluation(caseId, dataToSave);
 
     return NextResponse.json({ success: true, message: '评估表数据保存成功' });
   } catch (error) {
