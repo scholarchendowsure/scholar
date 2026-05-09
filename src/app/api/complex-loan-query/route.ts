@@ -51,21 +51,22 @@ export async function POST(request: NextRequest) {
     // 第三步：在 dsb_amazon_loan.dsb_offer_history 表中查询
     await connection.query('USE `dsb_amazon_loan`');
     
-    // 最可靠的方式：对每个 offerId 单独查询最新记录（利用索引）
-    const latestRecords = [];
+    // 对每个 offerId 查询全部记录
+    const allRecords: any[] = [];
     
     for (const offerId of offerIds) {
       const [records] = await connection.execute(
         'SELECT offerId, last_updated_on, latest_dataset ' +
         'FROM dsb_offer_history ' +
         'WHERE offerId = ? ' +
-        'ORDER BY last_updated_on DESC ' +
-        'LIMIT 1',
+        'ORDER BY last_updated_on DESC',
         [offerId]
       );
       
-      if (Array.isArray(records) && records.length > 0) {
-        latestRecords.push((records as any[])[0]);
+      if (Array.isArray(records)) {
+        (records as any[]).forEach(record => {
+          allRecords.push(record);
+        });
       }
     }
 
@@ -87,7 +88,8 @@ export async function POST(request: NextRequest) {
         },
         step3: {
           offerIds,
-          latestRecords
+          totalRecords: allRecords.length,
+          allRecords
         }
       }
     });

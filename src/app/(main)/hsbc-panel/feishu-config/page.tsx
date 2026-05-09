@@ -2038,16 +2038,13 @@ export default function FeishuConfigPage() {
                   )}
 
                   {/* Step 3 结果 */}
-                  {loanQueryResult.step3 && loanQueryResult.step3.latestRecords && (
+                  {loanQueryResult.step3 && loanQueryResult.step3.allRecords && (
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Step 3: 最新记录（共 {loanQueryResult.step3.latestCount} 条）</CardTitle>
-                        <CardDescription>
-                          总历史记录: {loanQueryResult.step3.totalRecords} 条
-                        </CardDescription>
+                        <CardTitle className="text-lg">Step 3: 全部记录（共 {loanQueryResult.step3.totalRecords} 条）</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="overflow-auto max-h-[500px]">
+                        <div className="overflow-auto max-h-[600px]">
                           <Table>
                             <TableHeader className="sticky top-0 bg-background">
                               <TableRow>
@@ -2057,7 +2054,7 @@ export default function FeishuConfigPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {loanQueryResult.step3.latestRecords.map((record: any, idx: number) => (
+                              {loanQueryResult.step3.allRecords.map((record: any, idx: number) => (
                                 <TableRow key={idx}>
                                   <TableCell className="font-mono text-xs">
                                     {record.offerId}
