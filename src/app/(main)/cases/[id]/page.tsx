@@ -1,8 +1,9 @@
 'use client';
 
+// 案件详情页
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera, Bell } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera, Bell, Download, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Case } from '@/types/case';
 import { toast } from 'sonner';
+import { ShopDataParser } from '@/components/shop/shop-data-parser';
+import { ShopCharts } from '@/components/shop/shop-charts';
 
 // 状态标签配置
 const STATUS_CONFIG = {
@@ -92,6 +95,11 @@ export default function CaseDetailPage() {
 
   // 提醒跟进状态
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
+  
+  // 店铺详情相关状态
+  const [shopData, setShopData] = useState<any>(null);
+  const [shopDataLoading, setShopDataLoading] = useState(false);
+  const [shopActiveTab, setShopActiveTab] = useState<string>('overview');
 
   // 发送飞书提醒消息
   const handleSendReminder = async (roleType: string, roleName: string) => {
@@ -542,7 +550,66 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     { id: 'repayment', label: '还款记录', color: 'bg-rose-600 text-white' },
     { id: 'files', label: '文件信息', color: 'bg-cyan-600 text-white' },
     { id: 'ownership', label: '案件标签', color: 'bg-purple-600 text-white' },
+    { id: 'shop', label: '店铺详情', color: 'bg-violet-600 text-white' },
   ];
+  
+  // 获取店铺数据
+  const fetchShopData = async () => {
+    if (!caseData?.loanNo) {
+      toast.error('缺少贷款单号');
+      return;
+    }
+    
+    setShopDataLoading(true);
+    try {
+      const res = await fetch('/api/complex-loan-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanCode: caseData.loanNo })
+      });
+      
+      const json = await res.json();
+      
+      if (json.success) {
+        // 找到最新的记录
+        const allRecords = json.data?.step3?.allRecords || [];
+        if (allRecords.length > 0) {
+          // 按时间倒序排序，取最新的
+          const sortedRecords = [...allRecords].sort((a: any, b: any) => {
+            return new Date(b.update_time).getTime() - new Date(a.update_time).getTime();
+          });
+          
+          const latestRecord = sortedRecords[0];
+          if (latestRecord?.latest_dataset) {
+            try {
+              const parsedData = typeof latestRecord.latest_dataset === 'string' 
+                ? JSON.parse(latestRecord.latest_dataset)
+                : latestRecord.latest_dataset;
+              setShopData({
+                ...parsedData,
+                _updateTime: latestRecord.update_time,
+                _allRecords: allRecords
+              });
+              toast.success('获取店铺数据成功');
+            } catch (e) {
+              toast.error('解析店铺数据失败');
+            }
+          } else {
+            toast.info('暂无店铺数据');
+          }
+        } else {
+          toast.info('暂无店铺数据');
+        }
+      } else {
+        toast.error(json.message || '获取店铺数据失败');
+      }
+    } catch (error) {
+      console.error('获取店铺数据失败:', error);
+      toast.error('获取店铺数据失败');
+    } finally {
+      setShopDataLoading(false);
+    }
+  };
 
   const renderTabContent = () => {
     if (!caseData) return null;
@@ -969,6 +1036,45 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
               <Field label="创建时间" value={new Date(caseData.createdAt).toLocaleString('zh-CN')} />
               <Field label="更新时间" value={new Date(caseData.updatedAt).toLocaleString('zh-CN')} />
             </dl>
+          </div>
+        );
+
+      case 'shop':
+        return (
+          <div className="p-6 space-y-6">
+            {/* 一键获取按钮 */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">店铺详情</h3>
+                <p className="text-sm text-slate-500 mt-1">点击一键获取店铺运营资料</p>
+              </div>
+              <Button 
+                className="bg-violet-600 hover:bg-violet-700"
+                onClick={fetchShopData}
+                disabled={shopDataLoading}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {shopDataLoading ? '获取中...' : '一键获取店铺运营资料'}
+              </Button>
+            </div>
+
+            {shopData ? (
+              <>
+                {/* 数据解析和健康评分 */}
+                <ShopDataParser data={shopData} />
+                
+                {/* 可视化图表 */}
+                <ShopCharts data={shopData} />
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <div className="bg-slate-100 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+                  <Store className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-500 mt-4">暂无店铺数据</p>
+                <p className="text-sm text-slate-400 mt-1">点击上方按钮获取店铺运营资料</p>
+              </div>
+            )}
           </div>
         );
       
