@@ -148,16 +148,14 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
         <tbody>
           {/* Row 0: Title */}
           <tr>
-            <td colSpan={11} className="border border-black text-center font-bold text-lg py-2">
+            <td colSpan={10} className="border border-black text-center font-bold text-lg py-2">
               企业信用资产评估表
             </td>
           </tr>
 
           {/* Row 1: Section header */}
           <tr>
-            <td colSpan={9} className="border border-black font-bold bg-gray-100 px-2 py-1">（一）企业信息</td>
-            <td className="border border-black bg-gray-100 px-2 py-1"> </td>
-            <td className="border border-black bg-gray-100 px-2 py-1"></td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（一）企业信息</td>
           </tr>
 
           {/* Row 2 */}
@@ -170,7 +168,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r2c5" formData={formData} onChange={handleChange} />
             <Cell value="最近还款日" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r2c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -187,7 +184,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r3c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 4 */}
@@ -200,7 +196,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r4c5" formData={formData} onChange={handleChange} />
             <Cell value="联系方式" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r4c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -217,7 +212,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r5c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 6 */}
@@ -232,7 +226,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r6c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 7 */}
@@ -245,7 +238,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r7c5" formData={formData} onChange={handleChange} />
             <Cell value="风险等级" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r7c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -278,7 +270,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r10c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 11 */}
@@ -291,7 +282,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r11c5" formData={formData} onChange={handleChange} />
             <Cell value="关联公司数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r11c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -308,7 +298,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r12c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 13 */}
@@ -323,12 +312,11 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r13c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 14: Section header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（二）访谈记录</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（二）访谈记录</td>
           </tr>
 
           {/* Row 15-26 */}
@@ -348,13 +336,13 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
           ].map((item) => (
             <tr key={item.key}>
               <Cell value={item.label} isInput={false} inputKey="" formData={formData} onChange={handleChange} />
-              <Cell value="" isInput inputKey={`${item.key}c1`} formData={formData} onChange={handleChange} colSpan={10} />
+              <Cell value="" isInput inputKey={`${item.key}c1`} formData={formData} onChange={handleChange} colSpan={9} />
             </tr>
           ))}
 
           {/* Row 27: Section header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（三）经营情况</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（三）经营情况</td>
           </tr>
 
           {/* Row 28 */}
@@ -379,7 +367,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r29c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 30 */}
@@ -392,7 +379,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r30c5" formData={formData} onChange={handleChange} />
             <Cell value="月回款" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r30c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -409,39 +395,38 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r31c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 32 */}
           <tr>
             <Cell value="经营平台规模\n及占比*" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
-            <Cell value="" isInput inputKey="r32c1" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="" isInput inputKey="r32c1" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
 
           {/* Row 33 */}
           <tr>
             <Cell value=" 年商品交易\n  总额合计：" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
-            <Cell value="                                 万人民币（等值）1USD=7CNY" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="                                 万人民币（等值）1USD=7CNY" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
 
           {/* Row 34-37: Photo records */}
           <tr>
             <Cell value="现场拍照*" isInput={false} inputKey="" formData={formData} onChange={handleChange} rowSpan={4} />
-            <Cell value="1、门牌" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="1、门牌" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
           <tr>
-            <Cell value="2、办公室" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="2、办公室" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
           <tr>
-            <Cell value="3、仓库" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="3、仓库" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
           <tr>
-            <Cell value="4、接待人" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="4、接待人" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
 
           {/* Row 38: Section header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（四）融资情况</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（四）融资情况</td>
           </tr>
 
           {/* Row 39: Table header */}
@@ -477,19 +462,19 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
                   />
                 </td>
               ))}
-              <td className="border border-black" colSpan={4}></td>
+              <td className="border border-black" colSpan={3}></td>
             </tr>
           ))}
 
           {/* Row 46 */}
           <tr>
             <Cell value="在贷合计：" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
-            <Cell value="                        万人民币（1USD:7CNY）" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="                        万人民币（1USD:7CNY）" isInput={false} inputKey="" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
 
           {/* Row 47: Section header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（五）店铺数据</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（五）店铺数据</td>
           </tr>
 
           {/* Row 48 */}
@@ -502,7 +487,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r48c5" formData={formData} onChange={handleChange} />
             <Cell value="双锁授权店铺数" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r48c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -519,7 +503,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r49c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 50 */}
@@ -532,7 +515,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r50c5" formData={formData} onChange={handleChange} />
             <Cell value="近3月店铺回款额环比增长" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
             <Cell value="" isInput inputKey="r50c7" formData={formData} onChange={handleChange} />
-            <td className="border border-black"></td>
             <td className="border border-black"></td>
             <td className="border border-black"></td>
           </tr>
@@ -549,7 +531,6 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r51c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 52 */}
@@ -564,31 +545,30 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <Cell value="" isInput inputKey="r52c7" formData={formData} onChange={handleChange} />
             <td className="border border-black"></td>
             <td className="border border-black"></td>
-            <td className="border border-black"></td>
           </tr>
 
           {/* Row 53 */}
           <tr>
             <Cell value="店铺经营数据图" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
-            <Cell value="" isInput inputKey="r53c1" formData={formData} onChange={handleChange} colSpan={10} />
+            <Cell value="" isInput inputKey="r53c1" formData={formData} onChange={handleChange} colSpan={9} />
           </tr>
 
           {/* Row 54-57: Shop links */}
           {['r54', 'r55', 'r56', 'r57'].map((rowKey) => (
             <tr key={rowKey}>
               <Cell value="店铺链接" isInput={false} inputKey="" formData={formData} onChange={handleChange} />
-              <Cell value="" isInput inputKey={`${rowKey}c1`} formData={formData} onChange={handleChange} colSpan={10} />
+              <Cell value="" isInput inputKey={`${rowKey}c1`} formData={formData} onChange={handleChange} colSpan={9} />
             </tr>
           ))}
 
           {/* Row 58: Section header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（六）企业资产评估资料真实性承诺及确认条款</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（六）企业资产评估资料真实性承诺及确认条款</td>
           </tr>
 
           {/* Row 59 */}
           <tr>
-            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+            <td colSpan={10} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {'一、知悉及承诺内容\n 1.本企业/本人已完整阅读、充分理解本次实地尽调企业/本人资产评估表全部内容，清楚本次资产评估、尽职调查的目的、范围与用途。\n 2.本企业/本人承诺：向尽调评估方所提供的全部资料（含财务报表、经营数据、资产权属证明、租赁合同、进销存数据、征信资料、证照资质、店铺/场地经营信息、债权债务资料及其他辅助评估材料）均真实、合法、完整、有效、无隐瞒、无篡改、无遗漏，如实反映企业/本人实际经营状况、资产现状与负债情况。\n 3.本企业/本人保证不存在伪造、变造资料、虚构资产、隐瞒负债、虚报营收、隐匿经营风险等虚假申报行为。\n 4.若因本企/本人业提供虚假材料、隐瞒关键信息、填报不实数据，导致后续出现银行抽贷、信贷终止、账户/店铺冻结、合作违约、提前结清款项、法律诉讼、经济赔偿、行政处罚等一切不良后果及损失，均由本企业/本人及签字责任人自行承担全部法律责任、经济赔偿责任及一切连带责任，与尽调评估方无关。\n 5.本企业自愿配合后续复核、补充资料、现场核验等相关工作，如有信息变更将第一时间如实告知。'}
             </td>
           </tr>
@@ -598,40 +578,40 @@ export default function CaseEvaluationForm({ caseId }: CaseEvaluationFormProps) 
             <td colSpan={5} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {'二、签署栏\n\n企业名称（盖章）：\n\n法定代表人/授权代表签字：\n\n签署日期：________年________月________日'}
             </td>
-            <td colSpan={6} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+            <td colSpan={5} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {'\n签署人姓名：________ 职务：________\n\n身份证号：________________________\n\n联系电话：________________________\n\n签署日期：________年________月________日'}
             </td>
           </tr>
 
           {/* Row 61: Section header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">（七）企业评估定级报告</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">（七）企业评估定级报告</td>
           </tr>
 
           {/* Row 62 */}
           <tr>
-            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+            <td colSpan={10} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {'   本定级结论基于本次企业实地尽调、资产核验、经营数据核查、征信及风险排查结果综合评定，结合企业资产真实性、经营稳定性、负债情况、履约能力、合规经营状况等核心维度，客观出具最终评估等级、结论说明及后续合作风控建议。'}
             </td>
           </tr>
 
           {/* Row 63 */}
           <tr>
-            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+            <td colSpan={10} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {'一、企业评估最终定级\n\n本次综合评估得分：______ 分\n\n评估等级：□ A级（无风险） □ B级（低风险） □ C级（高风险） □ D级（重风险）'}
             </td>
           </tr>
 
           {/* Row 64 */}
           <tr>
-            <td colSpan={11} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
+            <td colSpan={10} className="border border-black px-2 py-2 text-sm whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
               {'二、综合评估结论\n\n经实地核查企业经营场地、实物资产、财务数据、证照资料、债权债务及征信信息，结合本次尽调各项指标核验结果：该企业整体经营及资产状况评定为______等级。\n\n核心优势总结：________________________________________________________________________________________________\n\n现存风险及瑕疵总结：________________________________________________________________________________________________'}
             </td>
           </tr>
 
           {/* Row 65: Follow-up header */}
           <tr>
-            <td colSpan={11} className="border border-black font-bold bg-gray-100 px-2 py-1">跟进记录表</td>
+            <td colSpan={10} className="border border-black font-bold bg-gray-100 px-2 py-1">跟进记录表</td>
           </tr>
 
           {/* Row 66: Follow-up table header */}
