@@ -61,7 +61,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg mb-4">
             <Lock className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">贷后案件管理系统</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">学者管理系统</h1>
           <p className="text-slate-600">请登录以继续使用系统</p>
         </div>
 
