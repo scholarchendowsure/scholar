@@ -57,6 +57,13 @@ export default function FeishuConfigPage() {
   const [appSecret, setAppSecret] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [sendMode, setSendMode] = useState<'private' | 'webhook'>('private');
+
+  // MySQL数据读取状态
+  const [mysqlData, setMysqlData] = useState<any>(null);
+  const [selectedDatabase, setSelectedDatabase] = useState<string>('');
+  const [selectedTable, setSelectedTable] = useState<string>('');
+  const [mysqlReadMode, setMysqlReadMode] = useState<string>('summary');
+  const [mysqlLoading, setMysqlLoading] = useState(false);
   
   // 飞书用户状态
   const [feishuUsers, setFeishuUsers] = useState<FeishuUser[]>([]);
@@ -924,7 +931,7 @@ export default function FeishuConfigPage() {
                   MySQL数据库配置
                 </CardTitle>
                 <CardDescription>
-                  配置MySQL数据库连接信息
+                  配置MySQL数据库连接信息并读取数据
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -966,36 +973,157 @@ export default function FeishuConfigPage() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>读取模式</Label>
+                  <Select value={mysqlReadMode} onValueChange={setMysqlReadMode}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="summary">Summary - 数据库列表</SelectItem>
+                      <SelectItem value="quick">Quick - 前5个表统计</SelectItem>
+                      <SelectItem value="full">Full - 完整表数据</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {mysqlReadMode === 'quick' && (
+                  <div className="space-y-2">
+                    <Label>选择数据库</Label>
+                    <Select 
+                      value={selectedDatabase} 
+                      onValueChange={setSelectedDatabase}
+                      disabled={!mysqlData || !mysqlData.userDatabases}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="请先读取数据库列表" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mysqlData?.userDatabases?.map((db: string) => (
+                          <SelectItem key={db} value={db}>{db}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {mysqlReadMode === 'full' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>选择数据库</Label>
+                      <Select 
+                        value={selectedDatabase} 
+                        onValueChange={setSelectedDatabase}
+                        disabled={!mysqlData || !mysqlData.userDatabases}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="请先读取数据库列表" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {mysqlData?.userDatabases?.map((db: string) => (
+                            <SelectItem key={db} value={db}>{db}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>选择表</Label>
+                      <Input
+                        value={selectedTable}
+                        onChange={(e) => setSelectedTable(e.target.value)}
+                        placeholder="请输入表名"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="flex gap-2">
                   <Button 
                     onClick={async () => {
                       try {
+                        setMysqlLoading(true);
                         const host = (document.getElementById('mysqlHost') as HTMLInputElement).value;
                         const port = parseInt((document.getElementById('mysqlPort') as HTMLInputElement).value);
                         const user = (document.getElementById('mysqlUser') as HTMLInputElement).value;
                         const password = (document.getElementById('mysqlPassword') as HTMLInputElement).value;
                         
+                        const requestBody: any = { 
+                          host, 
+                          port, 
+                          user, 
+                          password,
+                          mode: mysqlReadMode
+                        };
+
+                        if (mysqlReadMode === 'quick' && selectedDatabase) {
+                          requestBody.databaseName = selectedDatabase;
+                        }
+
+                        if (mysqlReadMode === 'full') {
+                          if (selectedDatabase) requestBody.databaseName = selectedDatabase;
+                          if (selectedTable) requestBody.tableName = selectedTable;
+                        }
+                        
                         const response = await fetch('/api/mysql-test', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ host, port, user, password }),
+                          body: JSON.stringify(requestBody),
                         });
                         
                         const data = await response.json();
                         if (data.success) {
-                          toast.success('数据库连接成功！');
+                          setMysqlData(data.data);
+                          if (mysqlReadMode === 'summary') {
+                            toast.success(`成功读取 ${data.data.userDatabaseCount} 个数据库！`);
+                          } else if (mysqlReadMode === 'quick') {
+                            toast.success(`成功读取 ${data.data.quickTables?.length || 0} 个表统计！`);
+                          } else {
+                            toast.success(`成功读取表 ${data.data.tableName} 的 ${data.data.totalRows} 条数据！`);
+                          }
                         } else {
-                          toast.error(data.message || '数据库连接失败');
+                          toast.error(data.message || '读取失败');
                         }
                       } catch (error) {
-                        toast.error('测试连接失败');
+                        toast.error('读取失败');
+                      } finally {
+                        setMysqlLoading(false);
                       }
                     }}
+                    disabled={mysqlLoading}
                   >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    测试连接
+                    {mysqlLoading ? (
+                      <>
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
+                        读取中...
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-4 h-4 mr-2" />
+                        读取数据
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setMysqlData(null);
+                      setSelectedDatabase('');
+                      setSelectedTable('');
+                    }}
+                  >
+                    清空数据
                   </Button>
                 </div>
+
+                {/* 数据显示区域 */}
+                {mysqlData && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <h4 className="font-semibold mb-2">读取结果</h4>
+                    <pre className="text-xs overflow-auto max-h-60 bg-background p-3 rounded border">
+                      {JSON.stringify(mysqlData, null, 2)}
+                    </pre>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
