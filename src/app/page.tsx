@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import {
 import { toast } from 'sonner';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState('');
@@ -59,7 +61,9 @@ export default function LoginPage() {
     // 模拟登录请求
     setTimeout(() => {
       setLoading(false);
-      toast.error('用户名或密码错误');
+      toast.success('登录成功！');
+      // 跳转到仪表盘
+      router.push('/');
     }, 1500);
   };
 
