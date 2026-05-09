@@ -20,6 +20,7 @@ import { Case } from '@/types/case';
 import { toast } from 'sonner';
 import { ShopDataParser } from '@/components/shop/shop-data-parser';
 import { ShopCharts } from '@/components/shop/shop-charts';
+import CaseEvaluationForm from '@/components/case-evaluation-form';
 
 // 状态标签配置
 const STATUS_CONFIG = {
@@ -549,6 +550,8 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     }
   }, [activeTab, caseData?.userId]);
 
+
+
   const tabs = [
     { id: 'core', label: '核心信息', color: 'bg-blue-600 text-white' },
     { id: 'finance', label: '金额信息', color: 'bg-amber-500 text-white' },
@@ -954,6 +957,11 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                 <span className="text-sm text-slate-500">({files.length} 个文件)</span>
               )}
             </div>
+
+            {/* 企业信用资产评估表 */}
+            <CaseEvaluationForm caseId={params.id as string} />
+
+            <div className="border-t border-slate-200 my-6"></div>
             
             {files.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
