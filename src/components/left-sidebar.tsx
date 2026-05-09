@@ -39,7 +39,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     title: '仪表盘',
-    href: '/',
+    href: '/dashboard',
     icon: <LayoutDashboard className="h-5 w-5" />
   },
   {

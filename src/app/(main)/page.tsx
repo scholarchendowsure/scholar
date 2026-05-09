@@ -618,92 +618,86 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-semibold text-slate-800">月度趋势</CardTitle>
-                <CardDescription className="text-slate-500">案件数量与逾期金额</CardDescription>
+                <CardDescription>近6个月案件及金额变化</CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">案件数</Badge>
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">逾期金额</Badge>
+                {(['7d', '30d', '90d'] as const).map((range) => (
+                  <Button
+                    key={range}
+                    variant={dateRange === range ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setDateRange(range)}
+                  >
+                    {range === '7d' ? '7天' : range === '30d' ? '30天' : '90天'}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={monthlyTrend}>
                   <defs>
                     <linearGradient id="colorCases" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(210 100% 45%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(210 100% 45%)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="hsl(210 100% 55%)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(210 100% 55%)" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorOverdue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0}/>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(142 71% 45%)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(142 71% 45%)" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(220 14% 91%)" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215 16% 47%)', fontSize: 12 }} />
-                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215 16% 47%)', fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: 'hsl(215 16% 47%)', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" />
+                  <XAxis dataKey="month" stroke="hsl(220 9% 46%)" />
+                  <YAxis stroke="hsl(220 9% 46%)" />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'white', border: '1px solid hsl(220 14% 91%)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid hsl(220 13% 91%)',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }} 
                   />
-                  <Area yAxisId="left" type="monotone" dataKey="cases" stroke="hsl(210 100% 45%)" strokeWidth={3} fillOpacity={1} fill="url(#colorCases)" />
-                  <Area yAxisId="right" type="monotone" dataKey="overdue" stroke="hsl(0 84% 60%)" strokeWidth={3} fillOpacity={1} fill="url(#colorOverdue)" />
+                  <Area type="monotone" dataKey="cases" stroke="hsl(210 100% 55%)" fillOpacity={1} fill="url(#colorCases)" name="案件数" />
+                  <Area type="monotone" dataKey="amount" stroke="hsl(142 71% 45%)" fillOpacity={1} fill="url(#colorAmount)" name="金额" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* 用户绩效排名 */}
+        {/* 用户绩效排行 */}
         <Card className="card-hover border-slate-200">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-semibold text-slate-800">外访员绩效</CardTitle>
-                <CardDescription className="text-slate-500">本月结案数量排名</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" className="text-sm">
-                查看全部
-              </Button>
-            </div>
+            <CardTitle className="text-lg font-semibold text-slate-800">用户绩效排行</CardTitle>
+            <CardDescription>本月结案数和金额</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {userPerformance.map((user, index) => (
-                <div key={user.name} className="flex items-center gap-4">
-                  <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm",
-                    index === 0 ? "bg-gradient-to-br from-yellow-400 to-amber-500 text-white" :
-                    index === 1 ? "bg-gradient-to-br from-slate-300 to-slate-400 text-white" :
-                    index === 2 ? "bg-gradient-to-br from-amber-600 to-amber-700 text-white" :
-                    "bg-slate-100 text-slate-600"
-                  )}>
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-slate-700">{user.name}</span>
-                      <span className="text-sm font-semibold text-slate-800">{user.closed} 件</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
-                          style={{ width: `${(user.closed / 32) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-500">{formatCurrency(user.amount)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={userPerformance} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 13% 91%)" horizontal={false} />
+                  <XAxis type="number" stroke="hsl(220 9% 46%)" />
+                  <YAxis dataKey="name" type="category" stroke="hsl(220 9% 46%)" width={80} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid hsl(220 13% 91%)',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    }} 
+                  />
+                  <Bar dataKey="cases" fill="hsl(210 100% 55%)" radius={[0, 4, 4, 0]} name="结案数" />
+                  <Bar dataKey="closed" fill="hsl(142 71% 45%)" radius={[0, 4, 4, 0]} name="金额" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 底部区域 - 活动和任务 */}
+      {/* 最近活动和待处理任务 */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* 最近活动 */}
         <Card className="card-hover border-slate-200">
@@ -711,41 +705,38 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-semibold text-slate-800">最近活动</CardTitle>
-                <CardDescription className="text-slate-500">团队操作记录</CardDescription>
+                <CardDescription>系统最新动态</CardDescription>
               </div>
-              <Activity className="w-5 h-5 text-slate-400" />
+              <Button variant="ghost" size="sm">查看全部</Button>
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
+          <CardContent>
             <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center mt-0.5",
-                    activity.type === 'create' && "bg-blue-50 text-blue-600",
-                    activity.type === 'update' && "bg-purple-50 text-purple-600",
-                    activity.type === 'close' && "bg-green-50 text-green-600",
-                    activity.type === 'assign' && "bg-amber-50 text-amber-600",
-                    activity.type === 'payment' && "bg-emerald-50 text-emerald-600",
-                  )}>
-                    {activity.type === 'create' && <FileText className="w-4 h-4" />}
-                    {activity.type === 'update' && <Activity className="w-4 h-4" />}
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    activity.type === 'create' ? 'bg-blue-100 text-blue-600' :
+                    activity.type === 'update' ? 'bg-orange-100 text-orange-600' :
+                    activity.type === 'close' ? 'bg-green-100 text-green-600' :
+                    activity.type === 'assign' ? 'bg-purple-100 text-purple-600' :
+                    'bg-emerald-100 text-emerald-600'
+                  }`}>
+                    {activity.type === 'create' && <Plus className="w-4 h-4" />}
+                    {activity.type === 'update' && <RefreshCw className="w-4 h-4" />}
                     {activity.type === 'close' && <CheckCircle2 className="w-4 h-4" />}
                     {activity.type === 'assign' && <Users className="w-4 h-4" />}
                     {activity.type === 'payment' && <DollarSign className="w-4 h-4" />}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <span className="font-medium text-slate-700">{activity.user}</span>
-                        <span className="text-slate-500 mx-1">{activity.action}</span>
-                        <span className="font-mono text-slate-700">{activity.target}</span>
-                        {activity.amount && (
-                          <span className="ml-2 text-emerald-600 font-semibold">{activity.amount}</span>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-400">{activity.time}</span>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-800">
+                      <span className="font-medium">{activity.user}</span>
+                      <span className="text-slate-500 mx-1">{activity.action}</span>
+                      <span className="font-medium text-slate-700">{activity.target}</span>
+                      {activity.amount && (
+                        <span className="font-semibold text-emerald-600 ml-2">{activity.amount}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{activity.time}</p>
                   </div>
                 </div>
               ))}
@@ -759,268 +750,29 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg font-semibold text-slate-800">待处理任务</CardTitle>
-                <CardDescription className="text-slate-500">需要您关注的事项</CardDescription>
+                <CardDescription>您的待办事项</CardDescription>
               </div>
-              <Badge variant="secondary" className="bg-amber-50 text-amber-700">
-                {pendingTasks.length} 项
-              </Badge>
+              <Badge variant="secondary">{pendingTasks.length}项</Badge>
             </div>
           </CardHeader>
-          <CardContent className="pb-2">
+          <CardContent>
             <div className="space-y-3">
               {pendingTasks.map((task) => (
-                <div key={task.id} className="p-3 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="font-medium text-slate-700">{task.title}</span>
-                    <Badge className={cn(
-                      task.priority === 'high' ? "bg-red-100 text-red-700" :
-                      task.priority === 'medium' ? "bg-amber-100 text-amber-700" :
-                      "bg-slate-100 text-slate-700"
-                    )}>
-                      {task.priority === 'high' ? '紧急' : task.priority === 'medium' ? '重要' : '普通'}
-                    </Badge>
+                <div key={task.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+                  <div className={`w-2 h-2 rounded-full ${
+                    task.priority === 'high' ? 'bg-red-500' :
+                    task.priority === 'medium' ? 'bg-orange-500' :
+                    'bg-blue-500'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{task.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {task.due} · {task.user}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <User className="w-4 h-4" />
-                      <span>{task.user}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      <span className={task.due === '今天' ? 'text-red-600 font-medium' : 'text-slate-600'}>
-                        {task.due}
-                      </span>
-                    </div>
-                  </div>
+                  <Button variant="ghost" size="sm">处理</Button>
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 贷后统计区域 */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-slate-800">贷后统计</h3>
-            <p className="text-slate-500 mt-1">逾期与还款统计面板</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as '7d' | '30d' | '90d')}
-              className="h-10 px-3 border rounded bg-background text-sm"
-            >
-              <option value="7d">最近7天</option>
-              <option value="30d">最近30天</option>
-              <option value="90d">最近90天</option>
-            </select>
-            <Button variant="outline" onClick={fetchPostLoanStats} disabled={postLoanLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${postLoanLoading ? 'animate-spin' : ''}`} />
-              刷新
-            </Button>
-          </div>
-        </div>
-
-        {/* 贷后核心指标 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="card-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                总逾期余额
-              </CardTitle>
-              <AlertTriangle className="h-4 w-4 text-[hsl(0,75%,50%)]" />
-            </CardHeader>
-            <CardContent>
-              {postLoanLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <div className="text-2xl font-bold font-data text-[hsl(0,75%,50%)]">
-                  {formatCurrency(Number(postLoanStats?.totalOverdue) || 0)}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">当前总逾期未还款金额</p>
-            </CardContent>
-          </Card>
-
-          <Card className="card-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                本期催回金额
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-[hsl(145,65%,38%)]" />
-            </CardHeader>
-            <CardContent>
-              {postLoanLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <div className="text-2xl font-bold font-data text-[hsl(145,65%,38%)]">
-                  {formatCurrency(Number(postLoanStats?.totalRepayment) || 0)}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">
-                催回率 {postLoanStats?.repaymentRate || '0%'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="card-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                催回率
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-[hsl(210,95%,40%)]" />
-            </CardHeader>
-            <CardContent>
-              {postLoanLoading ? (
-                <Skeleton className="h-8 w-32" />
-              ) : (
-                <div className="text-2xl font-bold">
-                  {postLoanStats?.repaymentRate || '0%'}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-1">催回金额 / 逾期金额</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 每日趋势图表 */}
-        <Card className="card-shadow">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[hsl(210,95%,40%)]" />
-              每日逾期与还款趋势
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              {postLoanLoading ? (
-                <Skeleton className="h-full w-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={postLoanStats?.dailyTrend || []}
-                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,20%,88%)" />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        return `${date.getMonth() + 1}/${date.getDate()}`;
-                      }}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => `${(value / 10000).toFixed(0)}万`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(0,0%,100%)',
-                        border: '1px solid hsl(220,20%,88%)',
-                        borderRadius: '2px',
-                      }}
-                      formatter={(value: number) => [formatCurrency(value), '']}
-                    />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="overdue"
-                      stroke="hsl(0,75%,50%)"
-                      fill="hsl(0,75%,50%)"
-                      fillOpacity={0.1}
-                      name="逾期金额"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="repayment"
-                      stroke="hsl(145,65%,38%)"
-                      fill="hsl(145,65%,38%)"
-                      fillOpacity={0.1}
-                      name="催回金额"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 用户绩效排名 */}
-        <Card className="card-shadow">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[hsl(210,95%,40%)]" />
-              贷后人员绩效排名
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium">排名</th>
-                    <th className="text-left py-3 px-4 font-medium">姓名</th>
-                    <th className="text-right py-3 px-4 font-medium">案件总数</th>
-                    <th className="text-right py-3 px-4 font-medium">结案数</th>
-                    <th className="text-right py-3 px-4 font-medium">结案率</th>
-                    <th className="text-right py-3 px-4 font-medium">催回金额</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {postLoanLoading ? (
-                    [...Array(5)].map((_, i) => (
-                      <tr key={i} className="border-b">
-                        <td className="py-3 px-4"><Skeleton className="h-4 w-8" /></td>
-                        <td className="py-3 px-4"><Skeleton className="h-4 w-20" /></td>
-                        <td className="py-3 px-4"><Skeleton className="h-4 w-12" /></td>
-                        <td className="py-3 px-4"><Skeleton className="h-4 w-12" /></td>
-                        <td className="py-3 px-4"><Skeleton className="h-4 w-16" /></td>
-                        <td className="py-3 px-4"><Skeleton className="h-4 w-20" /></td>
-                      </tr>
-                    ))
-                  ) : postLoanStats?.userPerformance?.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-8 text-muted-foreground">
-                        暂无数据
-                      </td>
-                    </tr>
-                  ) : (
-                    postLoanStats?.userPerformance?.map((user, index) => (
-                      <tr key={user.userId} className="border-b hover:bg-accent/50">
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant={index === 0 ? 'default' : 'outline'}
-                            className={index === 0 ? 'bg-[hsl(210,95%,40%)] text-white' : ''}
-                          >
-                            {index + 1}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 font-medium">{user.userName}</td>
-                        <td className="py-3 px-4 text-right font-data">{user.totalCases}</td>
-                        <td className="py-3 px-4 text-right font-data">{user.closedCases}</td>
-                        <td className="py-3 px-4 text-right">
-                          <Badge
-                            variant={parseFloat(user.closedRate) >= 80 ? 'default' : 'outline'}
-                            className={
-                              parseFloat(user.closedRate) >= 80
-                                ? 'bg-[hsl(145,65%,38%)] text-white'
-                                : ''
-                            }
-                          >
-                            {user.closedRate}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-right font-data text-[hsl(145,65%,38%)]">
-                          {formatCurrency(Number(user.totalRepayment))}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
             </div>
           </CardContent>
         </Card>
@@ -1029,6 +781,7 @@ export default function DashboardPage() {
   );
 }
 
+// 统计卡片组件
 function StatCard({ 
   title, 
   value, 
@@ -1040,106 +793,88 @@ function StatCard({
   title: string; 
   value: string | number; 
   icon: React.ReactNode; 
-  trend: string; 
-  trendUp: boolean; 
-  color: 'primary' | 'success' | 'warning' | 'danger';
+  trend?: string; 
+  trendUp?: boolean; 
+  color?: 'primary' | 'success' | 'warning' | 'danger';
 }) {
   const colorClasses = {
-    primary: 'from-blue-500 to-indigo-600',
-    success: 'from-green-500 to-emerald-600',
-    warning: 'from-amber-500 to-yellow-600',
-    danger: 'from-red-500 to-rose-600',
-  };
-
-  const bgClasses = {
     primary: 'bg-blue-50 text-blue-600',
     success: 'bg-green-50 text-green-600',
-    warning: 'bg-amber-50 text-amber-600',
+    warning: 'bg-orange-50 text-orange-600',
     danger: 'bg-red-50 text-red-600',
   };
 
   return (
-    <Card className="card-hover overflow-hidden border-slate-200 group">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg shadow-slate-200/50 group-hover:shadow-xl transition-shadow", colorClasses[color])}>
-            <div className="text-white">
-              {icon}
-            </div>
-          </div>
-          <div className={cn(
-            "flex items-center gap-1 text-sm font-medium",
-            trendUp ? "text-emerald-600" : "text-red-600"
-          )}>
-            {trendUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            {trend}
+    <Card className="card-hover overflow-hidden border-slate-200">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
+          <div className={`w-8 h-8 rounded-lg ${colorClasses[color || 'primary']} flex items-center justify-center`}>
+            {icon}
           </div>
         </div>
-        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-slate-800 tracking-tight">{value}</p>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold text-slate-800 mb-1">
+          {value}
+        </div>
+        {trend && (
+          <div className={`flex items-center gap-1 text-sm ${trendUp ? 'text-green-600' : 'text-red-600'}`}>
+            {trendUp ? (
+              <ArrowUpRight className="w-4 h-4" />
+            ) : (
+              <ArrowDownRight className="w-4 h-4" />
+            )}
+            {trend}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
+// 骨架屏组件
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
           <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-4 w-64 mt-2" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-9 w-28" />
         </div>
       </div>
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="border-slate-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <Skeleton className="h-12 w-12 rounded-2xl" />
-                <Skeleton className="h-5 w-20" />
-              </div>
-              <Skeleton className="h-4 w-24 mb-2" />
-              <Skeleton className="h-8 w-32" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {[1, 2, 3].map((i) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
           <Card key={i} className="border-slate-200">
-            <CardHeader>
-              <Skeleton className="h-5 w-32" />
+            <CardHeader className="pb-2">
+              <Skeleton className="h-4 w-24" />
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Skeleton className="h-8 w-24" />
-              <Skeleton className="h-2 w-full" />
+            <CardContent>
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-4 w-20 mt-2" />
             </CardContent>
           </Card>
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {[1, 2].map((i) => (
+        {[...Array(2)].map((_, i) => (
           <Card key={i} className="border-slate-200">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-8 w-16" />
-              </div>
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-48 mt-2" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-64 w-full rounded-lg" />
+              <Skeleton className="h-80 w-full" />
             </CardContent>
           </Card>
         ))}
       </div>
     </div>
   );
-}
-
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
 }
