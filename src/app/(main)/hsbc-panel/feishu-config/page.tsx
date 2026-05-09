@@ -915,75 +915,161 @@ export default function FeishuConfigPage() {
 
         {/* 应用配置 */}
         <TabsContent value="app-config" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>飞书企业应用配置</CardTitle>
-              <CardDescription>
-                配置飞书自建企业应用的 App ID 和 App Secret
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="appId">App ID</Label>
-                <Input
-                  id="appId"
-                  value={appId}
-                  onChange={(e) => setAppId(e.target.value)}
-                  placeholder="请输入飞书应用的 App ID"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="appSecret">App Secret</Label>
-                <Input
-                  id="appSecret"
-                  type="password"
-                  value={appSecret}
-                  onChange={(e) => setAppSecret(e.target.value)}
-                  placeholder="请输入飞书应用的 App Secret（留空则不修改）"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="sendMode">消息发送模式</Label>
-                <Select value={sendMode} onValueChange={(v: 'private' | 'webhook') => setSendMode(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="private">私聊消息（通过企业应用）</SelectItem>
-                    <SelectItem value="webhook">群聊消息（通过Webhook）</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {sendMode === 'webhook' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* MySQL数据库配置 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="w-5 h-5" />
+                  MySQL数据库配置
+                </CardTitle>
+                <CardDescription>
+                  配置MySQL数据库连接信息
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="webhookUrl">Webhook URL</Label>
+                  <Label htmlFor="mysqlHost">主机地址</Label>
                   <Input
-                    id="webhookUrl"
-                    value={webhookUrl}
-                    onChange={(e) => setWebhookUrl(e.target.value)}
-                    placeholder="请输入飞书群聊机器人 Webhook URL"
+                    id="mysqlHost"
+                    defaultValue="rr-uf62f73r85y150vi6do.mysql.rds.aliyuncs.com"
+                    placeholder="请输入MySQL主机地址"
                   />
                 </div>
-              )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mysqlPort">端口</Label>
+                  <Input
+                    id="mysqlPort"
+                    type="number"
+                    defaultValue="3306"
+                    placeholder="请输入MySQL端口"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mysqlUser">用户名</Label>
+                  <Input
+                    id="mysqlUser"
+                    defaultValue="scholar"
+                    placeholder="请输入MySQL用户名"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mysqlPassword">密码</Label>
+                  <Input
+                    id="mysqlPassword"
+                    type="password"
+                    defaultValue="q5tM&Z0xV7cHdZ0u"
+                    placeholder="请输入MySQL密码"
+                  />
+                </div>
 
-              <Button onClick={saveAppConfig} disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    保存中...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    保存配置
-                  </>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        const host = (document.getElementById('mysqlHost') as HTMLInputElement).value;
+                        const port = parseInt((document.getElementById('mysqlPort') as HTMLInputElement).value);
+                        const user = (document.getElementById('mysqlUser') as HTMLInputElement).value;
+                        const password = (document.getElementById('mysqlPassword') as HTMLInputElement).value;
+                        
+                        const response = await fetch('/api/mysql-test', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ host, port, user, password }),
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                          toast.success('数据库连接成功！');
+                        } else {
+                          toast.error(data.message || '数据库连接失败');
+                        }
+                      } catch (error) {
+                        toast.error('测试连接失败');
+                      }
+                    }}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    测试连接
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* 飞书企业应用配置 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>飞书企业应用配置</CardTitle>
+                <CardDescription>
+                  配置飞书自建企业应用的 App ID 和 App Secret
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="appId">App ID</Label>
+                  <Input
+                    id="appId"
+                    value={appId}
+                    onChange={(e) => setAppId(e.target.value)}
+                    placeholder="请输入飞书应用的 App ID"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="appSecret">App Secret</Label>
+                  <Input
+                    id="appSecret"
+                    type="password"
+                    value={appSecret}
+                    onChange={(e) => setAppSecret(e.target.value)}
+                    placeholder="请输入飞书应用的 App Secret（留空则不修改）"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sendMode">消息发送模式</Label>
+                  <Select value={sendMode} onValueChange={(v: 'private' | 'webhook') => setSendMode(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">私聊消息（通过企业应用）</SelectItem>
+                      <SelectItem value="webhook">群聊消息（通过Webhook）</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {sendMode === 'webhook' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="webhookUrl">Webhook URL</Label>
+                    <Input
+                      id="webhookUrl"
+                      value={webhookUrl}
+                      onChange={(e) => setWebhookUrl(e.target.value)}
+                      placeholder="请输入飞书群聊机器人 Webhook URL"
+                    />
+                  </div>
                 )}
-              </Button>
-            </CardContent>
-          </Card>
+
+                <Button onClick={saveAppConfig} disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      保存中...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      保存配置
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* 多维表格同步 */}
