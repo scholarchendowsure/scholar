@@ -133,6 +133,11 @@ export default function FeishuConfigPage() {
   const [cozeOverdueAmount, setCozeOverdueAmount] = useState('');
   const [cozeOverdueDays, setCozeOverdueDays] = useState('');
 
+  // 贷款查询状态
+  const [loanQueryCode, setLoanQueryCode] = useState('');
+  const [loanQueryLoading, setLoanQueryLoading] = useState(false);
+  const [loanQueryResult, setLoanQueryResult] = useState<any>(null);
+
   // 不需要 lark-cli 授权状态了
 
   // 加载配置
@@ -916,6 +921,10 @@ export default function FeishuConfigPage() {
           <TabsTrigger value="bitable-case-update">
             <ArrowRightLeft className="w-4 h-4 mr-2" />
             多维案件更新
+          </TabsTrigger>
+          <TabsTrigger value="loan-query">
+            <Search className="w-4 h-4 mr-2" />
+            贷款查询
           </TabsTrigger>
 
         </TabsList>
@@ -1901,6 +1910,183 @@ export default function FeishuConfigPage() {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 贷款查询 */}
+        <TabsContent value="loan-query" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="w-5 h-5" />
+                贷款单号查询
+              </CardTitle>
+              <CardDescription>
+                根据贷款单号查询最新的记录信息
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1 space-y-2">
+                  <Label htmlFor="loanQueryCode">贷款单号（loan_code）</Label>
+                  <Input
+                    id="loanQueryCode"
+                    value={loanQueryCode}
+                    onChange={(e) => setLoanQueryCode(e.target.value)}
+                    placeholder="请输入贷款单号，例如：DSL17604390673005279"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button 
+                    onClick={async () => {
+                      if (!loanQueryCode.trim()) {
+                        toast.error('请输入贷款单号');
+                        return;
+                      }
+                      
+                      setLoanQueryLoading(true);
+                      setLoanQueryResult(null);
+                      
+                      try {
+                        const response = await fetch('/api/complex-loan-query', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ loanCode: loanQueryCode }),
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                          setLoanQueryResult(data.data);
+                          toast.success('查询成功');
+                        } else {
+                          toast.error(data.message || '查询失败');
+                        }
+                      } catch (error) {
+                        toast.error('查询失败，请稍后重试');
+                      } finally {
+                        setLoanQueryLoading(false);
+                      }
+                    }}
+                    disabled={loanQueryLoading}
+                  >
+                    {loanQueryLoading ? (
+                      <>
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2"></div>
+                        查询中...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4 mr-2" />
+                        查询
+                      </>
+                    )}
+                  </Button>
+                  {loanQueryResult && (
+                    <Button 
+                      variant="outline" 
+                      className="ml-2"
+                      onClick={() => {
+                        setLoanQueryResult(null);
+                        setLoanQueryCode('');
+                      }}
+                    >
+                      清空
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* 查询结果展示 */}
+              {loanQueryResult && (
+                <div className="space-y-6">
+                  {/* Step 1 结果 */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">Step 1: 查询 application_code</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm text-muted-foreground">贷款单号 (loan_code)</Label>
+                          <div className="font-mono text-lg">{loanQueryResult.step1?.loanCode || '-'}</div>
+                        </div>
+                        <div>
+                          <Label className="text-sm text-muted-foreground">申请编号 (application_code)</Label>
+                          <div className="font-mono text-lg">{loanQueryResult.step1?.applicationCode || '-'}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Step 2 结果 */}
+                  {loanQueryResult.step2 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Step 2: 查询 offer_id（共 {loanQueryResult.step2.offerCount} 个）</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                          {loanQueryResult.step2.offerIds?.map((offerId: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="font-mono text-xs">
+                              {offerId}
+                            </Badge>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Step 3 结果 */}
+                  {loanQueryResult.step3 && loanQueryResult.step3.latestRecords && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Step 3: 最新记录（共 {loanQueryResult.step3.latestCount} 条）</CardTitle>
+                        <CardDescription>
+                          总历史记录: {loanQueryResult.step3.totalRecords} 条
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-auto max-h-[500px]">
+                          <Table>
+                            <TableHeader className="sticky top-0 bg-background">
+                              <TableRow>
+                                <TableHead className="w-[200px]">Offer ID</TableHead>
+                                <TableHead className="w-[180px]">记录日期 (last_updated_on)</TableHead>
+                                <TableHead>记录内容 (latest_dataset)</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {loanQueryResult.step3.latestRecords.map((record: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-mono text-xs">
+                                    {record.offerId}
+                                  </TableCell>
+                                  <TableCell className="font-mono text-xs">
+                                    {record.last_updated_on ? new Date(record.last_updated_on).toLocaleString('zh-CN') : '-'}
+                                  </TableCell>
+                                  <TableCell>
+                                    <details>
+                                      <summary className="cursor-pointer text-sm text-primary hover:underline">
+                                        点击查看 JSON
+                                      </summary>
+                                      <pre className="mt-2 p-3 bg-muted rounded text-xs overflow-auto max-h-[300px]">
+                                        {typeof record.latest_dataset === 'string' 
+                                          ? record.latest_dataset 
+                                          : JSON.stringify(record.latest_dataset, null, 2)}
+                                      </pre>
+                                    </details>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
