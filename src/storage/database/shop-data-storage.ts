@@ -4,7 +4,7 @@ import * as path from 'path';
 // 店铺数据类型
 export interface ShopDataRecord {
   id: string;
-  loanCode: string;
+  userId: string;
   updateTime: string;
   latestDataset: string; // JSON字符串
   createdAt: string;
@@ -77,15 +77,15 @@ function initCache(forceReload = false) {
   }
 }
 
-// 根据贷款单号获取店铺数据（最新的一条）
-export async function getShopDataByLoanCode(
-  loanCode: string
+// 根据用户ID获取店铺数据
+export async function getShopDataByUserId(
+  userId: string
 ): Promise<ShopDataRecord | null> {
   initCache();
   if (!shopDataCache) return null;
   
-  // 过滤该贷款单号的记录
-  const records = shopDataCache.filter(r => r.loanCode === loanCode);
+  // 过滤该用户ID的记录
+  const records = shopDataCache.filter(r => r.userId === userId);
   
   // 按更新时间倒序，取最新的一条
   if (records.length > 0) {
@@ -96,9 +96,9 @@ export async function getShopDataByLoanCode(
   return null;
 }
 
-// 保存店铺数据
-export async function saveShopData(
-  loanCode: string,
+// 保存店铺数据（按用户ID保存）
+export async function saveShopDataByUserId(
+  userId: string,
   updateTime: string,
   latestDataset: string
 ): Promise<ShopDataRecord> {
@@ -112,16 +112,16 @@ export async function saveShopData(
   
   const newRecord: ShopDataRecord = {
     id,
-    loanCode,
+    userId,
     updateTime,
     latestDataset,
     createdAt: now,
     updatedAt: now
   };
   
-  // 检查是否已存在相同贷款单号的记录，如果存在则更新
+  // 检查是否已存在相同用户ID的记录，如果存在则更新
   const existingIndex = shopDataCache.findIndex(
-    r => r.loanCode === loanCode
+    r => r.userId === userId
   );
   
   if (existingIndex >= 0) {
@@ -129,11 +129,11 @@ export async function saveShopData(
     newRecord.id = shopDataCache[existingIndex].id;
     newRecord.createdAt = shopDataCache[existingIndex].createdAt;
     shopDataCache[existingIndex] = newRecord;
-    console.log(`🔄 更新店铺数据: loanCode=${loanCode}`);
+    console.log(`🔄 更新店铺数据: userId=${userId}`);
   } else {
     // 新增记录
     shopDataCache.push(newRecord);
-    console.log(`➕ 新增店铺数据: loanCode=${loanCode}`);
+    console.log(`➕ 新增店铺数据: userId=${userId}`);
   }
   
   // 保存到文件

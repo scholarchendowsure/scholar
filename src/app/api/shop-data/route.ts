@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { 
-  getShopDataByLoanCode, 
-  saveShopData, 
+  getShopDataByUserId, 
+  saveShopDataByUserId, 
   getAllShopData
 } from '@/storage/database/shop-data-storage';
 
-// 获取店铺数据
+// 获取店铺数据（按用户ID查询）
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const loanCode = searchParams.get('loanCode');
+    const userId = searchParams.get('userId');
     
-    if (!loanCode) {
+    if (!userId) {
       // 获取所有店铺数据
       const allData = await getAllShopData();
       return NextResponse.json({
@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // 获取特定贷款单号的店铺数据（不绑定用户，所有用户都能看到）
-    const shopData = await getShopDataByLoanCode(loanCode);
+    // 获取特定用户ID的店铺数据
+    const shopData = await getShopDataByUserId(userId);
     
     return NextResponse.json({
       success: true,
@@ -36,22 +36,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 保存店铺数据
+// 保存店铺数据（按用户ID保存）
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { loanCode, updateTime, latestDataset } = body;
+    const { userId, updateTime, latestDataset } = body;
     
-    if (!loanCode || !updateTime || !latestDataset) {
+    if (!userId || !updateTime || !latestDataset) {
       return NextResponse.json(
-        { success: false, message: '缺少必要参数: loanCode, updateTime, latestDataset' },
+        { success: false, message: '缺少必要参数: userId, updateTime, latestDataset' },
         { status: 400 }
       );
     }
     
-    // 不绑定用户，所有用户共享店铺数据
-    const savedData = await saveShopData(
-      loanCode,
+    // 按用户ID保存店铺数据
+    const savedData = await saveShopDataByUserId(
+      userId,
       updateTime,
       latestDataset
     );

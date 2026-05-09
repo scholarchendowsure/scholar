@@ -544,10 +544,10 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
 
   // 当activeTab切换到shop且有caseData时，自动加载已保存的店铺数据
   useEffect(() => {
-    if (activeTab === 'shop' && caseData?.loanNo && !shopData) {
+    if (activeTab === 'shop' && caseData?.userId && !shopData) {
       loadSavedShopData();
     }
-  }, [activeTab, caseData?.loanNo]);
+  }, [activeTab, caseData?.userId]);
 
   const tabs = [
     { id: 'core', label: '核心信息', color: 'bg-blue-600 text-white' },
@@ -560,12 +560,12 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     { id: 'shop', label: '店铺详情', color: 'bg-violet-600 text-white' },
   ];
   
-  // 获取店铺数据（从数据库加载已保存的数据）
+  // 获取店铺数据（从数据库加载已保存的数据，按用户ID同步）
   const loadSavedShopData = async () => {
-    if (!caseData?.loanNo) return;
+    if (!caseData?.userId) return;
     
     try {
-      const savedRes = await fetch(`/api/shop-data?loanCode=${encodeURIComponent(caseData.loanNo)}`);
+      const savedRes = await fetch(`/api/shop-data?userId=${encodeURIComponent(caseData.userId)}`);
       const savedJson = await savedRes.json();
       
       if (savedJson.success && savedJson.data) {
@@ -625,18 +625,18 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                 _allRecords: allRecords
               });
               
-              // 保存到数据库，供其他用户同步使用
+              // 保存到数据库，按用户ID同步，相同用户ID的所有案件共享同一店铺数据
               try {
                 await fetch('/api/shop-data', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    loanCode: caseData.loanNo,
+                    userId: caseData.userId,
                     updateTime: latestRecord.update_time,
                     latestDataset: latestRecord.latest_dataset
                   })
                 });
-                console.log('✅ 店铺数据已保存到数据库');
+                console.log('✅ 店铺数据已按用户ID保存到数据库');
               } catch (saveErr) {
                 console.error('保存店铺数据到数据库失败:', saveErr);
               }
