@@ -3,7 +3,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 
 // 字段映射表（英文→中文）
 const FIELD_MAP: Record<string, string> = {
@@ -109,7 +108,7 @@ interface ShopDataParserProps {
 }
 
 // 格式化金额
-const formatMoney = (value: string | number): string => {
+export const formatMoney = (value: string | number): string => {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '-';
   return new Intl.NumberFormat('zh-CN', {
@@ -139,61 +138,7 @@ const formatPercent = (value: string | number): string => {
   return `${num.toFixed(1)}%`;
 };
 
-// 计算健康评分
-export const calculateHealthScore = (data: ShopData): number => {
-  let score = 60; // 基础分
-  
-  // 迟发数 = 0：+10分
-  if (parseInt(data.ttmLateShipments || '0') === 0) score += 10;
-  
-  // 取消数 = 0：+10分
-  if (parseInt(data.ttmCancellations || '0') === 0) score += 10;
-  
-  // 订单缺陷 = 0：+10分
-  if (parseInt(data.ttmOrderDefects || '0') === 0) score += 10;
-  
-  // 负面反馈 = 0：+5分
-  if (parseInt(data.ttmNegativeFeedback || '0') === 0) score += 5;
-  
-  // 卖家警告 = 0：+5分
-  if (parseInt(data.ttmSellerWarnings || '0') === 0) score += 5;
-  
-  // FBA率 ≥ 95%：+5分
-  const fbaRate = parseFloat(data.last13WeekFbaRate || '0');
-  if (fbaRate >= 95) score += 5;
-  
-  // 退货率 < 10%：+5分
-  const totalOrders = parseInt(data.ttmOrders || '0');
-  const returns = parseInt(data.ttmReturns || '0');
-  if (totalOrders > 0) {
-    const returnRate = (returns / totalOrders) * 100;
-    if (returnRate < 10) score += 5;
-  }
-  
-  return Math.min(score, 100); // 最高100分
-};
-
-// 获取健康评分颜色
-export const getHealthScoreColor = (score: number): string => {
-  if (score >= 90) return 'text-emerald-600';
-  if (score >= 80) return 'text-green-600';
-  if (score >= 70) return 'text-amber-600';
-  if (score >= 60) return 'text-orange-600';
-  return 'text-red-600';
-};
-
-// 获取健康评分背景色
-export const getHealthScoreBgColor = (score: number): string => {
-  if (score >= 90) return 'bg-emerald-100';
-  if (score >= 80) return 'bg-green-100';
-  if (score >= 70) return 'bg-amber-100';
-  if (score >= 60) return 'bg-orange-100';
-  return 'bg-red-100';
-};
-
 export const ShopDataParser: React.FC<ShopDataParserProps> = ({ data }) => {
-  const healthScore = calculateHealthScore(data);
-  
   // 获取月度销售数据
   const monthlySales = [
     { month: '1月', value: parseFloat(data.month1SalesValue || '0') },
@@ -242,50 +187,6 @@ export const ShopDataParser: React.FC<ShopDataParserProps> = ({ data }) => {
 
   return (
     <div className="space-y-6">
-      {/* 健康评分 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">店铺健康评分</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-6">
-            <div className={`flex items-center justify-center w-32 h-32 rounded-full ${getHealthScoreBgColor(healthScore)}`}>
-              <span className={`text-4xl font-bold ${getHealthScoreColor(healthScore)}`}>
-                {healthScore}
-              </span>
-            </div>
-            <div className="flex-1">
-              <div className="mb-2">
-                <span className="text-sm text-slate-500">健康度</span>
-                <Progress value={healthScore} className="h-2 mt-1" />
-              </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-slate-500">店铺状态：</span>
-                  <Badge className={data.sellerStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                    {SELLER_STATUS_MAP[data.sellerStatus] || data.sellerStatus}
-                  </Badge>
-                </div>
-                <div>
-                  <span className="text-slate-500">市场：</span>
-                  <span className="font-medium">{MARKETPLACE_MAP[data.marketplaceCountry] || data.marketplaceCountry}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">店铺年龄：</span>
-                  <span className="font-medium">{formatDays(data.amazonTenure)}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">报告日期：</span>
-                  <span className="font-medium">
-                    {data.reportCardDataDate ? new Date(data.reportCardDataDate).toLocaleDateString('zh-CN') : '-'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* 核心经营指标 */}
       <Card>
         <CardHeader>
@@ -293,6 +194,16 @@ export const ShopDataParser: React.FC<ShopDataParserProps> = ({ data }) => {
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Field label="店铺状态" value={
+              <Badge className={data.sellerStatus === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                {SELLER_STATUS_MAP[data.sellerStatus] || data.sellerStatus}
+              </Badge>
+            } highlight />
+            <Field label="市场" value={MARKETPLACE_MAP[data.marketplaceCountry] || data.marketplaceCountry} />
+            <Field label="店铺年龄" value={formatDays(data.amazonTenure)} />
+            <Field label="报告日期" value={
+              data.reportCardDataDate ? new Date(data.reportCardDataDate).toLocaleDateString('zh-CN') : '-'
+            } />
             <Field label="本年度销售额" value={formatMoney(data.year1SalesValue)} highlight />
             <Field label="上年度销售额" value={formatMoney(data.year2SalesValue)} />
             <Field label="本年度回款" value={formatMoney(data.year1DisbursementsValue)} highlight />

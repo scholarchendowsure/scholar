@@ -562,6 +562,29 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
     
     setShopDataLoading(true);
     try {
+      // 1. 先尝试从数据库获取已保存的店铺数据
+      const savedRes = await fetch(`/api/shop-data?loanCode=${encodeURIComponent(caseData.loanNo)}`);
+      const savedJson = await savedRes.json();
+      
+      if (savedJson.success && savedJson.data) {
+        // 数据库中已有数据，直接显示
+        try {
+          const parsedData = typeof savedJson.data.latestDataset === 'string'
+            ? JSON.parse(savedJson.data.latestDataset)
+            : savedJson.data.latestDataset;
+          setShopData({
+            ...parsedData,
+            _updateTime: savedJson.data.updateTime
+          });
+          toast.success('从数据库加载店铺数据成功');
+          setShopDataLoading(false);
+          return;
+        } catch (e) {
+          console.error('解析已保存的店铺数据失败:', e);
+        }
+      }
+      
+      // 2. 数据库中没有，调用贷款查询API获取
       const res = await fetch('/api/complex-loan-query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -590,6 +613,23 @@ ${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toL
                 _updateTime: latestRecord.update_time,
                 _allRecords: allRecords
               });
+              
+              // 3. 保存到数据库，供其他用户同步使用
+              try {
+                await fetch('/api/shop-data', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    loanCode: caseData.loanNo,
+                    updateTime: latestRecord.update_time,
+                    latestDataset: latestRecord.latest_dataset
+                  })
+                });
+                console.log('✅ 店铺数据已保存到数据库');
+              } catch (saveErr) {
+                console.error('保存店铺数据到数据库失败:', saveErr);
+              }
+              
               toast.success('获取店铺数据成功');
             } catch (e) {
               toast.error('解析店铺数据失败');
