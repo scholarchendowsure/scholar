@@ -2041,7 +2041,16 @@ export default function FeishuConfigPage() {
                   {loanQueryResult.step3 && loanQueryResult.step3.allRecords && (
                     <Card>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Step 3: 全部记录（共 {loanQueryResult.step3.totalRecords} 条）</CardTitle>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">Step 3: 全部记录（共 {loanQueryResult.step3.totalRecords} 条）</CardTitle>
+                          {loanQueryResult.step3.latestDate && (
+                            <span className="text-sm text-muted-foreground">
+                              最新日期: <span className="font-mono text-primary font-semibold">
+                                {new Date(loanQueryResult.step3.latestDate).toLocaleString('zh-CN')}
+                              </span>
+                            </span>
+                          )}
+                        </div>
                       </CardHeader>
                       <CardContent>
                         <div className="overflow-auto max-h-[600px]">
@@ -2049,7 +2058,7 @@ export default function FeishuConfigPage() {
                             <TableHeader className="sticky top-0 bg-background">
                               <TableRow>
                                 <TableHead className="w-[200px]">Offer ID</TableHead>
-                                <TableHead className="w-[180px]">记录日期 (last_updated_on)</TableHead>
+                                <TableHead className="w-[180px]">记录日期 (update_time)</TableHead>
                                 <TableHead>记录内容 (latest_dataset)</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -2060,7 +2069,7 @@ export default function FeishuConfigPage() {
                                     {record.offerId}
                                   </TableCell>
                                   <TableCell className="font-mono text-xs">
-                                    {record.last_updated_on ? new Date(record.last_updated_on).toLocaleString('zh-CN') : '-'}
+                                    {record.update_time ? new Date(record.update_time).toLocaleString('zh-CN') : '-'}
                                   </TableCell>
                                   <TableCell>
                                     <details>

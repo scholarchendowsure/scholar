@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
+interface OfferRecord {
+  latest_dataset: string;
+  update_time: string;
+}
+
 export async function POST(request: NextRequest) {
   let connection: mysql.Connection | null = null;
   
@@ -51,20 +56,26 @@ export async function POST(request: NextRequest) {
     // 第三步：直接执行用户提供的完整查询（无时间限制）
     await connection.query('USE `dsb_amazon_loan`');
     
-    const allRecords: any[] = [];
+    const allRecords: OfferRecord[] = [];
+    let latestDate: string | null = null;
     
     for (const offerId of offerIds) {
       // 完整查询代码（无时间限制）
       const [records] = await connection.execute(
-        'SELECT latest_dataset, last_updated_on ' +
+        'SELECT latest_dataset, update_time ' +
         'FROM dsb_offer_history ' +
         'WHERE offerId = ?',
         [offerId]
       );
       
       if (Array.isArray(records)) {
-        (records as any[]).forEach(record => {
+        (records as OfferRecord[]).forEach(record => {
           allRecords.push(record);
+          
+          // 检查是否是最新日期
+          if (!latestDate || record.update_time > latestDate) {
+            latestDate = record.update_time;
+          }
         });
       }
     }
@@ -88,6 +99,7 @@ export async function POST(request: NextRequest) {
         step3: {
           offerIds,
           totalRecords: allRecords.length,
+          latestDate,
           allRecords
         }
       }
