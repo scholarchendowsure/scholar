@@ -48,18 +48,17 @@ export async function POST(request: NextRequest) {
 
     const offerIds = offerRecords.map((record: any) => record.offer_id);
 
-    // 第三步：在 dsb_amazon_loan.dsb_offer_history 表中查询
+    // 第三步：直接执行用户提供的完整查询（无时间限制）
     await connection.query('USE `dsb_amazon_loan`');
     
-    // 对每个 offerId 查询全部记录
     const allRecords: any[] = [];
     
     for (const offerId of offerIds) {
+      // 完整查询代码（无时间限制）
       const [records] = await connection.execute(
-        'SELECT offerId, last_updated_on, latest_dataset ' +
+        'SELECT latest_dataset, last_updated_on ' +
         'FROM dsb_offer_history ' +
-        'WHERE offerId = ? ' +
-        'ORDER BY last_updated_on DESC',
+        'WHERE offerId = ?',
         [offerId]
       );
       
