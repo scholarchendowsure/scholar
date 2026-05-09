@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,11 +17,14 @@ import {
 import { toast } from 'sonner';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState('');
   const [captchaBg, setCaptchaBg] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [lastClickTime, setLastClickTime] = useState(0);
   const [form, setForm] = useState({
     username: '',
     password: '',
@@ -44,6 +48,26 @@ export default function LoginPage() {
       hsl(${Math.random() * 60 + 260}, 70%, 60%)
     )`;
     setCaptchaBg(bg);
+  };
+
+  // 处理锁头图标点击
+  const handleLockClick = () => {
+    const now = Date.now();
+    // 如果距离上次点击超过1秒，重置计数
+    if (now - lastClickTime > 1000) {
+      setClickCount(1);
+    } else {
+      const newCount = clickCount + 1;
+      setClickCount(newCount);
+      // 连续点击5次，跳转到真实登录页面
+      if (newCount >= 5) {
+        toast.success('即将跳转到真实登录页面...');
+        setTimeout(() => {
+          router.push('/login');
+        }, 500);
+      }
+    }
+    setLastClickTime(now);
   };
 
   // 客户端初始化
@@ -72,7 +96,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo 和标题 */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg mb-4">
+          <div 
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg mb-4 cursor-pointer hover:scale-105 transition-transform"
+            onClick={handleLockClick}
+          >
             <Lock className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-800 mb-2">学者管理系统</h1>
