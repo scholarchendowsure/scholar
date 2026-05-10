@@ -686,9 +686,9 @@ export async function sendFeishuPrivateCard(
             },
             type: btn.type || 'primary'
           };
-          // 如果有value，将其转为对象格式
+          // value 直接使用btn.value
           if (btn.value) {
-            button.value = { action: btn.value };
+            button.value = btn.value;
           }
           return button;
         })
@@ -840,9 +840,9 @@ export async function sendFeishuWebhookCard(
               },
               type: btn.type || 'primary'
             };
-            // 如果有value，将其转为对象格式
+            // value 直接使用btn.value，保持字符串或对象格式
             if (btn.value) {
-              button.value = { action: btn.value };
+              button.value = btn.value;
             }
             return button;
           })
