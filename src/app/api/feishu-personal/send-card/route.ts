@@ -74,49 +74,36 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 构建form内的元素数组
-      const formElements: any[] = [];
+      // 构建form内的元素数组 - button直接放在elements里
+      const formItems: any[] = [];
 
-      // 添加输入框 - 全部使用input
+      // 添加输入框
       for (const sel of selects) {
-        formElements.push({
+        formItems.push({
           tag: 'input',
           name: sel.name || sel.label,
-          placeholder: {
-            tag: 'plain_text',
-            content: sel.placeholder || `请输入${sel.label}`
-          },
-          label: {
-            tag: 'plain_text',
-            content: sel.label
-          }
+          placeholder: { tag: 'plain_text', content: sel.placeholder || `请输入${sel.label}` },
+          label: { tag: 'plain_text', content: sel.label }
         });
       }
 
-      // 添加分割线
-      formElements.push({ tag: 'hr' });
-
-      // 构建按钮（直接放在form.elements内，必须有name）
+      // 添加提交按钮（直接放在formItems里，不是actions）
       if (buttons && buttons.length > 0) {
-        for (const btn of buttons) {
-          formElements.push({
-            tag: 'button',
-            name: 'submit_btn',  // form内的按钮必须有name
-            text: {
-              tag: 'plain_text',
-              content: btn.text
-            },
-            type: 'primary',
-            value: { action: btn.value }
-          });
-        }
+        const btn = buttons[0];
+        formItems.push({
+          tag: 'button',
+          name: 'submit_btn',  // 必须有name
+          text: { tag: 'plain_text', content: btn.text },
+          type: 'primary',
+          value: { action: btn.value }
+        });
       }
 
-      // 用form容器包裹所有输入框和按钮
+      // 最终form结构 - 没有actions字段！
       elements.push({
         tag: 'form',
-        name: 'followup_form',
-        elements: formElements
+        name: 'follow_form',  // 必须有name
+        elements: formItems   // 输入框+按钮 都放这里
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
