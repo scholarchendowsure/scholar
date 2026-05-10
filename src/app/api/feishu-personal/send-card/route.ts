@@ -96,20 +96,20 @@ export async function POST(request: NextRequest) {
       // 添加分割线
       formElements.push({ tag: 'hr' });
 
-      // 构建按钮（放在form.actions内，必须是submit类型）
+      // 构建按钮（放在form.actions内）
       const formActions: any[] = [];
       if (buttons && buttons.length > 0) {
         for (const btn of buttons) {
-          // 提取action值用于回调
-          const actionValue = btn.value?.action || btn.value || 'submit';
+          // form内的按钮需要is_submit标记为提交按钮
           formActions.push({
             tag: 'button',
             text: {
               tag: 'plain_text',
               content: btn.text
             },
-            type: 'primary',  // 按钮样式用primary
-            value: { action: actionValue }  // 统一格式
+            type: 'primary',
+            is_submit: true,  // 标记为提交按钮
+            value: { action: btn.value }
           });
         }
       }
