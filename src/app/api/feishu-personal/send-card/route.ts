@@ -74,18 +74,18 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 构建form内的元素数组
+      // 构建form容器和表单元素
       const formItems: any[] = [];
 
       // 添加选择器/输入框
       for (const sel of selects) {
         if (sel.options && sel.options.length > 0) {
-          // 使用select组件，支持下拉选项
+          // 使用select组件 - 飞书select的正确格式
           formItems.push({
             tag: 'select',
             name: sel.name || sel.label,
             options: sel.options.map((opt: CardSelectOption) => ({
-              text: { tag: 'plain_text', content: opt.text },
+              text: opt.text,
               value: opt.value
             }))
           });
@@ -94,17 +94,25 @@ export async function POST(request: NextRequest) {
           formItems.push({
             tag: 'input',
             name: sel.name || sel.label,
-            placeholder: { tag: 'plain_text', content: sel.placeholder || `请输入${sel.label}` },
-            label: { tag: 'plain_text', content: sel.label }
+            placeholder: sel.placeholder || `请输入${sel.label}`
           });
         }
       }
 
-      // 添加提交按钮（直接放在formItems最后）
+      // 按钮必须放在form外面，用action标签包裹
+      // 但按钮的value需要通过其他方式传递
+
+      // 先添加表单元素（放在form外）
+      for (const item of formItems) {
+        elements.push(item);
+      }
+
+      // 用form包裹按钮
+      const formActions: any[] = [];
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
         const btnValue = typeof btn.value === 'string' ? { action: btn.value } : btn.value;
-        formItems.push({
+        formActions.push({
           tag: 'button',
           name: 'submit',
           text: { tag: 'plain_text', content: btn.text },
@@ -113,11 +121,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 最终form结构
+      // form只包含按钮
       elements.push({
         tag: 'form',
         name: 'followup_form',
-        elements: formItems
+        elements: formActions
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
