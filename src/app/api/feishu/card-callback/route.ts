@@ -14,13 +14,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    console.log('🎯 收到飞书卡片回调:', JSON.stringify(body, null, 2));
+    console.log('🎯 收到飞书回调:', JSON.stringify(body, null, 2));
 
-    // 1. 处理URL验证（首次配置回调时）
-    if (body.type === 'url_verification') {
-      console.log('🔐 URL验证请求');
+    // 1. 处理URL验证（首次配置回调时）- 支持两种格式
+    const isUrlVerification =
+      body.type === 'url_verification' ||
+      body.schema === '2.0' && body.header?.event_type === 'url_verification';
+
+    if (isUrlVerification) {
+      // 格式1（老版本）
+      const challenge = body.challenge || body.event?.challenge;
+      console.log('🔐 URL验证请求, challenge:', challenge);
       return NextResponse.json({
-        challenge: body.challenge,
+        challenge: challenge,
       });
     }
 
