@@ -641,39 +641,39 @@ export async function sendFeishuPrivateCard(
     });
   }
 
-  // 使用 form 容器包裹所有交互元素
+  // 添加跟进表单
   if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
     const formElements: any[] = [];
 
     // 添加表单说明
-    if (selects && selects.length > 0) {
-      formElements.push({
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: '**请填写以下跟进信息：**'
-        }
-      });
+    formElements.push({
+      tag: 'div',
+      text: {
+        tag: 'lark_md',
+        content: '**请填写以下跟进信息：**'
+      }
+    });
 
-      // 添加输入框
+    // 添加输入框（跟进结果使用textarea多行输入，其他使用input单行）
+    if (selects && selects.length > 0) {
       for (const sel of selects) {
+        const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
         formElements.push({
-          tag: 'input',
-          placeholder: {
-            tag: 'plain_text',
-            content: sel.placeholder || `请输入${sel.label}`
-          },
+          tag: isLongText ? 'textarea' : 'input',
           name: sel.name || sel.label,
           label: {
             tag: 'plain_text',
             content: sel.label
           },
-          label_position: 'left'
+          placeholder: {
+            tag: 'plain_text',
+            content: sel.placeholder || `请输入${sel.label}`
+          }
         });
       }
     }
 
-    // 添加按钮到表单内
+    // 添加按钮到 action 标签内
     if (buttons && buttons.length > 0) {
       formElements.push({
         tag: 'action',
@@ -690,6 +690,9 @@ export async function sendFeishuPrivateCard(
           if (btn.value) {
             button.value = btn.value;
           }
+          if (btn.url) {
+            button.url = btn.url;
+          }
           return button;
         })
       });
@@ -697,33 +700,7 @@ export async function sendFeishuPrivateCard(
 
     elements.push({
       tag: 'form',
-      name: 'followup_form',
       elements: formElements
-    });
-  }
-
-  // 添加按钮（仅在没有表单元素时）
-  if (buttons && buttons.length > 0 && !(selects && selects.length > 0)) {
-    elements.push({
-      tag: 'action',
-      layout: 'default',
-      actions: buttons.map(btn => {
-        const button: any = {
-          tag: 'button',
-          text: {
-            tag: 'plain_text',
-            content: btn.text
-          },
-          type: btn.type || 'primary'
-        };
-        if (btn.url) {
-          button.url = btn.url;
-        }
-        if (btn.value) {
-          button.value = btn.value;
-        }
-        return button;
-      })
     });
   }
 
@@ -822,39 +799,39 @@ export async function sendFeishuWebhookCard(
       });
     }
 
-    // 使用 form 容器包裹所有交互元素
+    // 添加跟进表单
     if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
       const formElements: any[] = [];
 
       // 添加表单说明
-      if (selects && selects.length > 0) {
-        formElements.push({
-          tag: 'div',
-          text: {
-            tag: 'lark_md',
-            content: '**请填写以下跟进信息：**'
-          }
-        });
+      formElements.push({
+        tag: 'div',
+        text: {
+          tag: 'lark_md',
+          content: '**请填写以下跟进信息：**'
+        }
+      });
 
-        // 添加输入框
+      // 添加输入框（跟进结果使用textarea多行输入，其他使用input单行）
+      if (selects && selects.length > 0) {
         for (const sel of selects) {
+          const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
           formElements.push({
-            tag: 'input',
-            placeholder: {
-              tag: 'plain_text',
-              content: sel.placeholder || `请输入${sel.label}`
-            },
+            tag: isLongText ? 'textarea' : 'input',
             name: sel.name || sel.label,
             label: {
               tag: 'plain_text',
               content: sel.label
             },
-            label_position: 'left'
+            placeholder: {
+              tag: 'plain_text',
+              content: sel.placeholder || `请输入${sel.label}`
+            }
           });
         }
       }
 
-      // 添加按钮到表单内
+      // 添加按钮到 action 标签内
       if (buttons && buttons.length > 0) {
         formElements.push({
           tag: 'action',
@@ -871,6 +848,9 @@ export async function sendFeishuWebhookCard(
             if (btn.value) {
               button.value = btn.value;
             }
+            if (btn.url) {
+              button.url = btn.url;
+            }
             return button;
           })
         });
@@ -878,33 +858,7 @@ export async function sendFeishuWebhookCard(
 
       elements.push({
         tag: 'form',
-        name: 'followup_form',
         elements: formElements
-      });
-    }
-
-    // 添加按钮（仅在没有表单元素时）
-    if (buttons && buttons.length > 0 && !(selects && selects.length > 0)) {
-      elements.push({
-        tag: 'action',
-        layout: 'default',
-        actions: buttons.map(btn => {
-          const button: any = {
-            tag: 'button',
-            text: {
-              tag: 'plain_text',
-              content: btn.text
-            },
-            type: btn.type || 'primary'
-          };
-          if (btn.url) {
-            button.url = btn.url;
-          }
-          if (btn.value) {
-            button.value = btn.value;
-          }
-          return button;
-        })
       });
     }
 
