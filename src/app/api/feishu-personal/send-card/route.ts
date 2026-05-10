@@ -78,37 +78,27 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 添加可输入的下拉选择
+      // 构建表单内的输入框
+      const inputElements: any[] = [];
       for (const sel of selects) {
-        elements.push({
-          tag: 'div',
-          text: {
-            tag: 'plain_text',
-            content: sel.label
-          }
-        });
-        elements.push({
+        inputElements.push({
           tag: 'input',
           placeholder: {
             tag: 'plain_text',
-            content: sel.placeholder
+            content: sel.placeholder || `请输入${sel.label}`
           },
-          name: sel.name || sel.label
+          name: sel.name || sel.label,
+          label: {
+            tag: 'plain_text',
+            content: sel.label
+          },
+          label_position: 'left'
         });
       }
-    }
 
-    // 添加分割线
-    if (buttons && buttons.length > 0) {
-      elements.push({ tag: 'hr' });
-    }
-
-    // 添加按钮
-    if (buttons && buttons.length > 0) {
-      elements.push({
-        tag: 'action',
-        layout: 'default',
-        actions: buttons.map((btn: CardButton) => {
+      // 添加按钮到表单内
+      if (buttons && buttons.length > 0) {
+        const buttonActions = buttons.map((btn: CardButton) => {
           const button: any = {
             tag: 'button',
             text: {
@@ -117,14 +107,47 @@ export async function POST(request: NextRequest) {
             },
             type: btn.type || 'primary'
           };
-          if (btn.url) {
-            button.url = btn.url;
-          }
           if (btn.value) {
             button.value = btn.value;
           }
           return button;
-        })
+        });
+
+        // 将按钮也加入表单
+        inputElements.push({
+          tag: 'action',
+          layout: 'right',
+          actions: buttonActions
+        });
+      }
+
+      // 使用 form 容器包裹所有元素
+      elements.push({
+        tag: 'form',
+        name: 'followup_form',
+        elements: inputElements
+      });
+    } else if (buttons && buttons.length > 0) {
+      // 没有表单元素时，直接添加按钮
+      const buttonActions = buttons.map((btn: CardButton) => {
+        const button: any = {
+          tag: 'button',
+          text: {
+            tag: 'plain_text',
+            content: btn.text
+          },
+          type: btn.type || 'primary'
+        };
+        if (btn.value) {
+          button.value = btn.value;
+        }
+        return button;
+      });
+
+      elements.push({
+        tag: 'action',
+        layout: 'default',
+        actions: buttonActions
       });
     }
 

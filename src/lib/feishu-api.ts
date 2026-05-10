@@ -641,48 +641,69 @@ export async function sendFeishuPrivateCard(
     });
   }
 
-  // 添加分割线（字段和表单之间）
+  // 使用 form 容器包裹所有交互元素
   if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-    elements.push({ tag: 'hr' });
-  }
+    const formElements: any[] = [];
 
-  // 添加表单说明
-  if (selects && selects.length > 0) {
-    elements.push({
-      tag: 'div',
-      text: {
-        tag: 'lark_md',
-        content: '**请填写以下跟进信息：**'
-      }
-    });
-
-    // 添加下拉选择
-    for (const sel of selects) {
-      elements.push({
+    // 添加表单说明
+    if (selects && selects.length > 0) {
+      formElements.push({
         tag: 'div',
         text: {
-          tag: 'plain_text',
-          content: sel.label
+          tag: 'lark_md',
+          content: '**请填写以下跟进信息：**'
         }
       });
-      elements.push({
-        tag: 'input',
-        placeholder: {
-          tag: 'plain_text',
-          content: sel.placeholder
-        },
-        name: sel.name || sel.label
+
+      // 添加输入框
+      for (const sel of selects) {
+        formElements.push({
+          tag: 'input',
+          placeholder: {
+            tag: 'plain_text',
+            content: sel.placeholder || `请输入${sel.label}`
+          },
+          name: sel.name || sel.label,
+          label: {
+            tag: 'plain_text',
+            content: sel.label
+          },
+          label_position: 'left'
+        });
+      }
+    }
+
+    // 添加按钮到表单内
+    if (buttons && buttons.length > 0) {
+      formElements.push({
+        tag: 'action',
+        layout: 'right',
+        actions: buttons.map(btn => {
+          const button: any = {
+            tag: 'button',
+            text: {
+              tag: 'plain_text',
+              content: btn.text
+            },
+            type: btn.type || 'primary'
+          };
+          if (btn.value) {
+            button.value = btn.value;
+          }
+          return button;
+        })
       });
     }
+
+    elements.push({
+      tag: 'form',
+      name: 'followup_form',
+      elements: formElements
+    });
   }
 
-  // 添加分割线
-  if (buttons && buttons.length > 0) {
-    elements.push({ tag: 'hr' });
-  }
-
-  // 添加按钮
-  if (buttons && buttons.length > 0) {
+  // 添加按钮（仅在没有表单元素时）
+  if (buttons && buttons.length > 0 && !(selects && selects.length > 0)) {
     elements.push({
       tag: 'action',
       layout: 'default',
@@ -801,54 +822,69 @@ export async function sendFeishuWebhookCard(
       });
     }
 
-    // 添加分割线（字段和表单之间）
+    // 使用 form 容器包裹所有交互元素
     if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-      elements.push({ tag: 'hr' });
-    }
+      const formElements: any[] = [];
 
-    // 添加表单说明
-    if (selects && selects.length > 0) {
-      elements.push({
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: '**请填写以下跟进信息：**'
-        }
-      });
-
-      // 添加下拉选择
-      for (const sel of selects) {
-        elements.push({
+      // 添加表单说明
+      if (selects && selects.length > 0) {
+        formElements.push({
           tag: 'div',
           text: {
-            tag: 'plain_text',
-            content: sel.label
+            tag: 'lark_md',
+            content: '**请填写以下跟进信息：**'
           }
         });
-        elements.push({
-          tag: 'select_text',
-          placeholder: {
-            tag: 'plain_text',
-            content: sel.placeholder || '请选择或输入'
-          },
-          options: sel.options.map(opt => ({
-            text: {
+
+        // 添加输入框
+        for (const sel of selects) {
+          formElements.push({
+            tag: 'input',
+            placeholder: {
               tag: 'plain_text',
-              content: opt.text
+              content: sel.placeholder || `请输入${sel.label}`
             },
-            value: opt.value
-          }))
+            name: sel.name || sel.label,
+            label: {
+              tag: 'plain_text',
+              content: sel.label
+            },
+            label_position: 'left'
+          });
+        }
+      }
+
+      // 添加按钮到表单内
+      if (buttons && buttons.length > 0) {
+        formElements.push({
+          tag: 'action',
+          layout: 'right',
+          actions: buttons.map(btn => {
+            const button: any = {
+              tag: 'button',
+              text: {
+                tag: 'plain_text',
+                content: btn.text
+              },
+              type: btn.type || 'primary'
+            };
+            if (btn.value) {
+              button.value = btn.value;
+            }
+            return button;
+          })
         });
       }
+
+      elements.push({
+        tag: 'form',
+        name: 'followup_form',
+        elements: formElements
+      });
     }
 
-    // 添加分割线（表单和按钮之间）
-    if ((selects && selects.length > 0) && (buttons && buttons.length > 0)) {
-      elements.push({ tag: 'hr' });
-    }
-
-    // 添加按钮
-    if (buttons && buttons.length > 0) {
+    // 添加按钮（仅在没有表单元素时）
+    if (buttons && buttons.length > 0 && !(selects && selects.length > 0)) {
       elements.push({
         tag: 'action',
         layout: 'default',
