@@ -90,13 +90,13 @@ export async function POST(request: NextRequest) {
       // 按钮放在form内
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
-        const btnValue = typeof btn.value === 'string' ? { action: btn.value } : btn.value;
+        // 按钮value使用简单字符串
         formItems.push({
           tag: 'button',
           name: 'submit',
           text: { tag: 'plain_text', content: btn.text },
           type: 'primary',
-          value: btnValue
+          value: btn.value
         });
       }
 
