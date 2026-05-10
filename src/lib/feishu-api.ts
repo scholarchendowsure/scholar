@@ -716,6 +716,7 @@ export async function sendFeishuPrivateCard(
   console.log('📋 卡片JSON长度:', cardJson.length);
 
   // 使用飞书SDK发送卡片消息
+  // 飞书API要求content是JSON字符串，SDK会内部处理序列化
   let data;
   try {
     const client = await getLarkClient();
@@ -725,8 +726,11 @@ export async function sendFeishuPrivateCard(
       data: {
         receive_id: receiveId,
         msg_type: 'interactive',
-        content: cardJson,
+        content: cardJson,  // SDK会内部JSON.stringify
         uuid: Date.now().toString(),
+      },
+      headers: {
+        'Content-Type': 'application/json',
       },
     });
     data = resp;
@@ -742,7 +746,7 @@ export async function sendFeishuPrivateCard(
       body: JSON.stringify({
         receive_id: receiveId,
         msg_type: 'interactive',
-        content: cardJson,
+        content: cardJson,  // cardJson已经是字符串
         uuid: Date.now().toString(),
       }),
     });
@@ -871,7 +875,7 @@ export async function sendFeishuWebhookCard(
       },
       body: JSON.stringify({
         msg_type: 'interactive',
-        card: card,
+        card: cardJson, // 必须是字符串，不能是对象
       }),
     });
 
