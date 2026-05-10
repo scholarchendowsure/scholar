@@ -96,11 +96,12 @@ export async function POST(request: NextRequest) {
       // 添加分割线
       formElements.push({ tag: 'hr' });
 
-      // 构建按钮（直接放在form.elements内，不是actions）
+      // 构建按钮（直接放在form.elements内，必须有name）
       if (buttons && buttons.length > 0) {
         for (const btn of buttons) {
           formElements.push({
             tag: 'button',
+            name: 'submit_btn',  // form内的按钮必须有name
             text: {
               tag: 'plain_text',
               content: btn.text
