@@ -1,6 +1,8 @@
 // 飞书企业应用API服务
 // 完整实现飞书自建企业应用功能
 
+import { getLarkClient } from './lark-client';
+
 const FEISHU_API_BASE = 'https://open.feishu.cn/open-apis';
 
 // 简单的加密/解密函数（生产环境应该使用更安全的方案）
@@ -502,40 +504,34 @@ export async function sendFeishuPrivateMessage(
   content: string,
   receiveIdType: 'user_id' | 'open_id' | 'union_id' = 'open_id'
 ): Promise<FeishuMessage> {
-  const accessToken = await getTenantAccessToken(appId, appSecret);
-
-  console.log('📤 开始发送飞书私聊消息');
+  console.log('📤 开始发送飞书私聊消息 (SDK)');
   console.log('👤 接收者ID:', receiveId);
   console.log('🆔 ID类型:', receiveIdType);
   console.log('💬 消息内容:', content);
 
-  const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+  const client = await getLarkClient();
+
+  const res = await (client as any).im.v1.message.create({
+    params: {
+      receive_id_type: receiveIdType,
     },
-    body: JSON.stringify({
+    data: {
       receive_id: receiveId,
       msg_type: 'text',
       content: JSON.stringify({ text: content }),
-      uuid: Date.now().toString(),
-    }),
+    },
   });
 
-  console.log('📡 消息API响应状态:', response.status);
-  
-  const data = await response.json();
-  console.log('📊 消息API完整响应:', JSON.stringify(data, null, 2));
-  
-  if (data.code !== 0) {
-    throw new Error(`发送飞书消息失败: code=${data.code}, msg=${data.msg}`);
+  console.log('📊 消息SDK响应:', JSON.stringify(res, null, 2));
+
+  if (res.code !== 0) {
+    throw new Error(`发送飞书消息失败: code=${res.code}, msg=${res.msg}`);
   }
 
-  console.log('✅ 飞书私聊消息发送成功，消息ID:', data.data.message_id);
+  console.log('✅ 飞书私聊消息发送成功，消息ID:', res.data?.message_id);
 
   return {
-    msgId: data.data.message_id,
+    msgId: res.data?.message_id ?? '',
     receiveId,
   };
 }
@@ -738,24 +734,40 @@ export async function sendFeishuPrivateCard(
   console.log('📋 完整卡片JSON:', cardJson);
   console.log('📋 卡片JSON长度:', cardJson.length);
 
-  const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      receive_id: receiveId,
-      msg_type: 'interactive',
-      content: cardJson,
-      uuid: Date.now().toString(),
-    }),
-  });
-
-  console.log('📡 卡片消息API响应状态:', response.status);
-
-  const data = await response.json();
-  console.log('📊 卡片消息API完整响应:', JSON.stringify(data, null, 2));
+  // 使用飞书SDK发送卡片消息
+  let data;
+  try {
+    const client = await getLarkClient();
+    const resp = await client.request({
+      method: 'POST',
+      url: `/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`,
+      data: {
+        receive_id: receiveId,
+        msg_type: 'interactive',
+        content: cardJson,
+        uuid: Date.now().toString(),
+      },
+    });
+    data = resp;
+    console.log('📡 飞书SDK卡片消息API响应:', JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.warn('⚠️ 飞书SDK发送失败，回退到fetch:', error);
+    const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        receive_id: receiveId,
+        msg_type: 'interactive',
+        content: cardJson,
+        uuid: Date.now().toString(),
+      }),
+    });
+    data = await response.json();
+    console.log('📡 卡片消息API响应(fetch回退):', JSON.stringify(data, null, 2));
+  }
 
   if (data.code !== 0) {
     throw new Error(`发送飞书卡片消息失败: code=${data.code}, msg=${data.msg}`);
