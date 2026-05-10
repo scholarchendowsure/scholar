@@ -7,8 +7,8 @@ import {
   getMappingByMerchantId
 } from '@/storage/database/feishu-config-storage';
 import { 
-  sendFeishuWebhookMessage, 
-  sendFeishuPrivateMessage 
+  sendFeishuWebhookCard, 
+  sendFeishuPrivateCard 
 } from '@/lib/feishu-api';
 import { formatCurrency } from '@/lib/constants';
 import { format } from 'date-fns';
@@ -106,38 +106,67 @@ export async function POST(request: NextRequest) {
       const salesName = feishuMapping.feishuUserName || feishuMapping.salesName;
       const feishuUserId = feishuMapping.feishuUserId;
       
-      // 构建消息
+      // 构建卡片消息内容
       const balance = loan.balance || loan.loanAmount;
-      const message = `${salesName}，${loan.merchantId}有一笔${formatCurrency(balance)}${loan.loanCurrency || 'CNY'}在${format(new Date(loan.maturityDate), 'yyyy-MM-dd')}需要到期还款，记得要及时跟进`;
+      const maturityDateStr = format(new Date(loan.maturityDate), 'yyyy-MM-dd');
+      const currency = loan.loanCurrency || 'CNY';
+      const currencySymbol = currency === 'CNY' ? '元' : currency === 'USD' ? '美元' : currency;
       
-      console.log(`📤 发送消息给 ${salesName} (${feishuUserId}):`, message);
+      // 构建跟进链接（使用域名环境变量）
+      const domain = process.env.COZE_PROJECT_DOMAIN_DEFAULT || '';
+      const followLink = domain ? `https://${domain}/followup/${loan.id}?follower=${encodeURIComponent(salesName)}` : '';
+      
+      console.log(`📤 发送交互卡片给 ${salesName} (${feishuUserId})`);
 
       try {
         // 根据发送模式选择发送方式
         if (config.sendMode === 'private' && credentials.appId && credentials.appSecret) {
-          // 发送私聊消息
-          await sendFeishuPrivateMessage(
+          // 发送私聊交互卡片
+          await sendFeishuPrivateCard(
             credentials.appId,
             credentials.appSecret,
             feishuUserId,
-            message
+            '还款提醒',
+            [
+              { label: '接收人', value: salesName },
+              { label: '商户ID', value: loan.merchantId },
+              { label: '待还款金额', value: `${formatCurrency(balance)} ${currencySymbol}` },
+              { label: '到期日', value: maturityDateStr }
+            ],
+            followLink ? [
+              { text: '立即跟进', url: followLink, type: 'primary' }
+            ] : [],
+            'blue'
           );
           sentCount++;
-          console.log(`✅ 私聊消息发送成功: ${salesName}`);
+          console.log(`✅ 私聊交互卡片发送成功: ${salesName}`);
         } else if (config.webhookUrl) {
-          // 发送群聊消息
-          const result = await sendFeishuWebhookMessage(config.webhookUrl, message);
+          // 发送群聊交互卡片
+          const result = await sendFeishuWebhookCard(
+            config.webhookUrl,
+            '还款提醒',
+            [
+              { label: '接收人', value: salesName },
+              { label: '商户ID', value: loan.merchantId },
+              { label: '待还款金额', value: `${formatCurrency(balance)} ${currencySymbol}` },
+              { label: '到期日', value: maturityDateStr }
+            ],
+            followLink ? [
+              { text: '立即跟进', url: followLink, type: 'primary' }
+            ] : [],
+            'blue'
+          );
           if (result.success) {
             sentCount++;
-            console.log(`✅ 群聊消息发送成功: ${salesName}`);
+            console.log(`✅ 群聊交互卡片发送成功: ${salesName}`);
           } else {
             failedCount++;
-            console.log(`❌ 群聊消息发送失败: ${salesName}`);
+            console.log(`❌ 群聊交互卡片发送失败: ${salesName}`);
           }
         }
       } catch (error) {
         failedCount++;
-        console.error(`❌ 消息发送失败: ${salesName}`, error);
+        console.error(`❌ 交互卡片发送失败: ${salesName}`, error);
       }
     }
 

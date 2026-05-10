@@ -587,6 +587,218 @@ export async function sendFeishuWebhookMessage(
   }
 }
 
+interface CardField {
+  label: string;
+  value: string;
+}
+
+interface CardButton {
+  text: string;
+  url: string;
+  type?: 'primary' | 'default' | 'danger';
+}
+
+/**
+ * 发送飞书私聊交互卡片消息
+ */
+export async function sendFeishuPrivateCard(
+  appId: string,
+  appSecret: string,
+  receiveId: string,
+  title: string,
+  fields: CardField[],
+  buttons: CardButton[],
+  template: string = 'blue',
+  receiveIdType: 'user_id' | 'open_id' | 'union_id' = 'open_id'
+): Promise<FeishuMessage> {
+  const accessToken = await getTenantAccessToken(appId, appSecret);
+
+  console.log('📤 开始发送飞书私聊交互卡片');
+  console.log('👤 接收者ID:', receiveId);
+
+  // 构建卡片元素
+  const elements: any[] = [];
+
+  // 添加字段信息
+  if (fields && fields.length > 0) {
+    const mdContent = fields.map(f => `**${f.label}：** ${f.value}`).join('\n');
+    elements.push({
+      tag: 'div',
+      text: {
+        tag: 'lark_md',
+        content: mdContent
+      }
+    });
+  }
+
+  // 添加分割线
+  if (buttons && buttons.length > 0) {
+    elements.push({ tag: 'hr' });
+  }
+
+  // 添加按钮
+  if (buttons && buttons.length > 0) {
+    elements.push({
+      tag: 'action',
+      layout: 'default',
+      actions: buttons.map(btn => ({
+        tag: 'button',
+        text: {
+          tag: 'plain_text',
+          content: btn.text
+        },
+        type: btn.type || 'primary',
+        url: btn.url
+      }))
+    });
+  }
+
+  // 构建卡片内容
+  const card = {
+    config: {
+      wide_screen_mode: true
+    },
+    header: {
+      title: {
+        tag: 'plain_text',
+        content: title
+      },
+      template: template
+    },
+    elements: elements
+  };
+
+  const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      receive_id: receiveId,
+      msg_type: 'interactive',
+      content: JSON.stringify({ card }),
+      uuid: Date.now().toString(),
+    }),
+  });
+
+  console.log('📡 卡片消息API响应状态:', response.status);
+
+  const data = await response.json();
+  console.log('📊 卡片消息API完整响应:', JSON.stringify(data, null, 2));
+
+  if (data.code !== 0) {
+    throw new Error(`发送飞书卡片消息失败: code=${data.code}, msg=${data.msg}`);
+  }
+
+  console.log('✅ 飞书交互卡片发送成功，消息ID:', data.data.message_id);
+
+  return {
+    msgId: data.data.message_id,
+    receiveId,
+  };
+}
+
+/**
+ * 发送飞书Webhook交互卡片消息
+ */
+export async function sendFeishuWebhookCard(
+  webhookUrl: string,
+  title: string,
+  fields: CardField[],
+  buttons: CardButton[],
+  template: string = 'blue'
+): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log('📤 发送飞书Webhook交互卡片');
+
+    // 构建卡片元素
+    const elements: any[] = [];
+
+    // 添加字段信息
+    if (fields && fields.length > 0) {
+      const mdContent = fields.map(f => `**${f.label}：** ${f.value}`).join('\n');
+      elements.push({
+        tag: 'div',
+        text: {
+          tag: 'lark_md',
+          content: mdContent
+        }
+      });
+    }
+
+    // 添加分割线
+    if (buttons && buttons.length > 0) {
+      elements.push({ tag: 'hr' });
+    }
+
+    // 添加按钮
+    if (buttons && buttons.length > 0) {
+      elements.push({
+        tag: 'action',
+        layout: 'default',
+        actions: buttons.map(btn => ({
+          tag: 'button',
+          text: {
+            tag: 'plain_text',
+            content: btn.text
+          },
+          type: btn.type || 'primary',
+          url: btn.url
+        }))
+      });
+    }
+
+    // 构建卡片内容
+    const card = {
+      config: {
+        wide_screen_mode: true
+      },
+      header: {
+        title: {
+          tag: 'plain_text',
+          content: title
+        },
+        template: template
+      },
+      elements: elements
+    };
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        msg_type: 'interactive',
+        card: card,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.code !== 0 && data.StatusCode !== 0) {
+      console.error('❌ 飞书Webhook卡片发送失败:', data);
+      return {
+        success: false,
+        message: data.msg || data.error || '发送失败',
+      };
+    }
+
+    console.log('✅ 飞书Webhook交互卡片发送成功');
+    return {
+      success: true,
+      message: '发送成功',
+    };
+  } catch (error) {
+    console.error('❌ 飞书Webhook卡片发送异常:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : '发送失败',
+    };
+  }
+}
+
 /**
  * 加密App Secret
  */

@@ -1,5 +1,45 @@
 [
   {
+    "id": "5d090f6f-5093-42fb-9cba-a5c384d1ee45",
+    "caseId": "3476a89c-d290-4acd-bfb5-c84702507b94",
+    "userName": "系统",
+    "modifiedAt": "2026-05-10T16:23:05.631Z",
+    "fieldName": "assignedPostLoan",
+    "fieldLabel": "分配贷后",
+    "oldValue": "萧何",
+    "newValue": "高乐"
+  },
+  {
+    "id": "1e6f42ae-8c80-43f6-8b32-43f055b45004",
+    "caseId": "3476a89c-d290-4acd-bfb5-c84702507b94",
+    "userName": "系统",
+    "modifiedAt": "2026-05-10T16:23:05.625Z",
+    "fieldName": "overdueDays",
+    "fieldLabel": "逾期天数",
+    "oldValue": 494,
+    "newValue": 495
+  },
+  {
+    "id": "e14739bd-f6b2-4077-b966-ceb5a868c234",
+    "caseId": "3476a89c-d290-4acd-bfb5-c84702507b94",
+    "userName": "系统",
+    "modifiedAt": "2026-05-10T07:59:22.777Z",
+    "fieldName": "assignedPostLoan",
+    "fieldLabel": "分配贷后",
+    "oldValue": "中堂",
+    "newValue": "萧何"
+  },
+  {
+    "id": "3d6a27dc-47f1-4ac3-ad75-9e16c4353bf0",
+    "caseId": "3476a89c-d290-4acd-bfb5-c84702507b94",
+    "userName": "系统",
+    "modifiedAt": "2026-05-10T07:59:22.776Z",
+    "fieldName": "overdueDays",
+    "fieldLabel": "逾期天数",
+    "oldValue": 520,
+    "newValue": 494
+  },
+  {
     "id": "014d62a9-2794-4c8a-bdf7-5776c9b51f4a",
     "caseId": "01119dc3-0f58-40bd-924e-1b275f013a9e",
     "userName": "系统",

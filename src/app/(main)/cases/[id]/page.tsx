@@ -189,23 +189,30 @@ export default function CaseDetailPage() {
         currencySymbol = currency;
       }
       
-      const message = `【案件跟进提醒】
-${roleName}，辛苦留意：用户 ${caseData.userId} 有 ${Number(balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}${currencySymbol} 待还款，还款日为 ${dueDate}，请及时跟进处理。点击下方链接即可完成登记：${followLink}`;
-
-      // 4. 发送消息
-      const sendResponse = await fetch('/api/feishu-personal/send-message', {
+      // 4. 发送交互卡片消息
+      const sendResponse = await fetch('/api/feishu-personal/send-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           openId: openId,
-          message: message
+          title: '案件跟进提醒',
+          template: 'blue',
+          fields: [
+            { label: '接收人', value: roleName },
+            { label: '用户ID', value: caseData.userId },
+            { label: '待还款金额', value: `${Number(balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ${currencySymbol}` },
+            { label: '还款日', value: dueDate }
+          ],
+          buttons: [
+            { text: '立即跟进', url: followLink, type: 'primary' }
+          ]
         })
       });
 
       const sendResult = await sendResponse.json();
 
       if (sendResult.success) {
-        toast.success(`已发送提醒给 ${roleName}`);
+        toast.success(`已发送交互卡片提醒给 ${roleName}`);
       } else {
         toast.error(sendResult.error || '发送失败');
       }

@@ -7,7 +7,7 @@
     "status": "逾期",
     "totalOutstandingBalance": 24031.46,
     "overdueAmount": 30637.24,
-    "overdueDays": 520,
+    "overdueDays": 495,
     "productName": "通用版跨商宝-默放保理",
     "platform": "EBAY",
     "paymentCompany": "Payoneer",
@@ -38,11 +38,11 @@
     "householdAddress": "广东省珠海市香洲区粤海东路1145号",
     "borrowerPhone": "13828883835",
     "assignedSales": "章平洋",
-    "assignedPostLoan": "中堂",
+    "assignedPostLoan": "高乐",
     "followups": [],
     "id": "3476a89c-d290-4acd-bfb5-c84702507b94",
     "createdAt": "2026-05-06T17:16:13.068Z",
-    "updatedAt": "2026-05-06T17:19:06.850Z"
+    "updatedAt": "2026-05-10T16:23:05.592Z"
   },
   {
     "batchNo": "20260507DCLR",
