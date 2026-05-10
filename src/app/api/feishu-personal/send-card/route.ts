@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       // 添加分割线
       formElements.push({ tag: 'hr' });
 
-      // 构建按钮（放在form.actions内）
+      // 构建按钮（放在form.actions内，必须是submit类型）
       const formActions: any[] = [];
       if (buttons && buttons.length > 0) {
         for (const btn of buttons) {
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
               tag: 'plain_text',
               content: btn.text
             },
-            type: btn.type || 'primary',
+            type: 'submit',  // 必须使用submit类型
             value: btn.value || {}
           });
         }
