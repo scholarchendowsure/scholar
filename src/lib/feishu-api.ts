@@ -677,7 +677,7 @@ export async function sendFeishuPrivateCard(
     body: JSON.stringify({
       receive_id: receiveId,
       msg_type: 'interactive',
-      content: JSON.stringify({ card }),
+      content: JSON.stringify(card),
       uuid: Date.now().toString(),
     }),
   });
