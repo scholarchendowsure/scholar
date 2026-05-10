@@ -74,12 +74,9 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 构建form容器和表单元素
-      const formItems: any[] = [];
-
-      // 添加选择器/输入框 - 全部使用input
+      // 先添加所有输入框（放在form外面）
       for (const sel of selects) {
-        formItems.push({
+        elements.push({
           tag: 'input',
           name: sel.name || sel.label,
           placeholder: { tag: 'plain_text', content: sel.placeholder || `请选择${sel.label}` },
@@ -87,10 +84,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 按钮放在form内
+      // 按钮放在form内（form只包含按钮）
+      const formItems: any[] = [];
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
-        // 按钮value使用简单字符串
         formItems.push({
           tag: 'button',
           name: 'submit',
@@ -100,7 +97,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // form包裹所有元素
       elements.push({
         tag: 'form',
         name: 'followup_form',
