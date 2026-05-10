@@ -74,21 +74,38 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 先添加所有输入框（放在form外面）
+      // 检查是否有任何select有options
+      const hasOptions = selects.some(sel => sel.options && sel.options.length > 0);
+
+      // 构建表单元素
+      const formElements: any[] = [];
+
       for (const sel of selects) {
-        elements.push({
-          tag: 'input',
-          name: sel.name || sel.label,
-          placeholder: { tag: 'plain_text', content: sel.placeholder || `请选择${sel.label}` },
-          label: { tag: 'plain_text', content: sel.label }
-        });
+        if (hasOptions && sel.options && sel.options.length > 0) {
+          // 使用select_static（静态选择器）- 必须在form内
+          formElements.push({
+            tag: 'select_static',
+            name: sel.name || sel.label,
+            options: sel.options.map((opt: CardSelectOption) => ({
+              text: { tag: 'plain_text', content: opt.text },
+              value: opt.value
+            }))
+          });
+        } else {
+          // 使用input（输入框）
+          formElements.push({
+            tag: 'input',
+            name: sel.name || sel.label,
+            placeholder: { tag: 'plain_text', content: sel.placeholder || `请输入${sel.label}` },
+            label: { tag: 'plain_text', content: sel.label }
+          });
+        }
       }
 
-      // 按钮放在form内（form只包含按钮）
-      const formItems: any[] = [];
+      // 添加提交按钮
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
-        formItems.push({
+        formElements.push({
           tag: 'button',
           name: 'submit',
           text: { tag: 'plain_text', content: btn.text },
@@ -97,10 +114,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // 用form包裹所有元素
       elements.push({
         tag: 'form',
         name: 'followup_form',
-        elements: formItems
+        elements: formElements
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
