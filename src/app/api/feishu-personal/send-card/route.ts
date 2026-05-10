@@ -74,33 +74,8 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 检查是否有任何select有options
-      const hasOptions = selects.some(sel => sel.options && sel.options.length > 0);
-
-      // 构建表单元素
+      // 构建form元素（只包含按钮）
       const formElements: any[] = [];
-
-      for (const sel of selects) {
-        if (hasOptions && sel.options && sel.options.length > 0) {
-          // 使用select_static（静态选择器）- 必须在form内
-          formElements.push({
-            tag: 'select_static',
-            name: sel.name || sel.label,
-            options: sel.options.map((opt: CardSelectOption) => ({
-              text: { tag: 'plain_text', content: opt.text },
-              value: opt.value
-            }))
-          });
-        } else {
-          // 使用input（输入框）
-          formElements.push({
-            tag: 'input',
-            name: sel.name || sel.label,
-            placeholder: { tag: 'plain_text', content: sel.placeholder || `请输入${sel.label}` },
-            label: { tag: 'plain_text', content: sel.label }
-          });
-        }
-      }
 
       // 添加提交按钮
       if (buttons && buttons.length > 0) {
@@ -114,11 +89,31 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 用form包裹所有元素
+      // 用form包裹按钮
       elements.push({
         tag: 'form',
         name: 'followup_form',
         elements: formElements
+      });
+
+      // 添加字段说明（用markdown展示所有选项）
+      const fieldInfos: string[] = [];
+      for (const sel of selects) {
+        if (sel.options && sel.options.length > 0) {
+          const optionsText = sel.options.map(o => o.text).join('、');
+          fieldInfos.push(`**${sel.label}：** ${sel.placeholder}\n可选：${optionsText}`);
+        } else {
+          fieldInfos.push(`**${sel.label}：** ${sel.placeholder || `请输入${sel.label}`}`);
+        }
+      }
+
+      // 在form后面添加字段说明（用note或div展示）
+      elements.push({
+        tag: 'div',
+        text: {
+          tag: 'lark_md',
+          content: fieldInfos.join('\n\n')
+        }
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
