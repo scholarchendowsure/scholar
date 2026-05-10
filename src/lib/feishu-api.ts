@@ -641,12 +641,10 @@ export async function sendFeishuPrivateCard(
     });
   }
 
-  // 添加跟进表单
+  // 添加跟进表单 - 使用 div 布局，不使用 form 标签
   if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-    const formElements: any[] = [];
-
     // 添加表单说明
-    formElements.push({
+    elements.push({
       tag: 'div',
       text: {
         tag: 'lark_md',
@@ -654,17 +652,24 @@ export async function sendFeishuPrivateCard(
       }
     });
 
-    // 添加输入框（跟进结果使用textarea多行输入，其他使用input单行）
+    // 添加输入框（直接放在 elements 中，每个输入框独立一行）
     if (selects && selects.length > 0) {
       for (const sel of selects) {
         const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
-        formElements.push({
+        // 使用 note 标签显示标签文字
+        elements.push({
+          tag: 'note',
+          elements: [
+            {
+              tag: 'plain_text',
+              content: sel.label
+            }
+          ]
+        });
+        // 添加输入框
+        elements.push({
           tag: isLongText ? 'textarea' : 'input',
           name: sel.name || sel.label,
-          label: {
-            tag: 'plain_text',
-            content: sel.label
-          },
           placeholder: {
             tag: 'plain_text',
             content: sel.placeholder || `请输入${sel.label}`
@@ -673,9 +678,9 @@ export async function sendFeishuPrivateCard(
       }
     }
 
-    // 添加按钮到 action 标签内
+    // 添加按钮
     if (buttons && buttons.length > 0) {
-      formElements.push({
+      elements.push({
         tag: 'action',
         layout: 'right',
         actions: buttons.map(btn => {
@@ -697,11 +702,6 @@ export async function sendFeishuPrivateCard(
         })
       });
     }
-
-    elements.push({
-      tag: 'form',
-      elements: formElements
-    });
   }
 
   // 构建卡片内容
@@ -799,12 +799,10 @@ export async function sendFeishuWebhookCard(
       });
     }
 
-    // 添加跟进表单
+    // 添加跟进表单 - 使用 div 布局，不使用 form 标签
     if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-      const formElements: any[] = [];
-
       // 添加表单说明
-      formElements.push({
+      elements.push({
         tag: 'div',
         text: {
           tag: 'lark_md',
@@ -812,17 +810,24 @@ export async function sendFeishuWebhookCard(
         }
       });
 
-      // 添加输入框（跟进结果使用textarea多行输入，其他使用input单行）
+      // 添加输入框（直接放在 elements 中，每个输入框独立一行）
       if (selects && selects.length > 0) {
         for (const sel of selects) {
           const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
-          formElements.push({
+          // 使用 note 标签显示标签文字
+          elements.push({
+            tag: 'note',
+            elements: [
+              {
+                tag: 'plain_text',
+                content: sel.label
+              }
+            ]
+          });
+          // 添加输入框
+          elements.push({
             tag: isLongText ? 'textarea' : 'input',
             name: sel.name || sel.label,
-            label: {
-              tag: 'plain_text',
-              content: sel.label
-            },
             placeholder: {
               tag: 'plain_text',
               content: sel.placeholder || `请输入${sel.label}`
@@ -831,9 +836,9 @@ export async function sendFeishuWebhookCard(
         }
       }
 
-      // 添加按钮到 action 标签内
+      // 添加按钮
       if (buttons && buttons.length > 0) {
-        formElements.push({
+        elements.push({
           tag: 'action',
           layout: 'right',
           actions: buttons.map(btn => {
@@ -855,11 +860,6 @@ export async function sendFeishuWebhookCard(
           })
         });
       }
-
-      elements.push({
-        tag: 'form',
-        elements: formElements
-      });
     }
 
     // 构建卡片内容

@@ -63,11 +63,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 添加分割线（字段和表单之间）
-    if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-      elements.push({ tag: 'hr' });
-    }
-
     // 添加表单说明
     if (selects && selects.length > 0) {
       elements.push({
@@ -78,25 +73,30 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 构建表单内的输入框
-      const inputElements: any[] = [];
+      // 直接在 elements 中添加输入框
       for (const sel of selects) {
-        inputElements.push({
+        // 使用 note 标签显示标签文字
+        elements.push({
+          tag: 'note',
+          elements: [
+            {
+              tag: 'plain_text',
+              content: sel.label
+            }
+          ]
+        });
+        // 添加输入框
+        elements.push({
           tag: 'input',
           placeholder: {
             tag: 'plain_text',
             content: sel.placeholder || `请输入${sel.label}`
           },
-          name: sel.name || sel.label,
-          label: {
-            tag: 'plain_text',
-            content: sel.label
-          },
-          label_position: 'left'
+          name: sel.name || sel.label
         });
       }
 
-      // 添加按钮到表单内
+      // 添加按钮
       if (buttons && buttons.length > 0) {
         const buttonActions = buttons.map((btn: CardButton) => {
           const button: any = {
@@ -113,20 +113,12 @@ export async function POST(request: NextRequest) {
           return button;
         });
 
-        // 将按钮也加入表单
-        inputElements.push({
+        elements.push({
           tag: 'action',
           layout: 'right',
           actions: buttonActions
         });
       }
-
-      // 使用 form 容器包裹所有元素
-      elements.push({
-        tag: 'form',
-        name: 'followup_form',
-        elements: inputElements
-      });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
       const buttonActions = buttons.map((btn: CardButton) => {
