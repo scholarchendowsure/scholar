@@ -641,15 +641,20 @@ export async function sendFeishuPrivateCard(
     elements.push({
       tag: 'action',
       layout: 'default',
-      actions: buttons.map(btn => ({
-        tag: 'button',
-        text: {
-          tag: 'plain_text',
-          content: btn.text
-        },
-        type: btn.type || 'primary',
-        url: btn.url
-      }))
+      actions: buttons.map(btn => {
+        const button: any = {
+          tag: 'button',
+          text: {
+            tag: 'plain_text',
+            content: btn.text
+          },
+          type: btn.type || 'primary'
+        };
+        if (btn.url) {
+          button.url = btn.url;
+        }
+        return button;
+      })
     });
   }
 
@@ -668,6 +673,10 @@ export async function sendFeishuPrivateCard(
     elements: elements
   };
 
+  const cardJson = JSON.stringify(card);
+  console.log('📋 完整卡片JSON:', cardJson);
+  console.log('📋 卡片JSON长度:', cardJson.length);
+
   const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`, {
     method: 'POST',
     headers: {
@@ -677,7 +686,7 @@ export async function sendFeishuPrivateCard(
     body: JSON.stringify({
       receive_id: receiveId,
       msg_type: 'interactive',
-      content: JSON.stringify(card),
+      content: cardJson,
       uuid: Date.now().toString(),
     }),
   });
@@ -737,15 +746,20 @@ export async function sendFeishuWebhookCard(
       elements.push({
         tag: 'action',
         layout: 'default',
-        actions: buttons.map(btn => ({
-          tag: 'button',
-          text: {
-            tag: 'plain_text',
-            content: btn.text
-          },
-          type: btn.type || 'primary',
-          url: btn.url
-        }))
+        actions: buttons.map(btn => {
+          const button: any = {
+            tag: 'button',
+            text: {
+              tag: 'plain_text',
+              content: btn.text
+            },
+            type: btn.type || 'primary'
+          };
+          if (btn.url) {
+            button.url = btn.url;
+          }
+          return button;
+        })
       });
     }
 
@@ -763,6 +777,9 @@ export async function sendFeishuWebhookCard(
       },
       elements: elements
     };
+
+    const cardJson = JSON.stringify(card);
+    console.log('📋 Webhook卡片JSON:', cardJson);
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
