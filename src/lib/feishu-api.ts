@@ -626,7 +626,7 @@ export async function sendFeishuPrivateCard(
   console.log('📤 开始发送飞书私聊交互卡片（含表单）');
   console.log('👤 接收者ID:', receiveId);
 
-  // 构建卡片元素
+  // 构建卡片元素 - 使用正确的form结构
   const elements: any[] = [];
 
   // 添加字段信息
@@ -641,9 +641,11 @@ export async function sendFeishuPrivateCard(
     });
   }
 
-  // 添加跟进表单 - 按照飞书官方示例格式
+  // 添加分割线
+  elements.push({ tag: 'hr' });
+
+  // 添加表单说明
   if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-    // 添加表单说明
     elements.push({
       tag: 'div',
       text: {
@@ -652,10 +654,13 @@ export async function sendFeishuPrivateCard(
       }
     });
 
-    // 添加输入框 - 按照飞书官方示例，全部使用input（不用textarea，因为某些版本不支持）
+    // 构建form内部的元素
+    const formElements: any[] = [];
+
+    // 添加输入框 - 全部放在form里面
     if (selects && selects.length > 0) {
       for (const sel of selects) {
-        elements.push({
+        formElements.push({
           tag: 'input',
           name: sel.name || sel.label,
           placeholder: {
@@ -670,30 +675,32 @@ export async function sendFeishuPrivateCard(
       }
     }
 
-    // 添加分割线
-    elements.push({ tag: 'hr' });
-
-    // 添加按钮 - 按钮在action标签内，value是对象
+    // 构建按钮数组
+    const formActions: any[] = [];
     if (buttons && buttons.length > 0) {
-      elements.push({
-        tag: 'action',
-        actions: buttons.map(btn => {
-          const button: any = {
-            tag: 'button',
-            text: {
-              tag: 'plain_text',
-              content: btn.text
-            },
-            type: btn.type || 'primary'
-          };
-          // value 直接使用btn.value
-          if (btn.value) {
-            button.value = btn.value;
-          }
-          return button;
-        })
-      });
+      for (const btn of buttons) {
+        const button: any = {
+          tag: 'button',
+          text: {
+            tag: 'plain_text',
+            content: btn.text
+          },
+          type: btn.type || 'primary'
+        };
+        if (btn.value) {
+          button.value = btn.value;
+        }
+        formActions.push(button);
+      }
     }
+
+    // 把所有输入框和按钮放进form容器
+    elements.push({
+      tag: 'form',
+      name: 'followup_form',
+      elements: formElements,
+      actions: formActions
+    });
   }
 
   // 构建卡片内容
@@ -780,7 +787,7 @@ export async function sendFeishuWebhookCard(
   try {
     console.log('📤 发送飞书Webhook交互卡片');
 
-    // 构建卡片元素
+    // 构建卡片元素 - 使用正确的form结构
     const elements: any[] = [];
 
     // 添加字段信息
@@ -795,9 +802,11 @@ export async function sendFeishuWebhookCard(
       });
     }
 
-    // 添加跟进表单 - 按照飞书官方示例格式
+    // 添加分割线
+    elements.push({ tag: 'hr' });
+
+    // 添加表单说明
     if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-      // 添加表单说明
       elements.push({
         tag: 'div',
         text: {
@@ -806,10 +815,13 @@ export async function sendFeishuWebhookCard(
         }
       });
 
-      // 添加输入框 - 全部使用input（不用textarea，某些版本不支持）
+      // 构建form内部的元素
+      const formElements: any[] = [];
+
+      // 添加输入框 - 全部放在form里面
       if (selects && selects.length > 0) {
         for (const sel of selects) {
-          elements.push({
+          formElements.push({
             tag: 'input',
             name: sel.name || sel.label,
             placeholder: {
@@ -824,30 +836,32 @@ export async function sendFeishuWebhookCard(
         }
       }
 
-      // 添加分割线
-      elements.push({ tag: 'hr' });
-
-      // 添加按钮 - 按钮在action标签内，value是对象
+      // 构建按钮数组
+      const formActions: any[] = [];
       if (buttons && buttons.length > 0) {
-        elements.push({
-          tag: 'action',
-          actions: buttons.map(btn => {
-            const button: any = {
-              tag: 'button',
-              text: {
-                tag: 'plain_text',
-                content: btn.text
-              },
-              type: btn.type || 'primary'
-            };
-            // value 直接使用btn.value，保持字符串或对象格式
-            if (btn.value) {
-              button.value = btn.value;
-            }
-            return button;
-          })
-        });
+        for (const btn of buttons) {
+          const button: any = {
+            tag: 'button',
+            text: {
+              tag: 'plain_text',
+              content: btn.text
+            },
+            type: btn.type || 'primary'
+          };
+          if (btn.value) {
+            button.value = btn.value;
+          }
+          formActions.push(button);
+        }
       }
+
+      // 把所有输入框和按钮放进form容器
+      elements.push({
+        tag: 'form',
+        name: 'followup_form',
+        elements: formElements,
+        actions: formActions
+      });
     }
 
     // 构建卡片内容
