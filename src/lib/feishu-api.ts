@@ -666,7 +666,7 @@ export async function sendFeishuPrivateCard(
         }
       });
       elements.push({
-        tag: 'select_static',
+        tag: 'select_text',
         placeholder: {
           tag: 'plain_text',
           content: sel.placeholder
@@ -832,10 +832,10 @@ export async function sendFeishuWebhookCard(
           }
         });
         elements.push({
-          tag: 'select_static',
+          tag: 'select_text',
           placeholder: {
             tag: 'plain_text',
-            content: sel.placeholder || '请选择'
+            content: sel.placeholder || '请选择或输入'
           },
           options: sel.options.map(opt => ({
             text: {
