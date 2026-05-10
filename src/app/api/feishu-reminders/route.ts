@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
               { label: '待还款金额', value: `${formatCurrency(balance)} ${currencySymbol}` },
               { label: '到期日', value: maturityDateStr }
             ],
-            followLink ? [
+            [
               {
                 text: '提交跟进记录',
                 type: 'primary',
@@ -142,13 +142,8 @@ export async function POST(request: NextRequest) {
                   case_id: loan.id,
                   loan_no: loan.loanReference || loan.id,
                 }
-              },
-              {
-                text: '查看详情',
-                type: 'default',
-                url: followLink
               }
-            ] : [],
+            ],
             'blue',
             'open_id',
             [
@@ -163,6 +158,43 @@ export async function POST(request: NextRequest) {
                   { text: '短信', value: '短信' },
                   { text: '邮件', value: '邮件' },
                   { text: '其他', value: '其他' },
+                ]
+              },
+              {
+                label: '跟进对象',
+                placeholder: '请选择跟进对象',
+                name: 'followup_target',
+                options: [
+                  { text: '借款人', value: '借款人' },
+                  { text: '担保人', value: '担保人' },
+                  { text: '联系人', value: '联系人' },
+                  { text: '其他人', value: '其他人' },
+                ]
+              },
+              {
+                label: '联系状态',
+                placeholder: '请选择联系状态',
+                name: 'contact_status',
+                options: [
+                  { text: '接通', value: '接通' },
+                  { text: '未接通', value: '未接通' },
+                  { text: '停机', value: '停机' },
+                  { text: '空号', value: '空号' },
+                  { text: '无人接听', value: '无人接听' },
+                  { text: '拒接', value: '拒接' },
+                ]
+              },
+              {
+                label: '还款意愿',
+                placeholder: '请选择还款意愿',
+                name: 'repayment_willingness',
+                options: [
+                  { text: '积极', value: '积极' },
+                  { text: '消极', value: '消极' },
+                  { text: '失联', value: '失联' },
+                  { text: '已还款', value: '已还款' },
+                  { text: '承诺还款', value: '承诺还款' },
+                  { text: '暂无', value: '暂无' },
                 ]
               },
               {
@@ -192,7 +224,7 @@ export async function POST(request: NextRequest) {
               { label: '待还款金额', value: `${formatCurrency(balance)} ${currencySymbol}` },
               { label: '到期日', value: maturityDateStr }
             ],
-            followLink ? [
+            [
               {
                 text: '提交跟进记录',
                 type: 'primary',
@@ -201,13 +233,8 @@ export async function POST(request: NextRequest) {
                   case_id: loan.id,
                   loan_no: loan.loanReference || loan.id,
                 }
-              },
-              {
-                text: '查看详情',
-                type: 'default',
-                url: followLink
               }
-            ] : [],
+            ],
             'blue',
             [
               {
@@ -221,6 +248,43 @@ export async function POST(request: NextRequest) {
                   { text: '短信', value: '短信' },
                   { text: '邮件', value: '邮件' },
                   { text: '其他', value: '其他' },
+                ]
+              },
+              {
+                label: '跟进对象',
+                placeholder: '请选择跟进对象',
+                name: 'followup_target',
+                options: [
+                  { text: '借款人', value: '借款人' },
+                  { text: '担保人', value: '担保人' },
+                  { text: '联系人', value: '联系人' },
+                  { text: '其他人', value: '其他人' },
+                ]
+              },
+              {
+                label: '联系状态',
+                placeholder: '请选择联系状态',
+                name: 'contact_status',
+                options: [
+                  { text: '接通', value: '接通' },
+                  { text: '未接通', value: '未接通' },
+                  { text: '停机', value: '停机' },
+                  { text: '空号', value: '空号' },
+                  { text: '无人接听', value: '无人接听' },
+                  { text: '拒接', value: '拒接' },
+                ]
+              },
+              {
+                label: '还款意愿',
+                placeholder: '请选择还款意愿',
+                name: 'repayment_willingness',
+                options: [
+                  { text: '积极', value: '积极' },
+                  { text: '消极', value: '消极' },
+                  { text: '失联', value: '失联' },
+                  { text: '已还款', value: '已还款' },
+                  { text: '承诺还款', value: '承诺还款' },
+                  { text: '暂无', value: '暂无' },
                 ]
               },
               {
