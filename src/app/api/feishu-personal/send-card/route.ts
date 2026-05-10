@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         formItems.push({
           tag: 'input',
           name: sel.name || sel.label,
-          placeholder: sel.placeholder || `请选择${sel.label}`,
+          placeholder: { tag: 'plain_text', content: sel.placeholder || `请选择${sel.label}` },
           label: { tag: 'plain_text', content: sel.label }
         });
       }
