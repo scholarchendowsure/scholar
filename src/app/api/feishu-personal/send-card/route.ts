@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 添加下拉选择
+      // 添加可输入的下拉选择
       for (const sel of selects) {
         elements.push({
           tag: 'div',
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
           }
         });
         elements.push({
-          tag: 'select_static',
+          tag: 'select_text',
           placeholder: {
             tag: 'plain_text',
             content: sel.placeholder
@@ -100,9 +100,7 @@ export async function POST(request: NextRequest) {
             },
             value: opt.value
           })),
-          value: {
-            key: sel.name || sel.label
-          }
+          name: sel.name || sel.label
         });
       }
     }
