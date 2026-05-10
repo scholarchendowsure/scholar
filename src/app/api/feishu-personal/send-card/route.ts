@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
 
     // 添加表单说明
     if (selects && selects.length > 0) {
+      // 先添加说明文字
       elements.push({
         tag: 'div',
         text: {
@@ -73,10 +74,12 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 添加输入框 - 按照飞书官方示例格式，每个input必须有name, placeholder, label属性
-      // 添加输入框 - 全部使用input（不用textarea，某些版本不支持）
+      // 构建form内的元素数组
+      const formElements: any[] = [];
+
+      // 添加输入框 - 全部使用input
       for (const sel of selects) {
-        elements.push({
+        formElements.push({
           tag: 'input',
           name: sel.name || sel.label,
           placeholder: {
@@ -91,31 +94,31 @@ export async function POST(request: NextRequest) {
       }
 
       // 添加分割线
-      elements.push({ tag: 'hr' });
+      formElements.push({ tag: 'hr' });
 
-      // 添加按钮 - 按钮在action标签内，value是对象
+      // 构建按钮（放在form.actions内）
+      const formActions: any[] = [];
       if (buttons && buttons.length > 0) {
-        const buttonActions = buttons.map((btn: CardButton) => {
-          const button: any = {
+        for (const btn of buttons) {
+          formActions.push({
             tag: 'button',
             text: {
               tag: 'plain_text',
               content: btn.text
             },
-            type: btn.type || 'primary'
-          };
-          // 如果有value，将其转为对象格式
-          if (btn.value) {
-            button.value = { action: btn.value };
-          }
-          return button;
-        });
-
-        elements.push({
-          tag: 'action',
-          actions: buttonActions
-        });
+            type: btn.type || 'primary',
+            value: btn.value || {}
+          });
+        }
       }
+
+      // 用form容器包裹所有输入框和按钮
+      elements.push({
+        tag: 'form',
+        name: 'followup_form',
+        elements: formElements,
+        actions: formActions
+      });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
       const buttonActions = buttons.map((btn: CardButton) => {
