@@ -96,19 +96,16 @@ export async function POST(request: NextRequest) {
       // 添加分割线
       formElements.push({ tag: 'hr' });
 
-      // 构建按钮（放在form.actions内）
-      const formActions: any[] = [];
+      // 构建按钮（直接放在form.elements内，不是actions）
       if (buttons && buttons.length > 0) {
         for (const btn of buttons) {
-          // form内的按钮需要is_submit标记为提交按钮
-          formActions.push({
+          formElements.push({
             tag: 'button',
             text: {
               tag: 'plain_text',
               content: btn.text
             },
             type: 'primary',
-            is_submit: true,  // 标记为提交按钮
             value: { action: btn.value }
           });
         }
@@ -118,8 +115,7 @@ export async function POST(request: NextRequest) {
       elements.push({
         tag: 'form',
         name: 'followup_form',
-        elements: formElements,
-        actions: formActions
+        elements: formElements
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
