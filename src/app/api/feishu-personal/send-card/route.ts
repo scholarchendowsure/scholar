@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取 tenant_access_token
-    const tenantAccessToken = await getTenantAccessToken();
+    const appId = process.env.FEISHU_APP_ID;
+    const appSecret = process.env.FEISHU_APP_SECRET;
+    const tenantAccessToken = await getTenantAccessToken(appId!, appSecret!);
     if (!tenantAccessToken) {
       return NextResponse.json({ error: '获取飞书 access_token 失败' }, { status: 500 });
     }
