@@ -77,26 +77,14 @@ export async function POST(request: NextRequest) {
       // 构建form容器和表单元素
       const formItems: any[] = [];
 
-      // 添加选择器/输入框
+      // 添加选择器/输入框 - 全部使用input
       for (const sel of selects) {
-        if (sel.options && sel.options.length > 0) {
-          // 使用select_static组件 - 飞书form内支持的静态选择器
-          formItems.push({
-            tag: 'select_static',
-            name: sel.name || sel.label,
-            options: sel.options.map((opt: CardSelectOption) => ({
-              text: { tag: 'plain_text', content: opt.text },
-              value: opt.value
-            }))
-          });
-        } else {
-          // 没有选项时使用input
-          formItems.push({
-            tag: 'input',
-            name: sel.name || sel.label,
-            placeholder: sel.placeholder || `请输入${sel.label}`
-          });
-        }
+        formItems.push({
+          tag: 'input',
+          name: sel.name || sel.label,
+          placeholder: sel.placeholder || `请选择${sel.label}`,
+          label: { tag: 'plain_text', content: sel.label }
+        });
       }
 
       // 按钮放在form内
