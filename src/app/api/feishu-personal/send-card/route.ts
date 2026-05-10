@@ -1,128 +1,117 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAccessToken } from '@/lib/feishu-api';
-import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
+
+const FEISHU_API_BASE = 'https://open.feishu.cn/open-apis';
 
 interface CardField {
   label: string;
   value: string;
 }
 
-interface CardSelectOption {
+interface CardButton {
+  text: string;
+  value?: any;
+  type?: 'primary' | 'default' | 'danger';
+}
+
+interface SelectOption {
   text: string;
   value: string;
 }
 
-interface CardSelect {
+interface SelectField {
   label: string;
-  placeholder: string;
-  options: CardSelectOption[];
-  name?: string;
+  name: string;
+  options: SelectOption[];
 }
-
-interface CardButton {
-  text: string;
-  url?: string;
-  type?: 'primary' | 'default' | 'danger';
-  value?: Record<string, any>;
-}
-
-const FEISHU_API_BASE = 'https://open.feishu.cn/open-apis';
 
 export async function POST(request: NextRequest) {
   try {
     const { openId, title, fields, buttons, selects, template = 'blue' } = await request.json();
 
     if (!openId) {
-      return NextResponse.json({ success: false, error: '接收人Open ID不能为空' }, { status: 400 });
+      return NextResponse.json({ error: '缺少 openId 参数' }, { status: 400 });
     }
 
-    // 获取企业自建应用凭证
-    const credentials = await getFeishuAppCredentials();
-    if (!credentials?.appId) {
-      return NextResponse.json({
-        success: false,
-        error: '请先配置飞书自建应用App ID和App Secret'
-      }, { status: 400 });
+    // 获取 tenant_access_token
+    const tenantAccessToken = await getTenantAccessToken();
+    if (!tenantAccessToken) {
+      return NextResponse.json({ error: '获取飞书 access_token 失败' }, { status: 500 });
     }
 
-    // 获取tenant_access_token
-    const tenantAccessToken = await getTenantAccessToken(credentials.appId, credentials.appSecret || '');
-
-    // 构建卡片元素
     const elements: any[] = [];
 
-    // 添加字段信息
+    // 1. 添加案件基本信息（使用 markdown）
     if (fields && fields.length > 0) {
-      const mdContent = fields.map((f: CardField) => `**${f.label}：** ${f.value}`).join('\n');
+      const infoText = fields
+        .map((f: CardField) => `**${f.label}：** ${f.value}`)
+        .join('\n');
       elements.push({
         tag: 'div',
         text: {
           tag: 'lark_md',
-          content: mdContent
+          content: infoText
         }
       });
+      elements.push({ tag: 'hr' });
     }
 
-    // 添加表单说明
+    // 2. 使用按钮组替代 select/input 实现选择功能
     if (selects && selects.length > 0) {
-      // 先添加说明文字
-      elements.push({
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: '**请填写以下跟进信息：**'
-        }
-      });
-
-      // 先添加所有输入框（放在form外面）
       for (const sel of selects) {
+        // 添加字段标题
         elements.push({
-          tag: 'input',
-          name: sel.name || sel.label,
-          placeholder: { tag: 'plain_text', content: sel.placeholder || `请选择${sel.label}` },
-          label: { tag: 'plain_text', content: sel.label }
+          tag: 'div',
+          text: {
+            tag: 'lark_md',
+            content: `**${sel.label}**`
+          }
         });
-      }
 
-      // 按钮放在form内（form只包含按钮）
-      const formItems: any[] = [];
-      if (buttons && buttons.length > 0) {
-        const btn = buttons[0];
-        formItems.push({
-          tag: 'button',
-          name: 'submit',
-          text: { tag: 'plain_text', content: btn.text },
-          type: 'primary',
-          value: btn.value
-        });
-      }
-
-      elements.push({
-        tag: 'form',
-        name: 'followup_form',
-        elements: formItems
-      });
-    } else if (buttons && buttons.length > 0) {
-      // 没有表单元素时，直接添加按钮
-      const buttonActions = buttons.map((btn: CardButton) => {
-        const button: any = {
+        // 添加选项按钮组
+        const optionButtons = (sel.options || []).map((opt: SelectOption) => ({
           tag: 'button',
           text: {
             tag: 'plain_text',
-            content: btn.text
+            content: opt.text
           },
-          type: btn.type || 'primary'
-        };
-        if (btn.value) {
-          button.value = btn.value;
-        }
-        return button;
-      });
+          type: 'default',
+          value: {
+            action: 'select_option',
+            field: sel.name,
+            label: sel.label,
+            value: opt.value,
+            text: opt.text
+          }
+        }));
 
+        elements.push({
+          tag: 'action',
+          layout: 'bisecting',
+          actions: optionButtons
+        });
+
+        elements.push({ tag: 'hr' });
+      }
+    }
+
+    // 3. 添加提交按钮
+    if (buttons && buttons.length > 0) {
+      const submitButton = buttons[0];
       elements.push({
         tag: 'action',
         layout: 'default',
-        actions: buttonActions
+        actions: [
+          {
+            tag: 'button',
+            text: {
+              tag: 'plain_text',
+              content: submitButton.text
+            },
+            type: submitButton.type || 'primary',
+            value: submitButton.value
+          }
+        ]
       });
     }
 
@@ -160,28 +149,28 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    console.log('📡 卡片消息API响应状态:', response.status);
+    const responseData = await response.json();
+    console.log('📦 卡片消息API响应状态:', response.status);
+    console.log('📦 卡片消息API完整响应:', JSON.stringify(responseData));
 
-    const data = await response.json();
-    console.log('📊 卡片消息API完整响应:', JSON.stringify(data, null, 2));
-
-    if (data.code !== 0) {
+    if (responseData.code !== 0) {
       return NextResponse.json({
-        success: false,
-        error: `发送飞书卡片消息失败: ${data.msg} (code: ${data.code})`,
+        error: `发送飞书卡片消息失败: ${responseData.msg}`,
+        details: responseData
       }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      messageId: data.data?.message_id,
+      messageId: responseData.data?.message_id,
+      data: responseData.data
     });
 
   } catch (error) {
-    console.error('发送飞书卡片消息失败:', error);
+    console.error('❌ 发送飞书卡片消息异常:', error);
     return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : '发送失败',
+      error: '服务器内部错误',
+      details: error instanceof Error ? error.message : String(error)
     }, { status: 500 });
   }
 }
