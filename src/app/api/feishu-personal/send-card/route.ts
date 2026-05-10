@@ -74,38 +74,50 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 构建form内的元素数组 - button直接放在elements里
+      // 构建form内的元素数组
       const formItems: any[] = [];
 
-      // 添加输入框
+      // 添加选择器/输入框
       for (const sel of selects) {
-        formItems.push({
-          tag: 'input',
-          name: sel.name || sel.label,
-          placeholder: { tag: 'plain_text', content: sel.placeholder || `请输入${sel.label}` },
-          label: { tag: 'plain_text', content: sel.label }
-        });
+        if (sel.options && sel.options.length > 0) {
+          // 使用select组件，支持下拉选项
+          formItems.push({
+            tag: 'select',
+            name: sel.name || sel.label,
+            options: sel.options.map((opt: CardSelectOption) => ({
+              text: { tag: 'plain_text', content: opt.text },
+              value: opt.value
+            }))
+          });
+        } else {
+          // 没有选项时使用input
+          formItems.push({
+            tag: 'input',
+            name: sel.name || sel.label,
+            placeholder: { tag: 'plain_text', content: sel.placeholder || `请输入${sel.label}` },
+            label: { tag: 'plain_text', content: sel.label }
+          });
+        }
       }
 
-      // 添加提交按钮（直接放在formItems里，不是actions）
+      // 添加提交按钮（直接放在formItems最后）
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
-        // btn.value 已经是对象 {action, case_id, loan_no}，直接使用
         const btnValue = typeof btn.value === 'string' ? { action: btn.value } : btn.value;
         formItems.push({
           tag: 'button',
-          name: 'submit_btn',  // 必须有name
+          name: 'submit',
           text: { tag: 'plain_text', content: btn.text },
           type: 'primary',
           value: btnValue
         });
       }
 
-      // 最终form结构 - 没有actions字段！
+      // 最终form结构
       elements.push({
         tag: 'form',
-        name: 'follow_form',  // 必须有name
-        elements: formItems   // 输入框+按钮 都放这里
+        name: 'followup_form',
+        elements: formItems
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
