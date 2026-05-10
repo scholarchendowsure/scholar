@@ -73,30 +73,27 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 直接在 elements 中添加输入框
+      // 添加输入框 - 按照飞书官方示例格式，每个input必须有name, placeholder, label属性
       for (const sel of selects) {
-        // 使用 note 标签显示标签文字
+        const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
         elements.push({
-          tag: 'note',
-          elements: [
-            {
-              tag: 'plain_text',
-              content: sel.label
-            }
-          ]
-        });
-        // 添加输入框
-        elements.push({
-          tag: 'input',
+          tag: isLongText ? 'textarea' : 'input',
+          name: sel.name || sel.label,
           placeholder: {
             tag: 'plain_text',
             content: sel.placeholder || `请输入${sel.label}`
           },
-          name: sel.name || sel.label
+          label: {
+            tag: 'plain_text',
+            content: sel.label
+          }
         });
       }
 
-      // 添加按钮
+      // 添加分割线
+      elements.push({ tag: 'hr' });
+
+      // 添加按钮 - 按钮在action标签内，value是对象
       if (buttons && buttons.length > 0) {
         const buttonActions = buttons.map((btn: CardButton) => {
           const button: any = {
@@ -107,15 +104,15 @@ export async function POST(request: NextRequest) {
             },
             type: btn.type || 'primary'
           };
+          // 如果有value，将其转为对象格式
           if (btn.value) {
-            button.value = btn.value;
+            button.value = { action: btn.value };
           }
           return button;
         });
 
         elements.push({
           tag: 'action',
-          layout: 'right',
           actions: buttonActions
         });
       }

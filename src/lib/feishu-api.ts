@@ -641,48 +641,44 @@ export async function sendFeishuPrivateCard(
     });
   }
 
-  // 添加跟进表单 - 使用 div 布局，不使用 form 标签
+  // 添加跟进表单 - 按照飞书官方示例格式
   if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
     // 添加表单说明
     elements.push({
       tag: 'div',
       text: {
-        tag: 'lark_md',
-        content: '**请填写以下跟进信息：**'
+        tag: 'plain_text',
+        content: '请填写以下跟进信息：'
       }
     });
 
-    // 添加输入框（直接放在 elements 中，每个输入框独立一行）
+    // 添加输入框 - 每个input必须有name, placeholder, label属性
     if (selects && selects.length > 0) {
       for (const sel of selects) {
         const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
-        // 使用 note 标签显示标签文字
-        elements.push({
-          tag: 'note',
-          elements: [
-            {
-              tag: 'plain_text',
-              content: sel.label
-            }
-          ]
-        });
-        // 添加输入框
+        // 使用官方格式：input/textarea必须有name、placeholder、label
         elements.push({
           tag: isLongText ? 'textarea' : 'input',
           name: sel.name || sel.label,
           placeholder: {
             tag: 'plain_text',
             content: sel.placeholder || `请输入${sel.label}`
+          },
+          label: {
+            tag: 'plain_text',
+            content: sel.label
           }
         });
       }
     }
 
-    // 添加按钮
+    // 添加分割线
+    elements.push({ tag: 'hr' });
+
+    // 添加按钮 - 按钮在action标签内，value是对象
     if (buttons && buttons.length > 0) {
       elements.push({
         tag: 'action',
-        layout: 'right',
         actions: buttons.map(btn => {
           const button: any = {
             tag: 'button',
@@ -692,11 +688,9 @@ export async function sendFeishuPrivateCard(
             },
             type: btn.type || 'primary'
           };
+          // 如果有value，将其转为对象格式
           if (btn.value) {
-            button.value = btn.value;
-          }
-          if (btn.url) {
-            button.url = btn.url;
+            button.value = { action: btn.value };
           }
           return button;
         })
@@ -799,48 +793,44 @@ export async function sendFeishuWebhookCard(
       });
     }
 
-    // 添加跟进表单 - 使用 div 布局，不使用 form 标签
+    // 添加跟进表单 - 按照飞书官方示例格式
     if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
       // 添加表单说明
       elements.push({
         tag: 'div',
         text: {
-          tag: 'lark_md',
-          content: '**请填写以下跟进信息：**'
+          tag: 'plain_text',
+          content: '请填写以下跟进信息：'
         }
       });
 
-      // 添加输入框（直接放在 elements 中，每个输入框独立一行）
+      // 添加输入框 - 每个input必须有name, placeholder, label属性
       if (selects && selects.length > 0) {
         for (const sel of selects) {
           const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
-          // 使用 note 标签显示标签文字
-          elements.push({
-            tag: 'note',
-            elements: [
-              {
-                tag: 'plain_text',
-                content: sel.label
-              }
-            ]
-          });
-          // 添加输入框
+          // 使用官方格式：input/textarea必须有name、placeholder、label
           elements.push({
             tag: isLongText ? 'textarea' : 'input',
             name: sel.name || sel.label,
             placeholder: {
               tag: 'plain_text',
               content: sel.placeholder || `请输入${sel.label}`
+            },
+            label: {
+              tag: 'plain_text',
+              content: sel.label
             }
           });
         }
       }
 
-      // 添加按钮
+      // 添加分割线
+      elements.push({ tag: 'hr' });
+
+      // 添加按钮 - 按钮在action标签内，value是对象
       if (buttons && buttons.length > 0) {
         elements.push({
           tag: 'action',
-          layout: 'right',
           actions: buttons.map(btn => {
             const button: any = {
               tag: 'button',
@@ -850,11 +840,9 @@ export async function sendFeishuWebhookCard(
               },
               type: btn.type || 'primary'
             };
+            // 如果有value，将其转为对象格式
             if (btn.value) {
-              button.value = btn.value;
-            }
-            if (btn.url) {
-              button.url = btn.url;
+              button.value = { action: btn.value };
             }
             return button;
           })
