@@ -102,6 +102,12 @@ pnpm start
 - `PUT /api/mcp-services/:id` - 更新服务
 - `DELETE /api/mcp-services/:id` - 删除服务
 
+### 飞书集成
+- `GET /api/feishu/lark-channel` - 建立飞书长连接（WebSocket）
+- `POST /api/feishu/card-callback` - 飞书卡片回调接口
+- `GET /api/feishu-reminders` - 发送还款提醒卡片
+- `POST /api/feishu-personal/send-card` - 发送飞书卡片消息
+
 ## 测试账号
 
 | 用户名 | 密码 | 角色 |
