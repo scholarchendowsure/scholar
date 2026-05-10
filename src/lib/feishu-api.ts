@@ -666,18 +666,12 @@ export async function sendFeishuPrivateCard(
         }
       });
       elements.push({
-        tag: 'select_text',
+        tag: 'input',
         placeholder: {
           tag: 'plain_text',
           content: sel.placeholder
         },
-        options: sel.options.map(opt => ({
-          text: {
-            tag: 'plain_text',
-            content: opt.text
-          },
-          value: opt.value
-        }))
+        name: sel.name || sel.label
       });
     }
   }
