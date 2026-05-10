@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     const payload = {
       receive_id: openId,
       msg_type: 'interactive',
-      content: JSON.stringify({ card })
+      content: JSON.stringify(card)
     };
 
     const response = await fetch(feishuUrl, {
