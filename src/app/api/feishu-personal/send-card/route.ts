@@ -80,12 +80,12 @@ export async function POST(request: NextRequest) {
       // 添加选择器/输入框
       for (const sel of selects) {
         if (sel.options && sel.options.length > 0) {
-          // 使用select组件 - 飞书select的正确格式
+          // 使用select_static组件 - 飞书form内支持的静态选择器
           formItems.push({
-            tag: 'select',
+            tag: 'select_static',
             name: sel.name || sel.label,
             options: sel.options.map((opt: CardSelectOption) => ({
-              text: opt.text,
+              text: { tag: 'plain_text', content: opt.text },
               value: opt.value
             }))
           });
@@ -99,20 +99,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 按钮必须放在form外面，用action标签包裹
-      // 但按钮的value需要通过其他方式传递
-
-      // 先添加表单元素（放在form外）
-      for (const item of formItems) {
-        elements.push(item);
-      }
-
-      // 用form包裹按钮
-      const formActions: any[] = [];
+      // 按钮放在form内
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
         const btnValue = typeof btn.value === 'string' ? { action: btn.value } : btn.value;
-        formActions.push({
+        formItems.push({
           tag: 'button',
           name: 'submit',
           text: { tag: 'plain_text', content: btn.text },
@@ -121,11 +112,11 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // form只包含按钮
+      // form包裹所有元素
       elements.push({
         tag: 'form',
         name: 'followup_form',
-        elements: formActions
+        elements: formItems
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
