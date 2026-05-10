@@ -652,13 +652,11 @@ export async function sendFeishuPrivateCard(
       }
     });
 
-    // 添加输入框 - 每个input必须有name, placeholder, label属性
+    // 添加输入框 - 按照飞书官方示例，全部使用input（不用textarea，因为某些版本不支持）
     if (selects && selects.length > 0) {
       for (const sel of selects) {
-        const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
-        // 使用官方格式：input/textarea必须有name、placeholder、label
         elements.push({
-          tag: isLongText ? 'textarea' : 'input',
+          tag: 'input',
           name: sel.name || sel.label,
           placeholder: {
             tag: 'plain_text',
@@ -804,13 +802,11 @@ export async function sendFeishuWebhookCard(
         }
       });
 
-      // 添加输入框 - 每个input必须有name, placeholder, label属性
+      // 添加输入框 - 全部使用input（不用textarea，某些版本不支持）
       if (selects && selects.length > 0) {
         for (const sel of selects) {
-          const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
-          // 使用官方格式：input/textarea必须有name、placeholder、label
           elements.push({
-            tag: isLongText ? 'textarea' : 'input',
+            tag: 'input',
             name: sel.name || sel.label,
             placeholder: {
               tag: 'plain_text',

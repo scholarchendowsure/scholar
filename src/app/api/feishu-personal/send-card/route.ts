@@ -74,10 +74,10 @@ export async function POST(request: NextRequest) {
       });
 
       // 添加输入框 - 按照飞书官方示例格式，每个input必须有name, placeholder, label属性
+      // 添加输入框 - 全部使用input（不用textarea，某些版本不支持）
       for (const sel of selects) {
-        const isLongText = sel.label.includes('结果') || sel.label.includes('备注') || sel.label.includes('说明');
         elements.push({
-          tag: isLongText ? 'textarea' : 'input',
+          tag: 'input',
           name: sel.name || sel.label,
           placeholder: {
             tag: 'plain_text',
