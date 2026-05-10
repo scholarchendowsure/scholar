@@ -592,10 +592,23 @@ interface CardField {
   value: string;
 }
 
+interface CardSelectOption {
+  text: string;
+  value: string;
+}
+
+interface CardSelect {
+  label: string;
+  placeholder: string;
+  options: CardSelectOption[];
+  name?: string;
+}
+
 interface CardButton {
   text: string;
-  url: string;
+  url?: string;
   type?: 'primary' | 'default' | 'danger';
+  value?: Record<string, any>;
 }
 
 /**
@@ -609,11 +622,12 @@ export async function sendFeishuPrivateCard(
   fields: CardField[],
   buttons: CardButton[],
   template: string = 'blue',
-  receiveIdType: 'user_id' | 'open_id' | 'union_id' = 'open_id'
+  receiveIdType: 'user_id' | 'open_id' | 'union_id' = 'open_id',
+  selects?: CardSelect[]
 ): Promise<FeishuMessage> {
   const accessToken = await getTenantAccessToken(appId, appSecret);
 
-  console.log('📤 开始发送飞书私聊交互卡片');
+  console.log('📤 开始发送飞书私聊交互卡片（含表单）');
   console.log('👤 接收者ID:', receiveId);
 
   // 构建卡片元素
@@ -629,6 +643,50 @@ export async function sendFeishuPrivateCard(
         content: mdContent
       }
     });
+  }
+
+  // 添加分割线（字段和表单之间）
+  if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
+    elements.push({ tag: 'hr' });
+  }
+
+  // 添加表单说明
+  if (selects && selects.length > 0) {
+    elements.push({
+      tag: 'div',
+      text: {
+        tag: 'lark_md',
+        content: '**请填写以下跟进信息：**'
+      }
+    });
+
+    // 添加下拉选择
+    for (const sel of selects) {
+      elements.push({
+        tag: 'div',
+        text: {
+          tag: 'plain_text',
+          content: sel.label
+        }
+      });
+      elements.push({
+        tag: 'select_static',
+        placeholder: {
+          tag: 'plain_text',
+          content: sel.placeholder
+        },
+        options: sel.options.map(opt => ({
+          text: {
+            tag: 'plain_text',
+            content: opt.text
+          },
+          value: opt.value
+        })),
+        value: {
+          key: sel.name || sel.label
+        }
+      });
+    }
   }
 
   // 添加分割线
@@ -652,6 +710,9 @@ export async function sendFeishuPrivateCard(
         };
         if (btn.url) {
           button.url = btn.url;
+        }
+        if (btn.value) {
+          button.value = btn.value;
         }
         return button;
       })
@@ -716,7 +777,8 @@ export async function sendFeishuWebhookCard(
   title: string,
   fields: CardField[],
   buttons: CardButton[],
-  template: string = 'blue'
+  template: string = 'blue',
+  selects?: CardSelect[]
 ): Promise<{ success: boolean; message: string }> {
   try {
     console.log('📤 发送飞书Webhook交互卡片');
@@ -736,8 +798,52 @@ export async function sendFeishuWebhookCard(
       });
     }
 
-    // 添加分割线
-    if (buttons && buttons.length > 0) {
+    // 添加分割线（字段和表单之间）
+    if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
+      elements.push({ tag: 'hr' });
+    }
+
+    // 添加表单说明
+    if (selects && selects.length > 0) {
+      elements.push({
+        tag: 'div',
+        text: {
+          tag: 'lark_md',
+          content: '**请填写以下跟进信息：**'
+        }
+      });
+
+      // 添加下拉选择
+      for (const sel of selects) {
+        elements.push({
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: sel.label
+          }
+        });
+        elements.push({
+          tag: 'select_static',
+          placeholder: {
+            tag: 'plain_text',
+            content: sel.placeholder || '请选择'
+          },
+          options: sel.options.map(opt => ({
+            text: {
+              tag: 'plain_text',
+              content: opt.text
+            },
+            value: opt.value
+          })),
+          value: {
+            key: sel.options[0]?.value || ''
+          }
+        });
+      }
+    }
+
+    // 添加分割线（表单和按钮之间）
+    if ((selects && selects.length > 0) && (buttons && buttons.length > 0)) {
       elements.push({ tag: 'hr' });
     }
 
@@ -757,6 +863,9 @@ export async function sendFeishuWebhookCard(
           };
           if (btn.url) {
             button.url = btn.url;
+          }
+          if (btn.value) {
+            button.value = btn.value;
           }
           return button;
         })

@@ -114,14 +114,14 @@ export async function POST(request: NextRequest) {
       
       // 构建跟进链接（使用域名环境变量）
       const domain = process.env.COZE_PROJECT_DOMAIN_DEFAULT || '';
-      const followLink = domain ? `https://${domain}/followup/${loan.id}?follower=${encodeURIComponent(salesName)}` : '';
+      const followLink = domain ? `https://${domain}/followup/${loan.loanReference || loan.id}?follower=${encodeURIComponent(salesName)}` : '';
       
       console.log(`📤 发送交互卡片给 ${salesName} (${feishuUserId})`);
 
       try {
         // 根据发送模式选择发送方式
         if (config.sendMode === 'private' && credentials.appId && credentials.appSecret) {
-          // 发送私聊交互卡片
+          // 发送私聊交互卡片（含表单）
           await sendFeishuPrivateCard(
             credentials.appId,
             credentials.appSecret,
@@ -134,14 +134,55 @@ export async function POST(request: NextRequest) {
               { label: '到期日', value: maturityDateStr }
             ],
             followLink ? [
-              { text: '立即跟进', url: followLink, type: 'primary' }
+              {
+                text: '提交跟进记录',
+                type: 'primary',
+                value: {
+                  action: 'submit_followup',
+                  case_id: loan.id,
+                  loan_no: loan.loanReference || loan.id,
+                }
+              },
+              {
+                text: '查看详情',
+                type: 'default',
+                url: followLink
+              }
             ] : [],
-            'blue'
+            'blue',
+            'open_id',
+            [
+              {
+                label: '跟进方式',
+                placeholder: '请选择跟进方式',
+                name: 'followup_method',
+                options: [
+                  { text: '电话', value: '电话' },
+                  { text: '上门', value: '上门' },
+                  { text: '微信', value: '微信' },
+                  { text: '短信', value: '短信' },
+                  { text: '邮件', value: '邮件' },
+                  { text: '其他', value: '其他' },
+                ]
+              },
+              {
+                label: '跟进结果',
+                placeholder: '请选择跟进结果',
+                name: 'followup_result',
+                options: [
+                  { text: '已联系上', value: '已联系上' },
+                  { text: '未联系上', value: '未联系上' },
+                  { text: '已还款', value: '已还款' },
+                  { text: '已承诺还款', value: '已承诺还款' },
+                  { text: '暂无结果', value: '暂无结果' },
+                ]
+              }
+            ]
           );
           sentCount++;
           console.log(`✅ 私聊交互卡片发送成功: ${salesName}`);
         } else if (config.webhookUrl) {
-          // 发送群聊交互卡片
+          // 发送群聊交互卡片（含表单）
           const result = await sendFeishuWebhookCard(
             config.webhookUrl,
             '还款提醒',
@@ -152,9 +193,49 @@ export async function POST(request: NextRequest) {
               { label: '到期日', value: maturityDateStr }
             ],
             followLink ? [
-              { text: '立即跟进', url: followLink, type: 'primary' }
+              {
+                text: '提交跟进记录',
+                type: 'primary',
+                value: {
+                  action: 'submit_followup',
+                  case_id: loan.id,
+                  loan_no: loan.loanReference || loan.id,
+                }
+              },
+              {
+                text: '查看详情',
+                type: 'default',
+                url: followLink
+              }
             ] : [],
-            'blue'
+            'blue',
+            [
+              {
+                label: '跟进方式',
+                placeholder: '请选择跟进方式',
+                name: 'followup_method',
+                options: [
+                  { text: '电话', value: '电话' },
+                  { text: '上门', value: '上门' },
+                  { text: '微信', value: '微信' },
+                  { text: '短信', value: '短信' },
+                  { text: '邮件', value: '邮件' },
+                  { text: '其他', value: '其他' },
+                ]
+              },
+              {
+                label: '跟进结果',
+                placeholder: '请选择跟进结果',
+                name: 'followup_result',
+                options: [
+                  { text: '已联系上', value: '已联系上' },
+                  { text: '未联系上', value: '未联系上' },
+                  { text: '已还款', value: '已还款' },
+                  { text: '已承诺还款', value: '已承诺还款' },
+                  { text: '暂无结果', value: '暂无结果' },
+                ]
+              }
+            ]
           );
           if (result.success) {
             sentCount++;

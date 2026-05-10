@@ -7,15 +7,30 @@ interface CardField {
   value: string;
 }
 
+interface CardSelectOption {
+  text: string;
+  value: string;
+}
+
+interface CardSelect {
+  label: string;
+  placeholder: string;
+  options: CardSelectOption[];
+  name?: string;
+}
+
 interface CardButton {
   text: string;
-  url: string;
+  url?: string;
   type?: 'primary' | 'default' | 'danger';
+  value?: Record<string, any>;
 }
+
+const FEISHU_API_BASE = 'https://open.feishu.cn/open-apis';
 
 export async function POST(request: NextRequest) {
   try {
-    const { openId, title, fields, buttons, template = 'blue' } = await request.json();
+    const { openId, title, fields, buttons, selects, template = 'blue' } = await request.json();
 
     if (!openId) {
       return NextResponse.json({ success: false, error: '接收人Open ID不能为空' }, { status: 400 });
@@ -48,6 +63,50 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // 添加分割线（字段和表单之间）
+    if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
+      elements.push({ tag: 'hr' });
+    }
+
+    // 添加表单说明
+    if (selects && selects.length > 0) {
+      elements.push({
+        tag: 'div',
+        text: {
+          tag: 'lark_md',
+          content: '**请填写以下跟进信息：**'
+        }
+      });
+
+      // 添加下拉选择
+      for (const sel of selects) {
+        elements.push({
+          tag: 'div',
+          text: {
+            tag: 'plain_text',
+            content: sel.label
+          }
+        });
+        elements.push({
+          tag: 'select_static',
+          placeholder: {
+            tag: 'plain_text',
+            content: sel.placeholder
+          },
+          options: sel.options.map((opt: CardSelectOption) => ({
+            text: {
+              tag: 'plain_text',
+              content: opt.text
+            },
+            value: opt.value
+          })),
+          value: {
+            key: sel.name || sel.label
+          }
+        });
+      }
+    }
+
     // 添加分割线
     if (buttons && buttons.length > 0) {
       elements.push({ tag: 'hr' });
@@ -58,15 +117,23 @@ export async function POST(request: NextRequest) {
       elements.push({
         tag: 'action',
         layout: 'default',
-        actions: buttons.map((btn: CardButton) => ({
-          tag: 'button',
-          text: {
-            tag: 'plain_text',
-            content: btn.text
-          },
-          type: btn.type || 'primary',
-          url: btn.url
-        }))
+        actions: buttons.map((btn: CardButton) => {
+          const button: any = {
+            tag: 'button',
+            text: {
+              tag: 'plain_text',
+              content: btn.text
+            },
+            type: btn.type || 'primary'
+          };
+          if (btn.url) {
+            button.url = btn.url;
+          }
+          if (btn.value) {
+            button.value = btn.value;
+          }
+          return button;
+        })
       });
     }
 
@@ -78,51 +145,54 @@ export async function POST(request: NextRequest) {
       header: {
         title: {
           tag: 'plain_text',
-          content: title || '消息通知'
+          content: title
         },
         template: template
       },
       elements: elements
     };
 
-    // 构建飞书API请求
-    const feishuUrl = `https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id`;
+    const cardJson = JSON.stringify(card);
+    console.log('📋 完整卡片JSON:', cardJson);
+    console.log('📋 卡片JSON长度:', cardJson.length);
 
-    const payload = {
-      receive_id: openId,
-      msg_type: 'interactive',
-      content: JSON.stringify(card)
-    };
-
-    const response = await fetch(feishuUrl, {
+    // 发送消息
+    const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=open_id`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tenantAccessToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        receive_id: openId,
+        msg_type: 'interactive',
+        content: cardJson,
+        uuid: Date.now().toString(),
+      }),
     });
 
-    const result = await response.json();
+    console.log('📡 卡片消息API响应状态:', response.status);
 
-    if (result.code === 0) {
-      return NextResponse.json({
-        success: true,
-        messageId: result.data?.message_id,
-        chatId: result.data?.chat_id
-      });
-    } else {
+    const data = await response.json();
+    console.log('📊 卡片消息API完整响应:', JSON.stringify(data, null, 2));
+
+    if (data.code !== 0) {
       return NextResponse.json({
         success: false,
-        error: `发送卡片消息失败: ${result.msg} (code: ${result.code})`
+        error: `发送飞书卡片消息失败: ${data.msg} (code: ${data.code})`,
       }, { status: 500 });
     }
 
+    return NextResponse.json({
+      success: true,
+      messageId: data.data?.message_id,
+    });
+
   } catch (error) {
-    console.error('发送卡片消息失败:', error);
+    console.error('发送飞书卡片消息失败:', error);
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : '发送卡片消息失败'
+      error: error instanceof Error ? error.message : '发送失败',
     }, { status: 500 });
   }
 }

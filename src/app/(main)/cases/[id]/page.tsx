@@ -189,7 +189,8 @@ export default function CaseDetailPage() {
         currencySymbol = currency;
       }
       
-      // 4. 发送交互卡片消息
+      // 4. 发送交互卡片消息（含表单）
+      const domain = window.location.origin;
       const sendResponse = await fetch('/api/feishu-personal/send-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,8 +204,48 @@ export default function CaseDetailPage() {
             { label: '待还款金额', value: `${Number(balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ${currencySymbol}` },
             { label: '还款日', value: dueDate }
           ],
+          selects: [
+            {
+              label: '跟进方式',
+              placeholder: '请选择跟进方式',
+              name: 'followup_method',
+              options: [
+                { text: '电话', value: '电话' },
+                { text: '上门', value: '上门' },
+                { text: '微信', value: '微信' },
+                { text: '短信', value: '短信' },
+                { text: '邮件', value: '邮件' },
+                { text: '其他', value: '其他' },
+              ]
+            },
+            {
+              label: '跟进结果',
+              placeholder: '请选择跟进结果',
+              name: 'followup_result',
+              options: [
+                { text: '已联系上', value: '已联系上' },
+                { text: '未联系上', value: '未联系上' },
+                { text: '已还款', value: '已还款' },
+                { text: '已承诺还款', value: '已承诺还款' },
+                { text: '暂无结果', value: '暂无结果' },
+              ]
+            }
+          ],
           buttons: [
-            { text: '立即跟进', url: followLink, type: 'primary' }
+            {
+              text: '提交跟进记录',
+              type: 'primary',
+              value: {
+                action: 'submit_followup',
+                case_id: caseData.id,
+                loan_no: caseData.loanNo,
+              }
+            },
+            {
+              text: '查看详情',
+              type: 'default',
+              url: `${domain}/followup/${caseData.loanNo}?follower=${encodeURIComponent(roleName)}`
+            }
           ]
         })
       });
