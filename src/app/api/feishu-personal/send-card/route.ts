@@ -74,13 +74,21 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // 构建form元素（只包含按钮）
-      const formElements: any[] = [];
+      // 先添加所有输入框（放在form外面）
+      for (const sel of selects) {
+        elements.push({
+          tag: 'input',
+          name: sel.name || sel.label,
+          placeholder: { tag: 'plain_text', content: sel.placeholder || `请选择${sel.label}` },
+          label: { tag: 'plain_text', content: sel.label }
+        });
+      }
 
-      // 添加提交按钮
+      // 按钮放在form内（form只包含按钮）
+      const formItems: any[] = [];
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
-        formElements.push({
+        formItems.push({
           tag: 'button',
           name: 'submit',
           text: { tag: 'plain_text', content: btn.text },
@@ -89,31 +97,10 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 用form包裹按钮
       elements.push({
         tag: 'form',
         name: 'followup_form',
-        elements: formElements
-      });
-
-      // 添加字段说明（用markdown展示所有选项）
-      const fieldInfos: string[] = [];
-      for (const sel of selects) {
-        if (sel.options && sel.options.length > 0) {
-          const optionsText = sel.options.map(o => o.text).join('、');
-          fieldInfos.push(`**${sel.label}：** ${sel.placeholder}\n可选：${optionsText}`);
-        } else {
-          fieldInfos.push(`**${sel.label}：** ${sel.placeholder || `请输入${sel.label}`}`);
-        }
-      }
-
-      // 在form后面添加字段说明（用note或div展示）
-      elements.push({
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: fieldInfos.join('\n\n')
-        }
+        elements: formItems
       });
     } else if (buttons && buttons.length > 0) {
       // 没有表单元素时，直接添加按钮
