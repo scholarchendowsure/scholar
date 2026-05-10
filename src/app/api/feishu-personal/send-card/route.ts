@@ -90,12 +90,14 @@ export async function POST(request: NextRequest) {
       // 添加提交按钮（直接放在formItems里，不是actions）
       if (buttons && buttons.length > 0) {
         const btn = buttons[0];
+        // btn.value 已经是对象 {action, case_id, loan_no}，直接使用
+        const btnValue = typeof btn.value === 'string' ? { action: btn.value } : btn.value;
         formItems.push({
           tag: 'button',
           name: 'submit_btn',  // 必须有name
           text: { tag: 'plain_text', content: btn.text },
           type: 'primary',
-          value: { action: btn.value }
+          value: btnValue
         });
       }
 
