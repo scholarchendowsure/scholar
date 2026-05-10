@@ -677,10 +677,7 @@ export async function sendFeishuPrivateCard(
             content: opt.text
           },
           value: opt.value
-        })),
-        value: {
-          key: sel.name || sel.label
-        }
+        }))
       });
     }
   }
@@ -846,10 +843,7 @@ export async function sendFeishuWebhookCard(
               content: opt.text
             },
             value: opt.value
-          })),
-          value: {
-            key: sel.options[0]?.value || ''
-          }
+          }))
         });
       }
     }

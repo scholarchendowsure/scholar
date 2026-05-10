@@ -9,7 +9,6 @@ import * as lark from "@larksuiteoapi/node-sdk";
  * 1. 飞书开放平台 → 机器人设置 → 事件订阅
  * 2. 配置请求地址：https://<your-domain>/api/feishu/card-callback
  * 3. 添加事件类型：card.action.trigger
- * 4. 添加事件类型：im.message.receive_v1
  *
  * 加密配置：
  * - Encrypt Key: e9d9f6674ceb517ea5aaf882aabf1a19
@@ -23,12 +22,12 @@ const VERIFICATION_TOKEN = "fFMKuWHMRQmyT2C2bHN61fAxcBhthsq8";
 const sdkAESCipher = new lark.AESCipher(ENCRYPT_KEY);
 
 /**
- * SDK 方式解密飞书加密数据
+ * 解密飞书加密数据
  */
-function decryptWithSDK(encrypt: string): Record<string, unknown> | null {
+function decryptPayload(encrypt: string): Record<string, unknown> | null {
   try {
     const decrypted = sdkAESCipher.decrypt(encrypt);
-    console.log("🔓 SDK 解密结果:", decrypted);
+    console.log("🔓 SDK 解密成功:", decrypted.substring(0, 200));
     return JSON.parse(decrypted);
   } catch (e) {
     console.error("❌ SDK 解密失败:", e);
@@ -37,48 +36,37 @@ function decryptWithSDK(encrypt: string): Record<string, unknown> | null {
 }
 
 /**
- * Fallback 方式解密（兼容旧加密格式）
+ * 验证飞书请求签名
+ * 参考：https://open.feishu.cn/document/ukTMukTMukTM/uYDNxYjL2QTM24iN0EjN/event-subscription-configure-/encrypt-key
  */
-function decryptFallback(encrypt: string): Record<string, unknown> | null {
-  try {
-    const key = Buffer.from(ENCRYPT_KEY);
-    const iv = key.slice(0, 16);
-    const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
-    let decrypted = decipher.update(Buffer.from(encrypt, "base64"));
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    const jsonStr = decrypted.toString("utf-8");
-    console.log("🔓 Fallback 解密结果:", jsonStr);
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.error("❌ Fallback 解密失败:", e);
-    return null;
+function verifySignature(
+  rawBody: string,
+  timestamp: string,
+  nonce: string,
+  signature: string
+): boolean {
+  if (!ENCRYPT_KEY) return true;
+  if (!signature) {
+    console.log("ℹ️ 无签名头，跳过签名验证");
+    return true;
   }
+
+  const content = timestamp + nonce + ENCRYPT_KEY + rawBody;
+  const computed = crypto.createHash("sha256").update(content).digest("hex");
+
+  console.log("🔐 签名验证:", {
+    timestamp,
+    nonce,
+    signaturePrefix: signature.substring(0, 16) + "...",
+    computedPrefix: computed.substring(0, 16) + "...",
+    match: computed === signature,
+  });
+
+  return computed === signature;
 }
 
 /**
- * 解密：优先 SDK 方式，失败则 fallback
- */
-function decryptPayload(encrypt: string): Record<string, unknown> | null {
-  const sdkResult = decryptWithSDK(encrypt);
-  if (sdkResult) return sdkResult;
-  return decryptFallback(encrypt);
-}
-
-/**
- * 合并解密数据到 body
- */
-function mergeDecryptedBody(body: Record<string, unknown>): Record<string, unknown> {
-  if (typeof body.encrypt === "string") {
-    const decrypted = decryptPayload(body.encrypt);
-    if (decrypted) {
-      Object.assign(body, decrypted);
-    }
-  }
-  return body;
-}
-
-/**
- * 提取 challenge（支持多种格式）
+ * 提取 challenge
  */
 function extractChallenge(body: Record<string, unknown>): string {
   if (typeof body.challenge === "string") return body.challenge;
@@ -88,30 +76,35 @@ function extractChallenge(body: Record<string, unknown>): string {
 }
 
 /**
- * 提取 event_type（支持多种格式）
+ * 提取并规范化事件数据
+ * 支持 schema 2.0 和老版本格式
  */
-function extractEventType(body: Record<string, unknown>): string {
-  if (typeof body.type === "string") return body.type;
-  const header = body.header as Record<string, unknown> | undefined;
-  if (typeof header?.event_type === "string") return header.event_type;
-  const event = body.event as Record<string, unknown> | undefined;
-  if (typeof event?.type === "string") return event.type;
-  return "";
+function normalizeEvent(body: Record<string, unknown>): {
+  eventType: string;
+  normalizedBody: Record<string, unknown>;
+} {
+  // schema 2.0 格式
+  if (body.schema === "2.0") {
+    const header = (body.header as Record<string, unknown>) || {};
+    const event = (body.event as Record<string, unknown>) || {};
+    return {
+      eventType: (header.event_type as string) || "",
+      normalizedBody: { ...body, ...header, ...event },
+    };
+  }
+
+  // 老版本格式
+  const event = (body.event as Record<string, unknown>) || {};
+  const eventType =
+    (body.type as string) || (event.type as string) || "";
+  return {
+    eventType,
+    normalizedBody: { ...body, ...event },
+  };
 }
 
 /**
- * 验证 Token
- */
-function verifyToken(body: Record<string, unknown>): boolean {
-  const token =
-    (body.token as string) ||
-    (body.header as Record<string, unknown>)?.token ||
-    (body.event as Record<string, unknown>)?.token;
-  return token === VERIFICATION_TOKEN;
-}
-
-/**
- * 处理 URL 验证（使用 SDK generateChallenge）
+ * 处理 URL 验证
  */
 function handleUrlVerification(body: Record<string, unknown>): Response {
   const challenge = extractChallenge(body);
@@ -122,19 +115,18 @@ function handleUrlVerification(body: Record<string, unknown>): Response {
     );
   }
 
-  // 使用 SDK 的 generateChallenge 生成响应
-  const challengeRes = lark.generateChallenge(body, {
-    encryptKey: ENCRYPT_KEY,
-  });
-
+  // 直接返回 challenge，不要包装在 isChallenge 中
   console.log("✅ URL 验证通过，返回 challenge:", challenge);
-  return NextResponse.json(challengeRes, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-    },
-  });
+  return NextResponse.json(
+    { challenge },
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      },
+    }
+  );
 }
 
 /**
@@ -158,9 +150,9 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
     openMessageId,
   });
 
-  // 如果是提交跟进记录
-  if (tag === "callback" && value.action === "submit_followup") {
-    const caseId = (value.caseId as string) || "";
+  // 如果是提交跟进记录（按钮 tag 为 "button"）
+  if (tag === "button" && value.action === "submit_followup") {
+    const caseId = (value.case_id as string) || "";
     const followupMethod = (formValue.followup_method as string) || "其他";
     const followupTarget = (formValue.followup_target as string) || "借款人";
     const contactStatus = (formValue.contact_status as string) || "接通";
@@ -175,14 +167,6 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
       repaymentWillingness,
       followupResult,
     });
-
-    // TODO: 调用案件存储接口保存跟进记录
-    // const { addFollowup } = require("../../../../storage/database/case-storage");
-    // await addFollowup(caseId, {
-    //   type: followupMethod,
-    //   content: `跟进对象：${followupTarget}\n联系状态：${contactStatus}\n还款意愿：${repaymentWillingness}\n跟进结果：${followupResult}`,
-    //   createdBy: openId,
-    // });
 
     // 返回更新后的卡片内容（显示提交成功）
     const successCard = {
@@ -234,9 +218,12 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
 
 export async function POST(request: NextRequest) {
   try {
+    // 获取原始 body 字符串用于签名验证
+    const rawBody = await request.text();
     let body: Record<string, unknown>;
+
     try {
-      body = await request.json();
+      body = JSON.parse(rawBody);
     } catch {
       return new NextResponse(
         JSON.stringify({ error: "Invalid JSON body" }),
@@ -244,32 +231,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("📨 飞书回调收到请求:", JSON.stringify(body, null, 2));
+    console.log("📨 飞书回调收到请求体:", rawBody.substring(0, 500));
 
-    // 解密（如果加密）
-    body = mergeDecryptedBody(body);
+    // 获取签名相关头
+    const timestamp = request.headers.get("x-lark-request-timestamp") || "";
+    const nonce = request.headers.get("x-lark-request-nonce") || "";
+    const signature = request.headers.get("x-lark-signature") || "";
 
-    // Token 验证
-    if (!verifyToken(body)) {
-      console.warn("⚠️ Token 验证失败");
+    // 签名验证
+    if (!verifySignature(rawBody, timestamp, nonce, signature)) {
+      console.warn("⚠️ 签名验证失败");
       return new NextResponse(
-        JSON.stringify({ error: "Token verification failed" }),
+        JSON.stringify({ error: "Signature verification failed" }),
         { status: 403, headers: { "Content-Type": "application/json; charset=utf-8" } }
       );
     }
 
-    // 判断事件类型
-    const eventType = extractEventType(body);
+    // 解密（如果加密）
+    if (typeof body.encrypt === "string") {
+      const decrypted = decryptPayload(body.encrypt);
+      if (decrypted) {
+        Object.assign(body, decrypted);
+        console.log("🔓 解密后数据:", JSON.stringify(decrypted).substring(0, 500));
+      } else {
+        return new NextResponse(
+          JSON.stringify({ error: "Failed to decrypt request" }),
+          { status: 400, headers: { "Content-Type": "application/json; charset=utf-8" } }
+        );
+      }
+    }
+
+    // 规范化事件数据
+    const { eventType, normalizedBody } = normalizeEvent(body);
     console.log("📋 事件类型:", eventType);
 
     // URL 验证
-    if (eventType === "url_verification") {
-      return handleUrlVerification(body);
+    if (eventType === "url_verification" || body.type === "url_verification") {
+      return handleUrlVerification(normalizedBody);
     }
 
     // 卡片回调
     if (eventType === "card.action.trigger") {
-      return handleCardCallback(body);
+      return handleCardCallback(normalizedBody);
     }
 
     // 其他事件类型
