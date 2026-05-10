@@ -100,14 +100,16 @@ export async function POST(request: NextRequest) {
       const formActions: any[] = [];
       if (buttons && buttons.length > 0) {
         for (const btn of buttons) {
+          // 提取action值用于回调
+          const actionValue = btn.value?.action || btn.value || 'submit';
           formActions.push({
             tag: 'button',
             text: {
               tag: 'plain_text',
               content: btn.text
             },
-            type: 'submit',  // 必须使用submit类型
-            value: btn.value || {}
+            type: 'primary',  // 按钮样式用primary
+            value: { action: actionValue }  // 统一格式
           });
         }
       }
