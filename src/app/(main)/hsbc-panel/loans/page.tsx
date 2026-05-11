@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Filter, ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreHorizontal, Upload, LayoutDashboard, Building2, Columns } from 'lucide-react';
+import { Search, Filter, ChevronDown, ChevronUp, Eye, Edit, Trash2, MoreHorizontal, Upload, LayoutDashboard, Building2, Columns, FileUp, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { HSBCLoan, HSBCLoanFilter, calcPastdueAmount, calcBalance } from '@/lib/hsbc-loan';
+import * as XLSX from 'xlsx';
 
 interface MerchantData {
   merchantId: string;
@@ -42,6 +43,14 @@ export default function HSBCLoansPage() {
   const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
   const [batchDate, setBatchDate] = useState<string>('all');
   const [batchDates, setBatchDates] = useState<string[]>([]);
+
+  // 批量查询状态
+  const [showBatchDialog, setShowBatchDialog] = useState(false);
+  const [batchFile, setBatchFile] = useState<File | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchResults, setBatchResults] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 获取批次日期
   const fetchBatchDates = useCallback(async () => {
@@ -144,6 +153,140 @@ export default function HSBCLoansPage() {
     setShowDetail(true);
   };
 
+  // 解析offer_dataset字段
+  const parseOfferDataset = (dataset: string | null) => {
+    if (!dataset) {
+      return {
+        绑定店铺数量: '',
+        未来应收在贷金额: '',
+        未来应收: '',
+        在贷金额: '',
+        未来应收库存在贷金额: '',
+        库存金额: '',
+      };
+    }
+    try {
+      const data = JSON.parse(dataset);
+      return {
+        绑定店铺数量: data.bind_shop_count?.toString() || '',
+        未来应收在贷金额: data.future_receive_or_loan_amount?.toString() || '',
+        未来应收: data.future_receive?.toString() || '',
+        在贷金额: data.loan_amount?.toString() || '',
+        未来应收库存在贷金额: data.future_receive_and_inventory_or_loan_amount?.toString() || '',
+        库存金额: data.inventory_amount?.toString() || '',
+      };
+    } catch {
+      return {
+        绑定店铺数量: '',
+        未来应收在贷金额: '',
+        未来应收: '',
+        在贷金额: '',
+        未来应收库存在贷金额: '',
+        库存金额: '',
+      };
+    }
+  };
+
+  // 处理批量查询
+  const handleBatchQuery = async () => {
+    if (!batchFile) {
+      toast.error('请选择Excel文件');
+      return;
+    }
+
+    setBatchLoading(true);
+    setBatchProgress(0);
+    setBatchResults([]);
+
+    try {
+      // 读取Excel文件
+      const arrayBuffer = await batchFile.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // 提取loan_code列表
+      const loanCodes: string[] = [];
+      jsonData.forEach((row: any) => {
+        if (row.loan_code) {
+          loanCodes.push(row.loan_code.toString());
+        }
+      });
+
+      if (loanCodes.length === 0) {
+        toast.error('未找到loan_code列或列为空');
+        setBatchLoading(false);
+        return;
+      }
+
+      toast.info(`开始查询 ${loanCodes.length} 条记录...`);
+
+      // 分批处理
+      const batchSize = 50;
+      const allResults: any[] = [];
+
+      for (let i = 0; i < loanCodes.length; i += batchSize) {
+        const batch = loanCodes.slice(i, i + batchSize);
+        setBatchProgress(Math.round((i / loanCodes.length) * 100));
+
+        try {
+          const response = await fetch('/api/batch-loan-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ loanCodes: batch }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            allResults.push(...data.data);
+          }
+        } catch (e) {
+          console.error('批次查询失败:', e);
+        }
+      }
+
+      setBatchProgress(100);
+      setBatchResults(allResults);
+      toast.success(`查询完成，共 ${allResults.length} 条记录`);
+    } catch (e) {
+      toast.error('处理文件失败: ' + (e as Error).message);
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  // 导出查询结果
+  const handleExportResults = () => {
+    if (batchResults.length === 0) {
+      toast.error('没有可导出的数据');
+      return;
+    }
+
+    const exportData = batchResults.map((result) => {
+      const parsed = parseOfferDataset(result.offer_dataset);
+      return {
+        loan_code: result.loan_code,
+        application_code: result.application_code || '',
+        offer_id: result.offer_ids?.join(', ') || '',
+        update_time: result.update_time || '',
+        绑定店铺数量: parsed.绑定店铺数量,
+        未来应收在贷金额: parsed.未来应收在贷金额,
+        未来应收: parsed.未来应收,
+        在贷金额: parsed.在贷金额,
+        未来应收库存在贷金额: parsed.未来应收库存在贷金额,
+        库存金额: parsed.库存金额,
+      };
+    });
+
+    const newWorkbook = XLSX.utils.book_new();
+    const newWorksheet = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, '查询结果');
+
+    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    XLSX.writeFile(newWorkbook, `贷款数据查询结果_${timestamp}.xlsx`);
+    toast.success('导出成功！');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -160,6 +303,104 @@ export default function HSBCLoansPage() {
               <LayoutDashboard className="w-4 h-4 mr-2" />
               仪表盘
             </Button>
+            <Dialog open={showBatchDialog} onOpenChange={setShowBatchDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileUp className="w-4 h-4 mr-2" />
+                  批量查询
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>批量贷款数据查询</DialogTitle>
+                  <DialogDescription>
+                    上传包含loan_code列的Excel文件，系统将自动查询并导出结果
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">选择Excel文件</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => setBatchFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {batchFile && (
+                      <p className="mt-2 text-sm text-gray-600">
+                        已选择: {batchFile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {batchLoading && (
+                    <div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div
+                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                          style={{ width: `${batchProgress}%` }}
+                        />
+                      </div>
+                      <p className="mt-2 text-sm text-gray-600 text-center">
+                        查询进度: {batchProgress}%
+                      </p>
+                    </div>
+                  )}
+
+                  {batchResults.length > 0 && (
+                    <div className="border rounded-lg p-4 max-h-60 overflow-y-auto">
+                      <p className="text-sm font-medium mb-2">查询结果 (共 {batchResults.length} 条)</p>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>loan_code</TableHead>
+                            <TableHead>application_code</TableHead>
+                            <TableHead>offer数量</TableHead>
+                            <TableHead>绑定店铺</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {batchResults.slice(0, 10).map((result, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs">{result.loan_code}</TableCell>
+                              <TableCell className="font-mono text-xs">{result.application_code || '-'}</TableCell>
+                              <TableCell>{result.offer_ids?.length || 0}</TableCell>
+                              <TableCell>{result.绑定店铺数量 || '-'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {batchResults.length > 10 && (
+                        <p className="mt-2 text-sm text-gray-500">仅显示前10条...</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 justify-end">
+                    <Button variant="outline" onClick={() => setShowBatchDialog(false)}>
+                      关闭
+                    </Button>
+                    <Button onClick={handleBatchQuery} disabled={!batchFile || batchLoading}>
+                      {batchLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          查询中...
+                        </>
+                      ) : (
+                        '开始查询'
+                      )}
+                    </Button>
+                    {batchResults.length > 0 && (
+                      <Button onClick={handleExportResults}>
+                        <Download className="w-4 h-4 mr-2" />
+                        导出结果
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button onClick={() => router.push('/hsbc-panel/upload')}>
               <Upload className="w-4 h-4 mr-2" />
               导入数据
