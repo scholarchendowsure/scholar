@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
     }));
 
-    // 使用 JSON 2.0 格式，form容器包含所有表单项和提交按钮
+    // 使用 JSON 2.0 格式，按钮放在form外部
     const cardContent = {
       schema: '2.0',
       config: {
@@ -92,11 +92,10 @@ export async function POST(request: NextRequest) {
           {
             tag: 'form' as const,
             name: 'followup_form',
-            elements: [
-              ...formElements,
-              ...buttonElements
-            ]
-          }
+            elements: formElements
+          },
+          { tag: 'hr' as const },
+          ...buttonElements
         ]
       }
     };
