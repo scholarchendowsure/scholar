@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       }];
     });
 
-    // 构建按钮元素（按钮放在form外部）
+    // 构建按钮元素（按钮放在form内部）
     const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
       tag: 'button' as const,
       text: { tag: 'plain_text' as const, content: btn.text },
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
     }));
 
-    // 使用 JSON 2.0 格式，按钮放在form外部
+    // 使用 JSON 2.0 格式，按钮放在form内部
     const cardContent = {
       schema: '2.0',
       config: {
@@ -92,10 +92,8 @@ export async function POST(request: NextRequest) {
           {
             tag: 'form' as const,
             name: 'followup_form',
-            elements: formElements
-          },
-          { tag: 'hr' as const },
-          ...buttonElements
+            elements: [...formElements, ...buttonElements]
+          }
         ]
       }
     };
