@@ -27,40 +27,55 @@ export async function POST(request: NextRequest) {
       }
     }));
 
-    // 构建选择框元素
-    const selectElements = selects.flatMap((sel: {
+    // 构建选择框元素和输入框
+    const formElements = selects.flatMap((sel: {
       label: string;
       name: string;
       placeholder?: string;
       options?: Array<{ text: string; value: string }>;
-    }) => [
-      {
-        tag: 'div' as const,
-        text: {
-          tag: 'lark_md' as const,
-          content: `**${sel.label}**`
-        }
-      },
-      {
-        tag: 'select_static' as const,
-        name: sel.name || sel.label,
-        placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请选择' },
-        options: (sel.options || []).map((opt: { text: string; value: string }) => ({
-          text: { tag: 'plain_text' as const, content: opt.text },
-          value: opt.value || opt.text
-        }))
+    }) => {
+      // 如果有选项，使用select_static
+      if (sel.options && sel.options.length > 0) {
+        return [
+          {
+            tag: 'div' as const,
+            text: {
+              tag: 'lark_md' as const,
+              content: `**${sel.label}**`
+            }
+          },
+          {
+            tag: 'select_static' as const,
+            name: sel.name || sel.label,
+            placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请选择' },
+            options: sel.options.map((opt: { text: string; value: string }) => ({
+              text: { tag: 'plain_text' as const, content: opt.text },
+              value: opt.value || opt.text
+            }))
+          }
+        ];
       }
-    ]);
+      // 如果没有选项，使用input组件
+      return [{
+        tag: 'input' as const,
+        name: sel.name || sel.label,
+        placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请输入' },
+        label: { tag: 'plain_text' as const, content: sel.label },
+        input_type: 'multiline_text' as const,
+        rows: 3
+      }];
+    });
 
-    // 构建按钮元素（JSON 2.0中按钮直接放在elements中）
+    // 构建按钮元素（JSON 2.0中按钮放在form内，action_type设为form_submit）
     const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
       tag: 'button' as const,
       text: { tag: 'plain_text' as const, content: btn.text },
       type: 'primary' as const,
+      action_type: 'form_submit' as const,
       value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
     }));
 
-    // 使用 JSON 2.0 格式
+    // 使用 JSON 2.0 格式，form容器包含所有表单项和提交按钮
     const cardContent = {
       schema: '2.0',
       config: {
@@ -74,9 +89,14 @@ export async function POST(request: NextRequest) {
         elements: [
           ...caseInfoElements,
           { tag: 'hr' as const },
-          ...selectElements,
-          { tag: 'hr' as const },
-          ...buttonElements
+          {
+            tag: 'form' as const,
+            name: 'followup_form',
+            elements: [
+              ...formElements,
+              ...buttonElements
+            ]
+          }
         ]
       }
     };
