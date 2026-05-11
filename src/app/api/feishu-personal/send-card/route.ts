@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       }];
     });
 
-    // 构建按钮元素（JSON 2.0中按钮放在form内，action_type设为form_submit）
+    // 构建按钮元素（按钮放在form外部）
     const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
       tag: 'button' as const,
       text: { tag: 'plain_text' as const, content: btn.text },
