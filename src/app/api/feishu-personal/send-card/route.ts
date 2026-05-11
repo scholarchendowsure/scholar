@@ -1,178 +1,115 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAccessToken } from '@/lib/feishu-api';
 
-const FEISHU_API_BASE = 'https://open.feishu.cn/open-apis';
-
-interface CardField {
-  label: string;
-  value: string;
-}
-
-interface CardButton {
-  text: string;
-  value?: any;
-  type?: 'primary' | 'default' | 'danger';
-}
-
-interface SelectOption {
-  text: string;
-  value: string;
-}
-
-interface SelectField {
-  label: string;
-  name: string;
-  options: SelectOption[];
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const { openId, title, fields, buttons, selects, template = 'blue' } = await request.json();
+    const body = await request.json();
+    const { openId, title, template = 'blue', fields = [], selects = [], buttons = [] } = body;
 
     if (!openId) {
       return NextResponse.json({ error: '缺少 openId 参数' }, { status: 400 });
     }
 
     // 获取 tenant_access_token
-    const appId = process.env.FEISHU_APP_ID;
-    const appSecret = process.env.FEISHU_APP_SECRET;
-    const tenantAccessToken = await getTenantAccessToken(appId!, appSecret!);
-    if (!tenantAccessToken) {
-      return NextResponse.json({ error: '获取飞书 access_token 失败' }, { status: 500 });
+    const token = await getTenantAccessToken();
+    if (!token) {
+      return NextResponse.json({ error: '获取飞书访问令牌失败' }, { status: 500 });
     }
 
-    const elements: any[] = [];
-
-    // 1. 添加案件基本信息（使用 markdown）
-    if (fields && fields.length > 0) {
-      const infoText = fields
-        .map((f: CardField) => `**${f.label}：** ${f.value}`)
-        .join('\n');
-      elements.push({
-        tag: 'div',
-        text: {
-          tag: 'lark_md',
-          content: infoText
-        }
-      });
-      elements.push({ tag: 'hr' });
-    }
-
-    // 2. 使用按钮组替代 select/input 实现选择功能
-    if (selects && selects.length > 0) {
-      for (const sel of selects) {
-        // 添加字段标题
-        elements.push({
-          tag: 'div',
-          text: {
-            tag: 'lark_md',
-            content: `**${sel.label}**`
-          }
-        });
-
-        // 添加选项按钮组
-        const optionButtons = (sel.options || []).map((opt: SelectOption) => ({
-          tag: 'button',
-          text: {
-            tag: 'plain_text',
-            content: opt.text
-          },
-          type: 'default',
-          value: {
-            action: 'select_option',
-            field: sel.name,
-            label: sel.label,
-            value: opt.value,
-            text: opt.text
-          }
-        }));
-
-        elements.push({
-          tag: 'action',
-          layout: 'bisecting',
-          actions: optionButtons
-        });
-
-        elements.push({ tag: 'hr' });
+    // 构建案件信息
+    const caseInfoElements = fields.map((field: { label: string; value: string }) => ({
+      tag: 'div',
+      text: {
+        tag: 'lark_md',
+        content: `**${field.label}：** ${field.value}`
       }
-    }
+    }));
 
-    // 3. 添加提交按钮
-    if (buttons && buttons.length > 0) {
-      const submitButton = buttons[0];
-      elements.push({
-        tag: 'action',
-        layout: 'default',
-        actions: [
-          {
-            tag: 'button',
-            text: {
-              tag: 'plain_text',
-              content: submitButton.text
-            },
-            type: submitButton.type || 'primary',
-            value: submitButton.value
-          }
-        ]
-      });
-    }
+    // 构建选择框元素
+    const selectElements = selects.flatMap((sel: {
+      label: string;
+      name: string;
+      placeholder?: string;
+      options?: Array<{ text: string; value: string }>;
+    }) => [
+      {
+        tag: 'div' as const,
+        text: {
+          tag: 'lark_md' as const,
+          content: `**${sel.label}**`
+        }
+      },
+      {
+        tag: 'select_static' as const,
+        name: sel.name || sel.label,
+        placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请选择' },
+        options: (sel.options || []).map((opt: { text: string; value: string }) => ({
+          text: { tag: 'plain_text' as const, content: opt.text },
+          value: opt.value || opt.text
+        }))
+      }
+    ]);
 
-    // 构建卡片内容
-    const card = {
+    // 构建按钮元素（JSON 2.0中按钮直接放在elements中）
+    const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
+      tag: 'button' as const,
+      text: { tag: 'plain_text' as const, content: btn.text },
+      type: 'primary' as const,
+      value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
+    }));
+
+    // 使用 JSON 2.0 格式
+    const cardContent = {
+      schema: '2.0',
       config: {
         wide_screen_mode: true
       },
       header: {
-        title: {
-          tag: 'plain_text',
-          content: title
-        },
-        template: template
+        title: { tag: 'plain_text' as const, content: title || '案件跟进提醒' },
+        template: template as string
       },
-      elements: elements
+      body: {
+        elements: [
+          ...caseInfoElements,
+          { tag: 'hr' as const },
+          ...selectElements,
+          { tag: 'hr' as const },
+          ...buttonElements
+        ]
+      }
     };
 
-    const cardJson = JSON.stringify(card);
-    console.log('📋 完整卡片JSON:', cardJson);
-    console.log('📋 卡片JSON长度:', cardJson.length);
-
     // 发送消息
-    const response = await fetch(`${FEISHU_API_BASE}/im/v1/messages?receive_id_type=open_id`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${tenantAccessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        receive_id: openId,
-        msg_type: 'interactive',
-        content: cardJson,
-        uuid: Date.now().toString(),
-      }),
-    });
+    const response = await fetch(
+      'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          receive_id: openId,
+          msg_type: 'interactive',
+          content: JSON.stringify(cardContent)
+        })
+      }
+    );
 
-    const responseData = await response.json();
-    console.log('📦 卡片消息API响应状态:', response.status);
-    console.log('📦 卡片消息API完整响应:', JSON.stringify(responseData));
+    const result = await response.json();
+    console.log('飞书卡片发送结果:', JSON.stringify(result));
 
-    if (responseData.code !== 0) {
-      return NextResponse.json({
-        error: `发送飞书卡片消息失败: ${responseData.msg}`,
-        details: responseData
+    if (result.code === 0) {
+      return NextResponse.json({ success: true, message_id: result.data?.message_id });
+    } else {
+      return NextResponse.json({ 
+        error: `飞书API错误: ${result.msg}`,
+        code: result.code 
       }, { status: 500 });
     }
 
-    return NextResponse.json({
-      success: true,
-      messageId: responseData.data?.message_id,
-      data: responseData.data
-    });
-
   } catch (error) {
-    console.error('❌ 发送飞书卡片消息异常:', error);
-    return NextResponse.json({
-      error: '服务器内部错误',
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    console.error('发送飞书卡片失败:', error);
+    return NextResponse.json({ error: '发送飞书卡片失败' }, { status: 500 });
   }
 }
