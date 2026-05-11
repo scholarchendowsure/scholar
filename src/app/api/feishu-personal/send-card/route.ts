@@ -11,7 +11,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取 tenant_access_token
-    const token = await getTenantAccessToken();
+    const appId = process.env.FEISHU_APP_ID || 'cli_a9652497d7389bd6';
+    const appSecret = process.env.FEISHU_APP_SECRET || '';
+    const token = await getTenantAccessToken(appId, appSecret);
     if (!token) {
       return NextResponse.json({ error: '获取飞书访问令牌失败' }, { status: 500 });
     }
