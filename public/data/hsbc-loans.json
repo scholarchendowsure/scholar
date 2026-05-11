@@ -343560,13 +343560,17 @@
       {
         "date": "2026-04-30",
         "amount": 937.56
+      },
+      {
+        "date": "2026-05-08",
+        "amount": 235.84
       }
     ],
-    "balance": 9857.409999999989,
-    "pastdueAmount": 9857.409999999989,
+    "balance": 9621.569999999992,
+    "pastdueAmount": 9621.569999999992,
     "overdueDays": 188,
     "status": "overdue",
-    "totalRepaid": 90142.59000000001,
+    "totalRepaid": 90378.43000000001,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -348014,13 +348018,17 @@
       {
         "date": "2026-05-08",
         "amount": 696.42
+      },
+      {
+        "date": "2026-05-11",
+        "amount": 1685.11
       }
     ],
-    "balance": 182307.45000000004,
-    "pastdueAmount": 182307.45000000004,
+    "balance": 180622.34000000005,
+    "pastdueAmount": 180622.34000000005,
     "overdueDays": 145,
     "status": "overdue",
-    "totalRepaid": 211692.54999999996,
+    "totalRepaid": 213377.65999999995,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -358194,13 +358202,17 @@
       {
         "date": "2026-04-10",
         "amount": 185000
+      },
+      {
+        "date": "2026-05-11",
+        "amount": 185000
       }
     ],
-    "balance": 1815000,
-    "pastdueAmount": 1815000,
+    "balance": 1630000,
+    "pastdueAmount": 1630000,
     "overdueDays": 67,
     "status": "overdue",
-    "totalRepaid": 185000,
+    "totalRepaid": 370000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -362773,13 +362785,17 @@
       {
         "date": "2026-04-29",
         "amount": 98405.09
+      },
+      {
+        "date": "2026-05-11",
+        "amount": 200099.76
       }
     ],
-    "balance": 441594.91000000003,
-    "pastdueAmount": 441594.91000000003,
+    "balance": 241495.15000000002,
+    "pastdueAmount": 241495.15000000002,
     "overdueDays": 20,
     "status": "overdue",
-    "totalRepaid": 98405.09,
+    "totalRepaid": 298504.85,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -364602,12 +364618,17 @@
     "totalInterestRate": 0.058,
     "loanTenor": "120D",
     "maturityDate": "2026-05-08",
-    "repaymentSchedule": [],
-    "balance": 500000,
-    "pastdueAmount": 500000,
-    "overdueDays": 3,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-08",
+        "amount": 500000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 500000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -364682,12 +364703,17 @@
     "totalInterestRate": 0.058,
     "loanTenor": "120D",
     "maturityDate": "2026-05-08",
-    "repaymentSchedule": [],
-    "balance": 300000,
-    "pastdueAmount": 300000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-11",
+        "amount": 32535.42
+      }
+    ],
+    "balance": 267464.58,
+    "pastdueAmount": 267464.58,
     "overdueDays": 3,
     "status": "overdue",
-    "totalRepaid": 0,
+    "totalRepaid": 32535.42,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -364704,12 +364730,17 @@
     "totalInterestRate": 0.0757493,
     "loanTenor": "120D",
     "maturityDate": "2026-05-08",
-    "repaymentSchedule": [],
-    "balance": 71000,
-    "pastdueAmount": 71000,
-    "overdueDays": 3,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-08",
+        "amount": 71000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 71000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -364783,13 +364814,17 @@
       {
         "date": "2026-04-16",
         "amount": 50000
+      },
+      {
+        "date": "2026-05-11",
+        "amount": 150000
       }
     ],
-    "balance": 150000,
-    "pastdueAmount": 150000,
-    "overdueDays": 3,
-    "status": "overdue",
-    "totalRepaid": 95000,
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 245000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -364837,12 +364872,17 @@
     "totalInterestRate": 0.0757493,
     "loanTenor": "120D",
     "maturityDate": "2026-05-08",
-    "repaymentSchedule": [],
-    "balance": 20000,
-    "pastdueAmount": 20000,
-    "overdueDays": 3,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-08",
+        "amount": 20000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 20000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -364929,12 +364969,17 @@
     "totalInterestRate": 0.0581652,
     "loanTenor": "122D",
     "maturityDate": "2026-05-11",
-    "repaymentSchedule": [],
-    "balance": 400000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-11",
+        "amount": 400000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 400000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -365098,12 +365143,17 @@
     "totalInterestRate": 0.0758324,
     "loanTenor": "122D",
     "maturityDate": "2026-05-11",
-    "repaymentSchedule": [],
-    "balance": 4280,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-11",
+        "amount": 4280
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 4280,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -365418,12 +365468,17 @@
     "totalInterestRate": 0.0759184,
     "loanTenor": "120D",
     "maturityDate": "2026-05-13",
-    "repaymentSchedule": [],
-    "balance": 64000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-11",
+        "amount": 64000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 64000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -370086,12 +370141,17 @@
     "totalInterestRate": 0.0810044,
     "loanTenor": "120D",
     "maturityDate": "2026-07-02",
-    "repaymentSchedule": [],
-    "balance": 500000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-11",
+        "amount": 500000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 500000,
     "batchDate": "2026-05-11",
     "remarks": ""
   },
@@ -375855,6 +375915,50 @@
     "maturityDate": "2026-09-07",
     "repaymentSchedule": [],
     "balance": 540000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-11",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-11-1981",
+    "loanReference": "EMFAM1026407",
+    "merchantId": "65726",
+    "merchantName": "",
+    "borrowerName": "YUEDA INTL TRADE CO LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 19000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0767004,
+    "loanTenor": "123D",
+    "maturityDate": "2026-09-08",
+    "repaymentSchedule": [],
+    "balance": 19000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-11",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-11-1982",
+    "loanReference": "EMFAM1026404",
+    "merchantId": "67714",
+    "merchantName": "",
+    "borrowerName": "DEEPNEW LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "CNY",
+    "loanAmount": 402000,
+    "loanInterest": "120D HBR + 4%",
+    "totalInterestRate": 0.0565182,
+    "loanTenor": "122D",
+    "maturityDate": "2026-09-07",
+    "repaymentSchedule": [],
+    "balance": 402000,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
