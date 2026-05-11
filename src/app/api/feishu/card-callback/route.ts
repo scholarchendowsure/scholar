@@ -148,20 +148,56 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
   // 如果是提交跟进记录（按钮 tag 为 "button"）
   if (tag === "button" && value.action === "submit_followup") {
     const caseId = (value.case_id as string) || "";
+    const loanNo = (value.loan_no as string) || "";
     const followupMethod = (formValue.followup_method as string) || "其他";
     const followupTarget = (formValue.followup_target as string) || "借款人";
     const contactStatus = (formValue.contact_status as string) || "接通";
     const repaymentWillingness = (formValue.repayment_willingness as string) || "暂无";
     const followupResult = (formValue.followup_result as string) || "暂无结果";
+    const followupNotes = (formValue.followup_notes as string) || "";
 
     console.log("📝 跟进记录:", {
       caseId,
+      loanNo,
       followupMethod,
       followupTarget,
       contactStatus,
       repaymentWillingness,
       followupResult,
+      followupNotes,
     });
+
+    // 保存跟进记录到数据库
+    try {
+      // 构建跟进记录数据
+      const followupData = {
+        method: followupMethod,
+        target: followupTarget,
+        contactStatus: contactStatus,
+        repaymentWillingness: repaymentWillingness,
+        result: followupResult,
+        notes: followupNotes,
+        followUpTime: new Date().toISOString(),
+      };
+
+      // 调用案件跟进API保存记录
+      const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || "http://localhost:5000";
+      const apiUrl = `${baseUrl}/api/cases/${caseId}/followups`;
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(followupData),
+      });
+
+      if (response.ok) {
+        console.log("✅ 跟进记录已保存到数据库");
+      } else {
+        console.error("❌ 保存跟进记录失败:", response.status);
+      }
+    } catch (error) {
+      console.error("❌ 保存跟进记录出错:", error);
+    }
 
     // 返回更新后的卡片内容（显示提交成功）
     const successCard = {
