@@ -16,8 +16,9 @@ import {
   Loader2, RefreshCw, Save, Users, Settings, Link as LinkIcon, Trash2, 
   MessageSquare, Search, Send, Database, ArrowRightLeft, 
   Cloud, Download, Upload, Activity, Bell, Key, CheckCircle,
-  Terminal
+  Terminal, FileUp
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { FeishuBitableConfig, BitableSyncRecord, DEFAULT_BITABLE_FIELDS } from '@/types/feishu-bitable';
 import { FeishuPersonalAccount, FeishuPersonalConfig, PersonalSendMode } from '@/types/feishu-personal';
 import { CozeApiConfig } from '@/types/coze-api';
@@ -137,6 +138,12 @@ export default function FeishuConfigPage() {
   const [loanQueryCode, setLoanQueryCode] = useState('');
   const [loanQueryLoading, setLoanQueryLoading] = useState(false);
   const [loanQueryResult, setLoanQueryResult] = useState<any>(null);
+  
+  // 批量查询状态
+  const [batchFile, setBatchFile] = useState<File | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchResults, setBatchResults] = useState<any[]>([]);
 
   // 不需要 lark-cli 授权状态了
 
@@ -2093,6 +2100,204 @@ export default function FeishuConfigPage() {
                   )}
                 </div>
               )}
+
+              {/* 批量查询功能 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileUp className="w-5 h-5" />
+                    批量贷款数据查询
+                  </CardTitle>
+                  <CardDescription>
+                    上传包含loan_code列的Excel文件，批量查询并导出结果
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-4 items-end">
+                    <div className="flex-1 space-y-2">
+                      <Label>选择Excel文件</Label>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={(e) => setBatchFile(e.target.files?.[0] || null)}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {batchFile && (
+                        <p className="text-sm text-muted-foreground">已选择: {batchFile.name}</p>
+                      )}
+                    </div>
+                    <Button 
+                      onClick={async () => {
+                        if (!batchFile) {
+                          toast.error('请选择Excel文件');
+                          return;
+                        }
+
+                        setBatchLoading(true);
+                        setBatchProgress(0);
+                        setBatchResults([]);
+
+                        try {
+                          // 读取Excel
+                          const arrayBuffer = await batchFile.arrayBuffer();
+                          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                          const sheetName = workbook.SheetNames[0];
+                          const worksheet = workbook.Sheets[sheetName];
+                          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                          // 提取loan_code
+                          const loanCodes: string[] = [];
+                          jsonData.forEach((row: any) => {
+                            if (row.loan_code) {
+                              loanCodes.push(row.loan_code.toString());
+                            }
+                          });
+
+                          if (loanCodes.length === 0) {
+                            toast.error('未找到loan_code列或列为空');
+                            setBatchLoading(false);
+                            return;
+                          }
+
+                          toast.info(`开始查询 ${loanCodes.length} 条记录...`);
+
+                          // 分批查询
+                          const batchSize = 50;
+                          const allResults: any[] = [];
+
+                          for (let i = 0; i < loanCodes.length; i += batchSize) {
+                            const batch = loanCodes.slice(i, i + batchSize);
+                            setBatchProgress(Math.round((i / loanCodes.length) * 100));
+
+                            try {
+                              const response = await fetch('/api/batch-loan-query', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ loanCodes: batch }),
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                allResults.push(...data.data);
+                              }
+                            } catch (e) {
+                              console.error('批次查询失败:', e);
+                            }
+                          }
+
+                          setBatchProgress(100);
+                          setBatchResults(allResults);
+                          toast.success(`查询完成，共 ${allResults.length} 条记录`);
+                        } catch (e) {
+                          toast.error('处理文件失败: ' + (e as Error).message);
+                        } finally {
+                          setBatchLoading(false);
+                        }
+                      }}
+                      disabled={!batchFile || batchLoading}
+                    >
+                      {batchLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          查询中 {batchProgress}%
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" />
+                          开始查询
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {batchLoading && (
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${batchProgress}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {batchResults.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-medium">查询结果 (共 {batchResults.length} 条)</p>
+                        <Button 
+                          size="sm"
+                          onClick={() => {
+                            const exportData = batchResults.map((result) => {
+                              let parsedData: any = {};
+                              try {
+                                if (result.offer_dataset) {
+                                  parsedData = JSON.parse(result.offer_dataset);
+                                }
+                              } catch {}
+                              
+                              return {
+                                loan_code: result.loan_code,
+                                application_code: result.application_code || '',
+                                offer_id: result.offer_ids?.join(', ') || '',
+                                update_time: result.update_time || '',
+                                绑定店铺数量: parsedData.bind_shop_count || '',
+                                未来应收在贷金额: parsedData.future_receive_or_loan_amount || '',
+                                未来应收: parsedData.future_receive || '',
+                                在贷金额: parsedData.loan_amount || '',
+                                未来应收库存在贷金额: parsedData.future_receive_and_inventory_or_loan_amount || '',
+                                库存金额: parsedData.inventory_amount || '',
+                              };
+                            });
+
+                            const newWorkbook = XLSX.utils.book_new();
+                            const newWorksheet = XLSX.utils.json_to_sheet(exportData);
+                            XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, '查询结果');
+                            const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                            XLSX.writeFile(newWorkbook, `贷款数据查询结果_${timestamp}.xlsx`);
+                            toast.success('导出成功！');
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          导出结果
+                        </Button>
+                      </div>
+                      <div className="max-h-60 overflow-auto border rounded-lg">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>loan_code</TableHead>
+                              <TableHead>application_code</TableHead>
+                              <TableHead>offer数量</TableHead>
+                              <TableHead>绑定店铺</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {batchResults.slice(0, 20).map((result, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-mono text-xs">{result.loan_code}</TableCell>
+                                <TableCell className="font-mono text-xs">{result.application_code || '-'}</TableCell>
+                                <TableCell>{result.offer_ids?.length || 0}</TableCell>
+                                <TableCell>{(() => {
+                                  try {
+                                    if (result.offer_dataset) {
+                                      const d = JSON.parse(result.offer_dataset);
+                                      return d.bind_shop_count || '-';
+                                    }
+                                  } catch {}
+                                  return '-';
+                                })()}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {batchResults.length > 20 && (
+                          <p className="p-2 text-sm text-muted-foreground text-center">
+                            仅显示前20条，共 {batchResults.length} 条
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>
