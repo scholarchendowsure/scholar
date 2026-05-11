@@ -71,11 +71,11 @@ export async function POST(request: NextRequest) {
       tag: 'button' as const,
       text: { tag: 'plain_text' as const, content: btn.text },
       type: 'primary' as const,
-      action_type: 'form_submit' as const,
       value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
     }));
 
-    // 使用 JSON 2.0 格式，按钮放在form内部
+    // 使用 JSON 2.0 格式
+    // 注意：action_type: "submit" 必须放在 form 上，不是 button 上
     const cardContent = {
       schema: '2.0',
       config: {
@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
           {
             tag: 'form' as const,
             name: 'followup_form',
+            action_type: 'submit' as const,  // action_type 在 form 上！
             elements: [...formElements, ...buttonElements]
           }
         ]
