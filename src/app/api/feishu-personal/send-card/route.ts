@@ -66,12 +66,11 @@ export async function POST(request: NextRequest) {
       }];
     });
 
-    // 构建按钮元素（按钮放在form内部）
+    // 构建按钮元素（按钮放在form内部，无需action_type）
     const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
       tag: 'button' as const,
       text: { tag: 'plain_text' as const, content: btn.text },
       type: 'primary' as const,
-      action_type: 'submit' as const,  // 按钮上设置 action_type
       value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
     }));
 
