@@ -2226,24 +2226,12 @@ export default function FeishuConfigPage() {
                           size="sm"
                           onClick={() => {
                             const exportData = batchResults.map((result) => {
-                              let parsedData: any = {};
-                              try {
-                                if (result.offer_dataset) {
-                                  parsedData = JSON.parse(result.offer_dataset);
-                                }
-                              } catch {}
-                              
                               return {
                                 loan_code: result.loan_code,
                                 application_code: result.application_code || '',
                                 offer_id: result.offer_ids?.join(', ') || '',
                                 update_time: result.update_time || '',
-                                绑定店铺数量: parsedData.bind_shop_count || '',
-                                未来应收在贷金额: parsedData.future_receive_or_loan_amount || '',
-                                未来应收: parsedData.future_receive || '',
-                                在贷金额: parsedData.loan_amount || '',
-                                未来应收库存在贷金额: parsedData.future_receive_and_inventory_or_loan_amount || '',
-                                库存金额: parsedData.inventory_amount || '',
+                                offer_dataset: result.offer_dataset || '',
                               };
                             });
 
@@ -2266,7 +2254,8 @@ export default function FeishuConfigPage() {
                               <TableHead>loan_code</TableHead>
                               <TableHead>application_code</TableHead>
                               <TableHead>offer数量</TableHead>
-                              <TableHead>绑定店铺</TableHead>
+                              <TableHead>offer_dataset</TableHead>
+                              <TableHead>update_time</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -2275,15 +2264,12 @@ export default function FeishuConfigPage() {
                                 <TableCell className="font-mono text-xs">{result.loan_code}</TableCell>
                                 <TableCell className="font-mono text-xs">{result.application_code || '-'}</TableCell>
                                 <TableCell>{result.offer_ids?.length || 0}</TableCell>
-                                <TableCell>{(() => {
-                                  try {
-                                    if (result.offer_dataset) {
-                                      const d = JSON.parse(result.offer_dataset);
-                                      return d.bind_shop_count || '-';
-                                    }
-                                  } catch {}
-                                  return '-';
-                                })()}</TableCell>
+                                <TableCell className="max-w-[200px] truncate text-xs" title={result.offer_dataset || ''}>
+                                  {result.offer_dataset ? (
+                                    <span className="text-muted-foreground">{result.offer_dataset.substring(0, 50)}...</span>
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell>{result.update_time || '-'}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
