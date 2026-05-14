@@ -109,7 +109,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
       const sheet = workbook.Sheets['司法案件'];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
       // 从第3行开始（跳过标题行）
-      for (let i = 2; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (row && row.length > 0 && row[0]) {
           litigationRecords.push({
@@ -130,7 +130,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     if (workbook.SheetNames.includes('限制高消费')) {
       const sheet = workbook.Sheets['限制高消费'];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-      for (let i = 2; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (row && row.length > 0 && row[0]) {
           limitHighRecords.push({
@@ -151,7 +151,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     if (workbook.SheetNames.includes('终本案件')) {
       const sheet = workbook.Sheets['终本案件'];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-      for (let i = 2; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (row && row.length > 0 && row[0]) {
           endCaseRecords.push({
@@ -172,7 +172,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     if (workbook.SheetNames.includes('开庭公告')) {
       const sheet = workbook.Sheets['开庭公告'];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-      for (let i = 2; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         if (row && row.length > 0 && row[0]) {
           courtNoticeRecords.push({
