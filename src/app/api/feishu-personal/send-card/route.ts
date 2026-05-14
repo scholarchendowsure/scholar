@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
 
     // 构建按钮元素（按钮放在form内部）
     // 飞书JSON 2.0格式：按钮不需要action_type属性，直接使用button标签
-    const buttonElements = buttons.map((btn: { text: string; type?: string; value: any }) => {
+    // 重要：按钮必须有name属性！
+    const buttonElements = buttons.map((btn: { text: string; type?: string; value: any }, index: number) => {
       // 处理 value：确保是字符串或对象
       let btnValue: string | object;
       if (typeof btn.value === 'string') {
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
       
       return {
         tag: 'button' as const,
+        name: `btn_${index}`,  // 按钮必须有name属性
         text: { tag: 'plain_text' as const, content: btn.text },
         type: btn.type === 'primary' ? 'primary' as const : 'default' as const,
         value: btnValue
