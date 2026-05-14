@@ -75,7 +75,14 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
       const res = await fetch(`/api/legal-litigation?caseId=${caseId}`);
       const result = await res.json();
       if (result.success && result.data) {
-        setData(result.data);
+        // 转换API数据结构为组件期望的结构
+        setData({
+          caseId: result.data.caseId || caseId,
+          litigationRecords: result.data.judicialCases || [],
+          limitHighRecords: result.data['限制高消费'] || [],
+          endCaseRecords: result.data['终本案件'] || [],
+          courtNoticeRecords: result.data['开庭公告'] || []
+        });
       } else {
         setData(null);
       }
