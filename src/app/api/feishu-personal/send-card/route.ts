@@ -50,18 +50,17 @@ export async function POST(request: NextRequest) {
           }
         ];
       }
-      // 如果没有选项，使用input组件
+      // 如果没有选项，使用textarea组件（JSON 2.0格式）
+      // textarea的placeholder是对象格式: {tag: 'plain_text', content: '...'}
       return [{
-        tag: 'input' as const,
+        tag: 'textarea' as const,
         name: sel.name || sel.label,
-        placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请输入' },
-        input_type: 'multiline_text' as const,
-        rows: 3
+        placeholder: sel.placeholder ? { tag: 'plain_text' as const, content: sel.placeholder } : undefined
       }];
     });
 
     // 构建按钮元素（按钮放在form内部）
-    // 飞书JSON 2.0格式：提交按钮必须设置 action_type: "submit"
+    // 飞书JSON 2.0格式：按钮不需要action_type属性，直接使用button标签
     const buttonElements = buttons.map((btn: { text: string; type?: string; value: any }) => {
       // 处理 value：确保是字符串或对象
       let btnValue: string | object;
@@ -77,15 +76,14 @@ export async function POST(request: NextRequest) {
         tag: 'button' as const,
         text: { tag: 'plain_text' as const, content: btn.text },
         type: btn.type === 'primary' ? 'primary' as const : 'default' as const,
-        action_type: 'submit' as const,
         value: btnValue
       };
     });
 
     // 使用 JSON 2.0 格式
-    // 表单组件(select_static/input)放在form内，提交按钮也在form内
+    // 表单组件(select_static/input)和按钮都放在form内
+    // textarea的placeholder是对象格式: {tag: 'plain_text', content: '...'}
     const cardContent = {
-      schema: '2.0',
       config: {
         wide_screen_mode: true
       },
@@ -93,17 +91,19 @@ export async function POST(request: NextRequest) {
         title: { tag: 'plain_text' as const, content: title || '案件跟进提醒' },
         template: template as string
       },
-      body: {
-        elements: [
-          ...caseInfoElements,
-          { tag: 'hr' as const },
-          {
-            tag: 'form' as const,
-            name: 'followup_form',
-            elements: [...formElements, ...buttonElements]
-          }
-        ]
-      }
+      elements: [
+        ...caseInfoElements,
+        { tag: 'hr' as const },
+        {
+          tag: 'form' as const,
+          name: 'followup_form',
+          callback_id: 'case_reminder_callback',
+          elements: [
+            ...formElements,
+            ...buttonElements
+          ]
+        }
+      ]
     };
 
     // 发送消息
