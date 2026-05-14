@@ -1,0 +1,137 @@
+{
+  "54802": {
+    "caseId": "54802",
+    "userId": "54802",
+    "importedAt": "2025-05-14",
+    "judicialCases": [
+      {
+        "id": 1,
+        "caseName": "洪*与深圳大象电子商务有限公司的案件",
+        "caseRole": "被告",
+        "caseNumber": "（2026）粤0304执8502号",
+        "caseReason": "-",
+        "amount": 15009.0,
+        "latestProcess": "2026-03-03 首次执行",
+        "courtName": "广东省深圳市福田区人民法院"
+      },
+      {
+        "id": 2,
+        "caseName": "深圳大象电子商务有限公司、深圳市福田区力科数码电子店、赖**等的案件",
+        "caseRole": "当事人",
+        "caseNumber": "（2024）粤0304民诉前调99334号",
+        "caseReason": "-",
+        "amount": null,
+        "latestProcess": "2025-06-13 诉前调解",
+        "courtName": "广东省深圳市福田区人民法院"
+      },
+      {
+        "id": 3,
+        "caseName": "深圳大象电子商务有限公司的案件",
+        "caseRole": "被告",
+        "caseNumber": "（2025）粤0304执20281号",
+        "caseReason": "-",
+        "amount": 45000.0,
+        "latestProcess": "2025-06-09 首次执行",
+        "courtName": "广东省深圳市福田区人民法院"
+      },
+      {
+        "id": 4,
+        "caseName": "深圳大象电子商务有限公司、深圳市纯淳科技有限公司的案件",
+        "caseRole": "第三人",
+        "caseNumber": "（2021）粤03民初616号",
+        "caseReason": "-",
+        "amount": null,
+        "latestProcess": "2021-09-06 民事一审",
+        "courtName": "广东省深圳市中级人民法院"
+      },
+      {
+        "id": 5,
+        "caseName": "深圳大事件科技有限公司、海盐东方口琴厂与上海寻梦信息技术有限公司、深圳大象电子商务有限公司侵害实用新型专利权纠纷的案件",
+        "caseRole": "被告",
+        "caseNumber": "（2021）沪73民初869号",
+        "caseReason": "侵害实用新型专利权纠纷",
+        "amount": null,
+        "latestProcess": "2021-07-05 民事一审",
+        "courtName": "上海知识产权法院"
+      }
+    ],
+    "限制高消费": [
+      {
+        "id": 1,
+        "caseNumber": "（2026）粤0304执8502号",
+        "target": "深圳大象电子商务有限公司",
+        "relatedPerson": "赖全军",
+        "applicant": "洪*",
+        "court": "广东省深圳市福田区人民法院",
+        "filingDate": "2026-03-03",
+        "publishDate": "2026-03-13"
+      },
+      {
+        "id": 2,
+        "caseNumber": "（2025）粤0304执20281号",
+        "target": "深圳大象电子商务有限公司",
+        "relatedPerson": "赖全军",
+        "applicant": "-",
+        "court": "广东省深圳市福田区人民法院",
+        "filingDate": "2025-06-09",
+        "publishDate": "-"
+      }
+    ],
+    "终本案件": [
+      {
+        "id": 1,
+        "caseNumber": "（2026）粤0304执8502号",
+        "subject": "深圳大象电子商务有限公司",
+        "unfulfilledAmount": 15134.33,
+        "executionAmount": 15009.19,
+        "court": "广东省深圳市福田区人民法院",
+        "filingDate": "2026-03-03",
+        "endDate": "2026-03-18"
+      },
+      {
+        "id": 2,
+        "caseNumber": "（2025）粤0304执20281号",
+        "subject": "深圳大象电子商务有限公司",
+        "unfulfilledAmount": 45000.0,
+        "executionAmount": 45000.0,
+        "court": "广东省深圳市福田区人民法院",
+        "filingDate": "2025-06-09",
+        "endDate": "2025-09-08"
+      }
+    ],
+    "开庭公告": [
+      {
+        "id": 1,
+        "caseNumber": "（2024）粤0304民诉前调99334号",
+        "caseReason": "其他",
+        "parties": "当事人：深圳大象电子商务有限公司、深圳市福田区力科数码电子店、赖**、赖**",
+        "court": "广东省深圳市福田区人民法院",
+        "hearingDate": "2025-06-13"
+      },
+      {
+        "id": 2,
+        "caseNumber": "（2021）沪73民初869号",
+        "caseReason": "侵害外观设计专利权纠纷",
+        "parties": "原告：海盐东方口琴厂  被告：上海寻梦信息技术有限公司、深圳大象电子商务有限公司",
+        "court": "上海知识产权法院",
+        "hearingDate": "2021-11-25"
+      },
+      {
+        "id": 3,
+        "caseNumber": "（2021）沪73民初869号",
+        "caseReason": "侵害外观设计专利权纠纷",
+        "parties": "原告：海盐东方口琴厂  被告：上海寻梦信息技术有限公司、深圳大象电子商务有限公司",
+        "court": "上海知识产权法院",
+        "hearingDate": "2021-11-17"
+      },
+      {
+        "id": 4,
+        "caseNumber": "（2021）粤03民初616号",
+        "caseReason": "其他",
+        "parties": "第三人：深圳大象电子商务有限公司、深圳市纯淳科技有限公司",
+        "court": "广东省深圳市中级人民法院",
+        "hearingDate": "2021-09-10"
+      }
+    ]
+  }
+}

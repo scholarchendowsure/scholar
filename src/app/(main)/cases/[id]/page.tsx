@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { ShopDataParser } from '@/components/shop/shop-data-parser';
 import { ShopCharts } from '@/components/shop/shop-charts';
 import CaseEvaluationForm from '@/components/case-evaluation-form';
+import LegalLitigationTab from '@/components/legal-litigation-tab';
 
 // 状态标签配置
 const STATUS_CONFIG = {
@@ -641,6 +642,7 @@ export default function CaseDetailPage() {
     { id: 'files', label: '文件信息', color: 'bg-cyan-600 text-white' },
     { id: 'ownership', label: '案件标签', color: 'bg-purple-600 text-white' },
     { id: 'shop', label: '店铺详情', color: 'bg-violet-600 text-white' },
+    { id: 'legal', label: '法律诉讼', color: 'bg-red-600 text-white' },
   ];
   
   // 获取店铺数据（从数据库加载已保存的数据，按用户ID同步）
@@ -1214,6 +1216,13 @@ export default function CaseDetailPage() {
                 <p className="text-sm text-slate-400 mt-1">点击上方按钮获取店铺运营资料</p>
               </div>
             )}
+          </div>
+        );
+      
+      case 'legal':
+        return (
+          <div className="p-6">
+            <LegalLitigationTab caseId={caseData?.id || ''} userId={caseData?.userId || ''} />
           </div>
         );
       

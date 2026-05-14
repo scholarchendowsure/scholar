@@ -39,10 +39,47 @@
     "borrowerPhone": "13828883835",
     "assignedSales": "章平洋",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1778773880444",
+        "follower": "销售",
+        "followTime": "2026-05-14T15:51:00.355Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "正常还款，忘记还款了",
+        "fileInfo": [],
+        "createdAt": "2026-05-14T15:51:20.444Z",
+        "createdBy": "销售"
+      },
+      {
+        "id": "1778773906687",
+        "follower": "PMO",
+        "followTime": "2026-05-14T15:51:24.452Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "normal_repayment",
+        "followRecord": "适合转资方，正在转资方",
+        "fileInfo": [],
+        "createdAt": "2026-05-14T15:51:46.687Z",
+        "createdBy": "PMO"
+      },
+      {
+        "id": "1778773963685",
+        "follower": "贷后",
+        "followTime": "2026-05-14T15:51:48.186Z",
+        "followType": "offline",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "客户实际经营地址无人，公司有多条诉讼资料",
+        "fileInfo": [],
+        "createdAt": "2026-05-14T15:52:43.685Z",
+        "createdBy": "贷后"
+      }
+    ],
     "id": "3476a89c-d290-4acd-bfb5-c84702507b94",
     "createdAt": "2026-05-06T17:16:13.068Z",
-    "updatedAt": "2026-05-10T16:23:05.592Z"
+    "updatedAt": "2026-05-14T15:52:39.763Z"
   },
   {
     "batchNo": "20260507DCLR",
