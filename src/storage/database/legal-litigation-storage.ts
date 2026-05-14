@@ -123,10 +123,10 @@ export function importLitigationData(
   const data = loadData();
   data[caseId] = {
     caseId,
-    litigationRecords,
-    limitHighRecords,
-    endCaseRecords,
-    courtNoticeRecords,
+    judicialCases: litigationRecords, // 兼容存储为 judicialCases
+    '限制高消费': limitHighRecords,
+    '终本案件': endCaseRecords,
+    '开庭公告': courtNoticeRecords,
     updatedAt: new Date().toISOString()
   };
   saveData(data);

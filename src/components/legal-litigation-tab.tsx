@@ -76,12 +76,58 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
       const result = await res.json();
       if (result.success && result.data) {
         // 转换API数据结构为组件期望的结构
+        // 司法案件字段映射
+        const judicialCases = (result.data.judicialCases || []).map((record: any) => ({
+          id: record.id || '',
+          caseNumber: record.caseNumber || '',
+          caseName: record.caseName || '',
+          caseIdentity: record.caseIdentity || record.caseRole || '', // 兼容两个字段名
+          caseCause: record.caseCause || record.caseReason || '',
+          caseAmount: record.caseAmount || record.amount || '',
+          caseProgress: record.caseProgress || record.latestProcess || '',
+          courtName: record.courtName || ''
+        }));
+        
+        // 限制高消费字段映射
+        const limitHighRecords = (result.data['限制高消费'] || []).map((record: any) => ({
+          id: record.id || '',
+          caseNumber: record.caseNumber || '',
+          limitObject: record.limitObject || record.target || '',
+          relatedObject: record.relatedObject || record.relatedPerson || '',
+          applicant: record.applicant || '',
+          executionCourt: record.executionCourt || record.court || '',
+          filingDate: record.filingDate || '',
+          publishDate: record.publishDate || ''
+        }));
+        
+        // 终本案件字段映射
+        const endCaseRecords = (result.data['终本案件'] || []).map((record: any) => ({
+          id: record.id || '',
+          caseNumber: record.caseNumber || '',
+          subjectName: record.subjectName || record.subject || '',
+          unpaidAmount: record.unpaidAmount || record.unfulfilledAmount || '',
+          executionAmount: record.executionAmount || '',
+          executionCourt: record.executionCourt || record.court || '',
+          filingDate: record.filingDate || '',
+          endDate: record.endDate || ''
+        }));
+        
+        // 开庭公告字段映射
+        const courtNoticeRecords = (result.data['开庭公告'] || []).map((record: any) => ({
+          id: record.id || '',
+          caseNumber: record.caseNumber || '',
+          caseCause: record.caseCause || record.caseReason || '',
+          parties: record.parties || '',
+          court: record.court || '',
+          hearingDate: record.hearingDate || ''
+        }));
+        
         setData({
           caseId: result.data.caseId || caseId,
-          litigationRecords: result.data.judicialCases || [],
-          limitHighRecords: result.data['限制高消费'] || [],
-          endCaseRecords: result.data['终本案件'] || [],
-          courtNoticeRecords: result.data['开庭公告'] || []
+          litigationRecords: judicialCases,
+          limitHighRecords,
+          endCaseRecords,
+          courtNoticeRecords
         });
       } else {
         setData(null);

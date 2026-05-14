@@ -1222,7 +1222,7 @@ export default function CaseDetailPage() {
       case 'legal':
         return (
           <div className="p-6">
-            <LegalLitigationTab caseId={caseData?.id || ''} userId={caseData?.userId || ''} />
+            <LegalLitigationTab caseId={caseData?.id || ''} />
           </div>
         );
       

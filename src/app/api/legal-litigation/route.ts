@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少caseId或userId参数' }, { status: 400 });
     }
 
-    const litigation = getLitigationByCaseId(caseId || userId);
+    const litigation = getLitigationByCaseId(caseId || userId || '');
     
     return NextResponse.json({
       success: true,
@@ -48,12 +48,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '缺少caseId参数' }, { status: 400 });
     }
 
+    // 转换前端组件字段名为存储字段名
+    const convertLitigationRecord = (record: any) => ({
+      id: record.id || '',
+      caseName: record.caseName || '',
+      caseRole: record.caseIdentity || record.caseRole || '', // caseIdentity -> caseRole
+      caseNumber: record.caseNumber || '',
+      caseReason: record.caseCause || record.caseReason || '', // caseCause -> caseReason
+      amount: record.caseAmount || record.amount || '', // caseAmount -> amount
+      latestProcess: record.caseProgress || record.latestProcess || '', // caseProgress -> latestProcess
+      courtName: record.courtName || ''
+    });
+
+    const convertLimitRecord = (record: any) => ({
+      id: record.id || '',
+      caseNumber: record.caseNumber || '',
+      target: record.limitObject || record.target || '', // limitObject -> target
+      relatedPerson: record.relatedObject || record.relatedPerson || '', // relatedObject -> relatedPerson
+      applicant: record.applicant || '',
+      court: record.executionCourt || record.court || '',
+      filingDate: record.filingDate || '',
+      publishDate: record.publishDate || ''
+    });
+
+    const convertEndCaseRecord = (record: any) => ({
+      id: record.id || '',
+      caseNumber: record.caseNumber || '',
+      subject: record.subjectName || record.subject || '',
+      unfulfilledAmount: record.unpaidAmount || record.unfulfilledAmount || '',
+      executionAmount: record.executionAmount || '',
+      court: record.executionCourt || record.court || '',
+      filingDate: record.filingDate || '',
+      endDate: record.endDate || ''
+    });
+
+    const convertCourtNoticeRecord = (record: any) => ({
+      id: record.id || '',
+      caseNumber: record.caseNumber || '',
+      caseReason: record.caseCause || record.caseReason || '',
+      parties: record.parties || '',
+      court: record.court || '',
+      hearingDate: record.hearingDate || ''
+    });
+
     saveLitigation(caseId, {
       caseId,
-      judicialCases: litigationRecords || [],
-      '限制高消费': limitHighRecords || [],
-      '终本案件': endCaseRecords || [],
-      '开庭公告': courtNoticeRecords || [],
+      judicialCases: (litigationRecords || []).map(convertLitigationRecord),
+      '限制高消费': (limitHighRecords || []).map(convertLimitRecord),
+      '终本案件': (endCaseRecords || []).map(convertEndCaseRecord),
+      '开庭公告': (courtNoticeRecords || []).map(convertCourtNoticeRecord),
       updatedAt: new Date().toISOString()
     });
 
