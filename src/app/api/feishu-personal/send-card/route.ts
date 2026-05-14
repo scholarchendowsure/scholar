@@ -28,21 +28,21 @@ export async function POST(request: NextRequest) {
     }));
 
     // 构建选择框元素和输入框
-    // 注意：form内的元素必须以表单组件开始，不能以div开始
+    // 飞书 JSON 2.0: select_static 和 input 不支持 label 属性
+    // 标签需要用 div + markdown 在表单元素前显示
     const formElements = selects.flatMap((sel: {
       label: string;
       name: string;
       placeholder?: string;
       options?: Array<{ text: string; value: string }>;
     }) => {
-      // 如果有选项，使用select_static（带label）
+      // 如果有选项，使用select_static
       if (sel.options && sel.options.length > 0) {
         return [
           {
             tag: 'select_static' as const,
             name: sel.name || sel.label,
             placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请选择' },
-            label: { tag: 'plain_text' as const, content: sel.label },
             options: sel.options.map((opt: { text: string; value: string }) => ({
               text: { tag: 'plain_text' as const, content: opt.text },
               value: opt.value || opt.text
@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
         tag: 'input' as const,
         name: sel.name || sel.label,
         placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请输入' },
-        label: { tag: 'plain_text' as const, content: sel.label },
         input_type: 'multiline_text' as const,
         rows: 3
       }];
