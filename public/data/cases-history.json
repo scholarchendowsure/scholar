@@ -1,5 +1,25 @@
 [
   {
+    "id": "cc10cc91-897c-4f0e-83e2-916500436bd9",
+    "caseId": "5a92bdb5-b587-4997-b555-c1029afe63bf",
+    "userName": "系统",
+    "modifiedAt": "2026-05-14T14:49:07.443Z",
+    "fieldName": "assignedPostLoan",
+    "fieldLabel": "分配贷后",
+    "oldValue": "大海",
+    "newValue": "高乐"
+  },
+  {
+    "id": "a7e7ed49-f0a2-4863-94aa-06f6dc9aeeac",
+    "caseId": "5a92bdb5-b587-4997-b555-c1029afe63bf",
+    "userName": "系统",
+    "modifiedAt": "2026-05-14T14:49:07.440Z",
+    "fieldName": "overdueDays",
+    "fieldLabel": "逾期天数",
+    "oldValue": 567,
+    "newValue": 515
+  },
+  {
     "id": "5d090f6f-5093-42fb-9cba-a5c384d1ee45",
     "caseId": "3476a89c-d290-4acd-bfb5-c84702507b94",
     "userName": "系统",

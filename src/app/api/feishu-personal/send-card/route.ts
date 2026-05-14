@@ -28,26 +28,21 @@ export async function POST(request: NextRequest) {
     }));
 
     // 构建选择框元素和输入框
+    // 注意：form内的元素必须以表单组件开始，不能以div开始
     const formElements = selects.flatMap((sel: {
       label: string;
       name: string;
       placeholder?: string;
       options?: Array<{ text: string; value: string }>;
     }) => {
-      // 如果有选项，使用select_static
+      // 如果有选项，使用select_static（带label）
       if (sel.options && sel.options.length > 0) {
         return [
-          {
-            tag: 'div' as const,
-            text: {
-              tag: 'lark_md' as const,
-              content: `**${sel.label}**`
-            }
-          },
           {
             tag: 'select_static' as const,
             name: sel.name || sel.label,
             placeholder: { tag: 'plain_text' as const, content: sel.placeholder || '请选择' },
+            label: { tag: 'plain_text' as const, content: sel.label },
             options: sel.options.map((opt: { text: string; value: string }) => ({
               text: { tag: 'plain_text' as const, content: opt.text },
               value: opt.value || opt.text
@@ -66,7 +61,8 @@ export async function POST(request: NextRequest) {
       }];
     });
 
-    // 构建按钮元素（按钮放在form内部，使用 type: submit）
+    // 构建按钮元素（按钮放在form内部）
+    // 飞书JSON 2.0格式：提交按钮使用 type: submit，不需要额外的 action_type
     const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
       tag: 'button' as const,
       text: { tag: 'plain_text' as const, content: btn.text },
