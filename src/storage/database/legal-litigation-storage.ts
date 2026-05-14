@@ -45,11 +45,17 @@ export interface CourtNoticeRecord {
 
 export interface LegalLitigation {
   caseId: string;
-  litigationRecords: LitigationRecord[];
-  limitHighRecords: LimitHighRecord[];
-  endCaseRecords: EndCaseRecord[];
-  courtNoticeRecords: CourtNoticeRecord[];
-  updatedAt: string;
+  userId?: string;
+  importedAt?: string;
+  // 司法案件
+  judicialCases?: LitigationRecord[];
+  // 限制高消费
+  限制高消费?: LimitHighRecord[];
+  // 终本案件
+  终本案件?: EndCaseRecord[];
+  // 开庭公告
+  开庭公告?: CourtNoticeRecord[];
+  updatedAt?: string;
 }
 
 type LitigationData = Record<string, LegalLitigation>;

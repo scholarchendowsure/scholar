@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
 
     saveLitigation(caseId, {
       caseId,
-      litigationRecords: litigationRecords || [],
-      limitHighRecords: limitHighRecords || [],
-      endCaseRecords: endCaseRecords || [],
-      courtNoticeRecords: courtNoticeRecords || [],
+      judicialCases: litigationRecords || [],
+      '限制高消费': limitHighRecords || [],
+      '终本案件': endCaseRecords || [],
+      '开庭公告': courtNoticeRecords || [],
       updatedAt: new Date().toISOString()
     });
 
