@@ -61,13 +61,26 @@ export async function POST(request: NextRequest) {
     });
 
     // 构建按钮元素（按钮放在form内部）
-    // 飞书JSON 2.0格式：提交按钮使用 type: submit，不需要额外的 action_type
-    const buttonElements = buttons.map((btn: { text: string; value: any }) => ({
-      tag: 'button' as const,
-      text: { tag: 'plain_text' as const, content: btn.text },
-      type: 'submit' as const,
-      value: typeof btn.value === 'string' ? { action: btn.value } : btn.value
-    }));
+    // 飞书JSON 2.0格式：提交按钮必须设置 action_type: "submit"
+    const buttonElements = buttons.map((btn: { text: string; type?: string; value: any }) => {
+      // 处理 value：确保是字符串或对象
+      let btnValue: string | object;
+      if (typeof btn.value === 'string') {
+        btnValue = btn.value;
+      } else if (typeof btn.value === 'object') {
+        btnValue = btn.value;
+      } else {
+        btnValue = String(btn.value);
+      }
+      
+      return {
+        tag: 'button' as const,
+        text: { tag: 'plain_text' as const, content: btn.text },
+        type: btn.type === 'primary' ? 'primary' as const : 'default' as const,
+        action_type: 'submit' as const,
+        value: btnValue
+      };
+    });
 
     // 使用 JSON 2.0 格式
     // 表单组件(select_static/input)放在form内，提交按钮也在form内
