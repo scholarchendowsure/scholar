@@ -2,7 +2,7 @@
 version: '3.8'
 
 services:
-  # 应用服务
+  # 应用服务（使用云服务器 PostgreSQL）
   app:
     build: .
     container_name: loan-system
@@ -14,39 +14,17 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - DB_HOST=postgres
+      - DB_HOST=101.96.214.104
       - DB_PORT=5432
-      - DB_USER=loanadmin
-      - DB_PASSWORD=LoanAdmin2024!@#
-      - DB_NAME=loandb
-      - DATABASE_URL=postgresql://loanadmin:LoanAdmin2024!@#@postgres:5432/loandb
+      - DB_USER=coze_db
+      - DB_PASSWORD=coze_db
+      - DB_NAME=GWRXnGAWfTt75CY
+      - DATABASE_URL=postgresql://coze_db:coze_db@101.96.214.104:5432/GWRXnGAWfTt75CY
       - COZE_PROJECT_DOMAIN_DEFAULT=https://scholargl.cn
-    depends_on:
-      postgres:
-        condition: service_healthy
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
 
-  # PostgreSQL 数据库
-  postgres:
-    image: postgres:15-alpine
-    container_name: loan-postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=loanadmin
-      - POSTGRES_PASSWORD=LoanAdmin2024!@#
-      - POSTGRES_DB=loandb
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loanadmin -d loandb"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
+# 注意：PostgreSQL 数据库已迁移到云服务器 101.96.214.104
+# 已移除 docker-compose 中的 postgres 服务volumes:
   postgres_data:
