@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     // 构建按钮元素（按钮放在form内部）
     // 飞书JSON 2.0格式：按钮不需要action_type属性，直接使用button标签
     // 重要：按钮必须有name属性！
+    // 重要：form内必须至少有一个action_type: 'submit'的按钮！
     const buttonElements = buttons.map((btn: { text: string; type?: string; value: any }, index: number) => {
       // 处理 value：确保是字符串或对象
       let btnValue: string | object;
@@ -81,6 +82,33 @@ export async function POST(request: NextRequest) {
         value: btnValue
       };
     });
+
+    // 按钮类型定义
+    type ButtonElement = {
+      tag: 'button';
+      name: string;
+      text: { tag: 'plain_text'; content: string };
+      type: 'primary' | 'default';
+      value: string | object;
+      action_type?: string;
+    };
+
+    // 如果没有按钮，添加一个默认的提交按钮
+    const allButtons: ButtonElement[] = buttonElements.length > 0 ? buttonElements : [{
+      tag: 'button' as const,
+      name: 'btn_submit',
+      text: { tag: 'plain_text' as const, content: '提交' },
+      type: 'primary' as const,
+      value: 'submit',
+      action_type: 'submit' as const  // form必须有submit类型的按钮
+    }];
+
+    // 至少要有一个 action_type: 'submit' 的按钮
+    const hasSubmitButton = allButtons.some((btn: ButtonElement) => btn.action_type === 'submit');
+    if (!hasSubmitButton && allButtons.length > 0) {
+      // 把第一个按钮改为submit类型
+      allButtons[0].action_type = 'submit';
+    }
 
     // 使用 JSON 2.0 格式
     // 表单组件(select_static/input)和按钮都放在form内
@@ -102,7 +130,7 @@ export async function POST(request: NextRequest) {
           callback_id: 'case_reminder_callback',
           elements: [
             ...formElements,
-            ...buttonElements
+            ...allButtons
           ]
         }
       ]
