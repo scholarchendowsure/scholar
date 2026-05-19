@@ -766,32 +766,34 @@ export default function HSBCPanelPage() {
 
       const results: RepaymentInfo[] = [];
       
-      allLoans.forEach((loan: { loanReference?: string; merchantName?: string; borrowerName?: string; repaymentSchedule?: Array<{ actualDate?: string; date?: string; actualAmount?: number; amount?: number }>; loanCurrency?: string }) => {
+      for (const loan of allLoans) {
         if (loan.repaymentSchedule && loan.repaymentSchedule.length > 0) {
-          loan.repaymentSchedule.forEach(record => {
-            if (record.actualDate && record.date && record.actualDate.startsWith(repaymentDate)) {
-              const getDatePart = (dateStr: string) => dateStr.substring(0, 10);
-              const dueDateStr = getDatePart(record.date);
-              const actualDateStr = getDatePart(record.actualDate);
-              const isOverdue = actualDateStr > dueDateStr;
-              
-              if (repaymentFilterType === 'on_time' && isOverdue) return;
-              if (repaymentFilterType === 'late' && !isOverdue) return;
+          for (const record of loan.repaymentSchedule) {
+            const actualRepaymentDate = record.actualDate || record.date;
+            if (!actualRepaymentDate || !record.date) continue;
+            
+            if (!actualRepaymentDate.startsWith(repaymentDate)) continue;
+            
+            const dueDateStr = record.date.substring(0, 10);
+            const actualDateStr = actualRepaymentDate.substring(0, 10);
+            const isOverdue = actualDateStr > dueDateStr;
+            
+            if (repaymentFilterType === 'on_time' && isOverdue) continue;
+            if (repaymentFilterType === 'late' && !isOverdue) continue;
 
-              results.push({
-                loanReference: loan.loanReference || '',
-                merchantName: loan.merchantName,
-                borrowerName: loan.borrowerName || '',
-                dueDate: record.date || '',
-                actualDate: record.actualDate || '',
-                amount: record.actualAmount || record.amount || 0,
-                currency: loan.loanCurrency || 'CNY',
-                isOverdue,
-              });
-            }
-          });
+            results.push({
+              loanReference: loan.loanReference || '',
+              merchantName: loan.merchantName,
+              borrowerName: loan.borrowerName || '',
+              dueDate: record.date || '',
+              actualDate: actualRepaymentDate || '',
+              amount: record.actualAmount || record.amount || 0,
+              currency: loan.loanCurrency || 'CNY',
+              isOverdue,
+            });
+          }
         }
-      });
+      }
 
       results.sort((a, b) => a.actualDate.localeCompare(b.actualDate));
       
