@@ -101,5 +101,18 @@
     "isSystem": true,
     "createdAt": "2026-05-04T17:13:37.862Z",
     "updatedAt": "2026-05-04T17:13:37.862Z"
+  },
+  {
+    "name": "PMO汇丰",
+    "code": "pmohf",
+    "description": "汇丰项目PMO专用",
+    "permissions": [],
+    "modulePermissions": {
+      "module:hsbc_panel": true
+    },
+    "isSystem": false,
+    "id": "role_1779212852677_2b3jxdmid",
+    "createdAt": "2026-05-19T17:47:32.677Z",
+    "updatedAt": "2026-05-19T17:47:32.677Z"
   }
 ]

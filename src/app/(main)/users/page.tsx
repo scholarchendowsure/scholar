@@ -1079,10 +1079,11 @@ export default function UsersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">超级管理员</SelectItem>
-                    <SelectItem value="admin">系统管理员</SelectItem>
-                    <SelectItem value="manager">经理</SelectItem>
-                    <SelectItem value="agent">外访员</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.code} value={role.code}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1165,10 +1166,11 @@ export default function UsersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">超级管理员</SelectItem>
-                    <SelectItem value="admin">系统管理员</SelectItem>
-                    <SelectItem value="manager">经理</SelectItem>
-                    <SelectItem value="agent">外访员</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.code} value={role.code}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
