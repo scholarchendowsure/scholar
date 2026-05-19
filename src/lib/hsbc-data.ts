@@ -127,9 +127,9 @@ export interface HSBCDashboardStats {
 // 汇率 (USD -> CNY)
 const USD_TO_CNY_RATE = 7;
 
-// 数据文件路径
-const DATA_DIR = '/tmp/hsbc-data';
-const DATA_FILE = path.join(DATA_DIR, 'loans.json');
+// 数据文件路径 - 统一使用 public/data 目录，与 hsbc-loan-storage.ts 保持一致
+const DATA_DIR = path.join(process.cwd(), 'public', 'data');
+const DATA_FILE = path.join(DATA_DIR, 'hsbc-loans.json');
 
 // 内存缓存
 let loansByBatchDate: Map<string, HSBCLoan[]> = new Map();

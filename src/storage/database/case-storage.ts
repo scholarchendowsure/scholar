@@ -3,28 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 
-// 判断是否是生产环境
-const isProd = process.env.COZE_PROJECT_ENV === 'PROD';
-
-// 存储文件路径 - 生产环境使用 /tmp，开发环境使用 public/data
+// 存储文件路径 - 统一使用 public/data 目录，支持数据持久化
 function getStoragePath(): string {
-  if (isProd) {
-    return path.join('/tmp', 'cases-v2.json');
-  }
   return path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
 }
 
 function getRecycleBinPath(): string {
-  if (isProd) {
-    return path.join('/tmp', 'cases-recycle-bin.json');
-  }
   return path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 }
 
 function getHistoryPath(): string {
-  if (isProd) {
-    return path.join('/tmp', 'cases-history.json');
-  }
   return path.join(process.cwd(), 'public', 'data', 'cases-history.json');
 }
 
@@ -32,7 +20,6 @@ const STORAGE_FILE = getStoragePath();
 const RECYCLE_BIN_FILE = getRecycleBinPath();
 const HISTORY_FILE = getHistoryPath();
 
-console.log(`[CaseStorage] 环境: ${isProd ? '生产环境' : '开发环境'}`);
 console.log(`[CaseStorage] 案件数据路径: ${STORAGE_FILE}`);
 console.log(`[CaseStorage] 回收站路径: ${RECYCLE_BIN_FILE}`);
 console.log(`[CaseStorage] 历史记录路径: ${HISTORY_FILE}`);
@@ -73,30 +60,6 @@ function safeReadJSON<T>(filePath: string, defaultValue: T): T {
   try {
     if (!fs.existsSync(filePath)) {
       console.log(`safeReadJSON: 文件不存在，返回默认值: ${filePath}`);
-      // 如果是生产环境且文件不存在，尝试从public/data复制初始数据
-      if (isProd) {
-        const devPath = filePath.includes('cases-v2.json')
-          ? path.join(process.cwd(), 'public', 'data', 'cases-v2.json')
-          : path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
-        if (fs.existsSync(devPath)) {
-          try {
-            const devContent = fs.readFileSync(devPath, 'utf-8');
-            if (devContent && devContent.trim().length > 0) {
-              const data = JSON.parse(devContent);
-              console.log(`safeReadJSON: 从开发环境路径复制初始数据: ${devPath}`);
-              // 写入到生产环境路径
-              const dir = path.dirname(filePath);
-              if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-              }
-              fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-              return data;
-            }
-          } catch (e) {
-            console.error(`safeReadJSON: 复制初始数据失败:`, e);
-          }
-        }
-      }
       return defaultValue;
     }
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -124,19 +87,13 @@ function safeWriteJSON(filePath: string, data: any): void {
 
     const jsonContent = JSON.stringify(data, null, 2);
     
-    // 生产环境：直接写（防止只读文件系统问题
-    if (isProd) {
-      fs.writeFileSync(filePath, jsonContent, 'utf-8');
-      console.log(`safeWriteJSON: 生产环境直接写入成功: ${filePath}`);
-    } else {
-      // 开发环境：使用临时文件+原子重命名策略，防损坏
-      const tempPath = `${filePath}.tmp.${Date.now()}`;
-      fs.writeFileSync(tempPath, jsonContent, 'utf-8');
-      console.log(`safeWriteJSON: 临时文件写入成功: ${tempPath}`);
-      // 原子重命名
-      fs.renameSync(tempPath, filePath);
-      console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
-    }
+    // 使用临时文件+原子重命名策略，防损坏
+    const tempPath = `${filePath}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempPath, jsonContent, 'utf-8');
+    console.log(`safeWriteJSON: 临时文件写入成功: ${tempPath}`);
+    // 原子重命名
+    fs.renameSync(tempPath, filePath);
+    console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
   } catch (error) {
     console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
     throw error;

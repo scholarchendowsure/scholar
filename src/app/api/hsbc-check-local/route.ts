@@ -7,7 +7,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
 
-    const LOCAL_STORAGE_PATH = process.env.LOCAL_STORAGE_PATH || '/tmp';
+    // 统一使用 public/data 目录，与 hsbc-loan-storage.ts 保持一致
+    const LOCAL_STORAGE_PATH = path.join(process.cwd(), 'public', 'data');
     const hsbcLoansPath = path.join(LOCAL_STORAGE_PATH, 'hsbc-loans.json');
     const hsbcBatchDatesPath = path.join(LOCAL_STORAGE_PATH, 'hsbc-batch-dates.json');
 

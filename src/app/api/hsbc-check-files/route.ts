@@ -3,13 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const STORAGE_FILE = process.env.NODE_ENV === 'production' 
-  ? '/tmp/hsbc-loans.json'
-  : path.join(process.cwd(), 'hsbc-loans.json');
+// 统一使用 public/data 目录，与 hsbc-loan-storage.ts 保持一致
+const DATA_DIR = path.join(process.cwd(), 'public', 'data');
+const STORAGE_FILE = path.join(DATA_DIR, 'hsbc-loans.json');
+const BATCH_DATES_FILE = path.join(DATA_DIR, 'hsbc-batch-dates.json');
 
-const BATCH_DATES_FILE = process.env.NODE_ENV === 'production'
-  ? '/tmp/hsbc-batch-dates.json'
-  : path.join(process.cwd(), 'hsbc-batch-dates.json');
+// 确保目录存在
+function ensureDataDir(): void {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {

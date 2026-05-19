@@ -60,7 +60,7 @@ export interface LegalLitigation {
 
 type LitigationData = Record<string, LegalLitigation>;
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = path.join(process.cwd(), 'public', 'data');
 const FILE_PATH = path.join(DATA_DIR, 'legal-litigations.json');
 
 let cachedData: LitigationData | null = null;

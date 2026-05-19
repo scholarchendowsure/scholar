@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = path.join(process.cwd(), 'public', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'case-evaluations.json');
 
 // 确保数据目录存在
