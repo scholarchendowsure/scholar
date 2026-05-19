@@ -586,6 +586,7 @@ export default function HSBCPanelPage() {
   const [currencyFilter, setCurrencyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [overdueThreshold, setOverdueThreshold] = useState<number>(0);
+  const [chartCurrency, setChartCurrency] = useState<'CNY' | 'USD'>('CNY'); // 图表币种选择
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortField, setSortField] = useState<string | null>(null);
@@ -1427,37 +1428,57 @@ export default function HSBCPanelPage() {
 
   // 逾期趋势数据 - 使用所有批次的贷款数据
   const overdueTrendData = useMemo(() => {
+    // USD兑CNY汇率
+    const USD_TO_CNY_RATE = 7.15;
+    
     // 按批次日期分组
     const batchDateMap = new Map<string, { 
-      totalAmountCNY: number;  // 总金额（折算人民币）
-      overdueAmountCNY: number; // 逾期金额（折算人民币）
+      totalAmountCNY: number;  // 总金额（折CNY）
+      totalAmountUSD: number;  // 总金额（折USD）
+      overdueAmountCNY: number; // 逾期金额（折CNY）
+      overdueAmountUSD: number; // 逾期金额（折USD）
       count: number 
     }>();
-    
-    // USD兑CNY汇率（按7.15估算）
-    const USD_TO_CNY = 7.15;
     
     allLoans.forEach(loan => {
       const batchDate = loan.batchDate || '未知批次';
       const existing = batchDateMap.get(batchDate) || { 
         totalAmountCNY: 0, 
+        totalAmountUSD: 0, 
         overdueAmountCNY: 0, 
+        overdueAmountUSD: 0, 
         count: 0 
       };
       
-      // 计算金额并折算成人民币
-      let amountCNY = loan.loanAmount;
+      // 计算该笔贷款的总金额（分别按币种）
+      let loanAmountCNY = loan.loanAmount;
+      let loanAmountUSD = loan.loanAmount;
       if (loan.loanCurrency === 'USD') {
-        amountCNY = loan.loanAmount * USD_TO_CNY;
+        loanAmountCNY = loan.loanAmount * USD_TO_CNY_RATE;
+      } else {
+        loanAmountUSD = loan.loanAmount / USD_TO_CNY_RATE;
       }
       
-      existing.totalAmountCNY += amountCNY;
+      existing.totalAmountCNY += loanAmountCNY;
+      existing.totalAmountUSD += loanAmountUSD;
       
-      // 检查逾期天数：只统计实际逾期的金额
-      const overdueDays = loan.overdueDays ?? 0;
-      if (overdueDays > overdueThreshold) {
-        existing.overdueAmountCNY += amountCNY;
+      // 计算逾期金额：使用 calcPastdueAmount 计算
+      const overdueAmount = calcPastdueAmount(loan);
+      const overdueDays = calcOverdueDays(loan);
+      
+      if (overdueAmount > 0 && overdueDays > overdueThreshold) {
+        let overdueCNY = overdueAmount;
+        let overdueUSD = overdueAmount;
+        if (loan.loanCurrency === 'USD') {
+          overdueCNY = overdueAmount * USD_TO_CNY_RATE;
+        } else {
+          overdueUSD = overdueAmount / USD_TO_CNY_RATE;
+        }
+        
+        existing.overdueAmountCNY += overdueCNY;
+        existing.overdueAmountUSD += overdueUSD;
       }
+      
       existing.count += 1;
       
       batchDateMap.set(batchDate, existing);
@@ -1467,14 +1488,14 @@ export default function HSBCPanelPage() {
     const data = Array.from(batchDateMap.entries())
       .map(([batchDate, stats]) => ({
         batchDate,
-        totalAmount: Math.round(stats.totalAmountCNY),
-        overdueAmount: Math.round(stats.overdueAmountCNY),
+        totalAmount: chartCurrency === 'CNY' ? Math.round(stats.totalAmountCNY) : Math.round(stats.totalAmountUSD),
+        overdueAmount: chartCurrency === 'CNY' ? Math.round(stats.overdueAmountCNY) : Math.round(stats.overdueAmountUSD),
         overdueRate: stats.totalAmountCNY > 0 ? (stats.overdueAmountCNY / stats.totalAmountCNY * 100) : 0,
       }))
       .sort((a, b) => a.batchDate.localeCompare(b.batchDate));
     
     return data;
-  }, [allLoans, overdueThreshold]);
+  }, [allLoans, overdueThreshold, chartCurrency]);
 
   // 计算当前筛选结果的USD和CNY统计（始终使用原始贷款列表，不因去重商户而改变）
   const statsLoans = filteredLoansBeforeDedupe;
@@ -2538,37 +2559,64 @@ export default function HSBCPanelPage() {
                       <TrendingUp className="w-5 h-5" />
                       逾期趋势分析
                     </h3>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setOverdueThreshold(0)}
-                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                          overdueThreshold === 0
-                            ? 'bg-red-500 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        逾期 {`>`} 0天
-                      </button>
-                      <button
-                        onClick={() => setOverdueThreshold(30)}
-                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                          overdueThreshold === 30
-                            ? 'bg-red-500 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        逾期 {`>`} 30天
-                      </button>
-                      <button
-                        onClick={() => setOverdueThreshold(90)}
-                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                          overdueThreshold === 90
-                            ? 'bg-red-500 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        逾期 {`>`} 90天
-                      </button>
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-500">计算口径:</span>
+                        <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                          <button
+                            onClick={() => setChartCurrency('CNY')}
+                            className={`px-3 py-1.5 text-sm transition-colors ${
+                              chartCurrency === 'CNY'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            折CNY
+                          </button>
+                          <button
+                            onClick={() => setChartCurrency('USD')}
+                            className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
+                              chartCurrency === 'USD'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            折USD
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setOverdueThreshold(0)}
+                          className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                            overdueThreshold === 0
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          逾期 {`>`} 0天
+                        </button>
+                        <button
+                          onClick={() => setOverdueThreshold(30)}
+                          className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                            overdueThreshold === 30
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          逾期 {`>`} 30天
+                        </button>
+                        <button
+                          onClick={() => setOverdueThreshold(90)}
+                          className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                            overdueThreshold === 90
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          逾期 {`>`} 90天
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="h-[300px]">
@@ -2586,7 +2634,7 @@ export default function HSBCPanelPage() {
                         />
                         <YAxis
                           yAxisId="left"
-                          tickFormatter={(value) => `¥${(value / 1000000).toFixed(1)}M`}
+                          tickFormatter={(value) => chartCurrency === 'CNY' ? `¥${(value / 1000000).toFixed(1)}M` : `$${(value / 1000000).toFixed(1)}M`}
                           tick={{ fontSize: 12 }}
                           tickLine={false}
                           axisLine={{ stroke: '#cbd5e1' }}
@@ -2602,7 +2650,10 @@ export default function HSBCPanelPage() {
                         />
                         <Tooltip
                           formatter={(value: number, name: string) => {
-                            if (name === 'overdueAmount') return [`¥${(value / 10000).toFixed(2)}万`, '逾期总额'];
+                            if (name === 'overdueAmount') {
+                              const symbol = chartCurrency === 'CNY' ? '¥' : '$';
+                              return [`${symbol}${(value / 10000).toFixed(2)}万`, '逾期总额'];
+                            }
                             if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
                             return [value, name];
                           }}
@@ -2619,7 +2670,7 @@ export default function HSBCPanelPage() {
                         <Bar
                           yAxisId="left"
                           dataKey="overdueAmount"
-                          name="逾期总额 (CNY)"
+                          name={`逾期总额 (${chartCurrency})`}
                           fill="#ef4444"
                           radius={[4, 4, 0, 0]}
                           maxBarSize={40}
