@@ -777,7 +777,10 @@ export default function HSBCPanelPage() {
             
             const dueDateStr = record.date.substring(0, 10);
             const actualDateStr = actualRepaymentDate.substring(0, 10);
-            const isOverdue = actualDateStr > dueDateStr;
+            const maturityDateStr = (loan.maturityDate || '').substring(0, 10);
+            // 到期日期 - 实际还款日 < 0 → 逾期后还款
+            // 到期日期 - 实际还款日 >= 0 → 未逾期还款
+            const isOverdue = maturityDateStr > '' && actualDateStr > maturityDateStr;
             
             if (repaymentFilterType === 'on_time' && isOverdue) continue;
             if (repaymentFilterType === 'late' && !isOverdue) continue;
