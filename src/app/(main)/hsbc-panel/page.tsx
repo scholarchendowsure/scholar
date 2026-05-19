@@ -587,6 +587,7 @@ export default function HSBCPanelPage() {
     row3: true,
     row4: true,
     row5: true,
+    repaymentFilter: true,
   });
 
   // 切换卡片行展开/折叠
@@ -3365,63 +3366,80 @@ export default function HSBCPanelPage() {
       </Collapsible>
 
       {/* ============ 还款日期筛选 ============ */}
-      <Card className="border-l-4 border-l-cyan-500 mt-4 bg-gradient-to-r from-slate-50 to-white">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-cyan-500" />
-            <CardTitle className="text-lg">还款日期筛选</CardTitle>
-          </div>
-          <CardDescription className="text-xs">
-            选择还款日期，自动显示该日期的所有还款记录
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
-              <input
-                type="date"
-                value={repaymentDate}
-                onChange={(e) => setRepaymentDate(e.target.value)}
-                className="w-full h-10 px-3 text-sm border border-cyan-200 rounded-md bg-white hover:border-cyan-500 focus:outline-none focus:border-cyan-500 transition-colors"
-              />
-            </div>
-            <div className="w-[200px]">
-              <label className="text-sm font-medium text-slate-600 mb-1.5 block">筛选类型</label>
-              <Select value={repaymentFilterType} onValueChange={(v) => setRepaymentFilterType(v as RepaymentFilterType)}>
-                <SelectTrigger className="bg-white border-cyan-200 focus:border-cyan-500">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部还款</SelectItem>
-                  <SelectItem value="on_time">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      <span>未逾期还款</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="late">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600" />
-                      <span>逾期后还款</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {repaymentResults.length > 0 && (
-              <Button 
-                variant="outline" 
-                onClick={handleExportRepayments}
-                className="border-cyan-300 text-cyan-600 hover:bg-cyan-50"
+      <Collapsible open={expandedCardRows.repaymentFilter} onOpenChange={() => toggleCardRow('repaymentFilter')}>
+        <Card className="border-l-4 border-l-cyan-500 mt-4 bg-gradient-to-r from-slate-50 to-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-cyan-500" />
+                <CardTitle className="text-lg">还款日期筛选</CardTitle>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleCardRow('repaymentFilter')}
               >
-                <Download className="w-4 h-4 mr-2" />
-                导出Excel
+                {expandedCardRows.repaymentFilter ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronUp className="h-4 w-4" />
+                )}
               </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+            <CardDescription className="text-xs">
+              选择还款日期，自动显示该日期的所有还款记录
+            </CardDescription>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
+                  <input
+                    type="date"
+                    value={repaymentDate}
+                    onChange={(e) => setRepaymentDate(e.target.value)}
+                    className="w-full h-10 px-3 text-sm border border-cyan-200 rounded-md bg-white hover:border-cyan-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                  />
+                </div>
+                <div className="w-[200px]">
+                  <label className="text-sm font-medium text-slate-600 mb-1.5 block">筛选类型</label>
+                  <Select value={repaymentFilterType} onValueChange={(v) => setRepaymentFilterType(v as RepaymentFilterType)}>
+                    <SelectTrigger className="bg-white border-cyan-200 focus:border-cyan-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部还款</SelectItem>
+                      <SelectItem value="on_time">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                          <span>未逾期还款</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="late">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600" />
+                          <span>逾期后还款</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {repaymentResults.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleExportRepayments}
+                    className="border-cyan-300 text-cyan-600 hover:bg-cyan-50"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    导出Excel
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* 还款记录结果 */}
       {showRepaymentCard && (
