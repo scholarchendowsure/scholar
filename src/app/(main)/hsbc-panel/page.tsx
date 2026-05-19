@@ -586,6 +586,7 @@ export default function HSBCPanelPage() {
     row2: true,
     row3: true,
     row4: true,
+    row5: true,
   });
 
   // 切换卡片行展开/折叠
@@ -2448,7 +2449,7 @@ export default function HSBCPanelPage() {
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : expandedCardRows.row3 && (
                   <div className="text-center py-8 text-slate-500">
                     <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
                     <p>暂无还款数据</p>
@@ -2637,6 +2638,20 @@ export default function HSBCPanelPage() {
 
               {/* 逾期趋势分析图表 */}
               <div className="mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => toggleCardRow('row5')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row5 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">逾期趋势分析</span>
+                </div>
+                {expandedCardRows.row5 && (
                 <div className="bg-white rounded-lg border p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -2784,6 +2799,7 @@ export default function HSBCPanelPage() {
                     </ResponsiveContainer>
                   </div>
                 </div>
+                )}
               </div>
 
 
