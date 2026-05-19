@@ -7,6 +7,19 @@
     "permissions": [
       "*"
     ],
+    "modulePermissions": {
+      "module:dashboard": true,
+      "module:case_management": true,
+      "module:case_assignment": true,
+      "module:repayment_records": true,
+      "module:data_export": true,
+      "module:case_import": true,
+      "module:user_management": true,
+      "module:hsbc_panel": true,
+      "module:feishu_config": true,
+      "module:feishu_messages": true,
+      "module:recycle_bin": true
+    },
     "isSystem": true,
     "createdAt": "2026-05-04T17:13:37.862Z",
     "updatedAt": "2026-05-04T17:13:37.862Z"
@@ -30,6 +43,19 @@
       "case:export",
       "log:read"
     ],
+    "modulePermissions": {
+      "module:dashboard": true,
+      "module:case_management": true,
+      "module:case_assignment": true,
+      "module:repayment_records": true,
+      "module:data_export": true,
+      "module:case_import": true,
+      "module:user_management": true,
+      "module:hsbc_panel": true,
+      "module:feishu_config": true,
+      "module:feishu_messages": true,
+      "module:recycle_bin": true
+    },
     "isSystem": true,
     "createdAt": "2026-05-04T17:13:37.862Z",
     "updatedAt": "2026-05-04T17:13:37.862Z"
@@ -46,6 +72,14 @@
       "case:update",
       "case:export"
     ],
+    "modulePermissions": {
+      "module:dashboard": true,
+      "module:case_management": true,
+      "module:case_assignment": true,
+      "module:repayment_records": true,
+      "module:data_export": true,
+      "module:hsbc_panel": true
+    },
     "isSystem": true,
     "createdAt": "2026-05-04T17:13:37.862Z",
     "updatedAt": "2026-05-04T17:13:37.862Z"
@@ -59,6 +93,11 @@
       "case:read",
       "case:update"
     ],
+    "modulePermissions": {
+      "module:dashboard": true,
+      "module:case_management": true,
+      "module:repayment_records": true
+    },
     "isSystem": true,
     "createdAt": "2026-05-04T17:13:37.862Z",
     "updatedAt": "2026-05-04T17:13:37.862Z"
