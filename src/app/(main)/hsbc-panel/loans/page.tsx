@@ -516,6 +516,198 @@ export default function HSBCLoansPage() {
           </div>
         </div>
 
+        {/* 筛选栏 */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="搜索贷款编号、商户名称..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={batchDate} onValueChange={setBatchDate}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="选择批次日期" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部批次</SelectItem>
+                  {batchDates.map(date => (
+                    <SelectItem key={date} value={date}>{date}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filter.currency || 'all'}
+                onValueChange={(value) => setFilter(prev => ({ ...prev, currency: value as any, page: 1 }))}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="货币" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部货币</SelectItem>
+                  <SelectItem value="CNY">人民币 (CNY)</SelectItem>
+                  <SelectItem value="USD">美元 (USD)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={filter.status || 'all'}
+                onValueChange={(value) => setFilter(prev => ({ ...prev, status: value as any, page: 1 }))}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="状态" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部状态</SelectItem>
+                  <SelectItem value="active">正常</SelectItem>
+                  <SelectItem value="overdue">逾期</SelectItem>
+                  <SelectItem value="settled">已结清</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 商户分组列表 */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-800">商户分组列表</h2>
+          <Button
+            variant={deduplicateMerchant ? "default" : "outline"}
+            size="sm"
+            onClick={() => setDeduplicateMerchant(!deduplicateMerchant)}
+            className="gap-2"
+          >
+            <Building2 className="w-4 h-4" />
+            {deduplicateMerchant ? "已去重" : "去重商户"}
+          </Button>
+        </div>
+        <div className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-400" />
+                <p className="mt-2 text-slate-500">加载中...</p>
+              </CardContent>
+            </Card>
+          ) : merchants.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-slate-500">暂无数据</p>
+                <Button className="mt-4" onClick={() => router.push('/hsbc-panel/upload')}>
+                  导入数据
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            merchants.map((merchant) => (
+              <Card key={merchant.merchantId}>
+                <CardHeader 
+                  className="cursor-pointer hover:bg-slate-50 transition-colors" 
+                  onClick={() => setExpandedMerchant(expandedMerchant === merchant.merchantId ? null : merchant.merchantId)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <CardTitle className="text-lg">{merchant.merchantName}</CardTitle>
+                        <Badge variant="outline">商户ID: {merchant.merchantId}</Badge>
+                        {merchant.overdueCount > 0 && (
+                          <Badge variant="destructive">{merchant.overdueCount} 笔逾期</Badge>
+                        )}
+                      </div>
+                      <CardDescription className="mt-1">
+                        {merchant.loanCount} 笔贷款 | 
+                        总金额: {formatCurrency(merchant.totalAmount)} | 
+                        余额: {formatCurrency(merchant.totalBalance)} | 
+                        逾期: {formatCurrency(merchant.overdueAmount)}
+                      </CardDescription>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      {expandedMerchant === merchant.merchantId ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                
+                {expandedMerchant === merchant.merchantId && (
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>贷款编号</TableHead>
+                          <TableHead>贷款金额</TableHead>
+                          <TableHead>已还款</TableHead>
+                          <TableHead>期限</TableHead>
+                          <TableHead>到期日</TableHead>
+                          <TableHead>余额</TableHead>
+                          <TableHead>逾期金额</TableHead>
+                          <TableHead>状态</TableHead>
+                          <TableHead>操作</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(merchant.loans || []).map((loan: HSBCLoan) => (
+                          <TableRow key={loan.id}>
+                            <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
+                            <TableCell className="font-mono">
+                              {formatCurrency(loan.loanAmount, loan.loanCurrency)}
+                            </TableCell>
+                            <TableCell className="font-mono text-green-600">
+                              {formatCurrency(loan.totalRepaid ?? 0, loan.loanCurrency)}
+                            </TableCell>
+                            <TableCell>{loan.loanTenor}</TableCell>
+                            <TableCell>{loan.maturityDate}</TableCell>
+                            <TableCell className="font-mono">{formatCurrency(calcBalance(loan), loan.loanCurrency)}</TableCell>
+                            <TableCell className={`font-mono ${calcPastdueAmount(loan) > 0 ? 'text-red-600' : ''}`}>
+                              {formatCurrency(calcPastdueAmount(loan), loan.loanCurrency)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={loan.status === 'overdue' ? 'destructive' : 'secondary'}>
+                                {loan.status === 'overdue' ? '逾期' : '正常'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => viewDetail(loan)}>
+                                    <Eye className="w-4 h-4 mr-2" />
+                                    查看详情
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => router.push(`/hsbc-panel/loans/${loan.loanReference}`)}>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    编辑
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleDelete(loan)} className="text-red-600">
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    删除
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          )}
+        </div>
+
         {/* 分页 */}
         {pagination.totalPages > 1 && (
           <div className="flex justify-center gap-2 mt-6">
