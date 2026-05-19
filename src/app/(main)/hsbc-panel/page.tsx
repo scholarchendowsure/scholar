@@ -3040,7 +3040,7 @@ export default function HSBCPanelPage() {
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal bg-white border-cyan-200 hover:border-cyan-500"
+                    className="w-full justify-start text-left font-normal bg-white border-cyan-200 hover:border-cyan-500 focus:outline-none focus:ring-0 focus:ring-offset-0"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-cyan-500" />
                     {repaymentDate ? repaymentDate : "选择日期"}
