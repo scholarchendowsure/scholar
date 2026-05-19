@@ -107,8 +107,12 @@ export default function HSBCLoansPage() {
           loan.repaymentSchedule.forEach(record => {
             // 检查实际还款日期是否匹配选择的日期
             if (record.actualDate && record.actualDate.startsWith(repaymentDate)) {
-              // 判断是否逾期
-              const isOverdue = record.actualDate > record.date;
+              // 提取日期部分进行准确比较 (处理带时间戳的日期格式)
+              const getDatePart = (dateStr: string) => dateStr.substring(0, 10);
+              const dueDateStr = getDatePart(record.date);
+              const actualDateStr = getDatePart(record.actualDate);
+              // 判断是否逾期: 实际还款日期 > 计划还款日期
+              const isOverdue = actualDateStr > dueDateStr;
               
               // 根据筛选类型过滤
               if (repaymentFilterType === 'on_time' && isOverdue) return;
