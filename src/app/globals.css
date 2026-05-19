@@ -281,12 +281,18 @@
 /* 全局干掉日期组件所有按钮的聚焦蓝框 */
 .rdp-button,
 .rdp-button_next,
-.rdp-button_previous,
+.rdp-button_prev,
+.rdp-day,
 .rdp-day_button,
 button[class*='rdp-'] {
   outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  focus-visible:border-0 !important;
   focus-visible:ring-0 !important;
   focus-visible:ring-offset-0 !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-offset-color: transparent !important;
 }
 
 /* 日历组件按钮去除所有focus状态 */
@@ -298,4 +304,5 @@ button[class*='rdp-'] {
 .rdp-button_previous:focus-visible {
   outline: none !important;
   box-shadow: none !important;
+  border-color: transparent !important;
 }
