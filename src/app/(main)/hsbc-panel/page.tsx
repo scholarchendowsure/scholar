@@ -8,6 +8,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from '@/components/ui/card';
 import {
   Collapsible,
@@ -16,6 +17,14 @@ import {
 } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -78,6 +87,9 @@ import {
   ArrowDown,
   Loader2,
   Send,
+  CheckCircle2,
+  AlertCircle,
+  Download,
 } from 'lucide-react';
 
 // ============ 类型定义 ============
@@ -714,6 +726,106 @@ export default function HSBCPanelPage() {
     return [];
   });
   const [warningMerchantInput, setWarningMerchantInput] = useState('');
+
+  // 还款日期筛选相关状态
+  type RepaymentFilterType = 'all' | 'on_time' | 'late';
+  interface RepaymentInfo {
+    loanReference: string;
+    merchantName?: string;
+    borrowerName: string;
+    dueDate: string;
+    actualDate: string;
+    amount: number;
+    currency: string;
+    isOverdue: boolean;
+  }
+  const [repaymentDate, setRepaymentDate] = useState<string>('');
+  const [repaymentFilterType, setRepaymentFilterType] = useState<RepaymentFilterType>('all');
+  const [repaymentResults, setRepaymentResults] = useState<RepaymentInfo[]>([]);
+  const [showRepaymentCard, setShowRepaymentCard] = useState(false);
+
+  // 筛选还款记录
+  const handleRepaymentFilter = useCallback(async () => {
+    if (!repaymentDate) {
+      toast.error('请选择还款日期');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('batchDate', '');
+      params.set('pageSize', '99999');
+      
+      const res = await fetch(`/api/hsbc/loans?${params.toString()}`);
+      const data = await res.json();
+      const allLoans = data.loans || data.data || [];
+
+      const results: RepaymentInfo[] = [];
+      
+      allLoans.forEach((loan: { loanReference?: string; merchantName?: string; borrowerName?: string; repaymentSchedule?: Array<{ actualDate?: string; date?: string; actualAmount?: number; amount?: number }>; loanCurrency?: string }) => {
+        if (loan.repaymentSchedule && loan.repaymentSchedule.length > 0) {
+          loan.repaymentSchedule.forEach(record => {
+            if (record.actualDate && record.date && record.actualDate.startsWith(repaymentDate)) {
+              const getDatePart = (dateStr: string) => dateStr.substring(0, 10);
+              const dueDateStr = getDatePart(record.date);
+              const actualDateStr = getDatePart(record.actualDate);
+              const isOverdue = actualDateStr > dueDateStr;
+              
+              if (repaymentFilterType === 'on_time' && isOverdue) return;
+              if (repaymentFilterType === 'late' && !isOverdue) return;
+
+              results.push({
+                loanReference: loan.loanReference || '',
+                merchantName: loan.merchantName,
+                borrowerName: loan.borrowerName || '',
+                dueDate: record.date || '',
+                actualDate: record.actualDate || '',
+                amount: record.actualAmount || record.amount || 0,
+                currency: loan.loanCurrency || 'CNY',
+                isOverdue,
+              });
+            }
+          });
+        }
+      });
+
+      results.sort((a, b) => a.actualDate.localeCompare(b.actualDate));
+      
+      setRepaymentResults(results);
+      setShowRepaymentCard(true);
+      toast.success(`找到 ${results.length} 条还款记录`);
+    } catch (error) {
+      toast.error('筛选失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [repaymentDate, repaymentFilterType]);
+
+  // 导出还款记录
+  const handleExportRepayments = () => {
+    if (repaymentResults.length === 0) {
+      toast.error('没有可导出的数据');
+      return;
+    }
+
+    const exportData = repaymentResults.map(r => ({
+      贷款编号: r.loanReference,
+      商户名称: r.merchantName || '',
+      借款人: r.borrowerName,
+      计划还款日: r.dueDate,
+      实际还款日: r.actualDate,
+      还款金额: r.amount,
+      货币: r.currency,
+      还款类型: r.isOverdue ? '逾期后还款' : '未逾期还款',
+    }));
+
+    const newWorkbook = XLSX.utils.book_new();
+    const newWorksheet = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, '还款记录');
+    XLSX.writeFile(newWorkbook, `还款记录_${repaymentDate}.xlsx`);
+    toast.success('导出成功！');
+  };
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -2891,6 +3003,196 @@ export default function HSBCPanelPage() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* ============ 还款日期筛选 ============ */}
+      <Card className="border-l-4 border-l-cyan-500 mt-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-cyan-500" />
+            <CardTitle className="text-lg">还款日期筛选</CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            按实际还款日期筛选并统计逾期/未逾期还款记录
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[180px]">
+              <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
+              <Input
+                type="date"
+                value={repaymentDate}
+                onChange={(e) => setRepaymentDate(e.target.value)}
+                className="bg-white border-slate-200 focus:border-cyan-400"
+              />
+            </div>
+            <div className="w-[180px]">
+              <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款类型</label>
+              <Select value={repaymentFilterType} onValueChange={(v) => setRepaymentFilterType(v as RepaymentFilterType)}>
+                <SelectTrigger className="bg-white border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="on_time">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>未逾期还款</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="late">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>逾期后还款</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={handleRepaymentFilter} 
+              disabled={loading}
+              className="bg-cyan-500 hover:bg-cyan-600 text-white"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  查询中...
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4 mr-2" />
+                  查询
+                </>
+              )}
+            </Button>
+            {showRepaymentCard && repaymentResults.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleExportRepayments}
+                className="border-cyan-300 text-cyan-600 hover:bg-cyan-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                导出Excel
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 还款记录结果 */}
+      {showRepaymentCard && (
+        <Card className="mt-4 border-t-4 border-t-cyan-400">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-cyan-500" />
+                  还款记录查询结果
+                </CardTitle>
+                <CardDescription>
+                  {repaymentDate} 共 {repaymentResults.length} 条记录
+                </CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowRepaymentCard(false)}>
+                关闭
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {repaymentResults.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>未找到还款记录</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* 统计摘要 */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200">
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    <div>
+                      <div className="text-xs text-green-600 font-medium">未逾期还款</div>
+                      <div className="text-lg font-bold text-green-700 font-mono">
+                        {repaymentResults.filter(r => !r.isOverdue).length} 条
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl border border-amber-200">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    <div>
+                      <div className="text-xs text-amber-600 font-medium">逾期后还款</div>
+                      <div className="text-lg font-bold text-amber-700 font-mono">
+                        {repaymentResults.filter(r => r.isOverdue).length} 条
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                    <div>
+                      <div className="text-xs text-blue-600 font-medium">还款总金额</div>
+                      <div className="text-lg font-bold text-blue-700 font-mono">
+                        {formatCurrency(
+                          repaymentResults.reduce((sum, r) => sum + r.amount, 0),
+                          repaymentResults[0]?.currency || 'CNY'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 还款记录表格 */}
+                <div className="max-h-[400px] overflow-y-auto border border-slate-200 rounded-xl">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-slate-50">
+                      <TableRow className="hover:bg-slate-50">
+                        <TableHead className="font-semibold">还款订单号</TableHead>
+                        <TableHead className="font-semibold">贷款编号</TableHead>
+                        <TableHead className="font-semibold">借款人</TableHead>
+                        <TableHead className="font-semibold">计划还款日</TableHead>
+                        <TableHead className="font-semibold">实际还款日</TableHead>
+                        <TableHead className="font-semibold text-right">还款金额</TableHead>
+                        <TableHead className="font-semibold text-center">状态</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {repaymentResults.map((record, idx) => (
+                        <TableRow key={idx} className="hover:bg-slate-50/50">
+                          <TableCell className="font-mono text-sm text-slate-600">
+                            {record.actualDate.replace(/-/g, '')}_{idx + 1}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-medium">
+                            {record.loanReference}
+                          </TableCell>
+                          <TableCell className="text-sm">{record.borrowerName}</TableCell>
+                          <TableCell className="text-sm text-slate-500">{record.dueDate}</TableCell>
+                          <TableCell className="text-sm font-medium">{record.actualDate}</TableCell>
+                          <TableCell className="text-right font-mono font-medium">
+                            {formatCurrency(record.amount, record.currency)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {record.isOverdue ? (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                逾期后
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                按时
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* 导入确认弹窗 */}
       <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
