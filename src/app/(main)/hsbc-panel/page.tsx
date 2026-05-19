@@ -581,6 +581,20 @@ export default function HSBCPanelPage() {
     upload: false,
     warningMerchants: false,
   });
+  const [expandedCardRows, setExpandedCardRows] = useState<Record<string, boolean>>({
+    row1: true,
+    row2: true,
+    row3: true,
+    row4: true,
+  });
+
+  // 切换卡片行展开/折叠
+  const toggleCardRow = (rowKey: string) => {
+    setExpandedCardRows(prev => ({
+      ...prev,
+      [rowKey]: !prev[rowKey]
+    }));
+  };
 
   // 筛选状态
   const [searchTerm, setSearchTerm] = useState('');
@@ -1988,7 +2002,21 @@ export default function HSBCPanelPage() {
 
               {/* ============ 汇丰贷款笔数口径 ============ */}
               <div className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => toggleCardRow('row1')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row1 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">贷款笔数统计</span>
+                </div>
+                {expandedCardRows.row1 && (
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   {/* 1. 汇丰贷款笔数口径 */}
                   <div 
                     className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
@@ -2057,10 +2085,26 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* 核心指标 - 根据币种选择显示 */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => toggleCardRow('row2')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row2 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">核心指标</span>
+                </div>
+                {expandedCardRows.row2 && (
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* 1. 在贷总额 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                   <div 
@@ -2239,12 +2283,27 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
                 )}
+                </div>
+                )}
               </div>
 
               {/* ============ 贷后数据卡片 ============ */}
               <div className="mt-6 border-t border-slate-200 pt-4">
-                {repaymentStats?.stats ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => toggleCardRow('row3')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row3 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">贷后数据</span>
+                </div>
+                {expandedCardRows.row3 && repaymentStats?.stats ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* 未逾期还款 */}
                     <div 
                       className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'ontime' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
@@ -2400,7 +2459,21 @@ export default function HSBCPanelPage() {
 
               {/* 还款期限分布 - 根据币种选择显示 */}
               <div className="mt-6">
-                <div className="grid grid-cols-1 gap-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => toggleCardRow('row4')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row4 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">还款期限分布</span>
+                </div>
+                {expandedCardRows.row4 && (
+                  <div className="grid grid-cols-1 gap-4">
                   {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       {/* 3天内 */}
@@ -2559,6 +2632,7 @@ export default function HSBCPanelPage() {
                     </div>
                   )}
                 </div>
+                )}
               </div>
 
               {/* 逾期趋势分析图表 */}
