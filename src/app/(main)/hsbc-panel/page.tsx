@@ -3036,37 +3036,27 @@ export default function HSBCPanelPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
-              <Popover key={`repayment-cal-popover-${repaymentDate}`}>
+              <Popover key={`repayment-cal-${repaymentDate}`}>
                 <PopoverTrigger asChild>
                   <Button
-                    key={`repayment-cal-btn-${repaymentDate}`}
                     variant="outline"
-                    className="w-full justify-start text-left font-normal bg-white border-cyan-200 hover:border-cyan-500 focus:outline-none focus:ring-0 focus:ring-offset-0 active:outline-none active:ring-0"
+                    className="w-full justify-start text-left font-normal bg-white border-cyan-200 hover:border-cyan-500"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-cyan-500" />
                     {repaymentDate ? repaymentDate : "选择日期"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <div 
-                    key={`repayment-cal-calendar-${repaymentDate}`}
-                    className="[&_.rdp-button]:focus:outline-none [&_.rdp-button]:focus:ring-0 [&_.rdp-button_previous]:focus:ring-0 [&_.rdp-button_next]:focus:ring-0 [&_.rdp-button]:focus-visible:ring-0 [&_.rdp-button]:focus-visible:border-0 [&_.rdp-button]:active:outline-none [&_.rdp-button]:active:ring-0"
-                  >
-                    <Calendar
-                      mode="single"
-                      selected={repaymentDate ? new Date(repaymentDate) : undefined}
-                      onSelect={(date) => {
-                        if (date) {
-                          setRepaymentDate(format(date, 'yyyy-MM-dd'));
-                          // 主动失焦，清除按钮焦点状态
-                          setTimeout(() => {
-                            (document.activeElement as HTMLElement)?.blur?.();
-                          }, 0);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </div>
+                  <Calendar
+                    mode="single"
+                    selected={repaymentDate ? new Date(repaymentDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        setRepaymentDate(format(date, 'yyyy-MM-dd'));
+                      }
+                    }}
+                    initialFocus
+                  />
                 </PopoverContent>
               </Popover>
             </div>
