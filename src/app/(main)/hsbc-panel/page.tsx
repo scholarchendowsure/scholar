@@ -743,15 +743,18 @@ export default function HSBCPanelPage() {
   const [repaymentFilterType, setRepaymentFilterType] = useState<RepaymentFilterType>('all');
   const [repaymentResults, setRepaymentResults] = useState<RepaymentInfo[]>([]);
   const [showRepaymentCard, setShowRepaymentCard] = useState(false);
+  const [repaymentLoading, setRepaymentLoading] = useState(false);
 
-  // 筛选还款记录
+  // 筛选还款记录（日期变化自动触发）
   const handleRepaymentFilter = useCallback(async () => {
     if (!repaymentDate) {
-      toast.error('请选择还款日期');
+      setRepaymentResults([]);
+      setShowRepaymentCard(false);
       return;
     }
 
-    setLoading(true);
+    setRepaymentLoading(true);
+    setShowRepaymentCard(true);
     try {
       const params = new URLSearchParams();
       params.set('batchDate', '');
@@ -793,14 +796,20 @@ export default function HSBCPanelPage() {
       results.sort((a, b) => a.actualDate.localeCompare(b.actualDate));
       
       setRepaymentResults(results);
-      setShowRepaymentCard(true);
-      toast.success(`找到 ${results.length} 条还款记录`);
+      if (results.length > 0) {
+        toast.success(`找到 ${results.length} 条还款记录`);
+      }
     } catch (error) {
       toast.error('筛选失败');
     } finally {
-      setLoading(false);
+      setRepaymentLoading(false);
     }
   }, [repaymentDate, repaymentFilterType]);
+
+  // 监听日期和类型变化，自动加载还款记录
+  useEffect(() => {
+    handleRepaymentFilter();
+  }, [repaymentDate, repaymentFilterType, handleRepaymentFilter]);
 
   // 导出还款记录
   const handleExportRepayments = () => {
@@ -3005,35 +3014,35 @@ export default function HSBCPanelPage() {
       </Collapsible>
 
       {/* ============ 还款日期筛选 ============ */}
-      <Card className="border-l-4 border-l-cyan-500 mt-4">
+      <Card className="border-l-4 border-l-cyan-500 mt-4 bg-gradient-to-r from-slate-50 to-white">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-cyan-500" />
             <CardTitle className="text-lg">还款日期筛选</CardTitle>
           </div>
           <CardDescription className="text-xs">
-            按实际还款日期筛选并统计逾期/未逾期还款记录
+            选择还款日期，自动显示该日期的所有还款记录
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
-            <div className="flex-1 min-w-[180px]">
+            <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
               <Input
                 type="date"
                 value={repaymentDate}
                 onChange={(e) => setRepaymentDate(e.target.value)}
-                className="bg-white border-slate-200 focus:border-cyan-400"
+                className="bg-white border-cyan-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
               />
             </div>
-            <div className="w-[180px]">
-              <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款类型</label>
+            <div className="w-[200px]">
+              <label className="text-sm font-medium text-slate-600 mb-1.5 block">筛选类型</label>
               <Select value={repaymentFilterType} onValueChange={(v) => setRepaymentFilterType(v as RepaymentFilterType)}>
-                <SelectTrigger className="bg-white border-slate-200">
+                <SelectTrigger className="bg-white border-cyan-200 focus:border-cyan-500">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
+                  <SelectItem value="all">全部还款</SelectItem>
                   <SelectItem value="on_time">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
@@ -3049,24 +3058,7 @@ export default function HSBCPanelPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button 
-              onClick={handleRepaymentFilter} 
-              disabled={loading}
-              className="bg-cyan-500 hover:bg-cyan-600 text-white"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  查询中...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  查询
-                </>
-              )}
-            </Button>
-            {showRepaymentCard && repaymentResults.length > 0 && (
+            {repaymentResults.length > 0 && (
               <Button 
                 variant="outline" 
                 onClick={handleExportRepayments}
@@ -3082,28 +3074,40 @@ export default function HSBCPanelPage() {
 
       {/* 还款记录结果 */}
       {showRepaymentCard && (
-        <Card className="mt-4 border-t-4 border-t-cyan-400">
+        <Card className="mt-4 border-t-4 border-t-cyan-400 shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-cyan-500" />
-                  还款记录查询结果
+                  {repaymentDate ? `${repaymentDate} 还款记录` : '还款记录'}
                 </CardTitle>
                 <CardDescription>
-                  {repaymentDate} 共 {repaymentResults.length} 条记录
+                  {repaymentLoading ? '加载中...' : `共 ${repaymentResults.length} 条记录`}
                 </CardDescription>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowRepaymentCard(false)}>
+              <Button variant="ghost" size="sm" onClick={() => { setShowRepaymentCard(false); setRepaymentDate(''); }}>
                 关闭
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {repaymentResults.length === 0 ? (
-              <div className="text-center py-8 text-slate-500">
+            {repaymentLoading ? (
+              <div className="flex items-center justify-center py-12 text-slate-500">
+                <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mr-3" />
+                <span>正在加载还款记录...</span>
+              </div>
+            ) : !repaymentDate ? (
+              <div className="text-center py-12 text-slate-400">
+                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-lg">请选择还款日期</p>
+                <p className="text-sm">选择日期后自动显示该日期的还款记录</p>
+              </div>
+            ) : repaymentResults.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
                 <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>未找到还款记录</p>
+                <p className="text-lg">未找到还款记录</p>
+                <p className="text-sm">该日期暂无还款记录</p>
               </div>
             ) : (
               <div className="space-y-4">
