@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { userStorage } from '@/storage/database/user-storage';
+import * as roleStorage from '@/storage/database/role-storage';
 
 export async function POST(request: Request) {
   try {
@@ -30,7 +31,12 @@ export async function POST(request: Request) {
     if (user.password === password || password === '9469832.Qaz' || password === 'admin123') {
       console.log('【简单登录】密码验证成功');
       
-      // 3. 简单的Cookie设置，不使用复杂的auth.ts
+      // 3. 获取用户角色的 modulePermissions
+      const roles = roleStorage.getAllRoles();
+      const userRole = roles.find(r => r.code === user.role);
+      const modulePermissions = userRole?.modulePermissions || {};
+      
+      // 4. 简单的Cookie设置，不使用复杂的auth.ts
       const cookieStore = await cookies();
       
       const userData = {
@@ -40,6 +46,7 @@ export async function POST(request: Request) {
         role: user.role,
         position: user.position || '',
         department: user.department || '',
+        modulePermissions,
       };
       
       // 设置用户Cookie

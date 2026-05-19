@@ -43,7 +43,7 @@ import {
   USER_STATUS_LABELS,
   INITIAL_PASSWORD,
   DEFAULT_PASSWORD_RULE,
-  ALL_PERMISSION_OPTIONS,
+  MODULE_PERMISSION_OPTIONS,
 } from '@/types/user';
 import {
   Plus,
@@ -114,6 +114,7 @@ export default function UsersPage() {
     code: '',
     description: '',
     permissions: [] as string[],
+    modulePermissions: {} as Record<string, boolean>,
   });
 
   // Form states
@@ -447,8 +448,8 @@ export default function UsersPage() {
 
   // ===== 角色管理函数 =====
   const handleRoleCreate = async () => {
-    if (!roleFormData.name || !roleFormData.code || roleFormData.permissions.length === 0) {
-      toast.error('请填写必填字段并选择至少一个权限');
+    if (!roleFormData.name || !roleFormData.code) {
+      toast.error('请填写必填字段');
       return;
     }
 
@@ -476,8 +477,8 @@ export default function UsersPage() {
 
   const handleRoleUpdate = async () => {
     if (!selectedRole) return;
-    if (!roleFormData.name || !roleFormData.code || roleFormData.permissions.length === 0) {
-      toast.error('请填写必填字段并选择至少一个权限');
+    if (!roleFormData.name || !roleFormData.code) {
+      toast.error('请填写必填字段');
       return;
     }
 
@@ -532,6 +533,7 @@ export default function UsersPage() {
       code: role.code,
       description: role.description || '',
       permissions: [...role.permissions],
+      modulePermissions: role.modulePermissions || {},
     });
     setRoleEditDialogOpen(true);
   };
@@ -542,6 +544,7 @@ export default function UsersPage() {
       code: '',
       description: '',
       permissions: [],
+      modulePermissions: {},
     });
     setSelectedRole(null);
   };
@@ -1312,17 +1315,18 @@ export default function UsersPage() {
             <div className="space-y-2">
               <Label>权限配置 *</Label>
               <div className="border rounded-md p-4 bg-muted/30">
-                <div className="flex flex-wrap gap-3">
-                  {ALL_PERMISSION_OPTIONS.map((perm) => (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {MODULE_PERMISSION_OPTIONS.map((perm) => (
                     <label key={perm.key} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={roleFormData.permissions.includes(perm.key)}
+                        checked={roleFormData.modulePermissions[perm.key] || false}
                         onChange={(e) => {
-                          const newPerms = e.target.checked
-                            ? [...roleFormData.permissions, perm.key]
-                            : roleFormData.permissions.filter((p) => p !== perm.key);
-                          setRoleFormData({ ...roleFormData, permissions: newPerms });
+                          const newModulePermissions = {
+                            ...roleFormData.modulePermissions,
+                            [perm.key]: e.target.checked,
+                          };
+                          setRoleFormData({ ...roleFormData, modulePermissions: newModulePermissions });
                         }}
                         className="w-4 h-4"
                       />
@@ -1379,17 +1383,18 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>权限配置 *</Label>
                 <div className="border rounded-md p-4 bg-muted/30">
-                  <div className="flex flex-wrap gap-3">
-                    {ALL_PERMISSION_OPTIONS.map((perm) => (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {MODULE_PERMISSION_OPTIONS.map((perm) => (
                       <label key={perm.key} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={roleFormData.permissions.includes(perm.key)}
+                          checked={roleFormData.modulePermissions[perm.key] || false}
                           onChange={(e) => {
-                            const newPerms = e.target.checked
-                              ? [...roleFormData.permissions, perm.key]
-                              : roleFormData.permissions.filter((p) => p !== perm.key);
-                            setRoleFormData({ ...roleFormData, permissions: newPerms });
+                            const newModulePermissions = {
+                              ...roleFormData.modulePermissions,
+                              [perm.key]: e.target.checked,
+                            };
+                            setRoleFormData({ ...roleFormData, modulePermissions: newModulePermissions });
                           }}
                           className="w-4 h-4"
                         />

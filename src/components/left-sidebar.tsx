@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -29,68 +29,81 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/components/auth-provider';
 import { toast } from 'sonner';
+import { MODULE_PERMISSIONS } from '@/types/user';
 
 interface NavItem {
   title: string;
   href: string;
   icon: React.ReactNode;
+  permission?: string;
 }
 
 const navItems: NavItem[] = [
   {
     title: '仪表盘',
     href: '/dashboard',
-    icon: <LayoutDashboard className="h-5 w-5" />
+    icon: <LayoutDashboard className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.DASHBOARD
   },
   {
     title: '案件管理',
     href: '/cases',
-    icon: <Briefcase className="h-5 w-5" />
+    icon: <Briefcase className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.CASE_MANAGEMENT
   },
   {
     title: '案件分配',
     href: '/assignment',
-    icon: <Users className="h-5 w-5" />
+    icon: <Users className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.CASE_ASSIGNMENT
   },
   {
     title: '还款记录',
     href: '/repayment-records',
-    icon: <DollarSign className="h-5 w-5" />
+    icon: <DollarSign className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.REPAYMENT_RECORDS
   },
   {
     title: '数据导出',
     href: '/data-export',
-    icon: <Download className="h-5 w-5" />
+    icon: <Download className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.DATA_EXPORT
   },
   {
     title: '案件导入',
     href: '/case-import',
-    icon: <Upload className="h-5 w-5" />
+    icon: <Upload className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.CASE_IMPORT
   },
   {
     title: '用户管理',
     href: '/users',
-    icon: <UserCog className="h-5 w-5" />
+    icon: <UserCog className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.USER_MANAGEMENT
   },
   {
     title: '汇丰仪表盘',
     href: '/hsbc-panel',
-    icon: <Building2 className="h-5 w-5" />
+    icon: <Building2 className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.HSBC_PANEL
   },
   {
     title: '飞书配置',
     href: '/hsbc-panel/feishu-config',
-    icon: <MessageSquare className="h-5 w-5" />
+    icon: <MessageSquare className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.FEISHU_CONFIG
   },
   {
     title: '飞书消息',
     href: '/feishu-message',
-    icon: <MessageSquare className="h-5 w-5" />
+    icon: <MessageSquare className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.FEISHU_MESSAGES
   },
   {
     title: '回收站',
     href: '/recycle-bin',
-    icon: <Trash2 className="h-5 w-5" />
+    icon: <Trash2 className="h-5 w-5" />,
+    permission: MODULE_PERMISSIONS.RECYCLE_BIN
   }
 ];
 
@@ -101,6 +114,23 @@ export function LeftSidebar() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  // 登录后跳转到用户有权限的首个板块
+  useEffect(() => {
+    if (user && pathname === '/') {
+      const firstPermittedItem = navItems.find(item => 
+        !item.permission || user.modulePermissions?.[item.permission]
+      );
+      if (firstPermittedItem) {
+        router.push(firstPermittedItem.href);
+      }
+    }
+  }, [user, pathname, router]);
+
+  // 根据用户权限过滤导航项
+  const filteredNavItems = navItems.filter(item => 
+    !item.permission || user?.modulePermissions?.[item.permission]
+  );
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -153,7 +183,7 @@ export function LeftSidebar() {
       {/* 导航菜单 */}
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-1 px-2">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <li key={item.href}>

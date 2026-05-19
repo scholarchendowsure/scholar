@@ -18,9 +18,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     
-    const { name, code, description, permissions } = body;
+    const { name, code, description, permissions, modulePermissions } = body;
     
-    if (!name || !code || !Array.isArray(permissions)) {
+    if (!name || !code) {
       return NextResponse.json(
         { success: false, error: '缺少必填字段' },
         { status: 400 }
@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
       name,
       code,
       description,
-      permissions,
+      permissions: permissions || [],
+      modulePermissions: modulePermissions || {},
       isSystem: false,
     });
     

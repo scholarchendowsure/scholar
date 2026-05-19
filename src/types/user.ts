@@ -9,6 +9,7 @@ export interface Role {
   code: string;               // 角色编码（唯一）
   description?: string;       // 角色描述
   permissions: string[];       // 权限列表
+  modulePermissions?: Record<string, boolean>; // 功能板块权限
   isSystem: boolean;          // 是否为系统内置角色（不可删除）
   createdAt: string;
   updatedAt: string;
@@ -95,19 +96,62 @@ export const USER_STATUS_LABELS: Record<UserStatus, string> = {
 export const USER_PERMISSIONS: Record<UserRole, string[]> = {
   super_admin: ['*'],
   admin: [
-    'user:create', 'user:read', 'user:update', 'user:delete',
-    'user:reset_password', 'user:unlock',
-    'case:create', 'case:read', 'case:update', 'case:delete',
-    'case:export', 'log:read',
+    'module:dashboard',
+    'module:case_management',
+    'module:case_assignment',
+    'module:repayment_records',
+    'module:data_export',
+    'module:case_import',
+    'module:user_management',
+    'module:hsbc_panel',
+    'module:feishu_config',
+    'module:feishu_messages',
+    'module:recycle_bin',
   ],
   manager: [
-    'user:read',
-    'case:create', 'case:read', 'case:update', 'case:export',
+    'module:dashboard',
+    'module:case_management',
+    'module:case_assignment',
+    'module:repayment_records',
+    'module:data_export',
+    'module:hsbc_panel',
   ],
   agent: [
-    'case:read', 'case:update',
+    'module:dashboard',
+    'module:case_management',
+    'module:repayment_records',
   ],
 };
+
+// 功能板块权限常量
+export const MODULE_PERMISSIONS = {
+  DASHBOARD: 'module:dashboard',
+  CASE_MANAGEMENT: 'module:case_management',
+  CASE_ASSIGNMENT: 'module:case_assignment',
+  REPAYMENT_RECORDS: 'module:repayment_records',
+  DATA_EXPORT: 'module:data_export',
+  CASE_IMPORT: 'module:case_import',
+  USER_MANAGEMENT: 'module:user_management',
+  HSBC_PANEL: 'module:hsbc_panel',
+  FEISHU_CONFIG: 'module:feishu_config',
+  FEISHU_MESSAGES: 'module:feishu_messages',
+  RECYCLE_BIN: 'module:recycle_bin',
+};
+
+// 功能板块权限选项
+export const MODULE_PERMISSION_OPTIONS = [
+  { key: MODULE_PERMISSIONS.DASHBOARD, label: '仪表盘' },
+  { key: MODULE_PERMISSIONS.CASE_MANAGEMENT, label: '案件管理' },
+  { key: MODULE_PERMISSIONS.CASE_ASSIGNMENT, label: '案件分配' },
+  { key: MODULE_PERMISSIONS.REPAYMENT_RECORDS, label: '还款记录' },
+  { key: MODULE_PERMISSIONS.DATA_EXPORT, label: '数据导出' },
+  { key: MODULE_PERMISSIONS.CASE_IMPORT, label: '案件导入' },
+  { key: MODULE_PERMISSIONS.USER_MANAGEMENT, label: '用户管理' },
+  { key: MODULE_PERMISSIONS.HSBC_PANEL, label: '汇丰仪表盘' },
+  { key: MODULE_PERMISSIONS.FEISHU_CONFIG, label: '飞书配置' },
+  { key: MODULE_PERMISSIONS.FEISHU_MESSAGES, label: '飞书消息' },
+  { key: MODULE_PERMISSIONS.RECYCLE_BIN, label: '回收站' },
+];
 
 // 预定义系统角色
 export const SYSTEM_ROLES: Role[] = [
@@ -117,6 +161,9 @@ export const SYSTEM_ROLES: Role[] = [
     code: 'super_admin',
     description: '拥有所有系统权限',
     permissions: ['*'],
+    modulePermissions: Object.fromEntries(
+      Object.values(MODULE_PERMISSIONS).map(key => [key, true])
+    ),
     isSystem: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -132,6 +179,9 @@ export const SYSTEM_ROLES: Role[] = [
       'case:create', 'case:read', 'case:update', 'case:delete',
       'case:export', 'log:read',
     ],
+    modulePermissions: Object.fromEntries(
+      Object.values(MODULE_PERMISSIONS).map(key => [key, true])
+    ),
     isSystem: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -145,6 +195,14 @@ export const SYSTEM_ROLES: Role[] = [
       'user:read',
       'case:create', 'case:read', 'case:update', 'case:export',
     ],
+    modulePermissions: {
+      [MODULE_PERMISSIONS.DASHBOARD]: true,
+      [MODULE_PERMISSIONS.CASE_MANAGEMENT]: true,
+      [MODULE_PERMISSIONS.CASE_ASSIGNMENT]: true,
+      [MODULE_PERMISSIONS.REPAYMENT_RECORDS]: true,
+      [MODULE_PERMISSIONS.DATA_EXPORT]: true,
+      [MODULE_PERMISSIONS.HSBC_PANEL]: true,
+    },
     isSystem: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -157,6 +215,11 @@ export const SYSTEM_ROLES: Role[] = [
     permissions: [
       'case:read', 'case:update',
     ],
+    modulePermissions: {
+      [MODULE_PERMISSIONS.DASHBOARD]: true,
+      [MODULE_PERMISSIONS.CASE_MANAGEMENT]: true,
+      [MODULE_PERMISSIONS.REPAYMENT_RECORDS]: true,
+    },
     isSystem: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -164,21 +227,4 @@ export const SYSTEM_ROLES: Role[] = [
 ];
 
 // 所有可用的权限选项
-export const ALL_PERMISSION_OPTIONS = [
-  { key: 'user:create', label: '创建用户' },
-  { key: 'user:read', label: '查看用户' },
-  { key: 'user:update', label: '编辑用户' },
-  { key: 'user:delete', label: '删除用户' },
-  { key: 'user:reset_password', label: '重置用户密码' },
-  { key: 'user:unlock', label: '解锁用户' },
-  { key: 'case:create', label: '创建案件' },
-  { key: 'case:read', label: '查看案件' },
-  { key: 'case:update', label: '编辑案件' },
-  { key: 'case:delete', label: '删除案件' },
-  { key: 'case:export', label: '导出案件' },
-  { key: 'log:read', label: '查看操作日志' },
-  { key: 'role:create', label: '创建角色' },
-  { key: 'role:read', label: '查看角色' },
-  { key: 'role:update', label: '编辑角色' },
-  { key: 'role:delete', label: '删除角色' },
-];
+export const ALL_PERMISSION_OPTIONS = MODULE_PERMISSION_OPTIONS;

@@ -30,13 +30,14 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
     const { id } = await params;
     const body = await req.json();
     
-    const { name, code, description, permissions } = body;
+    const { name, code, description, permissions, modulePermissions } = body;
     
     const updatedRole = roleStorage.updateRole(id, {
       name,
       code,
       description,
       permissions,
+      modulePermissions,
     });
     
     if (!updatedRole) {
