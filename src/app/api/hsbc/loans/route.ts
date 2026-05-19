@@ -11,10 +11,14 @@ export async function GET(request: NextRequest) {
     const currency = searchParams.get('currency') || '';
     const keyword = searchParams.get('keyword') || '';
     const merchantId = searchParams.get('merchantId') || '';
+    const includeAll = searchParams.get('includeAll') === 'true'; // 是否包含所有批次
 
     // 根据 batchDate 获取数据
     let loans: HSBCLoan[];
-    if (batchDate) {
+    if (includeAll) {
+      // 获取所有批次的数据
+      loans = await getAllHSBCLoans();
+    } else if (batchDate) {
       loans = await getHSBCLoansByBatchDate(batchDate);
     } else {
       // 默认获取最新批次的数据

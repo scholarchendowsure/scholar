@@ -570,6 +570,7 @@ interface RepaymentStats {
 // ============ 主组件 ============
 export default function HSBCPanelPage() {
   const [loans, setLoans] = useState<HSBCLoan[]>([]);
+  const [allLoans, setAllLoans] = useState<HSBCLoan[]>([]); // 所有批次的数据用于图表
   const [stats, setStats] = useState<HSBCStats | null>(null);
   const [repaymentStats, setRepaymentStats] = useState<RepaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -867,6 +868,13 @@ export default function HSBCPanelPage() {
         const datesData = await datesRes.json();
         dates = datesData.data || [];
         setAvailableBatchDates(dates);
+      }
+
+      // 加载所有批次数据用于图表
+      const allLoansRes = await fetch('/api/hsbc/loans?includeAll=true&pageSize=999999');
+      if (allLoansRes.ok) {
+        const allLoansData = await allLoansRes.json();
+        setAllLoans(allLoansData.data || []);
       }
 
       // 如果有批次日期，加载最新日期的数据；否则加载所有数据
@@ -1420,18 +1428,35 @@ export default function HSBCPanelPage() {
   // 逾期趋势数据 - 使用所有批次的贷款数据
   const overdueTrendData = useMemo(() => {
     // 按批次日期分组
-    const batchDateMap = new Map<string, { totalAmount: number; overdueAmount: number; count: number }>();
+    const batchDateMap = new Map<string, { 
+      totalAmountCNY: number;  // 总金额（折算人民币）
+      overdueAmountCNY: number; // 逾期金额（折算人民币）
+      count: number 
+    }>();
     
-    loans.forEach(loan => {
+    // USD兑CNY汇率（按7.15估算）
+    const USD_TO_CNY = 7.15;
+    
+    allLoans.forEach(loan => {
       const batchDate = loan.batchDate || '未知批次';
-      const existing = batchDateMap.get(batchDate) || { totalAmount: 0, overdueAmount: 0, count: 0 };
+      const existing = batchDateMap.get(batchDate) || { 
+        totalAmountCNY: 0, 
+        overdueAmountCNY: 0, 
+        count: 0 
+      };
       
-      // 使用loanAmount作为金额
-      existing.totalAmount += loan.loanAmount;
-      // 检查逾期天数
+      // 计算金额并折算成人民币
+      let amountCNY = loan.loanAmount;
+      if (loan.loanCurrency === 'USD') {
+        amountCNY = loan.loanAmount * USD_TO_CNY;
+      }
+      
+      existing.totalAmountCNY += amountCNY;
+      
+      // 检查逾期天数：只统计实际逾期的金额
       const overdueDays = loan.overdueDays ?? 0;
       if (overdueDays > overdueThreshold) {
-        existing.overdueAmount += loan.loanAmount;
+        existing.overdueAmountCNY += amountCNY;
       }
       existing.count += 1;
       
@@ -1442,14 +1467,14 @@ export default function HSBCPanelPage() {
     const data = Array.from(batchDateMap.entries())
       .map(([batchDate, stats]) => ({
         batchDate,
-        totalAmount: Math.round(stats.totalAmount),
-        overdueAmount: Math.round(stats.overdueAmount),
-        overdueRate: stats.totalAmount > 0 ? (stats.overdueAmount / stats.totalAmount * 100) : 0,
+        totalAmount: Math.round(stats.totalAmountCNY),
+        overdueAmount: Math.round(stats.overdueAmountCNY),
+        overdueRate: stats.totalAmountCNY > 0 ? (stats.overdueAmountCNY / stats.totalAmountCNY * 100) : 0,
       }))
       .sort((a, b) => a.batchDate.localeCompare(b.batchDate));
     
     return data;
-  }, [loans, overdueThreshold]);
+  }, [allLoans, overdueThreshold]);
 
   // 计算当前筛选结果的USD和CNY统计（始终使用原始贷款列表，不因去重商户而改变）
   const statsLoans = filteredLoansBeforeDedupe;
@@ -2694,7 +2719,7 @@ export default function HSBCPanelPage() {
                       />
                       <YAxis
                         yAxisId="left"
-                        tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`}
+                        tickFormatter={(value) => `¥${(value / 1000000).toFixed(1)}M`}
                         tick={{ fontSize: 12 }}
                         tickLine={false}
                         axisLine={{ stroke: '#cbd5e1' }}
@@ -2710,7 +2735,7 @@ export default function HSBCPanelPage() {
                       />
                       <Tooltip
                         formatter={(value: number, name: string) => {
-                          if (name === 'overdueAmount') return [`$${(value / 1000000).toFixed(2)}M`, '逾期总额'];
+                          if (name === 'overdueAmount') return [`¥${(value / 10000).toFixed(2)}万`, '逾期总额'];
                           if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
                           return [value, name];
                         }}
@@ -2727,7 +2752,7 @@ export default function HSBCPanelPage() {
                       <Bar
                         yAxisId="left"
                         dataKey="overdueAmount"
-                        name="逾期总额 (USD)"
+                        name="逾期总额 (CNY)"
                         fill="#ef4444"
                         radius={[4, 4, 0, 0]}
                         maxBarSize={40}
