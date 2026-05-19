@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -77,6 +77,7 @@ export default function HSBCDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [batchDate, setBatchDate] = useState<string>('all');
   const [batchDates, setBatchDates] = useState<string[]>([]);
+  const [overdueThreshold, setOverdueThreshold] = useState<number>(0);
 
   useEffect(() => {
     fetchBatchDates();
