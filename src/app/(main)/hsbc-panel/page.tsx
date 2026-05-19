@@ -1437,7 +1437,8 @@ export default function HSBCPanelPage() {
       totalAmountUSD: number;  // 总金额（折USD）
       overdueAmountCNY: number; // 逾期金额（折CNY）
       overdueAmountUSD: number; // 逾期金额（折USD）
-      count: number 
+      totalCount: number; // 总笔数
+      overdueCount: number; // 逾期笔数
     }>();
     
     allLoans.forEach(loan => {
@@ -1447,7 +1448,8 @@ export default function HSBCPanelPage() {
         totalAmountUSD: 0, 
         overdueAmountCNY: 0, 
         overdueAmountUSD: 0, 
-        count: 0 
+        totalCount: 0,
+        overdueCount: 0
       };
       
       // 计算该笔贷款的总金额（分别按币种）
@@ -1477,9 +1479,10 @@ export default function HSBCPanelPage() {
         
         existing.overdueAmountCNY += overdueCNY;
         existing.overdueAmountUSD += overdueUSD;
+        existing.overdueCount += 1;
       }
       
-      existing.count += 1;
+      existing.totalCount += 1;
       
       batchDateMap.set(batchDate, existing);
     });
@@ -1488,8 +1491,8 @@ export default function HSBCPanelPage() {
     const data = Array.from(batchDateMap.entries())
       .map(([batchDate, stats]) => ({
         batchDate,
-        totalAmount: chartCurrency === 'CNY' ? Math.round(stats.totalAmountCNY) : Math.round(stats.totalAmountUSD),
-        overdueAmount: chartCurrency === 'CNY' ? Math.round(stats.overdueAmountCNY) : Math.round(stats.overdueAmountUSD),
+        totalAmount: chartCurrency === 'CNY' ? Math.round(stats.totalAmountCNY / 10000) : Math.round(stats.totalAmountUSD / 10000),
+        overdueAmount: chartCurrency === 'CNY' ? Math.round(stats.overdueAmountCNY / 10000) : Math.round(stats.overdueAmountUSD / 10000),
         overdueRate: stats.totalAmountCNY > 0 ? (stats.overdueAmountCNY / stats.totalAmountCNY * 100) : 0,
       }))
       .sort((a, b) => a.batchDate.localeCompare(b.batchDate));
@@ -2634,7 +2637,7 @@ export default function HSBCPanelPage() {
                         />
                         <YAxis
                           yAxisId="left"
-                          tickFormatter={(value) => chartCurrency === 'CNY' ? `¥${(value / 1000000).toFixed(1)}M` : `$${(value / 1000000).toFixed(1)}M`}
+                          tickFormatter={(value) => chartCurrency === 'CNY' ? `¥${value.toFixed(0)}万` : `$${value.toFixed(0)}万`}
                           tick={{ fontSize: 12 }}
                           tickLine={false}
                           axisLine={{ stroke: '#cbd5e1' }}
@@ -2652,9 +2655,9 @@ export default function HSBCPanelPage() {
                           formatter={(value: number, name: string) => {
                             if (name === 'overdueAmount') {
                               const symbol = chartCurrency === 'CNY' ? '¥' : '$';
-                              return [`${symbol}${(value / 10000).toFixed(2)}万`, '逾期总额'];
+                              return [`${symbol}${value.toFixed(2)}万`, '逾期总额'];
                             }
-                            if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
+                            if (name === 'overdueRate') return [`${value.toFixed(3)}%`, '逾期率'];
                             return [value, name];
                           }}
                           contentStyle={{
