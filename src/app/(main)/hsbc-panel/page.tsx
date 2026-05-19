@@ -3386,12 +3386,12 @@ export default function HSBCPanelPage() {
                 )}
               </Button>
             </div>
-            <CardDescription className="text-xs">
-              选择还款日期，自动显示该日期的所有还款记录
-            </CardDescription>
           </CardHeader>
           <CollapsibleContent>
             <CardContent>
+              <p className="text-xs text-slate-500 mb-4">
+                选择还款日期，自动显示该日期的所有还款记录
+              </p>
               <div className="flex flex-wrap items-end gap-4">
                 <div className="flex-1 min-w-[200px]">
                   <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
