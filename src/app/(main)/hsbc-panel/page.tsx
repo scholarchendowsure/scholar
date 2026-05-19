@@ -1429,7 +1429,7 @@ export default function HSBCPanelPage() {
   // 逾期趋势数据 - 使用所有批次的贷款数据
   const overdueTrendData = useMemo(() => {
     // USD兑CNY汇率
-    const USD_TO_CNY_RATE = 7.15;
+    const USD_TO_CNY_RATE = 7;
     
     // 按批次日期分组
     const batchDateMap = new Map<string, { 
