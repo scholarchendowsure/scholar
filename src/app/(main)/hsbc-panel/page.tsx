@@ -735,6 +735,7 @@ export default function HSBCPanelPage() {
     borrowerName: string;
     dueDate: string;
     actualDate: string;
+    maturityDate: string;
     amount: number;
     currency: string;
     isOverdue: boolean;
@@ -785,6 +786,7 @@ export default function HSBCPanelPage() {
               loanReference: loan.loanReference || '',
               merchantName: loan.merchantName,
               borrowerName: loan.borrowerName || '',
+              maturityDate: loan.maturityDate || '',
               dueDate: record.date || '',
               actualDate: actualRepaymentDate || '',
               amount: record.actualAmount || record.amount || 0,
@@ -3156,6 +3158,7 @@ export default function HSBCPanelPage() {
                         <TableHead className="font-semibold">贷款编号</TableHead>
                         <TableHead className="font-semibold">借款人</TableHead>
                         <TableHead className="font-semibold">计划还款日</TableHead>
+                        <TableHead className="font-semibold">到期日期</TableHead>
                         <TableHead className="font-semibold">实际还款日</TableHead>
                         <TableHead className="font-semibold text-right">还款金额</TableHead>
                         <TableHead className="font-semibold text-center">状态</TableHead>
@@ -3172,6 +3175,7 @@ export default function HSBCPanelPage() {
                           </TableCell>
                           <TableCell className="text-sm">{record.borrowerName}</TableCell>
                           <TableCell className="text-sm text-slate-500">{record.dueDate}</TableCell>
+                          <TableCell className="text-sm text-slate-500">{record.maturityDate}</TableCell>
                           <TableCell className="text-sm font-medium">{record.actualDate}</TableCell>
                           <TableCell className="text-right font-mono font-medium">
                             {formatCurrency(record.amount, record.currency)}
