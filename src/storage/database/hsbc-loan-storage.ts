@@ -52,6 +52,11 @@ function loadFromLocalStorage(): HSBCLoan[] {
 // 保存到本地文件
 function saveToLocalStorage(loans: HSBCLoan[]) {
   try {
+    // 确保目录存在
+    const dir = path.dirname(STORAGE_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(loans, null, 2));
     console.log(`✅ 保存了 ${loans.length} 条汇丰贷款数据到本地文件`);
   } catch (err) {
@@ -77,6 +82,12 @@ function loadBatchDatesFromLocalStorage(): string[] {
 // 保存批次日期到本地文件
 function saveBatchDatesToLocalStorage(dates: string[]) {
   try {
+    // 确保目录存在
+    const dir = path.dirname(BATCH_DATES_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`✅ 创建目录: ${dir}`);
+    }
     fs.writeFileSync(BATCH_DATES_FILE, JSON.stringify(dates, null, 2));
     console.log(`✅ 保存了 ${dates.length} 个批次日期到本地文件`);
   } catch (err) {
