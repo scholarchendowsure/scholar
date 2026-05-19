@@ -8,6 +8,48 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 
+// 定义模块权限到路由的映射
+const MODULE_TO_ROUTE: Record<string, string> = {
+  'module:dashboard': '/dashboard',
+  'module:case_management': '/cases',
+  'module:case_assignment': '/cases/assignment',
+  'module:repayment_records': '/repayments',
+  'module:data_export': '/data-export',
+  'module:case_import': '/case-import',
+  'module:user_management': '/users',
+  'module:hsbc_panel': '/hsbc-panel',
+  'module:feishu_config': '/feishu-config',
+  'module:feishu_messages': '/feishu-messages',
+  'module:recycle_bin': '/recycle-bin'
+};
+
+// 根据用户权限找到第一个有权限的路由
+function getFirstAccessibleRoute(modulePermissions: Record<string, boolean>): string {
+  // 优先顺序
+  const priorityOrder = [
+    'module:dashboard',
+    'module:hsbc_panel',
+    'module:case_management',
+    'module:case_assignment',
+    'module:repayment_records',
+    'module:data_export',
+    'module:case_import',
+    'module:user_management',
+    'module:feishu_config',
+    'module:feishu_messages',
+    'module:recycle_bin'
+  ];
+
+  for (const module of priorityOrder) {
+    if (modulePermissions[module]) {
+      return MODULE_TO_ROUTE[module] || '/dashboard';
+    }
+  }
+
+  // 如果都没有权限，默认跳转到登录页
+  return '/login';
+}
+
 export default function SimpleLoginPage() {
   const router = useRouter();
   const { login } = useAuth();
@@ -48,8 +90,9 @@ export default function SimpleLoginPage() {
         // 调用AuthProvider的login方法
         login(userWithName, token);
         
-        // 跳转到仪表盘
-        router.push('/dashboard');
+        // 根据用户权限跳转到第一个有权限的板块
+        const targetRoute = getFirstAccessibleRoute(userWithName.modulePermissions || {});
+        router.push(targetRoute);
       } else {
         setError(result.message || '登录失败');
       }
