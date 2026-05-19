@@ -3128,25 +3128,33 @@ export default function HSBCPanelPage() {
             ) : (
               <div className="space-y-4">
                 {/* 统计摘要 */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <div>
-                      <div className="text-xs text-green-600 font-medium">未逾期还款</div>
-                      <div className="text-lg font-bold text-green-700 font-mono">
-                        {repaymentResults.filter(r => !r.isOverdue).length} 条
+                <div className={`grid gap-3 ${
+                  repaymentFilterType === 'all' 
+                    ? 'grid-cols-4' 
+                    : 'grid-cols-3'
+                }`}>
+                  {repaymentFilterType !== 'late' && (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <div>
+                        <div className="text-xs text-green-600 font-medium">未逾期还款</div>
+                        <div className="text-lg font-bold text-green-700 font-mono">
+                          {repaymentResults.filter(r => !r.isOverdue).length} 条
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl border border-amber-200">
-                    <AlertCircle className="w-5 h-5 text-amber-600" />
-                    <div>
-                      <div className="text-xs text-amber-600 font-medium">逾期后还款</div>
-                      <div className="text-lg font-bold text-amber-700 font-mono">
-                        {repaymentResults.filter(r => r.isOverdue).length} 条
+                  )}
+                  {repaymentFilterType !== 'on_time' && (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl border border-amber-200">
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <div className="text-xs text-amber-600 font-medium">逾期后还款</div>
+                        <div className="text-lg font-bold text-amber-700 font-mono">
+                          {repaymentResults.filter(r => r.isOverdue).length} 条
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                   <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200">
                     <DollarSign className="w-5 h-5 text-emerald-600" />
                     <div>
