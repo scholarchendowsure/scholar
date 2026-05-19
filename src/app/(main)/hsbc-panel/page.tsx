@@ -3047,16 +3047,18 @@ export default function HSBCPanelPage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={repaymentDate ? new Date(repaymentDate) : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        setRepaymentDate(format(date, 'yyyy-MM-dd'));
-                      }
-                    }}
-                    initialFocus
-                  />
+                  <div className="[&_.rdp-button]:focus:outline-none [&_.rdp-button]:focus:ring-0 [&_.rdp-button_previous]:focus:ring-0 [&_.rdp-button_next]:focus:ring-0 [&_.rdp-button]:focus-visible:ring-0 [&_.rdp-button]:focus-visible:border-0">
+                    <Calendar
+                      mode="single"
+                      selected={repaymentDate ? new Date(repaymentDate) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          setRepaymentDate(format(date, 'yyyy-MM-dd'));
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </div>
                 </PopoverContent>
               </Popover>
             </div>
