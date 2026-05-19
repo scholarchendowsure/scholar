@@ -3036,7 +3036,7 @@ export default function HSBCPanelPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
-              <Popover>
+              <Popover key={`repayment-cal-${repaymentDate}`}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
