@@ -3075,7 +3075,7 @@ export default function HSBCPanelPage() {
               </div>
 
               {/* 还款计划 */}
-              {selectedLoan.repaymentSchedule.length > 0 && (
+              {(selectedLoan.repaymentSchedule?.length ?? 0) > 0 && (
                 <div>
                   <h3 className="font-semibold text-slate-700 mb-3">还款计划</h3>
                   <div className="space-y-2">
