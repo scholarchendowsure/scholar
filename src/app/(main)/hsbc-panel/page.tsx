@@ -3036,12 +3036,29 @@ export default function HSBCPanelPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
-              <Input
-                type="date"
-                value={repaymentDate}
-                onChange={(e) => setRepaymentDate(e.target.value)}
-                className="bg-white border-cyan-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal bg-white border-cyan-200 hover:border-cyan-500"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-cyan-500" />
+                    {repaymentDate ? repaymentDate : "选择日期"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={repaymentDate ? new Date(repaymentDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        setRepaymentDate(format(date, 'yyyy-MM-dd'));
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="w-[200px]">
               <label className="text-sm font-medium text-slate-600 mb-1.5 block">筛选类型</label>
