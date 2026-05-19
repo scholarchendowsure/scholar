@@ -602,6 +602,7 @@ interface CardSelect {
 
 interface CardButton {
   text: string;
+  name?: string;
   url?: string;
   type?: 'primary' | 'default' | 'danger';
   value?: Record<string, any>;
@@ -644,62 +645,27 @@ export async function sendFeishuPrivateCard(
   // 添加分割线
   elements.push({ tag: 'hr' });
 
-  // 添加表单说明
-  if ((selects && selects.length > 0) || (buttons && buttons.length > 0)) {
-    elements.push({
-      tag: 'div',
-      text: {
-        tag: 'plain_text',
-        content: '请填写以下跟进信息：'
-      }
-    });
-
-    // 构建form内部的元素
-    const formElements: any[] = [];
-
-    // 添加输入框 - 全部放在form里面
-    if (selects && selects.length > 0) {
-      for (const sel of selects) {
-        formElements.push({
-          tag: 'input',
-          name: sel.name || sel.label,
-          placeholder: {
-            tag: 'plain_text',
-            content: sel.placeholder || `请输入${sel.label}`
-          },
-          label: {
-            tag: 'plain_text',
-            content: sel.label
-          }
-        });
-      }
+  // 添加操作按钮（不使用form，直接用action）
+  if (buttons && buttons.length > 0) {
+    const actionElements: any[] = [];
+    
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      actionElements.push({
+        tag: 'button',
+        text: {
+          tag: 'plain_text',
+          content: btn.text
+        },
+        type: btn.type || (i === 0 ? 'primary' : 'default'),
+        action_type: 'request',
+        value: btn.value || { action: btn.name || 'click' }
+      });
     }
-
-    // 构建按钮数组
-    const formActions: any[] = [];
-    if (buttons && buttons.length > 0) {
-      for (const btn of buttons) {
-        const button: any = {
-          tag: 'button',
-          text: {
-            tag: 'plain_text',
-            content: btn.text
-          },
-          type: btn.type || 'primary'
-        };
-        if (btn.value) {
-          button.value = btn.value;
-        }
-        formActions.push(button);
-      }
-    }
-
-    // 把所有输入框和按钮放进form容器
+    
     elements.push({
-      tag: 'form',
-      name: 'followup_form',
-      elements: formElements,
-      actions: formActions
+      tag: 'action',
+      actions: actionElements
     });
   }
 

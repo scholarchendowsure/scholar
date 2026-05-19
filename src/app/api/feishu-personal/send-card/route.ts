@@ -90,7 +90,6 @@ export async function POST(request: NextRequest) {
       text: { tag: 'plain_text'; content: string };
       type: 'primary' | 'default';
       value: string | object;
-      action_type?: string;
     };
 
     // 如果没有按钮，添加一个默认的提交按钮
@@ -99,20 +98,11 @@ export async function POST(request: NextRequest) {
       name: 'btn_submit',
       text: { tag: 'plain_text' as const, content: '提交' },
       type: 'primary' as const,
-      value: 'submit',
-      action_type: 'submit' as const  // form必须有submit类型的按钮
+      value: 'submit'
     }];
 
-    // 至少要有一个 action_type: 'submit' 的按钮
-    const hasSubmitButton = allButtons.some((btn: ButtonElement) => btn.action_type === 'submit');
-    if (!hasSubmitButton && allButtons.length > 0) {
-      // 把第一个按钮改为submit类型
-      allButtons[0].action_type = 'submit';
-    }
-
-    // 使用 JSON 2.0 格式
-    // 表单组件(select_static/input)和按钮都放在form内
-    // textarea的placeholder是对象格式: {tag: 'plain_text', content: '...'}
+    // 使用 JSON 2.0 格式 - 不使用form标签，直接用action + button
+    // 按钮使用 action_type: 'request' 代替 submit
     const cardContent = {
       config: {
         wide_screen_mode: true
@@ -124,14 +114,13 @@ export async function POST(request: NextRequest) {
       elements: [
         ...caseInfoElements,
         { tag: 'hr' as const },
+        ...formElements,
         {
-          tag: 'form' as const,
-          name: 'followup_form',
-          callback_id: 'case_reminder_callback',
-          elements: [
-            ...formElements,
-            ...allButtons
-          ]
+          tag: 'action' as const,
+          actions: allButtons.map((btn: any) => ({
+            ...btn,
+            action_type: 'request' as const  // 使用 request 而不是 submit
+          }))
         }
       ]
     };
