@@ -1417,12 +1417,12 @@ export default function HSBCPanelPage() {
     });
   }, [filteredLoans, sortField, sortOrder]);
 
-  // 逾期趋势数据
+  // 逾期趋势数据 - 使用所有批次的贷款数据
   const overdueTrendData = useMemo(() => {
     // 按批次日期分组
     const batchDateMap = new Map<string, { totalAmount: number; overdueAmount: number; count: number }>();
     
-    sortedFilteredLoans.forEach(loan => {
+    loans.forEach(loan => {
       const batchDate = loan.batchDate || '未知批次';
       const existing = batchDateMap.get(batchDate) || { totalAmount: 0, overdueAmount: 0, count: 0 };
       
@@ -1449,7 +1449,7 @@ export default function HSBCPanelPage() {
       .sort((a, b) => a.batchDate.localeCompare(b.batchDate));
     
     return data;
-  }, [sortedFilteredLoans, overdueThreshold]);
+  }, [loans, overdueThreshold]);
 
   // 计算当前筛选结果的USD和CNY统计（始终使用原始贷款列表，不因去重商户而改变）
   const statsLoans = filteredLoansBeforeDedupe;
