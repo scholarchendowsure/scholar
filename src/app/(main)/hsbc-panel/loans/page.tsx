@@ -94,10 +94,12 @@ export default function HSBCLoansPage() {
     try {
       const params = new URLSearchParams();
       params.set('batchDate', batchDate !== 'all' ? batchDate : '');
+      params.set('pageSize', '99999'); // 获取所有数据
       
-      const res = await fetch(`/api/hsbc?${params.toString()}`);
+      // 调用正确的 API
+      const res = await fetch(`/api/hsbc/loans?${params.toString()}`);
       const data = await res.json();
-      const allLoans: HSBCLoan[] = data.data || [];
+      const allLoans: HSBCLoan[] = data.loans || data.data || [];
 
       // 从所有贷款中提取还款记录
       const results: RepaymentInfo[] = [];
