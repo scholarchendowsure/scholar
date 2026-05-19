@@ -90,6 +90,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Download,
+  Coins,
 } from 'lucide-react';
 
 // ============ 类型定义 ============
@@ -3138,14 +3139,26 @@ export default function HSBCPanelPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-                    <DollarSign className="w-5 h-5 text-blue-600" />
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
                     <div>
-                      <div className="text-xs text-blue-600 font-medium">还款总金额</div>
-                      <div className="text-lg font-bold text-blue-700 font-mono">
+                      <div className="text-xs text-emerald-600 font-medium">美元还款</div>
+                      <div className="text-lg font-bold text-emerald-700 font-mono">
                         {formatCurrency(
-                          repaymentResults.reduce((sum, r) => sum + r.amount, 0),
-                          repaymentResults[0]?.currency || 'CNY'
+                          repaymentResults.filter(r => r.currency === 'USD').reduce((sum, r) => sum + r.amount, 0),
+                          'USD'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 rounded-xl border border-red-200">
+                    <Coins className="w-5 h-5 text-red-600" />
+                    <div>
+                      <div className="text-xs text-red-600 font-medium">人民币还款</div>
+                      <div className="text-lg font-bold text-red-700 font-mono">
+                        {formatCurrency(
+                          repaymentResults.filter(r => r.currency === 'CNY').reduce((sum, r) => sum + r.amount, 0),
+                          'CNY'
                         )}
                       </div>
                     </div>
