@@ -1873,16 +1873,6 @@ export default function HSBCPanelPage() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={selectedCalcDate ? new Date(selectedCalcDate) : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              setSelectedCalcDate(format(date, 'yyyy-MM-dd'));
-                            }
-                          }}
-                          initialFocus
-                        />
                       </PopoverContent>
                     </Popover>
                     {selectedCalcDate && (
