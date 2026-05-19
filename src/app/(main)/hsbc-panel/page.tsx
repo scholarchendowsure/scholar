@@ -2530,6 +2530,116 @@ export default function HSBCPanelPage() {
                 </div>
               </div>
 
+              {/* 逾期趋势分析图表 */}
+              <div className="mt-6">
+                <div className="bg-white rounded-lg border p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      逾期趋势分析
+                    </h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setOverdueThreshold(0)}
+                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                          overdueThreshold === 0
+                            ? 'bg-red-500 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        逾期 {`>`} 0天
+                      </button>
+                      <button
+                        onClick={() => setOverdueThreshold(30)}
+                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                          overdueThreshold === 30
+                            ? 'bg-red-500 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        逾期 {`>`} 30天
+                      </button>
+                      <button
+                        onClick={() => setOverdueThreshold(90)}
+                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                          overdueThreshold === 90
+                            ? 'bg-red-500 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        逾期 {`>`} 90天
+                      </button>
+                    </div>
+                  </div>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart
+                        data={overdueTrendData}
+                        margin={{ top: 20, right: 60, left: 20, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="batchDate"
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tickFormatter={(value) => `¥${(value / 1000000).toFixed(1)}M`}
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tickFormatter={(value) => `${value.toFixed(1)}%`}
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                          domain={[0, 100]}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            if (name === 'overdueAmount') return [`¥${(value / 10000).toFixed(2)}万`, '逾期总额'];
+                            if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
+                            return [value, name];
+                          }}
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
+                        />
+                        <Legend
+                          wrapperStyle={{ fontSize: '12px' }}
+                        />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="overdueAmount"
+                          name="逾期总额 (CNY)"
+                          fill="#ef4444"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="overdueRate"
+                          name="逾期率 (%)"
+                          stroke="#f97316"
+                          strokeWidth={2}
+                          dot={{ fill: '#f97316', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
 
             </CardContent>
           </CollapsibleContent>
@@ -2662,114 +2772,6 @@ export default function HSBCPanelPage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-
-              {/* 逾期趋势图表 */}
-              <div className="bg-white rounded-lg border p-6 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5" />
-                    逾期趋势分析
-                  </h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setOverdueThreshold(0)}
-                      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                        overdueThreshold === 0
-                          ? 'bg-red-500 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      逾期 {`>`} 0天
-                    </button>
-                    <button
-                      onClick={() => setOverdueThreshold(30)}
-                      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                        overdueThreshold === 30
-                          ? 'bg-red-500 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      逾期 {`>`} 30天
-                    </button>
-                    <button
-                      onClick={() => setOverdueThreshold(90)}
-                      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                        overdueThreshold === 90
-                          ? 'bg-red-500 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      逾期 {`>`} 90天
-                    </button>
-                  </div>
-                </div>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart
-                      data={overdueTrendData}
-                      margin={{ top: 20, right: 60, left: 20, bottom: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis
-                        dataKey="batchDate"
-                        tick={{ fontSize: 12 }}
-                        tickLine={false}
-                        axisLine={{ stroke: '#cbd5e1' }}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        tickFormatter={(value) => `¥${(value / 1000000).toFixed(1)}M`}
-                        tick={{ fontSize: 12 }}
-                        tickLine={false}
-                        axisLine={{ stroke: '#cbd5e1' }}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        tickFormatter={(value) => `${value.toFixed(1)}%`}
-                        tick={{ fontSize: 12 }}
-                        tickLine={false}
-                        axisLine={{ stroke: '#cbd5e1' }}
-                        domain={[0, 100]}
-                      />
-                      <Tooltip
-                        formatter={(value: number, name: string) => {
-                          if (name === 'overdueAmount') return [`¥${(value / 10000).toFixed(2)}万`, '逾期总额'];
-                          if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
-                          return [value, name];
-                        }}
-                        contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                        }}
-                      />
-                      <Legend
-                        wrapperStyle={{ fontSize: '12px' }}
-                      />
-                      <Bar
-                        yAxisId="left"
-                        dataKey="overdueAmount"
-                        name="逾期总额 (CNY)"
-                        fill="#ef4444"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={40}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="overdueRate"
-                        name="逾期率 (%)"
-                        stroke="#f97316"
-                        strokeWidth={2}
-                        dot={{ fill: '#f97316', r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
               </div>
 
               {/* 表格 */}
