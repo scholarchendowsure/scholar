@@ -1,17 +1,31 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // 从环境变量获取 Supabase 配置
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'your-anon-key';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 
 /**
- * 创建 Supabase 客户端
- * 注意：这是一个共享客户端，所有需要 Supabase 操作的地方都可以使用
+ * 检查 Supabase 是否正确配置
  */
-export function getSupabaseClient() {
-  // 检查环境变量是否配置
-  if (SUPABASE_URL === 'https://example.supabase.co' || SUPABASE_ANON_KEY === 'your-anon-key') {
-    console.warn('⚠️ Supabase 环境变量未配置，将使用 Supabase 存储');
+export function isSupabaseConfigured(): boolean {
+  // 必须同时配置 URL 和 KEY，且不能是默认值
+  const hasValidUrl = Boolean(SUPABASE_URL && 
+    SUPABASE_URL !== 'https://example.supabase.co' && 
+    SUPABASE_URL.startsWith('https://'));
+  const hasValidKey = Boolean(SUPABASE_ANON_KEY && 
+    SUPABASE_ANON_KEY !== 'your-anon-key' && 
+    SUPABASE_ANON_KEY.length > 20);
+  
+  return hasValidUrl && hasValidKey;
+}
+
+/**
+ * 创建 Supabase 客户端（仅当配置正确时）
+ */
+export function getSupabase(): SupabaseClient | null {
+  if (!isSupabaseConfigured()) {
+    console.warn('⚠️ Supabase 环境变量未正确配置 (SUPABASE_URL/SUPABASE_ANON_KEY)，将使用本地存储');
+    return null;
   }
 
   // 创建客户端
@@ -22,10 +36,5 @@ export function getSupabaseClient() {
     }
   });
 
-  console.log('✅ Supabase 客户端已创建');
-
   return client;
 }
-
-// 导出单例客户端
-export const supabase = getSupabaseClient();

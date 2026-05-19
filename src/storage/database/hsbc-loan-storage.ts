@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { HSBCLoan } from '@/lib/hsbc-loan';
-import { getSupabaseClient } from './supabase-client';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -17,10 +16,26 @@ const BATCH_DATES_FILE = path.join(process.cwd(), 'public', 'data', 'hsbc-batch-
 let loansCache: HSBCLoan[] | null = null;
 let batchDatesCache: string[] | null = null;
 
+// 获取 Supabase 客户端（延迟导入，避免循环依赖）
+let supabaseClient: SupabaseClient | null = null;
+
+async function getSupabaseClient(): Promise<SupabaseClient | null> {
+  if (supabaseClient) return supabaseClient;
+  
+  const { getSupabase } = await import('./supabase-client');
+  const client = getSupabase();
+  supabaseClient = client;
+  return client;
+}
+
 // 检查 Supabase 是否可用
 async function isSupabaseAvailable(): Promise<boolean> {
   try {
-    const client = getSupabaseClient();
+    const client = await getSupabaseClient();
+    if (!client) {
+      return false;
+    }
+    
     const { error } = await client.from('hsbc_loans').select('id').limit(1);
     if (error) {
       console.log('⚠️ Supabase 表不存在或连接失败，使用本地存储');
@@ -146,36 +161,40 @@ export async function getAllHSBCLoans(batchDate?: string): Promise<HSBCLoan[]> {
   
   if (supabaseAvailable) {
     try {
-      const client = getSupabaseClient();
-      const allLoans: HSBCLoan[] = [];
-      const BATCH_SIZE = 1000;
-      
-      // 分批获取数据，Supabase 默认限制 1000 行/页
-      while (true) {
-        let query = client
-          .from('hsbc_loans')
-          .select('*')
-          .order('loan_reference')
-          .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+      const client = await getSupabaseClient();
+      if (!client) {
+        console.log('⚠️ Supabase 客户端为空，使用本地存储');
+      } else {
+        const allLoans: HSBCLoan[] = [];
+        const BATCH_SIZE = 1000;
         
-        if (batchDate) {
-          query = query.eq('batch_date', batchDate);
+        // 分批获取数据，Supabase 默认限制 1000 行/页
+        while (true) {
+          let query = client
+            .from('hsbc_loans')
+            .select('*')
+            .order('loan_reference')
+            .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+          
+          if (batchDate) {
+            query = query.eq('batch_date', batchDate);
+          }
+          
+          const { data, error } = await query;
+          
+          if (error) {
+            console.error('获取汇丰贷款失败:', error);
+            throw new Error(`获取汇丰贷款失败: ${error.message}`);
+          }
+          
+          if (!data || data.length === 0) break;
+          allLoans.push(...data.map(transformRow));
+          
+          if (data.length < BATCH_SIZE) break;
         }
         
-        const { data, error } = await query;
-        
-        if (error) {
-          console.error('获取汇丰贷款失败:', error);
-          throw new Error(`获取汇丰贷款失败: ${error.message}`);
-        }
-        
-        if (!data || data.length === 0) break;
-        allLoans.push(...data.map(transformRow));
-        
-        if (data.length < BATCH_SIZE) break;
+        return allLoans;
       }
-      
-      return allLoans;
     } catch (error) {
       console.log('Supabase 获取失败，使用本地存储');
     }
@@ -197,32 +216,37 @@ export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLo
   
   if (supabaseAvailable) {
     try {
-      const client = getSupabaseClient();
-      
-      // 直接使用 batch_date 字段查询
-      const allLoans: HSBCLoan[] = [];
-      const BATCH_SIZE = 1000;
-      
-      while (true) {
-        const { data, error } = await client
-          .from('hsbc_loans')
-          .select('*')
-          .eq('batch_date', batchDate)
-          .order('loan_reference')
-          .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+      const client = await getSupabaseClient();
+      if (!client) {
+        console.log('⚠️ Supabase 客户端为空，使用本地存储');
+      } else {
+        // 直接使用 batch_date 字段查询
+        const allLoans: HSBCLoan[] = [];
+        const BATCH_SIZE = 1000;
         
-        if (error) {
-          console.error('获取汇丰贷款失败:', error);
-          return [];
+        while (true) {
+          const { data, error } = await client
+            .from('hsbc_loans')
+            .select('*')
+            .eq('batch_date', batchDate)
+            .order('loan_reference')
+            .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
+          
+          if (error) {
+            console.error('获取汇丰贷款失败:', error);
+            break;
+          }
+          
+          if (!data || data.length === 0) break;
+          allLoans.push(...data.map(transformRow));
+          
+          if (data.length < BATCH_SIZE) break;
         }
         
-        if (!data || data.length === 0) break;
-        allLoans.push(...data.map(transformRow));
-        
-        if (data.length < BATCH_SIZE) break;
+        if (allLoans.length > 0) {
+          return allLoans;
+        }
       }
-      
-      return allLoans;
     } catch (error) {
       console.log('Supabase 获取失败，使用本地存储');
     }
@@ -241,17 +265,19 @@ export async function getAllBatchDates(): Promise<string[]> {
   
   if (supabaseAvailable) {
     try {
-      const client = getSupabaseClient();
-      // 直接从贷款数据表中获取所有不重复的批次日期
-      const { data, error } = await client
-        .from('hsbc_loans')
-        .select('batch_date')
-        .order('batch_date', { ascending: false });
-      
-      if (!error) {
-        const dates = [...new Set((data || []).map((row: Record<string, unknown>) => row.batch_date as string).filter((date): date is string => date !== undefined))];
-        if (dates.length > 0) {
-          return dates.sort((a, b) => (b || '').localeCompare(a || ''));
+      const client = await getSupabaseClient();
+      if (client) {
+        // 直接从贷款数据表中获取所有不重复的批次日期
+        const { data, error } = await client
+          .from('hsbc_loans')
+          .select('batch_date')
+          .order('batch_date', { ascending: false });
+        
+        if (!error) {
+          const dates = [...new Set((data || []).map((row: Record<string, unknown>) => row.batch_date as string).filter((date): date is string => date !== undefined))];
+          if (dates.length > 0) {
+            return dates.sort((a, b) => (b || '').localeCompare(a || ''));
+          }
         }
       }
     } catch (error) {
@@ -284,15 +310,17 @@ export async function getHSBCLoanByReference(loanReference: string): Promise<HSB
   
   if (supabaseAvailable) {
     try {
-      const client = getSupabaseClient();
-      const { data, error } = await client
-        .from('hsbc_loans')
-        .select('*')
-        .eq('loan_reference', loanReference)
-        .single();
-      
-      if (!error && data) {
-        return transformRow(data);
+      const client = await getSupabaseClient();
+      if (client) {
+        const { data, error } = await client
+          .from('hsbc_loans')
+          .select('*')
+          .eq('loan_reference', loanReference)
+          .single();
+        
+        if (!error && data) {
+          return transformRow(data);
+        }
       }
     } catch (error) {
       console.log('Supabase 获取失败，使用本地存储');
@@ -314,7 +342,10 @@ export async function deleteHSBCBatch(batchDate: string): Promise<{ deletedCount
   
   if (supabaseAvailable) {
     try {
-      const client = getSupabaseClient();
+      const client = await getSupabaseClient();
+      if (!client) {
+        throw new Error('Supabase 客户端未初始化');
+      }
       
       // 先查询一下该批次有多少条记录
       const { count } = await client
@@ -365,7 +396,11 @@ export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge'
   
   if (supabaseAvailable) {
     try {
-      const client = getSupabaseClient();
+      const { getSupabase } = await import('./supabase-client');
+      const client = await getSupabaseClient();
+      if (!client) {
+        throw new Error('Supabase 客户端未初始化');
+      }
       
       if (mode === 'replace') {
         // 覆盖模式：删除该批次的所有旧数据
