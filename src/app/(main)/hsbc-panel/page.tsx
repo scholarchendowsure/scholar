@@ -1452,13 +1452,14 @@ export default function HSBCPanelPage() {
         overdueCount: 0
       };
       
-      // 计算该笔贷款的总金额（分别按币种）
-      let loanAmountCNY = loan.loanAmount;
-      let loanAmountUSD = loan.loanAmount;
+      // 计算该笔贷款的总余额（分别按币种）- 使用calcBalance
+      const balance = calcBalance(loan);
+      let loanAmountCNY = balance;
+      let loanAmountUSD = balance;
       if (loan.loanCurrency === 'USD') {
-        loanAmountCNY = loan.loanAmount * USD_TO_CNY_RATE;
+        loanAmountCNY = balance * USD_TO_CNY_RATE;
       } else {
-        loanAmountUSD = loan.loanAmount / USD_TO_CNY_RATE;
+        loanAmountUSD = balance / USD_TO_CNY_RATE;
       }
       
       existing.totalAmountCNY += loanAmountCNY;
