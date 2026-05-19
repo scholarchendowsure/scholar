@@ -68,6 +68,7 @@ import {
   Legend,
   CartesianGrid,
   ResponsiveContainer,
+  LabelList,
 } from 'recharts';
 import {
   LayoutDashboard,
@@ -1490,12 +1491,17 @@ export default function HSBCPanelPage() {
     
     // 转换为图表数据
     const data = Array.from(batchDateMap.entries())
-      .map(([batchDate, stats]) => ({
-        batchDate,
-        totalAmount: chartCurrency === 'CNY' ? Math.round(stats.totalAmountCNY / 10000) : Math.round(stats.totalAmountUSD / 10000),
-        overdueAmount: chartCurrency === 'CNY' ? Math.round(stats.overdueAmountCNY / 10000) : Math.round(stats.overdueAmountUSD / 10000),
-        overdueRate: stats.totalAmountCNY > 0 ? (stats.overdueAmountCNY / stats.totalAmountCNY * 100) : 0,
-      }))
+      .map(([batchDate, stats]) => {
+        const overdueAmountCNY = stats.overdueAmountCNY;
+        const totalAmountCNY = stats.totalAmountCNY;
+        const overdueRate = totalAmountCNY > 0 ? Math.round((overdueAmountCNY / totalAmountCNY * 100) * 100) / 100 : 0;
+        return {
+          batchDate,
+          totalAmount: chartCurrency === 'CNY' ? Math.round(stats.totalAmountCNY / 10000) : Math.round(stats.totalAmountUSD / 10000),
+          overdueAmount: chartCurrency === 'CNY' ? Math.round(stats.overdueAmountCNY / 10000) : Math.round(stats.overdueAmountUSD / 10000),
+          overdueRate,
+        };
+      })
       .sort((a, b) => a.batchDate.localeCompare(b.batchDate));
     
     return data;
@@ -2650,7 +2656,6 @@ export default function HSBCPanelPage() {
                           tick={{ fontSize: 12 }}
                           tickLine={false}
                           axisLine={{ stroke: '#cbd5e1' }}
-                          domain={[0, 100]}
                         />
                         <Tooltip
                           formatter={(value: number, name: string) => {
@@ -2658,7 +2663,7 @@ export default function HSBCPanelPage() {
                               const symbol = chartCurrency === 'CNY' ? '¥' : '$';
                               return [`${symbol}${value.toFixed(2)}万`, '逾期总额'];
                             }
-                            if (name === 'overdueRate') return [`${value.toFixed(3)}%`, '逾期率'];
+                            if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
                             return [value, name];
                           }}
                           contentStyle={{
@@ -2678,7 +2683,19 @@ export default function HSBCPanelPage() {
                           fill="#ef4444"
                           radius={[4, 4, 0, 0]}
                           maxBarSize={40}
-                        />
+                        >
+                          <LabelList
+                            dataKey="overdueAmount"
+                            position="top"
+                            formatter={(value: number) => {
+                              const symbol = chartCurrency === 'CNY' ? '¥' : '$';
+                              return `${symbol}${value.toFixed(2)}万`;
+                            }}
+                            fill="#ef4444"
+                            fontSize={12}
+                            style={{ fontWeight: 600 }}
+                          />
+                        </Bar>
                         <Line
                           yAxisId="right"
                           type="monotone"
