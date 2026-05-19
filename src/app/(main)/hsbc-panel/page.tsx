@@ -3084,16 +3084,7 @@ export default function HSBCPanelPage() {
       {showRepaymentCard && (
         <Card className="mt-4 border-t-4 border-t-cyan-400 shadow-lg">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-cyan-500" />
-                  {repaymentDate ? `${repaymentDate} 还款记录` : '还款记录'}
-                </CardTitle>
-                <CardDescription>
-                  {repaymentLoading ? '加载中...' : `共 ${repaymentResults.length} 条记录`}
-                </CardDescription>
-              </div>
+            <div className="flex items-center justify-end">
               <Button variant="ghost" size="sm" onClick={() => { setShowRepaymentCard(false); setRepaymentDate(''); }}>
                 关闭
               </Button>
