@@ -59,6 +59,17 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  ResponsiveContainer,
+} from 'recharts';
+import {
   LayoutDashboard,
   FileSpreadsheet,
   Upload,
@@ -573,6 +584,7 @@ export default function HSBCPanelPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [overdueThreshold, setOverdueThreshold] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortField, setSortField] = useState<string | null>(null);
@@ -1404,6 +1416,40 @@ export default function HSBCPanelPage() {
         : (bValue as number) - (aValue as number);
     });
   }, [filteredLoans, sortField, sortOrder]);
+
+  // 逾期趋势数据
+  const overdueTrendData = useMemo(() => {
+    // 按批次日期分组
+    const batchDateMap = new Map<string, { totalAmount: number; overdueAmount: number; count: number }>();
+    
+    sortedFilteredLoans.forEach(loan => {
+      const batchDate = loan.batchDate || '未知批次';
+      const existing = batchDateMap.get(batchDate) || { totalAmount: 0, overdueAmount: 0, count: 0 };
+      
+      // 使用loanAmount作为金额
+      existing.totalAmount += loan.loanAmount;
+      // 检查逾期天数
+      const overdueDays = loan.overdueDays ?? 0;
+      if (overdueDays > overdueThreshold) {
+        existing.overdueAmount += loan.loanAmount;
+      }
+      existing.count += 1;
+      
+      batchDateMap.set(batchDate, existing);
+    });
+    
+    // 转换为图表数据
+    const data = Array.from(batchDateMap.entries())
+      .map(([batchDate, stats]) => ({
+        batchDate,
+        totalAmount: Math.round(stats.totalAmount),
+        overdueAmount: Math.round(stats.overdueAmount),
+        overdueRate: stats.totalAmount > 0 ? (stats.overdueAmount / stats.totalAmount * 100) : 0,
+      }))
+      .sort((a, b) => a.batchDate.localeCompare(b.batchDate));
+    
+    return data;
+  }, [sortedFilteredLoans, overdueThreshold]);
 
   // 计算当前筛选结果的USD和CNY统计（始终使用原始贷款列表，不因去重商户而改变）
   const statsLoans = filteredLoansBeforeDedupe;
@@ -2591,6 +2637,114 @@ export default function HSBCPanelPage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+
+              {/* 逾期趋势图表 */}
+              <div className="bg-white rounded-lg border p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    逾期趋势分析
+                  </h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOverdueThreshold(0)}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                        overdueThreshold === 0
+                          ? 'bg-red-500 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      逾期 {`>`} 0天
+                    </button>
+                    <button
+                      onClick={() => setOverdueThreshold(30)}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                        overdueThreshold === 30
+                          ? 'bg-red-500 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      逾期 {`>`} 30天
+                    </button>
+                    <button
+                      onClick={() => setOverdueThreshold(90)}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                        overdueThreshold === 90
+                          ? 'bg-red-500 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      逾期 {`>`} 90天
+                    </button>
+                  </div>
+                </div>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={overdueTrendData}
+                      margin={{ top: 20, right: 60, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis
+                        dataKey="batchDate"
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#cbd5e1' }}
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`}
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#cbd5e1' }}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tickFormatter={(value) => `${value.toFixed(1)}%`}
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#cbd5e1' }}
+                        domain={[0, 100]}
+                      />
+                      <Tooltip
+                        formatter={(value: number, name: string) => {
+                          if (name === 'overdueAmount') return [`$${(value / 1000000).toFixed(2)}M`, '逾期总额'];
+                          if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
+                          return [value, name];
+                        }}
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: '12px' }}
+                      />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="overdueAmount"
+                        name="逾期总额 (USD)"
+                        fill="#ef4444"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="overdueRate"
+                        name="逾期率 (%)"
+                        stroke="#f97316"
+                        strokeWidth={2}
+                        dot={{ fill: '#f97316', r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
               {/* 表格 */}
