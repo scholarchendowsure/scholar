@@ -70,5 +70,25 @@
     "mustChangePassword": true,
     "passwordHistory": [],
     "loginAttempts": 0
+  },
+  {
+    "username": "hfpmo",
+    "realName": "汇丰PMO",
+    "email": "",
+    "phone": "13420230131",
+    "department": "DH",
+    "position": "PMO项目",
+    "role": "pmohf",
+    "status": "active",
+    "allowedIps": [],
+    "id": "1779213088734",
+    "sequence": 4,
+    "password": "26806fae749feb81a22c61dc2182c6d7f7d85cb83bb1ab52884f42fa8cdef1d04ccde8debc0dbd01c73baaa854a4fbc83c72037f5d0afa2b3951bc999de192ab",
+    "passwordSalt": "52c2a01f8d71d07ec546e76929b13143",
+    "createdAt": "2026-05-19T17:51:28.733Z",
+    "updatedAt": "2026-05-19T17:51:28.733Z",
+    "mustChangePassword": true,
+    "passwordHistory": [],
+    "loginAttempts": 0
   }
 ]
