@@ -1,58 +1,140 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, ChangeEvent } from 'react';
 import { formatCurrency } from '@/lib/constants';
 import { calcPastdueAmount, calcBalance, calcOverdueDays, calcDaysToMaturity, calcTotalRepaid, HSBCLoan } from '@/lib/hsbc-loan';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer, LabelList } from 'recharts';
 import {
-  LayoutDashboard, FileSpreadsheet, Upload, ChevronDown, ChevronUp, Building2, Wallet, AlertTriangle,
-  TrendingUp, DollarSign, CreditCard, Calendar as CalendarIcon, Percent, Search, Eye, RefreshCw, X,
-  CheckCircle, Clock, FileText, BarChart3, PieChart, Columns, ArrowUpDown, ArrowUp, ArrowDown,
-  Loader2, Send, CheckCircle2, AlertCircle, Download, Coins
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  ResponsiveContainer,
+  LabelList,
+} from 'recharts';
+import {
+  LayoutDashboard,
+  FileSpreadsheet,
+  Upload,
+  ChevronDown,
+  ChevronUp,
+  Building2,
+  Wallet,
+  AlertTriangle,
+  TrendingUp,
+  DollarSign,
+  CreditCard,
+  Calendar as CalendarIcon,
+  Percent,
+  Search,
+  Eye,
+  RefreshCw,
+  X,
+  CheckCircle,
+  Clock,
+  FileText,
+  BarChart3,
+  PieChart,
+  Columns,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Download,
+  Coins,
 } from 'lucide-react';
 
-const USD_TO_CNY_RATE = 7;
-
+// ============ 类型定义 ============
 interface HSBCStats {
   totalLoans: number;
   activeMerchants: number;
   totalLoanAmount: number;
-  totalBalance: number;
-  totalBalanceUSD: number;
+  totalBalance: number; // 折CNY
+  totalBalanceUSD: number; // 折USD
   totalBalanceLoanCount: number;
   totalBalanceMerchantCount: number;
-  totalPastdueAmount: number;
-  totalPastdueAmountUSD: number;
+  totalPastdueAmount: number; // 折CNY
+  totalPastdueAmountUSD: number; // 折USD
   overdueRate: number;
   overdueMerchantRate: number;
-  warningAmount: number;
-  warningAmountUSD: number;
+  warningAmount: number; // 折CNY
+  warningAmountUSD: number; // 折USD
   approachingMaturityAmount: number;
+  // 逾期天数分级数据
   overdueByDays: {
     over0Days: { amount: number; rate: number; amountUSD: number; loanCount: number; merchantCount: number };
     over30Days: { amount: number; rate: number; amountUSD: number; loanCount: number; merchantCount: number };
     over90Days: { amount: number; rate: number; amountUSD: number; loanCount: number; merchantCount: number };
   };
+  // 预警金额相关
   warningInfo: {
     amount: number;
     amountUSD: number;
     loanCount: number;
     merchantCount: number;
   };
+  // 还款期限分布
   repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number; merchantCount: number }>;
   currencyBreakdown: Array<{
     currency: string;
@@ -79,6 +161,364 @@ interface HSBCStats {
   }>;
 }
 
+// ============ 模拟数据生成 ============
+const generateMockLoans = (): HSBCLoan[] => {
+  const merchants = [
+    { id: '68537', name: 'RONDAFUL (HK) INTERNATIONAL LIMITED' },
+    { id: '63257', name: 'ZHONGBO INTL TRADE CO LIMITED' },
+    { id: '70643', name: 'HK GRATEFULNESS GROUP CO LIMITED' },
+    { id: '69717', name: 'MAXUP HOLDINGS LIMITED' },
+    { id: '71880', name: 'HONGKONG ZHENGDASHENG PACKING CO LIMITED' },
+    { id: '71490', name: 'XIAOYOUZI TECH CO LTD' },
+    { id: '71753', name: 'KOWCOMMS TECH (HK) CO LIMITED' },
+    { id: '71830', name: 'SECUTEK TECH LTD' },
+    { id: '72311', name: 'LH TECHNOLOGY (HK) CO LIMITED' },
+    { id: '72640', name: 'HK YUANHAO HOLDING GROUP LTD' },
+    { id: '71543', name: 'CHUANGXIN INTL TRADE CO LIMITED' },
+    { id: '72248', name: 'HK XINJINHUI TECHNOLOGY CO LIMITED' },
+    { id: '70536', name: 'HK INAMORI TRADING LIMITED' },
+    { id: '71228', name: 'HK HONGYI HUI INTL TECHNOLOGY LTD' },
+    { id: '62312', name: 'SMART DO INTERNATIONAL LIMITED' },
+    { id: '61382', name: 'GAMEGEEK LIMITED' },
+    { id: '68665', name: 'FUTURE LIGHT HOLDINGS LIMITED' },
+    { id: '62596', name: 'HYTOP INOVATION (HK) TECHNOLOGY LTD' },
+    { id: '72851', name: 'HONGKONG FEILING TRADING LIMITED' },
+    { id: '65366', name: 'KARY (HONG KONG) SUPPLY CHAIN MGT C' },
+    { id: '67348', name: 'BEST CHOICE ARTS PRODUCTS CO LTD' },
+    { id: '68718', name: 'ZHILE HOLDINGS GROUP (HK) LIMITED' },
+    { id: '69300', name: 'HK HENGYU INTERNATIONAL LIMITED' },
+    { id: '69248', name: 'HK LA LA LA TECH CO LTD' },
+  ];
+
+  const currencies = ['CNY', 'USD'];
+  const loans: HSBCLoan[] = [];
+
+  merchants.forEach((merchant, idx) => {
+    const loanCount = Math.floor(Math.random() * 3) + 1;
+    for (let i = 0; i < loanCount; i++) {
+      const currency = currencies[Math.floor(Math.random() * currencies.length)];
+      const amount = currency === 'USD'
+        ? Math.floor(Math.random() * 500000) + 50000
+        : Math.floor(Math.random() * 2000000) + 100000;
+      
+      // 随机生成已还款比例（0-1之间）
+      const repaidRatio = Math.random();
+      // 计算已还款金额
+      const totalRepaid = Math.floor(amount * repaidRatio);
+      // 计算余额
+      const balance = amount - totalRepaid;
+      
+      // 随机决定是否逾期（约30%概率逾期）
+      const isOverdue = Math.random() > 0.7;
+      
+      // 贷款开始日期
+      const startDate = new Date(2024, Math.floor(Math.random() * 6), Math.floor(Math.random() * 28) + 1);
+      // 到期日
+      const maturityDate = new Date(startDate);
+      maturityDate.setMonth(maturityDate.getMonth() + Math.floor(Math.random() * 3) + 1);
+      
+      // 如果需要逾期，将到期日设为过去的日期
+      if (isOverdue && balance > 0) {
+        maturityDate.setFullYear(2024); // 设为2024年（已过期）
+      }
+      
+      // 生成还款计划
+      const repaymentSchedule: Array<{date: string; amount: number; repaid: boolean}> = [];
+      if (repaidRatio > 0) {
+        repaymentSchedule.push({
+          date: startDate.toISOString().split('T')[0],
+          amount: totalRepaid,
+          repaid: true,
+        });
+      }
+      if (balance > 0) {
+        repaymentSchedule.push({
+          date: maturityDate.toISOString().split('T')[0],
+          amount: balance,
+          repaid: false,
+        });
+      }
+      
+      // 逾期金额计算：只有到期日已过且有余额才算逾期
+      let pastdue = 0;
+      let overdueDaysCalc = -1;
+      const today = new Date();
+      if (today > maturityDate && balance > 0) {
+        pastdue = balance;
+        overdueDaysCalc = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+      }
+
+      loans.push({
+        id: `LAE${idx.toString().padStart(4, '0')}${i}`,
+        loanReference: `LAEAM10${idx.toString().padStart(4, '0')}${i}`,
+        merchantId: merchant.id,
+        borrowerName: merchant.name,
+        loanStartDate: startDate.toISOString().split('T')[0],
+        loanCurrency: currency as 'CNY' | 'USD',
+        loanAmount: amount,
+        loanInterest: currency === 'USD' ? '90D SOFR TERM + 3%' : '90D CNY HBR + 2.25%',
+        totalInterestRate: currency === 'USD' ? 8.2 + Math.random() * 0.3 : 5.5 + Math.random() * 0.5,
+        loanTenor: `${Math.floor(Math.random() * 30) + 90}D`,
+        maturityDate: maturityDate.toISOString().split('T')[0],
+        balance,
+        pastdueAmount: pastdue,
+        overdueDays: overdueDaysCalc,
+        status: pastdue > 0 ? 'overdue' : (balance === 0 ? 'settled' : 'active'),
+        remarks: '',
+        batchDate: '2024-07',
+        repaymentSchedule,
+      });
+    }
+  });
+
+  return loans;
+};
+
+// 汇率常量
+const USD_TO_CNY_RATE = 7;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const generateMockStats = (loans: HSBCLoan[]): any => {
+  const cnyLoans = loans.filter(l => l.loanCurrency === 'CNY');
+  const usdLoans = loans.filter(l => l.loanCurrency === 'USD');
+  
+  const cnyTotalAmount = cnyLoans.reduce((sum, l) => sum + l.loanAmount, 0);
+  const cnyBalance = cnyLoans.reduce((sum, l) => sum + calcBalance(l), 0);
+  const usdTotalAmount = usdLoans.reduce((sum, l) => sum + l.loanAmount, 0);
+  const usdBalance = usdLoans.reduce((sum, l) => sum + calcBalance(l), 0);
+  
+  // 转换USD到CNY计算总在贷
+  const totalBalanceCNY = cnyBalance + usdBalance * USD_TO_CNY_RATE;
+  
+  // 计算在贷笔数（余额>0）和在贷商户数
+  const activeLoans = loans.filter(l => calcBalance(l) > 0);
+  const activeLoanCount = activeLoans.length;
+  const activeMerchantCount = [...new Set(activeLoans.map(l => l.merchantId))].length;
+  
+  // 逾期天数分级计算
+  const today = new Date();
+  const overdueByDays = {
+    over0Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+    over30Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+    over90Days: { amount: 0, rate: 0, amountUSD: 0, loanCount: 0, merchantCount: 0 },
+  };
+  
+  // 用于去重的逾期商户
+  const over0Merchants = new Set<string>();
+  const over30Merchants = new Set<string>();
+  const over90Merchants = new Set<string>();
+  
+  loans.forEach(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    const balance = calcBalance(loan);
+    if (today > maturityDate && balance > 0) {
+      const overdueDays = Math.floor((today.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
+      const overdueAmount = calcPastdueAmount(loan);
+      const overdueAmountUSD = overdueAmount / USD_TO_CNY_RATE;
+      
+      // 逾期>0天
+      overdueByDays.over0Days.amount += overdueAmount;
+      overdueByDays.over0Days.amountUSD += overdueAmountUSD;
+      overdueByDays.over0Days.loanCount++;
+      over0Merchants.add(loan.merchantId);
+      
+      // 逾期>30天
+      if (overdueDays > 30) {
+        overdueByDays.over30Days.amount += overdueAmount;
+        overdueByDays.over30Days.amountUSD += overdueAmountUSD;
+        overdueByDays.over30Days.loanCount++;
+        over30Merchants.add(loan.merchantId);
+      }
+      
+      // 逾期>90天
+      if (overdueDays > 90) {
+        overdueByDays.over90Days.amount += overdueAmount;
+        overdueByDays.over90Days.amountUSD += overdueAmountUSD;
+        overdueByDays.over90Days.loanCount++;
+        over90Merchants.add(loan.merchantId);
+      }
+    }
+  });
+  
+  overdueByDays.over0Days.merchantCount = over0Merchants.size;
+  overdueByDays.over30Days.merchantCount = over30Merchants.size;
+  overdueByDays.over90Days.merchantCount = over90Merchants.size;
+  
+  // 计算逾期率
+  overdueByDays.over0Days.rate = totalBalanceCNY > 0 ? overdueByDays.over0Days.amount / totalBalanceCNY : 0;
+  overdueByDays.over30Days.rate = totalBalanceCNY > 0 ? overdueByDays.over30Days.amount / totalBalanceCNY : 0;
+  overdueByDays.over90Days.rate = totalBalanceCNY > 0 ? overdueByDays.over90Days.amount / totalBalanceCNY : 0;
+  
+  // 预警金额计算
+  const batchDate = new Date('2026-04-29');
+  
+  // 1. 先找出所有逾期商户（有逾期案件的商户）
+  const overdueMerchantIds = new Set<string>();
+  loans.forEach(loan => {
+    if (calcPastdueAmount(loan) > 0) {
+      overdueMerchantIds.add(loan.merchantId);
+    }
+  });
+  
+  console.log('=== 预警金额调试信息 ===');
+  console.log('逾期商户数量:', overdueMerchantIds.size);
+  
+  // 2. 预警金额(CNY)逾期商户未到期：逾期商户下未逾期贷款的余额总额
+  let warningOverdueMerchantCNY = 0;
+  let warningOverdueMerchantCount = 0;
+  const warningOverdueMerchants = new Set<string>();
+  
+  // 3. (CNY)预警金额总额：所有人民币案件未到期余额 + 所有美元案件未到期余额*7
+  // 4. (USD)预警金额总额：所有人民币案件未到期余额/7 + 所有美元案件未到期余额
+  let warningCNYUnmaturedCNY = 0;
+  let warningCNYUnmaturedUSD = 0;
+  let warningUSDUnmaturedCNY = 0;
+  let warningUSDUnmaturedUSD = 0;
+  let warningTotalCount = 0;
+  const warningTotalMerchants = new Set<string>();
+  
+  loans.forEach(loan => {
+    const maturityDate = new Date(loan.maturityDate);
+    const balance = calcBalance(loan);
+    const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
+    const isLoanOverdue = calcPastdueAmount(loan) > 0;
+    const isLoanUnmatured = maturityDate >= batchDate && balance > 0;
+    
+    // 预警金额(CNY)逾期商户未到期：逾期商户下未逾期贷款的余额
+    if (isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) {
+      warningOverdueMerchantCNY += loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+      warningOverdueMerchantCount++;
+      warningOverdueMerchants.add(loan.merchantId);
+    }
+    
+    // (CNY)和(USD)预警金额总额：所有案件未到期余额
+    if (isLoanUnmatured) {
+      warningTotalCount++;
+      warningTotalMerchants.add(loan.merchantId);
+      if (loan.loanCurrency === 'CNY') {
+        warningCNYUnmaturedCNY += balance;
+        warningUSDUnmaturedCNY += balance;
+      } else {
+        warningCNYUnmaturedUSD += balance;
+        warningUSDUnmaturedUSD += balance;
+      }
+    }
+  });
+  
+  console.log('预警金额(CNY)逾期商户未到期:', warningOverdueMerchantCNY);
+  console.log('预警金额笔数:', warningOverdueMerchantCount);
+  console.log('预警金额商户数:', warningOverdueMerchants.size);
+  console.log('=== 调试信息结束 ===');
+  
+  // 卡片上显示的是"预警金额(CNY)逾期商户未到期"，用第一个数值
+  const warningAmountCNY = warningOverdueMerchantCNY;
+  const warningAmountUSD = warningOverdueMerchantCNY / USD_TO_CNY_RATE;
+  const warningLoanCount = warningOverdueMerchantCount;
+  const warningMerchants = warningOverdueMerchants;
+
+  const totalPastdueCNY = overdueByDays.over0Days.amount;
+  
+  // 计算还款期限金额
+  const repaymentDue: Record<number, { cnyAmount: number; usdAmount: number; count: number }> = {
+    3: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    7: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    15: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    30: { cnyAmount: 0, usdAmount: 0, count: 0 },
+    45: { cnyAmount: 0, usdAmount: 0, count: 0 },
+  };
+  
+  loans.forEach(loan => {
+    // 只计算未逾期的贷款
+    if (calcPastdueAmount(loan) === 0) {
+      const maturityDate = new Date(loan.maturityDate);
+      const daysUntilDue = Math.floor((maturityDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const balance = calcBalance(loan);
+      const amountCNY = loan.loanCurrency === 'CNY' ? balance : balance * USD_TO_CNY_RATE;
+      const amountUSD = loan.loanCurrency === 'USD' ? balance : balance / USD_TO_CNY_RATE;
+      
+      // 累计各期限的金额
+      if (daysUntilDue >= 0 && daysUntilDue <= 3) {
+        repaymentDue[3].cnyAmount += amountCNY;
+        repaymentDue[3].usdAmount += amountUSD;
+        repaymentDue[3].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 7) {
+        repaymentDue[7].cnyAmount += amountCNY;
+        repaymentDue[7].usdAmount += amountUSD;
+        repaymentDue[7].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 15) {
+        repaymentDue[15].cnyAmount += amountCNY;
+        repaymentDue[15].usdAmount += amountUSD;
+        repaymentDue[15].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 30) {
+        repaymentDue[30].cnyAmount += amountCNY;
+        repaymentDue[30].usdAmount += amountUSD;
+        repaymentDue[30].count++;
+      }
+      if (daysUntilDue >= 0 && daysUntilDue <= 45) {
+        repaymentDue[45].cnyAmount += amountCNY;
+        repaymentDue[45].usdAmount += amountUSD;
+        repaymentDue[45].count++;
+      }
+    }
+  });
+  
+  const totalLoanAmount = cnyTotalAmount + usdTotalAmount * USD_TO_CNY_RATE;
+  
+  return {
+    totalLoans: loans.length,
+    totalLoanAmount,
+    totalBalance: totalBalanceCNY,
+    totalBalanceLoanCount: activeLoanCount,
+    totalBalanceMerchantCount: activeMerchantCount,
+    totalPastdueAmount: totalPastdueCNY,
+    overdueRate: totalBalanceCNY > 0 ? totalPastdueCNY / totalBalanceCNY : 0,
+    overdueByDays,
+    warningInfo: {
+      amount: warningAmountCNY,
+      amountUSD: warningAmountCNY / USD_TO_CNY_RATE,
+      merchantCount: warningMerchants.size,
+      loanCount: warningLoanCount,
+    },
+    repaymentDue,
+    currencyBreakdown: [
+      {
+        currency: 'CNY',
+        loanCount: cnyLoans.length,
+        totalAmount: cnyTotalAmount,
+        balance: cnyBalance,
+        overdueAmount: cnyLoans.reduce((sum, l) => sum + calcPastdueAmount(l), 0),
+        overdueMerchantCount: [...new Set(cnyLoans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))].length,
+        overdueLoanCount: cnyLoans.filter(l => calcPastdueAmount(l) > 0).length,
+      },
+      {
+        currency: 'USD',
+        loanCount: usdLoans.length,
+        totalAmount: usdTotalAmount * USD_TO_CNY_RATE,
+        balance: usdBalance * USD_TO_CNY_RATE,
+        overdueAmount: usdLoans.reduce((sum, l) => sum + calcPastdueAmount(l) * USD_TO_CNY_RATE, 0),
+        overdueMerchantCount: [...new Set(usdLoans.filter(l => calcPastdueAmount(l) > 0).map(l => l.merchantId))].length,
+        overdueLoanCount: usdLoans.filter(l => calcPastdueAmount(l) > 0).length,
+      },
+    ],
+    riskDistribution: [
+      { level: '低风险', count: Math.floor(loans.length * 0.4), amount: Math.floor(totalLoanAmount * 0.4) },
+      { level: '中风险', count: Math.floor(loans.length * 0.3), amount: Math.floor(totalLoanAmount * 0.3) },
+      { level: '高风险', count: Math.floor(loans.length * 0.2), amount: Math.floor(totalLoanAmount * 0.2) },
+      { level: '严重', count: Math.floor(loans.length * 0.1), amount: Math.floor(totalLoanAmount * 0.1) },
+    ],
+    maturityDistribution: [
+      { range: '7天内', count: 3, amount: 500000 },
+      { range: '15天内', count: 5, amount: 1200000 },
+      { range: '30天内', count: 8, amount: 2500000 },
+      { range: '45天内', count: 12, amount: 4000000 },
+    ],
+  };
+};
+
+// ============ 贷后还款统计类型 ============
 interface RepaymentStats {
   availableMonths: string[];
   currentMonth: string;
@@ -88,6 +528,7 @@ interface RepaymentStats {
       amountCNY: number;
       amountUSDWan: string;
       amountCNYWan: string;
+      // 新增合计金额（折CNY和折USD）
       totalAmountCNY: number;
       totalAmountUSD: number;
       totalAmountCNYWan: string;
@@ -101,6 +542,7 @@ interface RepaymentStats {
       amountCNY: number;
       amountUSDWan: string;
       amountCNYWan: string;
+      // 新增合计金额（折CNY和折USD）
       totalAmountCNY: number;
       totalAmountUSD: number;
       totalAmountCNYWan: string;
@@ -114,6 +556,7 @@ interface RepaymentStats {
       amountCNY: number;
       amountUSDWan: string;
       amountCNYWan: string;
+      // 新增合计金额（折CNY和折USD）
       totalAmountCNY: number;
       totalAmountUSD: number;
       totalAmountCNYWan: string;
@@ -125,33 +568,10 @@ interface RepaymentStats {
   loansWithRepayment: number;
 }
 
-interface CustomWarningMerchant {
-  id: string;
-  name: string;
-  addedAt: string;
-}
-
-const ALL_COLUMNS = [
-  { key: 'loanReference', label: '贷款编号' },
-  { key: 'merchantId', label: '商户ID' },
-  { key: 'salesName', label: '销售' },
-  { key: 'borrowerName', label: '借款人名称' },
-  { key: 'loanCurrency', label: '币种' },
-  { key: 'loanStartDate', label: '贷款日期' },
-  { key: 'maturityDate', label: '到期日' },
-  { key: 'loanAmount', label: '贷款金额' },
-  { key: 'balance', label: '余额' },
-  { key: 'pastdueAmount', label: '逾期金额' },
-  { key: 'overdueDays', label: '逾期天数' },
-  { key: 'totalRepaid', label: '已还款总额' },
-  { key: 'status', label: '状态' },
-];
-
-const DEFAULT_VISIBLE_COLUMNS = ALL_COLUMNS.map(col => col.key);
-
+// ============ 主组件 ============
 export default function HSBCPanelPage() {
   const [loans, setLoans] = useState<HSBCLoan[]>([]);
-  const [allLoans, setAllLoans] = useState<HSBCLoan[]>([]);
+  const [allLoans, setAllLoans] = useState<HSBCLoan[]>([]); // 所有批次的数据用于图表
   const [stats, setStats] = useState<HSBCStats | null>(null);
   const [repaymentStats, setRepaymentStats] = useState<RepaymentStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -169,23 +589,34 @@ export default function HSBCPanelPage() {
     row5: true,
   });
 
+  // 切换卡片行展开/折叠
+  const toggleCardRow = (rowKey: string) => {
+    setExpandedCardRows(prev => ({
+      ...prev,
+      [rowKey]: !prev[rowKey]
+    }));
+  };
+
+  // 筛选状态
   const [searchTerm, setSearchTerm] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [overdueThreshold, setOverdueThreshold] = useState<number>(0);
-  const [chartCurrency, setChartCurrency] = useState<'CNY' | 'USD'>('CNY');
+  const [chartCurrency, setChartCurrency] = useState<'CNY' | 'USD'>('CNY'); // 图表币种选择
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedLoan, setSelectedLoan] = useState<HSBCLoan | null>(null);
 
+  // 导入状态
   const [uploadMode, setUploadMode] = useState<'replace' | 'merge'>('replace');
   const [importPreview, setImportPreview] = useState<HSBCLoan[]>([]);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [importBatchDate, setImportBatchDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [selectedBatchDate, setSelectedBatchDate] = useState<string>(() => {
+    // 从 localStorage 获取保存的日期，默认使用最新日期
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('hsbc_selected_batch_date');
       return saved || '';
@@ -196,54 +627,68 @@ export default function HSBCPanelPage() {
   const [filePassword, setFilePassword] = useState<string>('');
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
+  // 仪表盘币种选择状态
   const [dashboardCurrency, setDashboardCurrency] = useState<'CNY' | 'USD' | 'ALL'>('CNY');
-  const [selectedCalcDate, setSelectedCalcDate] = useState<string>('2026-04-29');
+
+  // 数据日期计算日状态
+  const [selectedCalcDate, setSelectedCalcDate] = useState<string>(() => {
+    return new Date().toISOString().slice(0, 10);
+  });
+
+  // 商户-销售映射关系
   const [merchantSalesMappings, setMerchantSalesMappings] = useState<any[]>([]);
 
+  // 飞书提醒相关状态
   const [reminderDays, setReminderDays] = useState<number>(3);
   const [scheduledReminderEnabled, setScheduledReminderEnabled] = useState<boolean>(false);
   const [sendingReminder, setSendingReminder] = useState<boolean>(false);
   const [showReminderSuccess, setShowReminderSuccess] = useState<boolean>(false);
 
+  // 所有可选列配置
+  const ALL_COLUMNS = [
+    { key: 'loanReference', label: '贷款编号' },
+    { key: 'merchantId', label: '商户ID' },
+    { key: 'salesName', label: '销售' },
+    { key: 'borrowerName', label: '借款人名称' },
+    { key: 'loanCurrency', label: '币种' },
+    { key: 'loanStartDate', label: '贷款日期' },
+    { key: 'maturityDate', label: '到期日' },
+    { key: 'loanAmount', label: '贷款金额' },
+    { key: 'balance', label: '余额' },
+    { key: 'pastdueAmount', label: '逾期金额' },
+    { key: 'overdueDays', label: '逾期天数' },
+    { key: 'totalRepaid', label: '已还款总额' },
+    { key: 'status', label: '状态' },
+  ];
+
+  // 默认显示的列（全部勾选）
+  const DEFAULT_VISIBLE_COLUMNS = ALL_COLUMNS.map(col => col.key);
+
+  // 列选择状态
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_VISIBLE_COLUMNS);
-  const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [batchToDelete, setBatchToDelete] = useState<string>('');
-  const [activeRepaymentCard, setActiveRepaymentCard] = useState<string | null>(null);
-  const [filteredLoanReferences, setFilteredLoanReferences] = useState<string[] | null>(null);
-  const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
-  const [activeCardFilter, setActiveCardFilter] = useState<string | null>(null);
-  const casesListRef = useRef<HTMLDivElement>(null);
-  const [customWarningMerchants, setCustomWarningMerchants] = useState<CustomWarningMerchant[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('hsbc_custom_warning_merchants');
-      return saved ? JSON.parse(saved) : [];
-    }
-    return [];
-  });
-  const [warningMerchantInput, setWarningMerchantInput] = useState('');
-  const initialLoadRef = useRef(true);
 
-  const toggleCardRow = useCallback((rowKey: string) => {
-    setExpandedCardRows(prev => ({
-      ...prev,
-      [rowKey]: !prev[rowKey]
-    }));
-  }, []);
-
-  const toggleColumn = useCallback((columnKey: string) => {
+  // 切换列显示
+  const toggleColumn = (columnKey: string) => {
     setVisibleColumns(prev => 
       prev.includes(columnKey) 
         ? prev.filter(k => k !== columnKey)
         : [...prev, columnKey]
     );
-  }, []);
+  };
 
-  const resetColumns = useCallback(() => {
+  // 重置列
+  const resetColumns = () => {
     setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
-  }, []);
+  };
 
-  const handleMonthChange = useCallback(async (month: string) => {
+  const [selectedRepaymentMonth, setSelectedRepaymentMonth] = useState<string>('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [batchToDelete, setBatchToDelete] = useState<string>('');
+  const [activeRepaymentCard, setActiveRepaymentCard] = useState<string | null>(null);
+  const [filteredLoanReferences, setFilteredLoanReferences] = useState<string[] | null>(null);
+  
+  // 切换还款统计月份
+  const handleMonthChange = async (month: string) => {
     setSelectedRepaymentMonth(month);
     setActiveRepaymentCard(null);
     setFilteredLoanReferences(null);
@@ -260,13 +705,16 @@ export default function HSBCPanelPage() {
     } catch (err) {
       console.error('加载还款统计失败:', err);
     }
-  }, [selectedBatchDate]);
+  };
 
-  const handleRepaymentCardClick = useCallback((type: 'ontime' | 'overdue' | 'total') => {
+  // 处理还款统计卡片点击
+  const handleRepaymentCardClick = (type: 'ontime' | 'overdue' | 'total') => {
     if (activeRepaymentCard === type) {
+      // 再次点击同一卡片，取消筛选
       setActiveRepaymentCard(null);
       setFilteredLoanReferences(null);
     } else {
+      // 点击新卡片，应用筛选
       setActiveRepaymentCard(type);
       let refs: string[] = [];
       if (type === 'ontime') {
@@ -278,102 +726,148 @@ export default function HSBCPanelPage() {
       }
       setFilteredLoanReferences(refs);
     }
+    // 清除其他卡片筛选
     setActiveCardFilter(null);
+    // 滚动到案件列表
     setTimeout(() => {
       casesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
-    setCurrentPage(1);
-  }, [activeRepaymentCard, repaymentStats]);
+    setCurrentPage(1); // 重置分页
+  };
+  
 
-  const parseMerchantIds = useCallback((input: string): string[] => {
-    return input.trim()
-      .split(/\s+/)
-      .map(id => id.trim())
-      .filter(id => id.length > 0);
+
+  // 去重商户ID相关状态
+  const [deduplicateMerchant, setDeduplicateMerchant] = useState(false);
+  const [activeCardFilter, setActiveCardFilter] = useState<string | null>(null);
+  const casesListRef = useRef<HTMLDivElement>(null);
+
+  // 自定义预警商户相关状态
+  interface CustomWarningMerchant {
+    id: string;
+    name: string;
+    addedAt: string;
+  }
+  const [customWarningMerchants, setCustomWarningMerchants] = useState<CustomWarningMerchant[]>(() => {
+    // 从 localStorage 初始化
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hsbc_custom_warning_merchants');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [warningMerchantInput, setWarningMerchantInput] = useState('');
+
+  // 还款日期筛选相关状态
+  type RepaymentFilterType = 'all' | 'on_time' | 'late';
+  interface RepaymentRecord {
+    loanReference: string;
+    borrowerName: string;
+    dueDate: string;
+    maturityDate: string;
+    actualDate: string;
+    amount: number;
+    currency: string;
+    isOverdue: boolean;
+  };
+  const [repaymentDate, setRepaymentDate] = useState<string>('');
+  const [repaymentFilterType, setRepaymentFilterType] = useState<RepaymentFilterType>('all');
+  const [repaymentResults, setRepaymentResults] = useState<RepaymentRecord[]>([]);
+  const [repaymentLoading, setRepaymentLoading] = useState<boolean>(false);
+  const [showRepaymentCard, setShowRepaymentCard] = useState<boolean>(false);
+
+  // 计算过滤后的还款记录（带新的状态评定规则
+  const filteredRepaymentResults = useMemo(() => {
+    return repaymentResults.map(record => {
+      // 新的状态评定规则：如果到期日期减去实际还款日为负数，则状态为：逾期后还款，如果到期日期减去实际还款日为零或者正数，状态则是未逾期还款
+      const maturityDate = new Date(record.maturityDate);
+      const actualDate = new Date(record.actualDate);
+      const diffDays = Math.ceil((maturityDate.getTime() - actualDate.getTime()) / (1000 * 60 * 60 * 24));
+      const isOverdue = diffDays < 0;
+      
+      return {
+        ...record,
+        isOverdue
+      };
+    }).filter(record => {
+      if (repaymentFilterType === 'all') return true;
+      if (repaymentFilterType === 'on_time') return !record.isOverdue;
+      if (repaymentFilterType === 'late') return record.isOverdue;
+      return true;
+    });
+  }, [repaymentResults, repaymentFilterType]);
+
+  // 还款日期筛选相关函数
+  const handleRepaymentDateChange = useCallback((date: string) => {
+    setRepaymentDate(date);
   }, []);
 
-  const addWarningMerchants = useCallback(() => {
-    const merchantIds = parseMerchantIds(warningMerchantInput);
-    if (merchantIds.length === 0) {
+  const fetchRepaymentRecords = useCallback(async (date: string) => {
+    if (!date) {
+      setRepaymentResults([]);
+      setShowRepaymentCard(false);
       return;
     }
-
-    const newMerchants: CustomWarningMerchant[] = [...customWarningMerchants];
-    
-    merchantIds.forEach(merchantId => {
-      const merchant = loans.find(l => l.merchantId === merchantId);
-      const merchantName = merchant?.borrowerName || '未知商户';
-      
-      if (!newMerchants.find(m => m.id === merchantId)) {
-        newMerchants.push({
-          id: merchantId,
-          name: merchantName,
-          addedAt: new Date().toISOString()
-        });
+    setRepaymentLoading(true);
+    try {
+      const res = await fetch(`/api/hsbc/repayment-records?repaymentDate=${encodeURIComponent(date)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRepaymentResults(data.data || []);
+        setShowRepaymentCard(true);
       }
-    });
-    
-    setCustomWarningMerchants(newMerchants);
-    localStorage.setItem('hsbc_custom_warning_merchants', JSON.stringify(newMerchants));
-    setWarningMerchantInput('');
-  }, [warningMerchantInput, customWarningMerchants, loans, parseMerchantIds]);
-
-  const removeWarningMerchant = useCallback((merchantId: string) => {
-    const newMerchants = customWarningMerchants.filter(m => m.id !== merchantId);
-    setCustomWarningMerchants(newMerchants);
-    localStorage.setItem('hsbc_custom_warning_merchants', JSON.stringify(newMerchants));
-  }, [customWarningMerchants]);
-
-  const toggleSection = useCallback((section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+    } catch (error) {
+      console.error('获取还款记录失败:', error);
+      setRepaymentResults([]);
+    } finally {
+      setRepaymentLoading(false);
+    }
   }, []);
 
-  const getFilterLabel = useCallback((filter: string): string => {
-    const labels: Record<string, string> = {
-      'totalBalance': '在贷总额',
-      'overdue0': '逾期>0天',
-      'overdue30': '逾期>30天',
-      'overdue90': '逾期>90天',
-      'warning': '预警金额',
-      'due3': '3天内到期',
-      'due7': '7天内到期',
-      'due15': '15天内到期',
-      'due30': '30天内到期',
-      'due45': '45天内到期',
-    };
-    return labels[filter] || filter;
-  }, []);
-
-  const handleCardClick = useCallback((filterType: string) => {
-    if (activeCardFilter === filterType) {
-      setActiveCardFilter(null);
-    } else {
-      setActiveCardFilter(filterType);
+  const handleExportRepayments = useCallback(() => {
+    if (!repaymentDate || repaymentResults.length === 0) return;
+    try {
+      const headers = ['还款订单号', '贷款编号', '借款人', '到期日期', '计划还款日', '到期日期', '实际还款日', '还款金额', '状态'];
+      const rows = repaymentResults.map((record, idx) => [
+        `${record.actualDate.replace(/-/g, '')}_${idx + 1}`,
+        record.loanReference,
+        record.borrowerName,
+        record.dueDate,
+        record.maturityDate,
+        record.actualDate,
+        `${record.currency} ${record.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
+        record.isOverdue ? '逾期后' : '按时'
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `还款记录_${repaymentDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出失败:', error);
     }
-    setActiveRepaymentCard(null);
-    setFilteredLoanReferences(null);
-    setTimeout(() => {
-      casesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-    setCurrentPage(1);
-  }, [activeCardFilter]);
+  }, [repaymentDate, repaymentResults]);
 
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  // 还款日期变化时自动加载数据
+  useEffect(() => {
+    if (repaymentDate) {
+      fetchRepaymentRecords(repaymentDate);
     } else {
-      setSortField(field);
-      setSortOrder('desc');
+      setRepaymentResults([]);
+      setShowRepaymentCard(false);
     }
-    setCurrentPage(1);
-  }, [sortField, sortOrder]);
+  }, [repaymentDate, fetchRepaymentRecords]);
 
+  // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      // 加载批次日期列表
       const datesRes = await fetch('/api/hsbc/batch-dates');
       let dates: string[] = [];
       if (datesRes.ok) {
@@ -382,14 +876,16 @@ export default function HSBCPanelPage() {
         setAvailableBatchDates(dates);
       }
 
+      // 加载所有批次数据用于图表
       const allLoansRes = await fetch('/api/hsbc/loans?includeAll=true&pageSize=999999');
       if (allLoansRes.ok) {
         const allLoansData = await allLoansRes.json();
         setAllLoans(allLoansData.data || []);
       }
 
+      // 如果有批次日期，加载最新日期的数据；否则加载所有数据
       if (dates.length > 0) {
-        const latestDate = dates[0];
+        const latestDate = dates[0]; // 最新日期排在第一个
         setSelectedBatchDate(latestDate);
         const loansRes = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(latestDate)}&pageSize=99999`);
         if (loansRes.ok) {
@@ -401,12 +897,14 @@ export default function HSBCPanelPage() {
           const statsData = await statsRes.json();
           setStats(statsData.data || null);
         }
+        // 加载还款统计数据
         const repaymentStatsRes = await fetch(`/api/hsbc/repayment-stats?batchDate=${encodeURIComponent(latestDate)}`);
         if (repaymentStatsRes.ok) {
           const repaymentStatsData = await repaymentStatsRes.json();
           setRepaymentStats(repaymentStatsData.data || null);
         }
       } else {
+        // 没有批次日期时，加载所有数据
         const loansRes = await fetch('/api/hsbc/loans?pageSize=99999');
         if (loansRes.ok) {
           const loansData = await loansRes.json();
@@ -419,243 +917,18 @@ export default function HSBCPanelPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCalcDate]);
-
-  const fetchBatchDates = useCallback(async () => {
-    try {
-      const response = await fetch('/api/hsbc/batch-dates');
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableBatchDates(data.data || []);
-      }
-    } catch (err) {
-      console.error('获取批次日期失败:', err);
-    }
-  }, []);
-
-  const loadLoansByBatchDate = useCallback(async (batchDate: string) => {
-    try {
-      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}&pageSize=99999`);
-      if (response.ok) {
-        const data = await response.json();
-        setLoans(data.data || []);
-        const statsResponse = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(batchDate)}&calcDate=${encodeURIComponent(selectedCalcDate)}`);
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setStats(statsData.data || null);
-        }
-        const repaymentStatsRes = await fetch(`/api/hsbc/repayment-stats?batchDate=${encodeURIComponent(batchDate)}`);
-        if (repaymentStatsRes.ok) {
-          const repaymentStatsData = await repaymentStatsRes.json();
-          setRepaymentStats(repaymentStatsData.data || null);
-        }
-      }
-    } catch (err) {
-      console.error('按日期加载数据失败:', err);
-    }
-  }, [selectedCalcDate]);
-
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('password', 'amazon246');
-
-      const response = await fetch('/api/hsbc/parse', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        toast.error(result.error || '文件解析失败');
-        return;
-      }
-
-      const parsedLoans: HSBCLoan[] = (result.loans || []).map((loan: Record<string, string | number>) => ({
-        id: String(loan.loanReference || Math.random().toString(36).slice(2)),
-        loanReference: String(loan.loanReference || ''),
-        merchantId: String(loan.merchantId || ''),
-        borrowerName: String(loan.borrowerName || ''),
-        loanStartDate: String(loan.loanStartDate || ''),
-        loanCurrency: (String(loan.loanCurrency || 'CNY')).toUpperCase() as 'CNY' | 'USD',
-        loanAmount: Number(loan.loanAmount) || 0,
-        loanInterest: String(loan.loanInterest || ''),
-        totalInterestRate: Number(loan.totalInterestRate) || 0,
-        loanTenor: String(loan.loanTenor || ''),
-        maturityDate: String(loan.maturityDate || ''),
-        repaymentSchedule: typeof loan.repaymentSchedule === 'string' 
-          ? JSON.parse(loan.repaymentSchedule || '[]') 
-          : (loan.repaymentSchedule || []),
-        balance: Number(loan.balance) || 0,
-        pastdueAmount: Number(loan.pastdueAmount) || 0,
-        batchDate: String(loan.batchDate || ''),
-        freezeAccountRequested: String(loan.freezeAccountRequested || ''),
-        forceDebitRequested: String(loan.forceDebitRequested || ''),
-        rmApproval: String(loan.rmApproval || ''),
-        dowsureFreezeConfirm: String(loan.dowsureFreezeConfirm || ''),
-        dowsureForceDebitConfirm: String(loan.dowsureForceDebitConfirm || ''),
-        remarks: String(loan.remarks || ''),
-      }));
-      if (parsedLoans.length === 0) {
-        toast.error('未能从文件中解析到有效数据，请检查文件格式');
-        return;
-      }
-
-      if (result.isEncrypted) {
-        toast.success('检测到加密文件，已自动解密');
-      }
-
-      setImportPreview(parsedLoans);
-      setShowImportConfirm(true);
-      toast.success(`已解析 ${parsedLoans.length} 条数据，请确认导入`);
-    } catch (err) {
-      console.error('文件上传错误:', err);
-      toast.error('文件上传失败，请重试');
-    }
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      input.files = dt.files;
-      handleFileUpload({ target: input } as unknown as React.ChangeEvent<HTMLInputElement>);
-    } else {
-      toast.error('请上传 Excel 或 CSV 文件');
-    }
-  }, [handleFileUpload]);
-
-  const confirmImport = useCallback(async () => {
-    try {
-      const response = await fetch('/api/hsbc/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          loans: importPreview,
-          batchDate: importBatchDate,
-          mode: uploadMode,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('导入失败');
-      }
-
-      await loadData();
-      setSelectedBatchDate(importBatchDate);
-      await fetchBatchDates();
-      setShowImportConfirm(false);
-      setImportPreview([]);
-      toast.success(`成功导入 ${importPreview.length} 条数据（批次日期: ${importBatchDate}）`);
-    } catch (err) {
-      console.error('导入错误:', err);
-      toast.error('导入失败，请重试');
-    }
-  }, [importPreview, importBatchDate, uploadMode, loadData, fetchBatchDates]);
-
-  const handleDeleteBatch = useCallback((batchDate: string) => {
-    setBatchToDelete(batchDate);
-    setShowDeleteConfirm(true);
-  }, []);
-
-  const confirmDeleteBatch = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/hsbc/delete-batch?batchDate=${encodeURIComponent(batchToDelete)}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '删除失败');
-      }
-
-      setSelectedBatchDate('');
-      await loadData();
-      await fetchBatchDates();
-      setShowDeleteConfirm(false);
-      setBatchToDelete('');
-      toast.success('删除成功');
-    } catch (err) {
-      console.error('删除错误:', err);
-      toast.error(err instanceof Error ? err.message : '删除失败，请重试');
-    }
-  }, [batchToDelete, loadData, fetchBatchDates]);
-
-  const handleSendFeishuReminder = useCallback(async () => {
-    if (!selectedBatchDate) {
-      toast.error('请先选择批次日期');
-      return;
-    }
-    setSendingReminder(true);
-    try {
-      const response = await fetch('/api/feishu-reminders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          batchDate: selectedBatchDate,
-          days: reminderDays,
-          calcDate: selectedCalcDate,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '发送提醒失败');
-      }
-      setShowReminderSuccess(true);
-      setTimeout(() => setShowReminderSuccess(false), 3000);
-      toast.success('提醒发送成功');
-    } catch (err) {
-      console.error('发送飞书提醒错误:', err);
-      toast.error(err instanceof Error ? err.message : '发送提醒失败，请重试');
-    } finally {
-      setSendingReminder(false);
-    }
-  }, [selectedBatchDate, reminderDays, selectedCalcDate]);
-
-  const downloadTemplate = useCallback(() => {
-    const headers = [
-      'Loan Reference', 'Merchant ID', 'Borrower Name', 'Loan Start Date',
-      'Loan Currency', 'Loan Amount', 'Loan Interest', 'Total Interest Rate',
-      'Loan Tenor', 'Maturity Date', 'Balance', 'Pastdue amount'
-    ];
-    const csv = headers.join(',') + '\n';
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'hsbc_loan_template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('模板下载成功');
   }, []);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // 加载批次日期列表
   useEffect(() => {
     fetchBatchDates();
-  }, [fetchBatchDates]);
+  }, []);
 
+  // 加载商户-销售映射关系
   useEffect(() => {
     const loadMerchantSalesMappings = async () => {
       try {
@@ -671,6 +944,15 @@ export default function HSBCPanelPage() {
     loadMerchantSalesMappings();
   }, []);
 
+  // 监听还款日期的变化
+  useEffect(() => {
+    if (repaymentDate) {
+      fetchRepaymentRecords(repaymentDate);
+    }
+  }, [repaymentDate]);
+
+  // 根据选择的批次日期重新加载数据（跳过初始加载，因为 loadData 已经处理了）
+  const initialLoadRef = useRef(true);
   useEffect(() => {
     if (initialLoadRef.current) {
       initialLoadRef.current = false;
@@ -679,10 +961,136 @@ export default function HSBCPanelPage() {
     if (selectedBatchDate) {
       loadLoansByBatchDate(selectedBatchDate);
     }
-  }, [selectedBatchDate, selectedCalcDate, loadLoansByBatchDate]);
+  }, [selectedBatchDate, selectedCalcDate]);
 
+  // 根据批次日期加载贷款数据
+  const loadLoansByBatchDate = async (batchDate: string) => {
+    try {
+      const response = await fetch(`/api/hsbc/loans?batchDate=${encodeURIComponent(batchDate)}&pageSize=99999`);
+      if (response.ok) {
+        const data = await response.json();
+        setLoans(data.data || []);
+        // 同时获取对应日期的统计数据
+        const statsResponse = await fetch(`/api/hsbc/stats?batchDate=${encodeURIComponent(batchDate)}&calcDate=${encodeURIComponent(selectedCalcDate)}`);
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData.data || null);
+        }
+        // 获取还款统计数据
+        const repaymentStatsRes = await fetch(`/api/hsbc/repayment-stats?batchDate=${encodeURIComponent(batchDate)}`);
+        if (repaymentStatsRes.ok) {
+          const repaymentStatsData = await repaymentStatsRes.json();
+          setRepaymentStats(repaymentStatsData.data || null);
+        }
+      }
+    } catch (err) {
+      console.error('按日期加载数据失败:', err);
+    }
+  };
+
+  // 自定义预警商户相关函数
+  // 解析商户ID（支持空格分隔）
+  const parseMerchantIds = (input: string): string[] => {
+    return input.trim()
+      .split(/\s+/)
+      .map(id => id.trim())
+      .filter(id => id.length > 0);
+  };
+
+  // 添加预警商户
+  const addWarningMerchants = () => {
+    const merchantIds = parseMerchantIds(warningMerchantInput);
+    if (merchantIds.length === 0) {
+      return;
+    }
+
+    const newMerchants: CustomWarningMerchant[] = [...customWarningMerchants];
+    
+    merchantIds.forEach(merchantId => {
+      // 查找商户名称
+      const merchant = loans.find(l => l.merchantId === merchantId);
+      const merchantName = merchant?.borrowerName || '未知商户';
+      
+      // 检查是否已存在
+      if (!newMerchants.find(m => m.id === merchantId)) {
+        newMerchants.push({
+          id: merchantId,
+          name: merchantName,
+          addedAt: new Date().toISOString()
+        });
+      }
+    });
+    
+    setCustomWarningMerchants(newMerchants);
+    // 保存到 localStorage
+    localStorage.setItem('hsbc_custom_warning_merchants', JSON.stringify(newMerchants));
+    setWarningMerchantInput('');
+  };
+
+  // 删除预警商户
+  const removeWarningMerchant = (merchantId: string) => {
+    const newMerchants = customWarningMerchants.filter(m => m.id !== merchantId);
+    setCustomWarningMerchants(newMerchants);
+    localStorage.setItem('hsbc_custom_warning_merchants', JSON.stringify(newMerchants));
+  };
+
+  // 切换展开/闭合
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  // 获取过滤条件标签
+  const getFilterLabel = (filter: string): string => {
+    const labels: Record<string, string> = {
+      'totalBalance': '在贷总额',
+      'overdue0': '逾期>0天',
+      'overdue30': '逾期>30天',
+      'overdue90': '逾期>90天',
+      'warning': '预警金额',
+      'due3': '3天内到期',
+      'due7': '7天内到期',
+      'due15': '15天内到期',
+      'due30': '30天内到期',
+      'due45': '45天内到期',
+    };
+    return labels[filter] || filter;
+  };
+
+  // 处理卡片点击 - 过滤案件列表
+  const handleCardClick = (filterType: string) => {
+    if (activeCardFilter === filterType) {
+      setActiveCardFilter(null); // 再次点击同一卡片，取消过滤
+    } else {
+      setActiveCardFilter(filterType);
+    }
+    // 清除还款统计筛选
+    setActiveRepaymentCard(null);
+    setFilteredLoanReferences(null);
+    // 滚动到案件列表
+    setTimeout(() => {
+      casesListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    setCurrentPage(1); // 重置分页
+  };
+
+  // 处理排序
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  // 先筛选（不去重）
   const filteredLoansBeforeDedupe = useMemo(() => {
     return loans.filter((loan: HSBCLoan) => {
+      // 支持多商户ID搜索（用空格分隔）
       const searchTerms = searchTerm.trim().split(/\s+/).filter(t => t.length > 0);
       const matchSearch = searchTerms.length === 0 ||
         searchTerms.some(term =>
@@ -694,7 +1102,8 @@ export default function HSBCPanelPage() {
       const matchStatus = statusFilter === 'all' ||
         (statusFilter === 'overdue' && calcPastdueAmount(loan) > 0) ||
         (statusFilter === 'normal' && calcPastdueAmount(loan) === 0);
-
+    
+      // 卡片点击过滤
       let matchCardFilter = true;
       const today = new Date().toISOString().slice(0, 10);
       const maturityDate = loan.maturityDate;
@@ -703,30 +1112,35 @@ export default function HSBCPanelPage() {
       
       if (activeCardFilter) {
         switch (activeCardFilter) {
-          case 'totalBalance':
+          case 'totalBalance': // 在贷总额 - 余额>0的贷款
             matchCardFilter = balance > 0;
             break;
-          case 'overdue0':
+          case 'overdue0': // 逾期>0天 - 逾期金额>0
             matchCardFilter = pastdueAmount > 0;
             break;
-          case 'overdue30':
+          case 'overdue30': // 逾期>30天 - 逾期天数>=30
             const overdueDays0 = calcOverdueDays(loan);
             matchCardFilter = overdueDays0 >= 30 && pastdueAmount > 0;
             break;
-          case 'overdue90':
+          case 'overdue90': // 逾期>90天 - 逾期天数>=90
             const overdueDays30 = calcOverdueDays(loan);
             matchCardFilter = overdueDays30 >= 90 && pastdueAmount > 0;
             break;
-          case 'warning':
+          case 'warning': // 预警金额 - 逾期商户下未逾期且未到期 + 自定义预警商户未到期
+            // 1. 先找出所有逾期商户（有其他贷款逾期的商户）
             const overdueMerchantIds = new Set<string>();
             loans.forEach(l => {
               if (calcPastdueAmount(l) > 0) {
                 overdueMerchantIds.add(l.merchantId);
               }
             });
+            // 2. 自定义预警商户ID集合
             const customWarningMerchantIds = new Set(
               customWarningMerchants.map(m => m.id)
             );
+            // 3. 判断当前贷款是否符合条件：
+            //    - 情况1：商户是逾期商户，且该贷款本身未逾期且未到期
+            //    - 情况2：商户是自定义预警商户，且该贷款未到期
             const isOverdueMerchant = overdueMerchantIds.has(loan.merchantId);
             const isLoanOverdue = calcPastdueAmount(loan) > 0;
             const isCustomWarningMerchant = customWarningMerchantIds.has(loan.merchantId);
@@ -737,23 +1151,23 @@ export default function HSBCPanelPage() {
             matchCardFilter = (isOverdueMerchant && !isLoanOverdue && isLoanUnmatured) || 
                               (isCustomWarningMerchant && isLoanUnmatured);
             break;
-          case 'due3':
+          case 'due3': // 3天内到期
             const days3 = calcDaysToMaturity(loan, new Date(selectedCalcDate));
             matchCardFilter = days3 >= 0 && days3 <= 3;
             break;
-          case 'due7':
+          case 'due7': // 7天内到期
             const days7 = calcDaysToMaturity(loan, new Date(selectedCalcDate));
             matchCardFilter = days7 >= 0 && days7 <= 7;
             break;
-          case 'due15':
+          case 'due15': // 15天内到期
             const days15 = calcDaysToMaturity(loan, new Date(selectedCalcDate));
             matchCardFilter = days15 >= 0 && days15 <= 15;
             break;
-          case 'due30':
+          case 'due30': // 30天内到期
             const days30 = calcDaysToMaturity(loan, new Date(selectedCalcDate));
             matchCardFilter = days30 >= 0 && days30 <= 30;
             break;
-          case 'due45':
+          case 'due45': // 45天内到期
             const days45 = calcDaysToMaturity(loan, new Date(selectedCalcDate));
             matchCardFilter = days45 >= 0 && days45 <= 45;
             break;
@@ -762,9 +1176,11 @@ export default function HSBCPanelPage() {
         }
       }
       
+      // 还款统计卡片筛选
       const matchRepaymentFilter = !filteredLoanReferences || filteredLoanReferences.length === 0 || 
         filteredLoanReferences.includes(loan.loanReference);
       
+      // 去重商户筛选
       const matchDeduplicateFilter = !activeRepaymentCard || 
         (activeRepaymentCard === 'ontime' && loan.loanReference !== 'dummy') ||
         (activeRepaymentCard === 'overdue' && loan.loanReference !== 'dummy') ||
@@ -772,9 +1188,11 @@ export default function HSBCPanelPage() {
       
       return matchSearch && matchCurrency && matchStatus && matchCardFilter && matchRepaymentFilter && matchDeduplicateFilter;
     });
-  }, [loans, searchTerm, currencyFilter, statusFilter, activeCardFilter, filteredLoanReferences, activeRepaymentCard, customWarningMerchants, selectedCalcDate]);
+  }, [loans, searchTerm, currencyFilter, statusFilter, activeCardFilter, filteredLoanReferences, activeRepaymentCard]);
 
+  // 计算预警金额（包含自定义预警商户）
   const warningStats = useMemo(() => {
+    // 1. 先找出所有逾期商户（有逾期案件的商户）
     const overdueMerchantIds = new Set<string>();
     loans.forEach(l => {
       if (calcPastdueAmount(l) > 0) {
@@ -782,6 +1200,7 @@ export default function HSBCPanelPage() {
       }
     });
     
+    // 2. 自定义预警商户ID集合
     const customWarningMerchantIds = new Set(
       customWarningMerchants.map(m => m.id)
     );
@@ -820,13 +1239,16 @@ export default function HSBCPanelPage() {
       loanCount,
       merchantCount: merchantSet.size
     };
-  }, [loans, customWarningMerchants, selectedCalcDate]);
+  }, [loans, customWarningMerchants]);
 
+  // 去重商户ID后的贷款数据（基于筛选后的结果去重）
   const deduplicatedLoans = useMemo(() => {
     if (!deduplicateMerchant) return filteredLoansBeforeDedupe;
     
+    // 第一步：只保留当前选定批次日期的贷款！
     const batchDateFiltered = filteredLoansBeforeDedupe.filter(loan => loan.batchDate === selectedBatchDate);
     
+    // 第二步：对 batchDateFiltered 按贷款编号去重，确保每笔贷款只出现一次！
     const seenRefs = new Set<string>();
     const uniqueFilteredLoans = batchDateFiltered.filter(loan => {
       if (!loan.loanReference) return true;
@@ -852,6 +1274,7 @@ export default function HSBCPanelPage() {
         });
       } else {
         const existing = map.get(loan.merchantId)!;
+        // 合并还款计划
         existing.allRepaymentSchedules = [
           ...existing.allRepaymentSchedules,
           ...(loan.repaymentSchedule || [])
@@ -859,30 +1282,38 @@ export default function HSBCPanelPage() {
       }
     });
     
+    // 构建去重后的贷款数据
     return Array.from(map.values()).map(item => {
+      // 重新计算合并后的所有字段（基于去重后的筛选结果）
       const merchantLoans = uniqueFilteredLoans.filter(l => l.merchantId === item.loan.merchantId);
       
       const totalLoanAmount = merchantLoans.reduce((sum, l) => sum + l.loanAmount, 0);
       const totalRepaid = merchantLoans.reduce((sum, l) => sum + (l.totalRepaid || 0), 0);
       const balance = Math.max(0, totalLoanAmount - totalRepaid);
+      // 计算该商户下所有相关贷款的逾期金额相加
+      // 直接使用每笔贷款原始的 pastdueAmount 字段（贷款数据中已经有这个字段）
       const totalPastdueAmount = merchantLoans.reduce((sum, l) => {
         const loanPastdue = l.pastdueAmount !== undefined && l.pastdueAmount !== null ? Number(l.pastdueAmount) : 0;
         return sum + loanPastdue;
       }, 0);
       
+      // 计算有效到期日：过滤掉已还清的贷款（余额为0）
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       const validMaturityDates: string[] = [];
       merchantLoans.forEach(loan => {
         const loanBalance = calcBalance(loan);
+        // 余额为 0 的贷款不取该笔贷款的到期日（已还清）
         if (loanBalance > 0) {
           validMaturityDates.push(loan.maturityDate);
         }
       });
       
+      // 如果有有效到期日，取最靠近今日的到期日
       let finalMaturityDate: string;
       if (validMaturityDates.length > 0) {
+        // 计算每个到期日与今日的差值绝对值
         validMaturityDates.sort((a, b) => {
           const dateA = new Date(a);
           const dateB = new Date(b);
@@ -890,14 +1321,17 @@ export default function HSBCPanelPage() {
           const diffB = Math.abs(dateB.getTime() - today.getTime());
           return diffA - diffB;
         });
-        finalMaturityDate = validMaturityDates[0];
+        finalMaturityDate = validMaturityDates[0]; // 最靠近今日的
       } else {
+        // 如果没有有效到期日，用原最早的
         finalMaturityDate = item.earliestMaturityDate;
       }
       
+      // 批次日期是2026-04-29
       const batchDate = new Date(selectedCalcDate);
       const maturityDate = new Date(finalMaturityDate);
       
+      // 计算逾期天数：到期日已过且余额>0.9才算逾期
       let overdueDays = -1;
       if (finalMaturityDate) {
         const diffDays = Math.floor((batchDate.getTime() - maturityDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -906,7 +1340,10 @@ export default function HSBCPanelPage() {
         }
       }
       
+      // 计算逾期金额和状态
+      // 逾期金额直接使用该商户下所有相关贷款的逾期金额相加的总和
       const pastdueAmount = totalPastdueAmount;
+      // 状态根据是否有逾期金额来判断
       const status = totalPastdueAmount > 0 ? 'overdue' : 'normal';
       
       const mergedLoan: HSBCLoan = {
@@ -923,10 +1360,12 @@ export default function HSBCPanelPage() {
       
       return mergedLoan;
     });
-  }, [filteredLoansBeforeDedupe, deduplicateMerchant, selectedCalcDate]);
+  }, [filteredLoansBeforeDedupe, deduplicateMerchant]);
 
+  // 最终显示的贷款（已经去重和筛选好了）
   const filteredLoans = deduplicatedLoans;
 
+  // 排序后的数据
   const sortedFilteredLoans = useMemo(() => {
     if (!sortField) return filteredLoans;
     
@@ -999,14 +1438,19 @@ export default function HSBCPanelPage() {
     });
   }, [filteredLoans, sortField, sortOrder]);
 
+  // 逾期趋势数据 - 使用所有批次的贷款数据
   const overdueTrendData = useMemo(() => {
+    // USD兑CNY汇率
+    const USD_TO_CNY_RATE = 7;
+    
+    // 按批次日期分组
     const batchDateMap = new Map<string, { 
-      totalAmountCNY: number;
-      totalAmountUSD: number;
-      overdueAmountCNY: number;
-      overdueAmountUSD: number;
-      totalCount: number;
-      overdueCount: number;
+      totalAmountCNY: number;  // 总金额（折CNY）
+      totalAmountUSD: number;  // 总金额（折USD）
+      overdueAmountCNY: number; // 逾期金额（折CNY）
+      overdueAmountUSD: number; // 逾期金额（折USD）
+      totalCount: number; // 总笔数
+      overdueCount: number; // 逾期笔数
     }>();
     
     allLoans.forEach(loan => {
@@ -1020,6 +1464,7 @@ export default function HSBCPanelPage() {
         overdueCount: 0
       };
       
+      // 计算该笔贷款的总余额（分别按币种）- 使用calcBalance
       const balance = calcBalance(loan);
       let loanAmountCNY = balance;
       let loanAmountUSD = balance;
@@ -1032,6 +1477,7 @@ export default function HSBCPanelPage() {
       existing.totalAmountCNY += loanAmountCNY;
       existing.totalAmountUSD += loanAmountUSD;
       
+      // 计算逾期金额：使用 calcPastdueAmount 计算
       const overdueAmount = calcPastdueAmount(loan);
       const overdueDays = calcOverdueDays(loan);
       
@@ -1054,6 +1500,7 @@ export default function HSBCPanelPage() {
       batchDateMap.set(batchDate, existing);
     });
     
+    // 转换为图表数据
     const data = Array.from(batchDateMap.entries())
       .map(([batchDate, stats]) => {
         const overdueAmountCNY = stats.overdueAmountCNY;
@@ -1071,8 +1518,9 @@ export default function HSBCPanelPage() {
     return data;
   }, [allLoans, overdueThreshold, chartCurrency]);
 
+  // 计算当前筛选结果的USD和CNY统计（始终使用原始贷款列表，不因去重商户而改变）
   const statsLoans = filteredLoansBeforeDedupe;
-  const usdStats = useMemo(() => statsLoans.reduce(
+  const usdStats = statsLoans.reduce(
     (acc, loan: HSBCLoan) => {
       if (loan.loanCurrency === 'USD') {
         const balance = calcBalance(loan);
@@ -1083,9 +1531,9 @@ export default function HSBCPanelPage() {
       return acc;
     },
     { totalBalance: 0, totalPastdue: 0 }
-  ), [statsLoans]);
+  );
 
-  const cnyStats = useMemo(() => statsLoans.reduce(
+  const cnyStats = statsLoans.reduce(
     (acc, loan: HSBCLoan) => {
       if (loan.loanCurrency === 'CNY') {
         const balance = calcBalance(loan);
@@ -1096,10 +1544,244 @@ export default function HSBCPanelPage() {
       return acc;
     },
     { totalBalance: 0, totalPastdue: 0 }
-  ), [statsLoans]);
+  );
 
+  // 分页
   const totalPages = Math.ceil(sortedFilteredLoans.length / pageSize);
   const paginatedLoans = sortedFilteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // 处理文件上传 - 上传到后端解析（支持加密文件）
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('password', 'amazon246');
+
+      const response = await fetch('/api/hsbc/parse', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        toast.error(result.error || '文件解析失败');
+        return;
+      }
+
+      const parsedLoans: HSBCLoan[] = (result.loans || []).map((loan: Record<string, string | number>) => ({
+        id: String(loan.loanReference || Math.random().toString(36).slice(2)),
+        loanReference: String(loan.loanReference || ''),
+        merchantId: String(loan.merchantId || ''),
+        borrowerName: String(loan.borrowerName || ''),
+        loanStartDate: String(loan.loanStartDate || ''),
+        loanCurrency: (String(loan.loanCurrency || 'CNY')).toUpperCase() as 'CNY' | 'USD',
+        loanAmount: Number(loan.loanAmount) || 0,
+        loanInterest: String(loan.loanInterest || ''),
+        totalInterestRate: Number(loan.totalInterestRate) || 0,
+        loanTenor: String(loan.loanTenor || ''),
+        maturityDate: String(loan.maturityDate || ''),
+        repaymentSchedule: typeof loan.repaymentSchedule === 'string' 
+          ? JSON.parse(loan.repaymentSchedule || '[]') 
+          : (loan.repaymentSchedule || []),
+        balance: Number(loan.balance) || 0,
+        pastdueAmount: Number(loan.pastdueAmount) || 0,
+        batchDate: String(loan.batchDate || ''),
+        freezeAccountRequested: String(loan.freezeAccountRequested || ''),
+        forceDebitRequested: String(loan.forceDebitRequested || ''),
+        rmApproval: String(loan.rmApproval || ''),
+        dowsureFreezeConfirm: String(loan.dowsureFreezeConfirm || ''),
+        dowsureForceDebitConfirm: String(loan.dowsureForceDebitConfirm || ''),
+        remarks: String(loan.remarks || ''),
+      }));
+      if (parsedLoans.length === 0) {
+        toast.error('未能从文件中解析到有效数据，请检查文件格式');
+        return;
+      }
+
+      if (result.isEncrypted) {
+        toast.success('检测到加密文件，已自动解密');
+      }
+
+      setImportPreview(parsedLoans);
+      setShowImportConfirm(true);
+      toast.success(`已解析 ${parsedLoans.length} 条数据，请确认导入`);
+    } catch (err) {
+      console.error('文件上传错误:', err);
+      toast.error('文件上传失败，请重试');
+    }
+  };
+
+  // 处理拖拽上传
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      handleFileUpload({ target: input } as unknown as ChangeEvent<HTMLInputElement>);
+    } else {
+      toast.error('请上传 Excel 或 CSV 文件');
+    }
+  };
+
+  // 确认导入
+  const confirmImport = async () => {
+    try {
+      const response = await fetch('/api/hsbc/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loans: importPreview,
+          batchDate: importBatchDate,
+          mode: uploadMode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('导入失败');
+      }
+
+      const result = await response.json();
+
+      // 更新前端状态
+      // 重新从后端加载数据，确保持久化
+      await loadData();
+
+      // 自动选择当前导入的批次日期
+      setSelectedBatchDate(importBatchDate);
+
+      // 刷新批次日期列表
+      await fetchBatchDates();
+
+      setShowImportConfirm(false);
+      setImportPreview([]);
+      toast.success(`成功导入 ${importPreview.length} 条数据（批次日期: ${importBatchDate}）`);
+    } catch (err) {
+      console.error('导入错误:', err);
+      toast.error('导入失败，请重试');
+    }
+  };
+
+  // 处理删除批次
+  const handleDeleteBatch = (batchDate: string) => {
+    setBatchToDelete(batchDate);
+    setShowDeleteConfirm(true);
+  };
+
+  // 确认删除批次
+  const confirmDeleteBatch = async () => {
+    try {
+      const response = await fetch(`/api/hsbc/delete-batch?batchDate=${encodeURIComponent(batchToDelete)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '删除失败');
+      }
+
+      const result = await response.json();
+      
+      // 清空选择的批次日期
+      setSelectedBatchDate('');
+      
+      // 重新加载数据
+      await loadData();
+      
+      // 刷新批次日期列表
+      await fetchBatchDates();
+      
+      setShowDeleteConfirm(false);
+      setBatchToDelete('');
+      toast.success(result.message || '删除成功');
+    } catch (err) {
+      console.error('删除错误:', err);
+      toast.error(err instanceof Error ? err.message : '删除失败，请重试');
+    }
+  };
+
+  // 发送飞书提醒
+  const handleSendFeishuReminder = async () => {
+    if (!selectedBatchDate) {
+      toast.error('请先选择批次日期');
+      return;
+    }
+    setSendingReminder(true);
+    try {
+      const response = await fetch('/api/feishu-reminders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batchDate: selectedBatchDate,
+          days: reminderDays,
+          calcDate: selectedCalcDate,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '发送提醒失败');
+      }
+      const result = await response.json();
+      setShowReminderSuccess(true);
+      setTimeout(() => setShowReminderSuccess(false), 3000);
+      toast.success(`成功发送${result.data?.sentCount || 0}条提醒`);
+    } catch (err) {
+      console.error('发送飞书提醒错误:', err);
+      toast.error(err instanceof Error ? err.message : '发送提醒失败，请重试');
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  // 获取批次日期列表
+  const fetchBatchDates = async () => {
+    try {
+      const response = await fetch('/api/hsbc/batch-dates');
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableBatchDates(data.data || []);
+      }
+    } catch (err) {
+      console.error('获取批次日期失败:', err);
+    }
+  };
+
+  // 下载模板
+  const downloadTemplate = () => {
+    const headers = [
+      'Loan Reference', 'Merchant ID', 'Borrower Name', 'Loan Start Date',
+      'Loan Currency', 'Loan Amount', 'Loan Interest', 'Total Interest Rate',
+      'Loan Tenor', 'Maturity Date', 'Balance', 'Pastdue amount'
+    ];
+    const csv = headers.join(',') + '\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hsbc_loan_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('模板下载成功');
+  };
 
   if (loading) {
     return (
@@ -1113,12 +1795,14 @@ export default function HSBCPanelPage() {
 
   return (
     <div className="p-6 space-y-4">
+      {/* 页面标题 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">汇丰贷款管理</h1>
           <p className="text-slate-500 text-sm mt-1">管理汇丰银行贷后案件全流程</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* 批次日期选择与删除 */}
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-slate-500" />
             <select
@@ -1150,6 +1834,7 @@ export default function HSBCPanelPage() {
         </div>
       </div>
 
+      {/* ============ 汇丰仪表盘 ============ */}
       <Collapsible open={expandedSections.dashboard} onOpenChange={() => toggleSection('dashboard')}>
         <Card className="border-l-4 border-l-blue-500">
           <CollapsibleTrigger asChild>
@@ -1172,6 +1857,7 @@ export default function HSBCPanelPage() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
+              {/* 标题说明和币种选择 */}
               <div className="flex items-center justify-between mb-4">
                 <div className="text-sm text-slate-500">
                   <span className="font-semibold">汇丰（香港）数据</span>（汇率1USD=7CNY）
@@ -1299,6 +1985,9 @@ export default function HSBCPanelPage() {
                 </div>
               </div>
 
+
+
+              {/* ============ 汇丰贷款笔数口径 ============ */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <button
@@ -1315,6 +2004,7 @@ export default function HSBCPanelPage() {
                 </div>
                 {expandedCardRows.row1 && (
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {/* 1. 汇丰贷款笔数口径 */}
                   <div 
                     className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
@@ -1327,6 +2017,7 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
+                  {/* 2. 逾期天数>0天 */}
                   <div 
                     className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
@@ -1340,6 +2031,7 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
+                  {/* 3. 逾期天数>30天 */}
                   <div 
                     className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
@@ -1353,6 +2045,7 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
+                  {/* 4. 逾期天数>90天 */}
                   <div 
                     className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
@@ -1366,6 +2059,7 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
+                  {/* 5. 含预警商户 */}
                   <div 
                     className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
@@ -1381,6 +2075,7 @@ export default function HSBCPanelPage() {
                 )}
               </div>
 
+              {/* 核心指标 - 根据币种选择显示 */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <button
@@ -1396,83 +2091,1256 @@ export default function HSBCPanelPage() {
                   <span className="text-sm text-slate-500">核心指标</span>
                 </div>
                 {expandedCardRows.row2 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {/* 1. 在贷总额 */}
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'totalBalance' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('totalBalance')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">在贷总额(折CNY)</div>
+                    <div className="text-xl font-bold">¥{((stats?.totalBalance || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
+                      <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'totalBalanceUSD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('totalBalance')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">在贷总额(折USD)</div>
+                    <div className="text-xl font-bold">${((stats?.totalBalanceUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>贷款笔数: {stats?.totalBalanceLoanCount || 0}笔</div>
+                      <div>商户数: {stats?.totalBalanceMerchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. 逾期总额(逾期>0天) */}
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue0')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over0Days?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-red-600 to-red-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue0')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.overdueByDays?.over0Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. 逾期总额(逾期>30天) */}
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue30')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over30Days?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-orange-600 to-orange-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue30')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.overdueByDays?.over30Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. 逾期总额(逾期>90天) */}
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue90')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
+                    </div>
+                    <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over90Days?.amount || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-amber-600 to-amber-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('overdue90')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      逾期总额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
+                    </div>
+                    <div className="text-xl font-bold">${((stats?.overdueByDays?.over90Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
+                      <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
+                      <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. 预警金额 */}
+                {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warning' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('warning')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      预警金额(CNY)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">
+                        {customWarningMerchants.length > 0 ? '含自定义预警商户' : '逾期商户未到期'}
+                      </span>
+                    </div>
+                    <div className="text-xl font-bold">¥{(warningStats.amountCNY / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>未到期笔数: {warningStats.loanCount}笔</div>
+                      <div>商户数: {warningStats.merchantCount}个</div>
+                    </div>
+                  </div>
+                )}
+
+                {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                  <div 
+                    className={`bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warningUSD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    onClick={() => handleCardClick('warning')}
+                  >
+                    <div className="text-sm opacity-80 mb-1">
+                      预警金额(USD)
+                      <span className="ml-1 text-xs bg-white/20 px-1 rounded">
+                        {customWarningMerchants.length > 0 ? '含自定义预警商户' : '逾期商户未到期'}
+                      </span>
+                    </div>
+                    <div className="text-xl font-bold">${(warningStats.amountUSD / 10000).toFixed(2)}万</div>
+                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                      <div>未到期笔数: {warningStats.loanCount}笔</div>
+                      <div>商户数: {warningStats.merchantCount}个</div>
+                    </div>
+                  </div>
+                )}
+                </div>
+                )}
+              </div>
+
+              {/* ============ 贷后数据卡片 ============ */}
+              <div className="mt-6 border-t border-slate-200 pt-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => toggleCardRow('row3')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row3 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">贷后数据</span>
+                </div>
+                {expandedCardRows.row3 && repaymentStats?.stats ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 未逾期还款 */}
                     <div 
-                      className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
-                      onClick={() => handleCardClick('totalBalance')}
+                      className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'ontime' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('ontime')}
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Building2 className="w-5 h-5 opacity-90" />
-                        <span className="text-sm font-medium opacity-90">在贷总额</span>
+                      <div className="text-sm opacity-90 mb-2">
+                        <span className="inline-flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                          未逾期还款
+                        </span>
+                        {activeRepaymentCard === 'ontime' && (
+                          <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
+                        )}
                       </div>
-                      <div className="text-2xl font-bold">
-                        {dashboardCurrency === 'CNY' 
-                          ? formatCurrency(stats?.totalBalance || 0, 'CNY')
-                          : dashboardCurrency === 'USD'
-                            ? formatCurrency(stats?.totalBalanceUSD || 0, 'USD')
-                            : `${formatCurrency(stats?.totalBalanceUSD || 0, 'USD')} / ${formatCurrency(stats?.totalBalance || 0, 'CNY')}`
-                        }
+                      
+                      {/* 合计显示区域 */}
+                      <div className="border-b border-white/20 pb-3 mb-3">
+                        {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                          <div className="mb-1">
+                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.ontimeRepayment.totalAmountCNYWan}万</div>
+                          </div>
+                        )}
+                        {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.ontimeRepayment.totalAmountUSDWan}万</div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm opacity-80 mt-1">
-                        {stats?.totalBalanceLoanCount || 0} 笔贷款 / {stats?.totalBalanceMerchantCount || 0} 商户
+                      
+                      {/* 原有内容区域 */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-8">
+                          <div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.ontimeRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.ontimeRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
+                        </div>
+                        <div className="text-xs opacity-70 text-right space-y-1">
+                          <div>还款笔数: {repaymentStats.stats.ontimeRepayment.count}笔</div>
+                          <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount}笔</div>
+                        </div>
                       </div>
                     </div>
 
+                    {/* 逾期后还款 */}
                     <div 
-                      className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
-                      onClick={() => handleCardClick('overdue0')}
+                      className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'overdue' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('overdue')}
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertTriangle className="w-5 h-5 opacity-90" />
-                        <span className="text-sm font-medium opacity-90">逾期&gt;0天</span>
+                      <div className="text-sm opacity-90 mb-2">
+                        <span className="inline-flex items-center gap-1">
+                          <AlertTriangle className="w-4 h-4" />
+                          逾期后还款
+                        </span>
+                        {activeRepaymentCard === 'overdue' && (
+                          <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
+                        )}
                       </div>
-                      <div className="text-2xl font-bold">
-                        {dashboardCurrency === 'CNY' 
-                          ? formatCurrency(stats?.totalPastdueAmount || 0, 'CNY')
-                          : dashboardCurrency === 'USD'
-                            ? formatCurrency(stats?.totalPastdueAmountUSD || 0, 'USD')
-                            : `${formatCurrency(stats?.totalPastdueAmountUSD || 0, 'USD')} / ${formatCurrency(stats?.totalPastdueAmount || 0, 'CNY')}`
-                        }
+                      
+                      {/* 合计显示区域 */}
+                      <div className="border-b border-white/20 pb-3 mb-3">
+                        {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                          <div className="mb-1">
+                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.overdueRepayment.totalAmountCNYWan}万</div>
+                          </div>
+                        )}
+                        {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.overdueRepayment.totalAmountUSDWan}万</div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm opacity-80 mt-1">
-                        逾期率: {((stats?.overdueRate || 0) * 100).toFixed(2)}%
+                      
+                      {/* 原有内容区域 */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-8">
+                          <div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.overdueRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.overdueRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
+                        </div>
+                        <div className="text-xs opacity-70 text-right space-y-1">
+                          <div>还款笔数: {repaymentStats.stats.overdueRepayment.count}笔</div>
+                          <div>涉及贷款: {repaymentStats.stats.overdueRepayment.loanCount}笔</div>
+                        </div>
                       </div>
                     </div>
 
+                    {/* 还款总额 */}
                     <div 
-                      className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg cursor-pointer"
-                      onClick={() => handleCardClick('warning')}
+                      className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'total' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('total')}
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <Wallet className="w-5 h-5 opacity-90" />
-                        <span className="text-sm font-medium opacity-90">预警金额</span>
+                      <div className="text-sm opacity-90 mb-2">
+                        <span className="inline-flex items-center gap-1">
+                          <DollarSign className="w-4 h-4" />
+                          还款总额
+                        </span>
+                        {activeRepaymentCard === 'total' && (
+                          <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
+                        )}
                       </div>
-                      <div className="text-2xl font-bold">
-                        {dashboardCurrency === 'CNY' 
-                          ? formatCurrency(warningStats.amountCNY, 'CNY')
-                          : dashboardCurrency === 'USD'
-                            ? formatCurrency(warningStats.amountUSD, 'USD')
-                            : `${formatCurrency(warningStats.amountUSD, 'USD')} / ${formatCurrency(warningStats.amountCNY, 'CNY')}`
-                        }
+                      
+                      {/* 合计显示区域 */}
+                      <div className="border-b border-white/20 pb-3 mb-3">
+                        {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                          <div className="mb-1">
+                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.totalRepayment.totalAmountCNYWan}万</div>
+                          </div>
+                        )}
+                        {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                          <div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.totalRepayment.totalAmountUSDWan}万</div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm opacity-80 mt-1">
-                        {warningStats.loanCount} 笔贷款 / {warningStats.merchantCount} 商户
+                      
+                      {/* 原有内容区域 */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-8">
+                          <div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.totalRepayment.amountCNYWan}万</div>
+                            <div className="text-xs opacity-70">CNY</div>
+                          </div>
+                          <div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.totalRepayment.amountUSDWan}万</div>
+                            <div className="text-xs opacity-70">USD</div>
+                          </div>
+                        </div>
+                        <div className="text-xs opacity-70 text-right space-y-1">
+                          <div>总还款笔数: {repaymentStats.stats.ontimeRepayment.count + repaymentStats.stats.overdueRepayment.count}笔</div>
+                          <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount + repaymentStats.stats.overdueRepayment.loanCount}笔</div>
+                        </div>
                       </div>
                     </div>
+                  </div>
+                ) : expandedCardRows.row3 && (
+                  <div className="text-center py-8 text-slate-500">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>暂无还款数据</p>
+                    <p className="text-xs">请选择月份查看该月的还款情况</p>
+                  </div>
+                )}
+              </div>
 
-                    <div 
-                      className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <TrendingUp className="w-5 h-5 opacity-90" />
-                        <span className="text-sm font-medium opacity-90">即将到期</span>
+              {/* 还款期限分布 - 根据币种选择显示 */}
+              <div className="mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => toggleCardRow('row4')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row4 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">还款期限分布</span>
+                </div>
+                {expandedCardRows.row4 && (
+                  <div className="grid grid-cols-1 gap-4">
+                  {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      {/* 3天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due3' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due3')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">3天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[3]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
+                        </div>
                       </div>
-                      <div className="text-2xl font-bold">
-                        {formatCurrency(stats?.approachingMaturityAmount || 0, 'CNY')}
+
+                      {/* 7天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due7' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due7')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">7天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[7]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
+                        </div>
                       </div>
-                      <div className="text-sm opacity-80 mt-1">
-                        30天内到期
+
+                      {/* 15天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due15' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due15')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">15天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[15]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
+                        </div>
                       </div>
+
+                      {/* 30天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due30')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">30天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[30]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 45天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due45' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due45')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">45天内需还款(折CNY)</div>
+                        <div className="text-xl font-bold">
+                          ¥{((stats?.repaymentDue?.[45]?.cnyAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      {/* 3天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-teal-600 to-teal-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due3USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due3')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">3天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[3]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[3]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[3]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 7天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-cyan-600 to-cyan-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due7USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due7')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">7天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[7]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[7]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[7]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 15天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due15USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due15')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">15天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[15]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[15]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[15]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 30天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due30')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">30天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[30]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[30]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[30]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+
+                      {/* 45天内 */}
+                      <div 
+                        className={`bg-gradient-to-br from-violet-600 to-violet-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'due45USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                        onClick={() => handleCardClick('due45')}
+                      >
+                        <div className="text-sm opacity-80 mb-1">45天内需还款(折USD)</div>
+                        <div className="text-xl font-bold">
+                          ${((stats?.repaymentDue?.[45]?.usdAmount || 0) / 10000).toFixed(2)}万
+                        </div>
+                        <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                          <div>贷款笔数: {stats?.repaymentDue?.[45]?.count || 0}笔</div>
+                          <div>商户数: {stats?.repaymentDue?.[45]?.merchantCount || 0}个</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                )}
+              </div>
+
+              {/* 逾期趋势分析图表 */}
+              <div className="mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => toggleCardRow('row5')}
+                    className="p-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    {expandedCardRows.row5 ? (
+                      <ChevronDown className="w-4 h-4 text-slate-500" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-slate-500" />
+                    )}
+                  </button>
+                  <span className="text-sm text-slate-500">逾期趋势分析</span>
+                </div>
+                {expandedCardRows.row5 && (
+                <div className="bg-white rounded-lg border p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5" />
+                      逾期趋势分析
+                    </h3>
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-500">计算口径:</span>
+                        <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+                          <button
+                            onClick={() => setChartCurrency('CNY')}
+                            className={`px-3 py-1.5 text-sm transition-colors ${
+                              chartCurrency === 'CNY'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            折CNY
+                          </button>
+                          <button
+                            onClick={() => setChartCurrency('USD')}
+                            className={`px-3 py-1.5 text-sm transition-colors border-l border-slate-200 ${
+                              chartCurrency === 'USD'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            折USD
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setOverdueThreshold(0)}
+                          className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                            overdueThreshold === 0
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          逾期 {`>`} 0天
+                        </button>
+                        <button
+                          onClick={() => setOverdueThreshold(30)}
+                          className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                            overdueThreshold === 30
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          逾期 {`>`} 30天
+                        </button>
+                        <button
+                          onClick={() => setOverdueThreshold(90)}
+                          className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                            overdueThreshold === 90
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          逾期 {`>`} 90天
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart
+                        data={overdueTrendData}
+                        margin={{ top: 20, right: 60, left: 20, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="batchDate"
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <YAxis
+                          yAxisId="left"
+                          tickFormatter={(value) => chartCurrency === 'CNY' ? `¥${value.toFixed(0)}万` : `$${value.toFixed(0)}万`}
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <YAxis
+                          yAxisId="right"
+                          orientation="right"
+                          tickFormatter={(value) => `${value.toFixed(1)}%`}
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => {
+                            if (name === 'overdueAmount') {
+                              const symbol = chartCurrency === 'CNY' ? '¥' : '$';
+                              return [`${symbol}${value.toFixed(2)}万`, '逾期总额'];
+                            }
+                            if (name === 'overdueRate') return [`${value.toFixed(2)}%`, '逾期率'];
+                            return [value, name];
+                          }}
+                          contentStyle={{
+                            backgroundColor: 'white',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                          }}
+                        />
+                        <Legend
+                          wrapperStyle={{ fontSize: '12px' }}
+                        />
+                        <Bar
+                          yAxisId="left"
+                          dataKey="overdueAmount"
+                          name={`逾期总额 (${chartCurrency})`}
+                          fill="#ef4444"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        >
+                          <LabelList
+                            dataKey="overdueAmount"
+                            position="top"
+                            formatter={(value: number) => {
+                              const symbol = chartCurrency === 'CNY' ? '¥' : '$';
+                              return `${symbol}${value.toFixed(2)}万`;
+                            }}
+                            fill="#ef4444"
+                            fontSize={12}
+                            style={{ fontWeight: 600 }}
+                          />
+                        </Bar>
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="overdueRate"
+                          name="逾期率 (%)"
+                          stroke="#f97316"
+                          strokeWidth={2}
+                          dot={{ fill: '#f97316', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                )}
+              </div>
+
+
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* ============ 汇丰案件列表 ============ */}
+      <div ref={casesListRef}>
+        <Collapsible open={expandedSections.loans} onOpenChange={() => toggleSection('loans')}>
+          <Card className="border-l-4 border-l-emerald-500">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
+                  汇丰案件列表
+                  <Badge variant="secondary" className="ml-2">
+                    {filteredLoans.length} 条记录
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-700">
+                      USD余额: ${(usdStats.totalBalance / 10000).toFixed(2)}万
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 border-red-300 text-red-700">
+                      USD逾期: ${(usdStats.totalPastdue / 10000).toFixed(2)}万
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-50 border-blue-300 text-blue-700">
+                      CNY余额: ¥{(cnyStats.totalBalance / 10000).toFixed(2)}万
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50 border-red-300 text-red-700">
+                      CNY逾期: ¥{(cnyStats.totalPastdue / 10000).toFixed(2)}万
+                    </Badge>
+                  {activeCardFilter && (
+                    <Badge variant="outline" className="ml-2 bg-yellow-50 border-yellow-400 text-yellow-700">
+                      已筛选: {getFilterLabel(activeCardFilter)}
+                    </Badge>
+                  )}
+                  {activeRepaymentCard && (
+                    <Badge variant="outline" className="ml-2 bg-green-50 border-green-400 text-green-700">
+                      还款筛选: {activeRepaymentCard === 'ontime' ? '未逾期还款' : activeRepaymentCard === 'overdue' ? '逾期后还款' : '还款总额'}
+                      {selectedRepaymentMonth && ` (${selectedRepaymentMonth})`}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <Button variant="ghost" size="sm">
+                  {expandedSections.loans ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </Button>
+              </CardHeader>
+            </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {/* 筛选工具栏 */}
+              <div className="flex flex-wrap gap-3 mb-4 items-center">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="搜索贷款编号/商户ID/名称/日期..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <select
+                  value={currencyFilter}
+                  onChange={(e) => setCurrencyFilter(e.target.value)}
+                  className="px-3 py-2 border rounded-lg text-sm"
+                >
+                  <option value="all">全部币种</option>
+                  <option value="CNY">CNY 人民币</option>
+                  <option value="USD">USD 美元</option>
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border rounded-lg text-sm"
+                >
+                  <option value="all">全部状态</option>
+                  <option value="normal">正常</option>
+                  <option value="overdue">逾期</option>
+                </select>
+                {/* 清除卡片筛选按钮 */}
+                {activeCardFilter && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setActiveCardFilter(null)}
+                    className="gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    清除筛选
+                  </Button>
+                )}
+                {/* 去重商户ID按钮 */}
+                <Button
+                  variant={deduplicateMerchant ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDeduplicateMerchant(!deduplicateMerchant)}
+                  className="gap-2"
+                >
+                  <Building2 className="w-4 h-4" />
+                  {deduplicateMerchant ? "已去重" : "去重商户"}
+                </Button>
+                {/* 列选择按钮 */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Columns className="w-4 h-4" />
+                      列选择
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 max-h-[400px] overflow-y-auto">
+                    <DropdownMenuLabel>显示列设置</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {ALL_COLUMNS.map((column) => (
+                      <DropdownMenuCheckboxItem
+                        key={column.key}
+                        checked={visibleColumns.includes(column.key)}
+                        onCheckedChange={() => toggleColumn(column.key)}
+                      >
+                        {column.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={resetColumns}>
+                      重置为默认
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* 表格 */}
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      {visibleColumns.includes('loanReference') && (
+                        <TableHead className="w-[140px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanReference')}>
+                          <div className="flex items-center gap-1">
+                            贷款编号
+                            {sortField === 'loanReference' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('merchantId') && (
+                        <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('merchantId')}>
+                          <div className="flex items-center gap-1">
+                            商户ID
+                            {sortField === 'merchantId' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('salesName') && (
+                        <TableHead className="cursor-pointer hover:bg-slate-100">
+                          <div className="flex items-center gap-1">
+                            销售
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('borrowerName') && (
+                        <TableHead className="w-[250px] cursor-pointer hover:bg-slate-100" onClick={() => handleSort('borrowerName')}>
+                          <div className="flex items-center gap-1">
+                            借款人名称
+                            {sortField === 'borrowerName' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('loanCurrency') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanCurrency')}>
+                          <div className="flex items-center justify-center gap-1">
+                            币种
+                            {sortField === 'loanCurrency' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('loanStartDate') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanStartDate')}>
+                          <div className="flex items-center justify-center gap-1">
+                            贷款日期
+                            {sortField === 'loanStartDate' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('maturityDate') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('maturityDate')}>
+                          <div className="flex items-center justify-center gap-1">
+                            到期日
+                            {sortField === 'maturityDate' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('loanAmount') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('loanAmount')}>
+                          <div className="flex items-center justify-end gap-1">
+                            贷款金额
+                            {sortField === 'loanAmount' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('balance') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('balance')}>
+                          <div className="flex items-center justify-end gap-1">
+                            余额
+                            {sortField === 'balance' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('pastdueAmount') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('pastdueAmount')}>
+                          <div className="flex items-center justify-end gap-1">
+                            逾期金额
+                            {sortField === 'pastdueAmount' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('overdueDays') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('overdueDays')}>
+                          <div className="flex items-center justify-end gap-1">
+                            逾期天数
+                            {sortField === 'overdueDays' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('totalRepaid') && (
+                        <TableHead className="text-right cursor-pointer hover:bg-slate-100" onClick={() => handleSort('totalRepaid')}>
+                          <div className="flex items-center justify-end gap-1">
+                            已还款总额
+                            {sortField === 'totalRepaid' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      {visibleColumns.includes('status') && (
+                        <TableHead className="text-center cursor-pointer hover:bg-slate-100" onClick={() => handleSort('status')}>
+                          <div className="flex items-center justify-center gap-1">
+                            状态
+                            {sortField === 'status' ? (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />) : <ArrowUpDown className="h-4 w-4 opacity-50" />}
+                          </div>
+                        </TableHead>
+                      )}
+                      <TableHead className="text-center">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLoans.map((loan) => (
+                      <TableRow key={loan.id} className="hover:bg-slate-50">
+                        {visibleColumns.includes('loanReference') && (
+                          <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
+                        )}
+                        {visibleColumns.includes('merchantId') && (
+                          <TableCell className="font-mono">{loan.merchantId}</TableCell>
+                        )}
+                        {visibleColumns.includes('salesName') && (
+                          <TableCell>
+                            {merchantSalesMappings.find(m => m.merchantId === loan.merchantId)?.salesName || '-'}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('borrowerName') && (
+                          <TableCell className="max-w-[250px] truncate">{loan.borrowerName}</TableCell>
+                        )}
+                        {visibleColumns.includes('loanCurrency') && (
+                          <TableCell className="text-center">
+                            <Badge variant="outline">{loan.loanCurrency}</Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('loanStartDate') && (
+                          <TableCell className="text-center text-sm">{loan.loanStartDate}</TableCell>
+                        )}
+                        {visibleColumns.includes('maturityDate') && (
+                          <TableCell className="text-center text-sm">{loan.maturityDate}</TableCell>
+                        )}
+                        {visibleColumns.includes('loanAmount') && (
+                          <TableCell className="text-right font-mono tabular-nums">
+                            {formatCurrency(loan.loanAmount, loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('balance') && (
+                          <TableCell className="text-right font-mono tabular-nums">
+                            {formatCurrency(calcBalance(loan), loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('pastdueAmount') && (
+                          <TableCell className={`text-right font-mono tabular-nums ${(loan.pastdueAmount ?? 0) > 0 ? 'text-red-600 font-semibold' : ''}`}>
+                            {formatCurrency((loan.pastdueAmount ?? 0), loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('overdueDays') && (
+                          <TableCell className={`text-right font-mono tabular-nums ${((loan.overdueDays ?? -1) > 0) && !(calcBalance(loan) <= 0.01) ? 'text-red-600 font-semibold' : ''}`}>
+                            {calcBalance(loan) <= 0.01 ? '正常' : ((loan.overdueDays ?? -1) > 0 ? `${loan.overdueDays}天` : '正常')}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('totalRepaid') && (
+                          <TableCell className="text-right font-mono tabular-nums text-blue-600">
+                            {formatCurrency(calcTotalRepaid(loan), loan.loanCurrency)}
+                          </TableCell>
+                        )}
+                        {visibleColumns.includes('status') && (
+                          <TableCell className="text-center">
+                            {((loan.overdueDays ?? -1) > 0) && !(calcBalance(loan) <= 0.01) ? (
+                              <Badge className="bg-red-100 text-red-700 border-red-200">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                逾期
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                正常
+                              </Badge>
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">操作</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="center">
+                              <DropdownMenuItem onClick={() => setSelectedLoan(loan)}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                查看详情
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {paginatedLoans.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={visibleColumns.length} className="text-center py-8 text-slate-500">
+                          暂无数据
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* 分页 */}
+              <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">
+                    共 {sortedFilteredLoans.length} 条，第 {currentPage} / {totalPages || 1} 页
+                  </span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm bg-background"
+                  >
+                    <option value={20}>20条/页</option>
+                    <option value={50}>50条/页</option>
+                    <option value={100}>100条/页</option>
+                    <option value={500}>500条/页</option>
+                    <option value={1000}>1000条/页</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    上一页
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+      </div>
+
+      {/* ============ 汇丰数据导入 ============ */}
+      <Collapsible open={expandedSections.upload} onOpenChange={() => toggleSection('upload')}>
+        <Card className="border-l-4 border-l-amber-500">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5 text-amber-500" />
+                汇丰数据导入
+                <Badge variant="secondary" className="ml-2">
+                  支持 Excel/CSV
+                </Badge>
+              </CardTitle>
+              <Button variant="ghost" size="sm">
+                {expandedSections.upload ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 上传区域 */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragging
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-300 hover:border-blue-400'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <Upload className="w-12 h-12 mx-auto mb-4 text-slate-400" />
+                  <p className="text-lg font-medium text-slate-700 mb-2">
+                    拖拽文件到此处或点击上传
+                  </p>
+                  <p className="text-sm text-slate-500 mb-4">
+                    支持 .xlsx, .xls, .csv 格式
+                  </p>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload">
+                    <Button asChild className="cursor-pointer">
+                      <span>选择文件</span>
+                    </Button>
+                  </label>
+                </div>
+
+                {/* 导入选项 */}
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-slate-700 mb-2">导入模式</h4>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input
+                          type="radio"
+                          name="uploadMode"
+                          value="replace"
+                          checked={uploadMode === 'replace'}
+                          onChange={(e) => setUploadMode(e.target.value as 'replace' | 'merge')}
+                          className="text-blue-600"
+                        />
+                        <div>
+                          <div className="font-medium">覆盖导入</div>
+                          <div className="text-sm text-slate-500">清空现有数据，导入新数据</div>
+                        </div>
+                      </label>
+                      <label className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-slate-50">
+                        <input
+                          type="radio"
+                          name="uploadMode"
+                          value="merge"
+                          checked={uploadMode === 'merge'}
+                          onChange={(e) => setUploadMode(e.target.value as 'replace' | 'merge')}
+                          className="text-blue-600"
+                        />
+                        <div>
+                          <div className="font-medium">增量导入</div>
+                          <div className="text-sm text-slate-500">保留现有数据，追加新数据</div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="w-full" onClick={downloadTemplate}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    下载导入模板
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* ============ 预警商户管理 ============ */}
+      <Collapsible open={expandedSections.warningMerchants} onOpenChange={() => toggleSection('warningMerchants')}>
+        <Card className="border-l-4 border-l-purple-500">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-slate-50 transition-colors flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-purple-500" />
+                预警商户管理
+                {customWarningMerchants.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {customWarningMerchants.length} 个商户
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button variant="ghost" size="sm">
+                {expandedSections.warningMerchants ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <div className="space-y-4">
+                {/* 输入区域 */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={warningMerchantInput}
+                    onChange={(e) => setWarningMerchantInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addWarningMerchants()}
+                    placeholder="输入商户ID（多个用空格隔开）"
+                    className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 bg-background"
+                  />
+                  <button
+                    onClick={addWarningMerchants}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    添加
+                  </button>
+                </div>
+                
+                {/* 已添加的商户列表 */}
+                {customWarningMerchants.length > 0 && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      已添加 {customWarningMerchants.length} 个预警商户：
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {customWarningMerchants.map((merchant) => (
+                        <div
+                          key={merchant.id}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-full"
+                        >
+                          <span className="font-mono text-sm text-purple-700">{merchant.id}</span>
+                          <span className="text-xs text-purple-600 truncate max-w-[200px]">{merchant.name}</span>
+                          <button
+                            onClick={() => removeWarningMerchant(merchant.id)}
+                            className="ml-1 text-purple-400 hover:text-purple-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1481,6 +3349,413 @@ export default function HSBCPanelPage() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* ============ 还款日期筛选 ============ */}
+      <Card className="border-l-4 border-l-cyan-500 mt-4 bg-gradient-to-r from-cyan-50 to-white">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-cyan-500" />
+            <CardTitle className="text-lg">还款日期筛选</CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            选择还款日期，自动显示该日期的所有还款记录
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
+              <input
+                type="date"
+                value={repaymentDate}
+                onChange={(e) => setRepaymentDate(e.target.value)}
+                className="w-full h-10 px-3 text-sm border border-cyan-200 rounded-md bg-white hover:border-cyan-500 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+            </div>
+            <div className="w-[200px]">
+              <label className="text-sm font-medium text-slate-600 mb-1.5 block">筛选类型</label>
+              <Select value={repaymentFilterType} onValueChange={(v) => setRepaymentFilterType(v as RepaymentFilterType)}>
+                <SelectTrigger className="bg-white border-cyan-200 focus:border-cyan-500">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部还款</SelectItem>
+                  <SelectItem value="on_time">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>未逾期还款</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="late">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>逾期后还款</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {filteredRepaymentResults.length > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleExportRepayments}
+                className="border-cyan-300 text-cyan-600 hover:bg-cyan-50"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                导出Excel
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 还款记录结果 */}
+      {showRepaymentCard && (
+        <Card className="mt-4 border-t-4 border-t-cyan-400 shadow-lg">
+          <CardHeader>
+            <div className="flex items-center justify-end">
+              <Button variant="ghost" size="sm" onClick={() => { setShowRepaymentCard(false); setRepaymentDate(''); }}>
+                关闭
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {repaymentLoading ? (
+              <div className="flex items-center justify-center py-12 text-slate-500">
+                <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mr-3" />
+                <span>正在加载还款记录...</span>
+              </div>
+            ) : !repaymentDate ? (
+              <div className="text-center py-12 text-slate-400">
+                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-lg">请选择还款日期</p>
+                <p className="text-sm">选择日期后自动显示该日期的还款记录</p>
+              </div>
+            ) : filteredRepaymentResults.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="text-lg">未找到还款记录</p>
+                <p className="text-sm">该日期暂无还款记录</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* 统计摘要 */}
+                <div className={`grid gap-3 ${
+                  repaymentFilterType === 'all' 
+                    ? 'grid-cols-4' 
+                    : 'grid-cols-3'
+                }`}>
+                  {(repaymentFilterType !== 'late') && (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <div>
+                        <div className="text-xs text-green-600 font-medium">未逾期还款</div>
+                        <div className="text-lg font-bold text-green-700 font-mono">
+                          {filteredRepaymentResults.filter(r => !r.isOverdue).length} 条
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {(repaymentFilterType !== 'on_time') && (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl border border-amber-200">
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <div className="text-xs text-amber-600 font-medium">逾期后还款</div>
+                        <div className="text-lg font-bold text-amber-700 font-mono">
+                          {filteredRepaymentResults.filter(r => r.isOverdue).length} 条
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-xl border border-emerald-200">
+                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                    <div>
+                      <div className="text-xs text-emerald-600 font-medium">美元还款</div>
+                      <div className="text-lg font-bold text-emerald-700 font-mono">
+                        {formatCurrency(
+                          filteredRepaymentResults.filter(r => r.currency === 'USD').reduce((sum, r) => sum + r.amount, 0),
+                          'USD'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-50 to-red-100 rounded-xl border border-red-200">
+                    <Coins className="w-5 h-5 text-red-600" />
+                    <div>
+                      <div className="text-xs text-red-600 font-medium">人民币还款</div>
+                      <div className="text-lg font-bold text-red-700 font-mono">
+                        {formatCurrency(
+                          filteredRepaymentResults.filter(r => r.currency === 'CNY').reduce((sum, r) => sum + r.amount, 0),
+                          'CNY'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 还款记录表格 */}
+                <div className="max-h-[400px] overflow-y-auto border border-slate-200 rounded-xl">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-slate-50">
+                      <TableRow className="hover:bg-slate-50">
+                        <TableHead className="font-semibold">还款订单号</TableHead>
+                        <TableHead className="font-semibold">贷款编号</TableHead>
+                        <TableHead className="font-semibold">借款人</TableHead>
+                        <TableHead className="font-semibold">计划还款日</TableHead>
+                        <TableHead className="font-semibold">到期日期</TableHead>
+                        <TableHead className="font-semibold">实际还款日</TableHead>
+                        <TableHead className="font-semibold text-right">还款金额</TableHead>
+                        <TableHead className="font-semibold text-center">状态</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRepaymentResults.map((record, idx) => (
+                        <TableRow key={idx} className="hover:bg-slate-50/50">
+                          <TableCell className="font-mono text-sm text-slate-600">
+                            {record.actualDate.replace(/-/g, '')}_{idx + 1}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm font-medium">
+                            {record.loanReference}
+                          </TableCell>
+                          <TableCell className="text-sm">{record.borrowerName}</TableCell>
+                          <TableCell className="text-sm text-slate-500">{record.dueDate}</TableCell>
+                          <TableCell className="text-sm text-slate-500">{record.maturityDate}</TableCell>
+                          <TableCell className="text-sm font-medium">{record.actualDate}</TableCell>
+                          <TableCell className="text-right font-mono font-medium">
+                            {formatCurrency(record.amount, record.currency)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {record.isOverdue ? (
+                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                逾期后
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                按时
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 导入确认弹窗 */}
+      <Dialog open={showImportConfirm} onOpenChange={setShowImportConfirm}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>确认导入数据</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+          <div className="flex items-center gap-4 mb-4">
+            <p className="text-sm text-slate-600">
+              共 {importPreview.length} 条数据，确认导入？
+            </p>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">批次日期：</label>
+              <input
+                type="date"
+                value={importBatchDate}
+                onChange={(e) => setImportBatchDate(e.target.value)}
+                className="border rounded-md px-3 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>贷款编号</TableHead>
+                    <TableHead>商户ID</TableHead>
+                    <TableHead>借款人</TableHead>
+                    <TableHead className="text-right">金额</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(importPreview || []).map((loan) => (
+                    <TableRow key={loan.id}>
+                      <TableCell className="font-mono">{loan.loanReference}</TableCell>
+                      <TableCell className="font-mono">{loan.merchantId}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{loan.borrowerName}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(loan.loanAmount, loan.loanCurrency)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowImportConfirm(false)}>
+              取消
+            </Button>
+            <Button onClick={confirmImport}>
+              确认导入
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除批次确认弹窗 */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              确认删除批次
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-slate-600">
+              您确定要删除批次 <span className="font-mono font-semibold text-slate-800">{batchToDelete}</span> 的所有数据吗？
+            </p>
+            <p className="text-sm text-slate-500 mt-2">
+              此操作不可恢复，该批次的所有贷款记录将被永久删除。
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteBatch}>
+              确认删除
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 详情弹窗 */}
+      <Dialog open={!!selectedLoan} onOpenChange={() => setSelectedLoan(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              贷款详情
+              {selectedLoan?.pastdueAmount && selectedLoan.pastdueAmount > 0 && (
+                <Badge className="bg-red-100 text-red-700">逾期</Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLoan && (
+            <div className="space-y-6">
+              {/* 基本信息 */}
+              <div>
+                <h3 className="font-semibold text-slate-700 mb-3">基本信息</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-sm text-slate-500">贷款编号</div>
+                    <div className="font-mono font-medium">{selectedLoan.loanReference}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">商户ID</div>
+                    <div className="font-mono">{selectedLoan.merchantId}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">借款人</div>
+                    <div className="truncate">{selectedLoan.borrowerName}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">币种</div>
+                    <Badge variant="outline">{selectedLoan.loanCurrency}</Badge>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">贷款金额</div>
+                    <div className="font-mono font-semibold text-lg">
+                      {formatCurrency(selectedLoan.loanAmount, selectedLoan.loanCurrency)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">在贷余额</div>
+                    <div className="font-mono">{formatCurrency(selectedLoan.balance ?? 0, selectedLoan.loanCurrency)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">逾期金额</div>
+                    <div className={`font-mono font-semibold ${(selectedLoan.pastdueAmount ?? 0) > 0 ? 'text-red-600' : ''}`}>
+                      {formatCurrency(selectedLoan.pastdueAmount ?? 0, selectedLoan.loanCurrency)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">贷款期限</div>
+                    <div>{selectedLoan.loanTenor}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 利率信息 */}
+              <div>
+                <h3 className="font-semibold text-slate-700 mb-3">利率信息</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm text-slate-500">利率描述</div>
+                    <div>{selectedLoan.loanInterest}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">总利率</div>
+                    <div className="font-semibold">{selectedLoan.totalInterestRate.toFixed(5)}%</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 日期信息 */}
+              <div>
+                <h3 className="font-semibold text-slate-700 mb-3">日期信息</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-slate-500">贷款开始日期</div>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-slate-400" />
+                      {selectedLoan.loanStartDate}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">到期日期</div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-slate-400" />
+                      {selectedLoan.maturityDate}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-500">批次日期</div>
+                    <div>{selectedLoan.batchDate}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 还款计划 */}
+              {(selectedLoan.repaymentSchedule?.length ?? 0) > 0 && (
+                <div>
+                  <h3 className="font-semibold text-slate-700 mb-3">还款计划</h3>
+                  <div className="space-y-2">
+                    {(selectedLoan.repaymentSchedule || []).map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <span className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
+                            {idx + 1}
+                          </span>
+                          <CalendarIcon className="w-4 h-4 text-slate-400" />
+                          {item.date}
+                        </span>
+                        <span className="font-mono font-medium">
+                          {formatCurrency(item.amount, selectedLoan.loanCurrency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
