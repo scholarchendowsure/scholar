@@ -200,10 +200,14 @@ export default function CaseDetailPage() {
           title: '案件跟进提醒',
           template: 'blue',
           fields: [
+            { label: '产品名称', value: caseData.productName || '-' },
+            { label: '资金方', value: caseData.funder || '-' },
+            { label: '风险等级', value: caseData.riskLevel || '-' },
             { label: '接收人', value: roleName },
-            { label: '用户ID', value: caseData.userId },
-            { label: '待还款金额', value: `${Number(balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ${currencySymbol}` },
-            { label: '还款日', value: dueDate }
+            { label: '用户ID', value: caseData.userId || '-' },
+            { label: '贷款单号', value: caseData.loanNo || '-' },
+            { label: '待还金额', value: `${Number(caseData.overdueAmount || balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ${currencySymbol}` },
+            { label: '到期日', value: dueDate }
           ],
           selects: [
             {
