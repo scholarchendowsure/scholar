@@ -2040,8 +2040,8 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 5. 含预警商户 */}
-                  <div 
-                    className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  <div
+                    className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">含预警商户</div>
                     <div className="text-sm space-y-2">
@@ -2214,8 +2214,8 @@ export default function HSBCPanelPage() {
 
                 {/* 5. 预警金额 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warning' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warning' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('warning')}
                   >
                     <div className="text-sm opacity-80 mb-1">
@@ -2233,8 +2233,8 @@ export default function HSBCPanelPage() {
                 )}
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warningUSD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'warningUSD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('warning')}
                   >
                     <div className="text-sm opacity-80 mb-1">
