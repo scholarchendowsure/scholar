@@ -2157,7 +2157,7 @@ export default function HSBCPanelPage() {
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-pink-400 to-pink-500 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue0')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2194,7 +2194,7 @@ export default function HSBCPanelPage() {
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-orange-600 to-orange-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2231,7 +2231,7 @@ export default function HSBCPanelPage() {
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-red-800 to-red-900 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-red-700 to-red-800 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue90')}
                   >
                     <div className="text-sm opacity-90 mb-1">
