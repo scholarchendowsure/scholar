@@ -2032,9 +2032,9 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
-                  {/* 2. 逾期天数>0天 */}
+                  {/* 2. 逾期天数>0天 - 粉红色 */}
                   <div 
-                    className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                    className="bg-gradient-to-br from-pink-400 to-pink-500 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">逾期天数&gt;0天</div>
                     <div className="text-sm space-y-2">
@@ -2046,7 +2046,7 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
-                  {/* 3. 逾期天数>30天 */}
+                  {/* 3. 逾期天数>30天 - 橙红色 */}
                   <div 
                     className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
@@ -2060,9 +2060,9 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
-                  {/* 4. 逾期天数>90天 */}
+                  {/* 4. 逾期天数>90天 - 深红色 */}
                   <div 
-                    className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                    className="bg-gradient-to-br from-red-700 to-red-800 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">逾期天数&gt;90天</div>
                     <div className="text-sm space-y-2">
@@ -2136,18 +2136,18 @@ export default function HSBCPanelPage() {
                   </div>
                 )}
 
-                {/* 2. 逾期总额(逾期>0天) */}
+                {/* 2. 逾期总额(逾期>0天) - 粉红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-red-500 to-red-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-pink-400 to-pink-500 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue0')}
                   >
-                    <div className="text-sm opacity-80 mb-1">
+                    <div className="text-sm opacity-90 mb-1">
                       逾期总额(CNY)
                       <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
                     </div>
                     <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over0Days?.amount || 0) / 10000).toFixed(2)}万</div>
-                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div className="text-xs opacity-80 mt-2 space-y-0.5">
                       <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
                       <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
@@ -2157,15 +2157,15 @@ export default function HSBCPanelPage() {
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-red-600 to-red-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue0')}
                   >
-                    <div className="text-sm opacity-80 mb-1">
+                    <div className="text-sm opacity-90 mb-1">
                       逾期总额(USD)
                       <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;0天</span>
                     </div>
                     <div className="text-xl font-bold">${((stats?.overdueByDays?.over0Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
-                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div className="text-xs opacity-80 mt-2 space-y-0.5">
                       <div>逾期率: {((stats?.overdueByDays?.over0Days?.rate || 0) * 100).toFixed(2)}%</div>
                       <div>逾期笔数: {stats?.overdueByDays?.over0Days?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.overdueByDays?.over0Days?.merchantCount || 0}个</div>
@@ -2173,18 +2173,18 @@ export default function HSBCPanelPage() {
                   </div>
                 )}
 
-                {/* 3. 逾期总额(逾期>30天) */}
+                {/* 3. 逾期总额(逾期>30天) - 橙红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                   <div 
                     className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
-                    <div className="text-sm opacity-80 mb-1">
+                    <div className="text-sm opacity-90 mb-1">
                       逾期总额(CNY)
                       <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
                     </div>
                     <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over30Days?.amount || 0) / 10000).toFixed(2)}万</div>
-                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div className="text-xs opacity-80 mt-2 space-y-0.5">
                       <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
                       <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
@@ -2197,12 +2197,12 @@ export default function HSBCPanelPage() {
                     className={`bg-gradient-to-br from-orange-600 to-orange-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
-                    <div className="text-sm opacity-80 mb-1">
+                    <div className="text-sm opacity-90 mb-1">
                       逾期总额(USD)
                       <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;30天</span>
                     </div>
                     <div className="text-xl font-bold">${((stats?.overdueByDays?.over30Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
-                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div className="text-xs opacity-80 mt-2 space-y-0.5">
                       <div>逾期率: {((stats?.overdueByDays?.over30Days?.rate || 0) * 100).toFixed(2)}%</div>
                       <div>逾期笔数: {stats?.overdueByDays?.over30Days?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.overdueByDays?.over30Days?.merchantCount || 0}个</div>
@@ -2210,18 +2210,18 @@ export default function HSBCPanelPage() {
                   </div>
                 )}
 
-                {/* 4. 逾期总额(逾期>90天) */}
+                {/* 4. 逾期总额(逾期>90天) - 深红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-red-700 to-red-800 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue90')}
                   >
-                    <div className="text-sm opacity-80 mb-1">
+                    <div className="text-sm opacity-90 mb-1">
                       逾期总额(CNY)
                       <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
                     </div>
                     <div className="text-xl font-bold">¥{((stats?.overdueByDays?.over90Days?.amount || 0) / 10000).toFixed(2)}万</div>
-                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div className="text-xs opacity-80 mt-2 space-y-0.5">
                       <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
                       <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
@@ -2231,15 +2231,15 @@ export default function HSBCPanelPage() {
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                   <div 
-                    className={`bg-gradient-to-br from-amber-600 to-amber-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-red-800 to-red-900 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue90')}
                   >
-                    <div className="text-sm opacity-80 mb-1">
+                    <div className="text-sm opacity-90 mb-1">
                       逾期总额(USD)
                       <span className="ml-1 text-xs bg-white/20 px-1 rounded">逾期天数&gt;90天</span>
                     </div>
                     <div className="text-xl font-bold">${((stats?.overdueByDays?.over90Days?.amountUSD || 0) / 10000).toFixed(2)}万</div>
-                    <div className="text-xs opacity-70 mt-2 space-y-0.5">
+                    <div className="text-xs opacity-80 mt-2 space-y-0.5">
                       <div>逾期率: {((stats?.overdueByDays?.over90Days?.rate || 0) * 100).toFixed(2)}%</div>
                       <div>逾期笔数: {stats?.overdueByDays?.over90Days?.loanCount || 0}笔</div>
                       <div>商户数: {stats?.overdueByDays?.over90Days?.merchantCount || 0}个</div>
