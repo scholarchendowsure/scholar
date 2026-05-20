@@ -2047,8 +2047,8 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 3. 逾期天数>30天 - 橙红色 */}
-                  <div 
-                    className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  <div
+                    className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">逾期天数&gt;30天</div>
                     <div className="text-sm space-y-2">
@@ -2175,8 +2175,8 @@ export default function HSBCPanelPage() {
 
                 {/* 3. 逾期总额(逾期>30天) - 橙红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2193,8 +2193,8 @@ export default function HSBCPanelPage() {
                 )}
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
                     <div className="text-sm opacity-90 mb-1">
