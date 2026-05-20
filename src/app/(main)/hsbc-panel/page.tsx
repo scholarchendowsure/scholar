@@ -2271,50 +2271,50 @@ export default function HSBCPanelPage() {
                 </div>
                 {expandedCardRows.row3 && repaymentStats?.stats ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* 未逾期还款 */}
+                    {/* 还款总额 */}
                     <div 
-                      className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'ontime' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                      onClick={() => handleRepaymentCardClick('ontime')}
+                      className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'total' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('total')}
                     >
                       <div className="text-sm opacity-90 mb-2">
                         <span className="inline-flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" />
-                          未逾期还款
+                          <DollarSign className="w-4 h-4" />
+                          还款总额
                         </span>
-                        {activeRepaymentCard === 'ontime' && (
+                        {activeRepaymentCard === 'total' && (
                           <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
                         )}
                       </div>
-                      
+
                       {/* 合计显示区域 */}
                       <div className="border-b border-white/20 pb-3 mb-3">
                         {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                           <div className="mb-1">
-                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.ontimeRepayment.totalAmountCNYWan}万</div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.totalRepayment.totalAmountCNYWan}万</div>
                           </div>
                         )}
                         {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                           <div>
-                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.ontimeRepayment.totalAmountUSDWan}万</div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.totalRepayment.totalAmountUSDWan}万</div>
                           </div>
                         )}
                       </div>
-                      
+
                       {/* 原有内容区域 */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-8">
                           <div>
-                            <div className="text-xl font-bold">¥{repaymentStats.stats.ontimeRepayment.amountCNYWan}万</div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.totalRepayment.amountCNYWan}万</div>
                             <div className="text-xs opacity-70">CNY</div>
                           </div>
                           <div>
-                            <div className="text-xl font-bold">${repaymentStats.stats.ontimeRepayment.amountUSDWan}万</div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.totalRepayment.amountUSDWan}万</div>
                             <div className="text-xs opacity-70">USD</div>
                           </div>
                         </div>
                         <div className="text-xs opacity-70 text-right space-y-1">
-                          <div>还款笔数: {repaymentStats.stats.ontimeRepayment.count}笔</div>
-                          <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount}笔</div>
+                          <div>总还款笔数: {repaymentStats.stats.ontimeRepayment.count + repaymentStats.stats.overdueRepayment.count}笔</div>
+                          <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount + repaymentStats.stats.overdueRepayment.loanCount}笔</div>
                         </div>
                       </div>
                     </div>
@@ -2333,7 +2333,7 @@ export default function HSBCPanelPage() {
                           <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
                         )}
                       </div>
-                      
+
                       {/* 合计显示区域 */}
                       <div className="border-b border-white/20 pb-3 mb-3">
                         {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
@@ -2347,7 +2347,7 @@ export default function HSBCPanelPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* 原有内容区域 */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-8">
@@ -2367,50 +2367,50 @@ export default function HSBCPanelPage() {
                       </div>
                     </div>
 
-                    {/* 还款总额 */}
+                    {/* 未逾期还款 */}
                     <div 
-                      className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'total' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
-                      onClick={() => handleRepaymentCardClick('total')}
+                      className={`bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeRepaymentCard === 'ontime' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                      onClick={() => handleRepaymentCardClick('ontime')}
                     >
                       <div className="text-sm opacity-90 mb-2">
                         <span className="inline-flex items-center gap-1">
-                          <DollarSign className="w-4 h-4" />
-                          还款总额
+                          <CheckCircle className="w-4 h-4" />
+                          未逾期还款
                         </span>
-                        {activeRepaymentCard === 'total' && (
+                        {activeRepaymentCard === 'ontime' && (
                           <span className="ml-2 text-xs bg-white/30 px-2 py-0.5 rounded-full">已筛选</span>
                         )}
                       </div>
-                      
+
                       {/* 合计显示区域 */}
                       <div className="border-b border-white/20 pb-3 mb-3">
                         {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                           <div className="mb-1">
-                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.totalRepayment.totalAmountCNYWan}万</div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折CNY）：¥{repaymentStats.stats.ontimeRepayment.totalAmountCNYWan}万</div>
                           </div>
                         )}
                         {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                           <div>
-                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.totalRepayment.totalAmountUSDWan}万</div>
+                            <div className="text-lg font-semibold">CNY+USD合计（折USD）：${repaymentStats.stats.ontimeRepayment.totalAmountUSDWan}万</div>
                           </div>
                         )}
                       </div>
-                      
+
                       {/* 原有内容区域 */}
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-8">
                           <div>
-                            <div className="text-xl font-bold">¥{repaymentStats.stats.totalRepayment.amountCNYWan}万</div>
+                            <div className="text-xl font-bold">¥{repaymentStats.stats.ontimeRepayment.amountCNYWan}万</div>
                             <div className="text-xs opacity-70">CNY</div>
                           </div>
                           <div>
-                            <div className="text-xl font-bold">${repaymentStats.stats.totalRepayment.amountUSDWan}万</div>
+                            <div className="text-xl font-bold">${repaymentStats.stats.ontimeRepayment.amountUSDWan}万</div>
                             <div className="text-xs opacity-70">USD</div>
                           </div>
                         </div>
                         <div className="text-xs opacity-70 text-right space-y-1">
-                          <div>总还款笔数: {repaymentStats.stats.ontimeRepayment.count + repaymentStats.stats.overdueRepayment.count}笔</div>
-                          <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount + repaymentStats.stats.overdueRepayment.loanCount}笔</div>
+                          <div>还款笔数: {repaymentStats.stats.ontimeRepayment.count}笔</div>
+                          <div>涉及贷款: {repaymentStats.stats.ontimeRepayment.loanCount}笔</div>
                         </div>
                       </div>
                     </div>
