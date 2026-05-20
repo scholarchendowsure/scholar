@@ -49,13 +49,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -1869,34 +1862,6 @@ export default function HSBCPanelPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">数据日期计算日:</span>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2">
-                          <CalendarIcon className="w-4 h-4" />
-                          {selectedCalcDate || '选择日期'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={selectedCalcDate ? new Date(selectedCalcDate) : undefined}
-                          onSelect={(date) => {
-                            if (date) {
-                              setSelectedCalcDate(format(date, 'yyyy-MM-dd'));
-                            }
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {selectedCalcDate && (
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedCalcDate('2026-04-29')}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-500">币种筛选:</span>
                     <div className="flex rounded-lg border border-slate-200 overflow-hidden">
                       <button
@@ -3371,7 +3336,7 @@ export default function HSBCPanelPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-cyan-500" />
+                <CalendarIcon className="w-5 h-5 text-cyan-500" />
                 <CardTitle className="text-lg">还款日期筛选</CardTitle>
               </div>
               <Button
@@ -3459,7 +3424,7 @@ export default function HSBCPanelPage() {
               </div>
             ) : !repaymentDate ? (
               <div className="text-center py-12 text-slate-400">
-                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-lg">请选择还款日期</p>
                 <p className="text-sm">选择日期后自动显示该日期的还款记录</p>
               </div>
