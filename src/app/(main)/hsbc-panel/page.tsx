@@ -2032,9 +2032,9 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
-                  {/* 2. 逾期天数>0天 - 粉红色 */}
-                  <div 
-                    className="bg-gradient-to-br from-pink-400 to-pink-500 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  {/* 2. 逾期天数>0天 - 浅酒红色 */}
+                  <div
+                    className="bg-gradient-to-br from-rose-400 to-rose-500 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">逾期天数&gt;0天</div>
                     <div className="text-sm space-y-2">
@@ -2046,9 +2046,9 @@ export default function HSBCPanelPage() {
                     </div>
                   </div>
 
-                  {/* 3. 逾期天数>30天 - 橙红色 */}
+                  {/* 3. 逾期天数>30天 - 酒红色 */}
                   <div
-                    className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                    className="bg-gradient-to-br from-rose-600 to-rose-700 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">逾期天数&gt;30天</div>
                     <div className="text-sm space-y-2">
@@ -2061,8 +2061,8 @@ export default function HSBCPanelPage() {
                   </div>
 
                   {/* 4. 逾期天数>90天 - 深红色 */}
-                  <div 
-                    className="bg-gradient-to-br from-red-700 to-red-800 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  <div
+                    className="bg-gradient-to-br from-red-700 to-red-900 rounded-lg p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
                   >
                     <div className="text-base font-bold opacity-90 mb-3">逾期天数&gt;90天</div>
                     <div className="text-sm space-y-2">
@@ -2136,10 +2136,10 @@ export default function HSBCPanelPage() {
                   </div>
                 )}
 
-                {/* 2. 逾期总额(逾期>0天) - 粉红色 */}
+                {/* 2. 逾期总额(逾期>0天) - 浅酒红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-pink-400 to-pink-500 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-rose-400 to-rose-500 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue0')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2156,8 +2156,8 @@ export default function HSBCPanelPage() {
                 )}
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-pink-400 to-pink-500 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-rose-400 to-rose-500 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue0USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue0')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2173,10 +2173,10 @@ export default function HSBCPanelPage() {
                   </div>
                 )}
 
-                {/* 3. 逾期总额(逾期>30天) - 橙红色 */}
+                {/* 3. 逾期总额(逾期>30天) - 酒红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
                   <div
-                    className={`bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-rose-600 to-rose-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2194,7 +2194,7 @@ export default function HSBCPanelPage() {
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
                   <div
-                    className={`bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                    className={`bg-gradient-to-br from-rose-600 to-rose-700 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue30USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue30')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2212,8 +2212,8 @@ export default function HSBCPanelPage() {
 
                 {/* 4. 逾期总额(逾期>90天) - 深红色 */}
                 {(dashboardCurrency === 'CNY' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-red-700 to-red-800 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-red-700 to-red-900 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue90')}
                   >
                     <div className="text-sm opacity-90 mb-1">
@@ -2230,8 +2230,8 @@ export default function HSBCPanelPage() {
                 )}
 
                 {(dashboardCurrency === 'USD' || dashboardCurrency === 'ALL') && (
-                  <div 
-                    className={`bg-gradient-to-br from-red-700 to-red-800 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
+                  <div
+                    className={`bg-gradient-to-br from-red-700 to-red-900 rounded-lg p-4 text-white cursor-pointer transition-all hover:scale-105 hover:shadow-lg ${activeCardFilter === 'overdue90USD' ? 'ring-4 ring-yellow-400 ring-offset-2' : ''}`}
                     onClick={() => handleCardClick('overdue90')}
                   >
                     <div className="text-sm opacity-90 mb-1">
