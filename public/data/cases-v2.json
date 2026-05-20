@@ -559,7 +559,7 @@
     "householdAddress": "广东省深圳市宝安区松岗联投东方2期1栋1座31B",
     "borrowerPhone": "15899879389",
     "assignedSales": "李广艳",
-    "assignedPostLoan": "君澜",
+    "assignedPostLoan": "高乐",
     "followups": [
       {
         "id": "f820ab30-3da7-4e15-aaf4-6498b662c8b8",
@@ -619,7 +619,7 @@
     ],
     "id": "6bd6b044-62e0-4c55-99ff-88ecdc3e9932",
     "createdAt": "2026-05-06T17:19:05.554Z",
-    "updatedAt": "2026-05-07T12:28:57.606Z"
+    "updatedAt": "2026-05-20T10:10:17.404Z"
   },
   {
     "batchNo": "20260507DCLR",
