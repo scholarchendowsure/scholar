@@ -767917,13 +767917,17 @@
       {
         "date": "2026-05-15",
         "amount": 14252.01
+      },
+      {
+        "date": "2026-05-20",
+        "amount": 21136.48
       }
     ],
-    "balance": 124393.93999999997,
-    "pastdueAmount": 124393.93999999997,
+    "balance": 103257.45999999996,
+    "pastdueAmount": 103257.45999999996,
     "overdueDays": 358,
     "status": "overdue",
-    "totalRepaid": 193456.06000000003,
+    "totalRepaid": 214592.54000000004,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -793088,13 +793092,17 @@
       {
         "date": "2026-02-06",
         "amount": 9300
+      },
+      {
+        "date": "2026-05-20",
+        "amount": 14700
       }
     ],
-    "balance": 14700,
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 66300,
+    "totalRepaid": 81000,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -793452,13 +793460,17 @@
       {
         "date": "2026-05-18",
         "amount": 3597.06
+      },
+      {
+        "date": "2026-05-19",
+        "amount": 17048.1
       }
     ],
-    "balance": 17048.1,
-    "pastdueAmount": 17048.1,
-    "overdueDays": 89,
-    "status": "overdue",
-    "totalRepaid": 10951.9,
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 28000,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -794368,12 +794380,17 @@
     "totalInterestRate": 0.0770064,
     "loanTenor": "120D",
     "maturityDate": "2026-02-25",
-    "repaymentSchedule": [],
-    "balance": 50000,
-    "pastdueAmount": 50000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-19",
+        "amount": 6061.27
+      }
+    ],
+    "balance": 43938.729999999996,
+    "pastdueAmount": 43938.729999999996,
     "overdueDays": 84,
     "status": "overdue",
-    "totalRepaid": 0,
+    "totalRepaid": 6061.27,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -803637,12 +803654,17 @@
     "totalInterestRate": 0.0639076,
     "loanTenor": "120D",
     "maturityDate": "2026-05-19",
-    "repaymentSchedule": [],
-    "balance": 690000,
-    "pastdueAmount": 690000,
-    "overdueDays": 1,
-    "status": "overdue",
-    "totalRepaid": 0,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-20",
+        "amount": 690000
+      }
+    ],
+    "balance": 0,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 690000,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -804325,12 +804347,17 @@
     "totalInterestRate": 0.076337,
     "loanTenor": "120D",
     "maturityDate": "2026-05-22",
-    "repaymentSchedule": [],
-    "balance": 12000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-19",
+        "amount": 12000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 12000,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -804489,12 +804516,17 @@
     "totalInterestRate": 0.0762759,
     "loanTenor": "120D",
     "maturityDate": "2026-05-26",
-    "repaymentSchedule": [],
-    "balance": 28000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-19",
+        "amount": 28000
+      }
+    ],
+    "balance": 0,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 28000,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -804511,12 +804543,17 @@
     "totalInterestRate": 0.0762759,
     "loanTenor": "120D",
     "maturityDate": "2026-05-26",
-    "repaymentSchedule": [],
-    "balance": 187000,
+    "repaymentSchedule": [
+      {
+        "date": "2026-05-20",
+        "amount": 50000
+      }
+    ],
+    "balance": 137000,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
-    "totalRepaid": 0,
+    "totalRepaid": 50000,
     "batchDate": "2026-05-20",
     "remarks": ""
   },
@@ -814179,6 +814216,116 @@
     "maturityDate": "2026-09-16",
     "repaymentSchedule": [],
     "balance": 52219,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-20",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-20-2016",
+    "loanReference": "EMFAM1026490",
+    "merchantId": "62336",
+    "merchantName": "",
+    "borrowerName": "YIPSCAZO INTERNATIONAL CO LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 14000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0769405,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-17",
+    "repaymentSchedule": [],
+    "balance": 14000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-20",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-20-2017",
+    "loanReference": "EMFAM1026453",
+    "merchantId": "79810",
+    "merchantName": "",
+    "borrowerName": "HK TANGYUAN TECHNOLOGY CO., LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "CNY",
+    "loanAmount": 3800000,
+    "loanInterest": "120D HBR + 4.5%",
+    "totalInterestRate": 0.061297,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-17",
+    "repaymentSchedule": [],
+    "balance": 3800000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-20",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-20-2018",
+    "loanReference": "EMFAM1026504",
+    "merchantId": "75857",
+    "merchantName": "",
+    "borrowerName": "GEARTON TECHNOLOGY (HONGKONG) LTD",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 149000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0769405,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-17",
+    "repaymentSchedule": [],
+    "balance": 149000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-20",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-20-2019",
+    "loanReference": "EMFAM1026506",
+    "merchantId": "64717",
+    "merchantName": "",
+    "borrowerName": "HK VCCUCINE KITCHEN & VANITY CO LTD",
+    "loanStartDate": "",
+    "loanCurrency": "USD",
+    "loanAmount": 116000,
+    "loanInterest": "120D SOFR TERM + 4%",
+    "totalInterestRate": 0.0769405,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-17",
+    "repaymentSchedule": [],
+    "balance": 116000,
+    "pastdueAmount": 0,
+    "overdueDays": -1,
+    "status": "normal",
+    "totalRepaid": 0,
+    "batchDate": "2026-05-20",
+    "remarks": ""
+  },
+  {
+    "id": "hsbc-2026-05-20-2020",
+    "loanReference": "EMFAM1026510",
+    "merchantId": "84527",
+    "merchantName": "",
+    "borrowerName": "CROSSPULSE TRADING LIMITED",
+    "loanStartDate": "",
+    "loanCurrency": "CNY",
+    "loanAmount": 220000,
+    "loanInterest": "120D HBR + 4%",
+    "totalInterestRate": 0.056297,
+    "loanTenor": "120D",
+    "maturityDate": "2026-09-17",
+    "repaymentSchedule": [],
+    "balance": 220000,
     "pastdueAmount": 0,
     "overdueDays": -1,
     "status": "normal",
