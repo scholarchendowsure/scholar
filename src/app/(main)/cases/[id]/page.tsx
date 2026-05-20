@@ -190,109 +190,34 @@ export default function CaseDetailPage() {
         currencySymbol = currency;
       }
       
-      // 4. 发送交互卡片消息（含表单）
-      const domain = window.location.origin;
-      const sendResponse = await fetch('/api/feishu-personal/send-card', {
+      // 4. 发送飞书卡片（字段映射已正确配置）
+      const dueAmount = `${Number(caseData.overdueAmount || balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ${currencySymbol}`;
+      
+      const sendRes = await fetch('/api/feishu-personal/send-card', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          openId: openId,
-          title: '案件跟进提醒',
-          template: 'blue',
-          fields: [
-            { label: '产品名称', value: caseData.productName || '-' },
-            { label: '资金方', value: caseData.funder || '-' },
-            { label: '风险等级', value: caseData.riskLevel || '-' },
+          receiverId: openId,
+          cardTitle: '案件跟进提醒',
+          cardFields: [
+            { label: '产品名称', value: caseData.productName },
+            { label: '资金方', value: caseData.funder },
+            { label: '风险等级', value: caseData.riskLevel },
             { label: '接收人', value: roleName },
-            { label: '用户ID', value: caseData.userId || '-' },
-            { label: '贷款单号', value: caseData.loanNo || '-' },
-            { label: '待还金额', value: `${Number(caseData.overdueAmount || balance).toLocaleString('zh-CN', { minimumFractionDigits: 2 })} ${currencySymbol}` },
+            { label: '用户ID', value: caseData.userId },
+            { label: '贷款单号', value: caseData.loanNo },
+            { label: '待还金额', value: dueAmount },
             { label: '到期日', value: dueDate }
-          ],
-          selects: [
-            {
-              label: '跟进方式',
-              placeholder: '请选择跟进方式',
-              name: 'followup_method',
-              options: [
-                { text: '电话', value: '电话' },
-                { text: '上门', value: '上门' },
-                { text: '微信', value: '微信' },
-                { text: '短信', value: '短信' },
-                { text: '邮件', value: '邮件' },
-                { text: '其他', value: '其他' },
-              ]
-            },
-            {
-              label: '跟进对象',
-              placeholder: '请选择跟进对象',
-              name: 'followup_target',
-              options: [
-                { text: '借款人', value: '借款人' },
-                { text: '担保人', value: '担保人' },
-                { text: '联系人', value: '联系人' },
-                { text: '其他人', value: '其他人' },
-              ]
-            },
-            {
-              label: '联系状态',
-              placeholder: '请选择联系状态',
-              name: 'contact_status',
-              options: [
-                { text: '接通', value: '接通' },
-                { text: '未接通', value: '未接通' },
-                { text: '停机', value: '停机' },
-                { text: '空号', value: '空号' },
-                { text: '无人接听', value: '无人接听' },
-                { text: '拒接', value: '拒接' },
-              ]
-            },
-            {
-              label: '还款意愿',
-              placeholder: '请选择还款意愿',
-              name: 'repayment_willingness',
-              options: [
-                { text: '积极', value: '积极' },
-                { text: '消极', value: '消极' },
-                { text: '失联', value: '失联' },
-                { text: '已还款', value: '已还款' },
-                { text: '承诺还款', value: '承诺还款' },
-                { text: '暂无', value: '暂无' },
-              ]
-            },
-            {
-              label: '跟进结果',
-              placeholder: '请选择跟进结果',
-              name: 'followup_result',
-              options: [
-                { text: '已联系上', value: '已联系上' },
-                { text: '未联系上', value: '未联系上' },
-                { text: '已还款', value: '已还款' },
-                { text: '已承诺还款', value: '已承诺还款' },
-                { text: '暂无结果', value: '暂无结果' },
-              ]
-            }
-          ],
-          buttons: [
-            {
-              text: '提交跟进记录',
-              type: 'primary',
-              value: {
-                action: 'submit_followup',
-                case_id: caseData.id,
-                loan_no: caseData.loanNo,
-              }
-            }
           ]
         })
       });
-
-      const sendResult = await sendResponse.json();
-
-      if (sendResult.success) {
-        toast.success(`已发送交互卡片提醒给 ${roleName}`);
+      
+      const sendData = await sendRes.json();
+      
+      if (sendData.success) {
+        toast.success(`已发送飞书卡片提醒给 ${roleName}`);
       } else {
-        toast.error(sendResult.error || '发送失败');
+        toast.error(sendData.error || '发送失败');
       }
 
     } catch (error) {
