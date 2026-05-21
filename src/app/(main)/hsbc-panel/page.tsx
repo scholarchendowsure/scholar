@@ -765,7 +765,8 @@ export default function HSBCPanelPage() {
     currency: string;
     isOverdue: boolean;
   }
-  const [repaymentDate, setRepaymentDate] = useState<string>('');
+  const [repaymentStartDate, setRepaymentStartDate] = useState<string>('');
+  const [repaymentEndDate, setRepaymentEndDate] = useState<string>('');
   const [repaymentFilterType, setRepaymentFilterType] = useState<RepaymentFilterType>('all');
   const [repaymentResults, setRepaymentResults] = useState<RepaymentInfo[]>([]);
   const [showRepaymentCard, setShowRepaymentCard] = useState(false);
@@ -773,7 +774,7 @@ export default function HSBCPanelPage() {
 
   // 筛选还款记录（日期变化自动触发）
   const handleRepaymentFilter = useCallback(async () => {
-    if (!repaymentDate) {
+    if (!repaymentStartDate && !repaymentEndDate) {
       setRepaymentResults([]);
       setShowRepaymentCard(false);
       return;
@@ -798,13 +799,15 @@ export default function HSBCPanelPage() {
             const actualRepaymentDate = record.actualDate || record.date;
             if (!actualRepaymentDate || !record.date) continue;
             
-            if (!actualRepaymentDate.startsWith(repaymentDate)) continue;
+            const actualDateStr = actualRepaymentDate.substring(0, 10);
+            
+            // 日期区间筛选
+            const isInStartRange = !repaymentStartDate || actualDateStr >= repaymentStartDate;
+            const isInEndRange = !repaymentEndDate || actualDateStr <= repaymentEndDate;
+            if (!isInStartRange || !isInEndRange) continue;
             
             const dueDateStr = record.date.substring(0, 10);
-            const actualDateStr = actualRepaymentDate.substring(0, 10);
             const maturityDateStr = (loan.maturityDate || '').substring(0, 10);
-            // 到期日期 - 实际还款日 < 0 → 逾期后还款
-            // 到期日期 - 实际还款日 >= 0 → 未逾期还款
             const isOverdue = maturityDateStr > '' && actualDateStr > maturityDateStr;
             
             if (repaymentFilterType === 'on_time' && isOverdue) continue;
@@ -836,12 +839,12 @@ export default function HSBCPanelPage() {
     } finally {
       setRepaymentLoading(false);
     }
-  }, [repaymentDate, repaymentFilterType]);
+  }, [repaymentStartDate, repaymentEndDate, repaymentFilterType]);
 
   // 监听日期和类型变化，自动加载还款记录
   useEffect(() => {
     handleRepaymentFilter();
-  }, [repaymentDate, repaymentFilterType, handleRepaymentFilter]);
+  }, [repaymentStartDate, repaymentEndDate, repaymentFilterType, handleRepaymentFilter]);
 
   // 导出还款记录
   const handleExportRepayments = () => {
@@ -864,7 +867,7 @@ export default function HSBCPanelPage() {
     const newWorkbook = XLSX.utils.book_new();
     const newWorksheet = XLSX.utils.json_to_sheet(exportData);
     XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, '还款记录');
-    XLSX.writeFile(newWorkbook, `还款记录_${repaymentDate}.xlsx`);
+    XLSX.writeFile(newWorkbook, `还款记录_${repaymentStartDate || 'start'}_${repaymentEndDate || 'end'}.xlsx`);
     toast.success('导出成功！');
   };
 
@@ -3355,15 +3358,24 @@ export default function HSBCPanelPage() {
           <CollapsibleContent>
             <CardContent>
               <p className="text-xs text-slate-500 mb-4">
-                选择还款日期，自动显示该日期的所有还款记录
+                选择还款日期区间，自动显示该区间的所有还款记录
               </p>
               <div className="flex flex-wrap items-end gap-4">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="text-sm font-medium text-slate-600 mb-1.5 block">还款日期</label>
+                <div className="flex-1 min-w-[180px]">
+                  <label className="text-sm font-medium text-slate-600 mb-1.5 block">开始日期</label>
                   <input
                     type="date"
-                    value={repaymentDate}
-                    onChange={(e) => setRepaymentDate(e.target.value)}
+                    value={repaymentStartDate}
+                    onChange={(e) => setRepaymentStartDate(e.target.value)}
+                    className="w-full h-10 px-3 text-sm border border-cyan-200 rounded-md bg-white hover:border-cyan-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                  />
+                </div>
+                <div className="flex-1 min-w-[180px]">
+                  <label className="text-sm font-medium text-slate-600 mb-1.5 block">结束日期</label>
+                  <input
+                    type="date"
+                    value={repaymentEndDate}
+                    onChange={(e) => setRepaymentEndDate(e.target.value)}
                     className="w-full h-10 px-3 text-sm border border-cyan-200 rounded-md bg-white hover:border-cyan-500 focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
@@ -3411,7 +3423,7 @@ export default function HSBCPanelPage() {
         <Card className="mt-4 border-t-4 border-t-cyan-400 shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-end">
-              <Button variant="ghost" size="sm" onClick={() => { setShowRepaymentCard(false); setRepaymentDate(''); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setShowRepaymentCard(false); setRepaymentStartDate(''); setRepaymentEndDate(''); }}>
                 关闭
               </Button>
             </div>
@@ -3422,7 +3434,7 @@ export default function HSBCPanelPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mr-3" />
                 <span>正在加载还款记录...</span>
               </div>
-            ) : !repaymentDate ? (
+            ) : !repaymentStartDate && !repaymentEndDate ? (
               <div className="text-center py-12 text-slate-400">
                 <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p className="text-lg">请选择还款日期</p>
