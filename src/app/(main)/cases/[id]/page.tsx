@@ -197,9 +197,9 @@ export default function CaseDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          receiverId: openId,
-          cardTitle: '案件跟进提醒',
-          cardFields: [
+          openId: openId,
+          title: '案件跟进提醒',
+          fields: [
             { label: '产品名称', value: caseData.productName },
             { label: '资金方', value: caseData.funder },
             { label: '风险等级', value: caseData.riskLevel },
