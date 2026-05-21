@@ -757,6 +757,7 @@ export default function HSBCPanelPage() {
   interface RepaymentInfo {
     loanReference: string;
     merchantName?: string;
+    merchantId?: string;
     borrowerName: string;
     dueDate: string;
     actualDate: string;
@@ -816,6 +817,7 @@ export default function HSBCPanelPage() {
             results.push({
               loanReference: loan.loanReference || '',
               merchantName: loan.merchantName,
+              merchantId: loan.merchantId || loan.sellerId || '',
               borrowerName: loan.borrowerName || '',
               maturityDate: loan.maturityDate || '',
               dueDate: record.date || '',
@@ -855,9 +857,8 @@ export default function HSBCPanelPage() {
 
     const exportData = repaymentResults.map(r => ({
       贷款编号: r.loanReference,
-      商户名称: r.merchantName || '',
+      商户ID: r.merchantId || '',
       借款人: r.borrowerName,
-      计划还款日: r.dueDate,
       实际还款日: r.actualDate,
       还款金额: r.amount,
       货币: r.currency,
@@ -3509,8 +3510,8 @@ export default function HSBCPanelPage() {
                       <TableRow className="hover:bg-slate-50">
                         <TableHead className="font-semibold">还款订单号</TableHead>
                         <TableHead className="font-semibold">贷款编号</TableHead>
+                        <TableHead className="font-semibold">商户ID</TableHead>
                         <TableHead className="font-semibold">借款人</TableHead>
-                        <TableHead className="font-semibold">计划还款日</TableHead>
                         <TableHead className="font-semibold">到期日期</TableHead>
                         <TableHead className="font-semibold">实际还款日</TableHead>
                         <TableHead className="font-semibold text-right">还款金额</TableHead>
@@ -3526,8 +3527,10 @@ export default function HSBCPanelPage() {
                           <TableCell className="font-mono text-sm font-medium">
                             {record.loanReference}
                           </TableCell>
+                          <TableCell className="font-mono text-sm text-slate-500">
+                            {record.merchantId}
+                          </TableCell>
                           <TableCell className="text-sm">{record.borrowerName}</TableCell>
-                          <TableCell className="text-sm text-slate-500">{record.dueDate}</TableCell>
                           <TableCell className="text-sm text-slate-500">{record.maturityDate}</TableCell>
                           <TableCell className="text-sm font-medium">{record.actualDate}</TableCell>
                           <TableCell className="text-right font-mono font-medium">
