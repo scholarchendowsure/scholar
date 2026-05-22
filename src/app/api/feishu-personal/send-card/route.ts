@@ -63,12 +63,13 @@ export async function POST(request: NextRequest) {
       dueDate = fields.dueDate || '-';
     }
 
-    // 构建回调数据
-    const callbackData = JSON.stringify({
+    // 构建回调数据 - 确保只有一层JSON.stringify
+    const callbackDataObj = {
       case_id: caseId,
       operator_id: operatorId,
       operator_name: operatorName
-    });
+    };
+    const callbackData = JSON.stringify(callbackDataObj);
 
     // 构建卡片JSON
     const card = {

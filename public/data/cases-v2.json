@@ -187,11 +187,23 @@
         "followRecord": "高乐dsb",
         "createdAt": "2026-05-07T12:28:56.985Z",
         "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1779456677518",
+        "follower": "未登记人",
+        "followTime": "2026-05-22T13:31:12.848Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "242323",
+        "fileInfo": [],
+        "createdAt": "2026-05-22T13:31:17.518Z",
+        "createdBy": "未登记人"
       }
     ],
     "id": "01119dc3-0f58-40bd-924e-1b275f013a9e",
     "createdAt": "2026-05-06T17:18:19.401Z",
-    "updatedAt": "2026-05-07T12:28:57.565Z"
+    "updatedAt": "2026-05-22T13:31:19.033Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -287,11 +299,23 @@
         "followRecord": "高乐dsb",
         "createdAt": "2026-05-07T12:28:56.985Z",
         "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1779456677518",
+        "follower": "未登记人",
+        "followTime": "2026-05-22T13:31:12.848Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "242323",
+        "fileInfo": [],
+        "createdAt": "2026-05-22T13:31:17.518Z",
+        "createdBy": "未登记人"
       }
     ],
     "id": "ecab36a8-e1e0-4a0a-81de-8808af644b89",
     "createdAt": "2026-05-06T17:18:19.409Z",
-    "updatedAt": "2026-05-07T12:28:57.590Z"
+    "updatedAt": "2026-05-22T13:31:19.052Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -615,11 +639,23 @@
         "followRecord": "高乐dsb",
         "createdAt": "2026-05-07T12:28:56.985Z",
         "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1779456677518",
+        "follower": "未登记人",
+        "followTime": "2026-05-22T13:31:12.848Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "242323",
+        "fileInfo": [],
+        "createdAt": "2026-05-22T13:31:17.518Z",
+        "createdBy": "未登记人"
       }
     ],
     "id": "6bd6b044-62e0-4c55-99ff-88ecdc3e9932",
     "createdAt": "2026-05-06T17:19:05.554Z",
-    "updatedAt": "2026-05-20T10:10:17.404Z"
+    "updatedAt": "2026-05-22T13:31:19.011Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -1384,11 +1420,23 @@
         "followRecord": "高乐dsb",
         "createdAt": "2026-05-07T12:28:56.985Z",
         "createdBy": "嘉鑫"
+      },
+      {
+        "id": "1779456677518",
+        "follower": "未登记人",
+        "followTime": "2026-05-22T13:31:12.848Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "242323",
+        "fileInfo": [],
+        "createdAt": "2026-05-22T13:31:17.518Z",
+        "createdBy": "未登记人"
       }
     ],
     "id": "22db2154-844c-4395-94ad-a328f7922d83",
     "createdAt": "2026-05-06T17:19:09.014Z",
-    "updatedAt": "2026-05-07T12:28:57.624Z"
+    "updatedAt": "2026-05-22T13:31:19.078Z"
   },
   {
     "batchNo": "20260507DCLR",

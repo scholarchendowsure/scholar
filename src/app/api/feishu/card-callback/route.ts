@@ -163,7 +163,35 @@ function mapFeishuOptions(formValue: Record<string, unknown>) {
  * 处理卡片按钮点击回调
  */
 async function handleCardCallback(body: Record<string, unknown>): Promise<Response> {
-  const action = body.action as Record<string, unknown> | undefined;
+  console.log("🔍 handleCardCallback 收到的完整body:", JSON.stringify(body, null, 2));
+  
+  // 尝试从多个位置提取action
+  let action = body.action as Record<string, unknown> | undefined;
+  if (!action) {
+    action = (body as any).event?.action;
+  }
+  if (!action) {
+    action = (body as any).header?.action;
+  }
+  
+  console.log("🎯 提取到的action:", action);
+  
+  if (!action) {
+    console.error("❌ 无法找到action数据");
+    return new NextResponse(
+      JSON.stringify({
+        toast: { type: "error", content: "无法找到action数据" },
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
+    );
+  }
+  
   const openMessageId = (action?.open_message_id as string) || "";
   const openId = (action?.open_id as string) || "";
   const tag = (action?.tag as string) || "";
@@ -172,12 +200,20 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
   let value: Record<string, unknown> = {};
   try {
     const rawValue = action?.value as string;
+    console.log("📝 原始value:", rawValue);
     if (rawValue && typeof rawValue === 'string') {
-      value = JSON.parse(rawValue);
+      // 尝试去除多余的转义
+      let cleanValue = rawValue;
+      if (cleanValue.startsWith('"') && cleanValue.endsWith('"')) {
+        cleanValue = cleanValue.slice(1, -1);
+        cleanValue = cleanValue.replace(/\\"/g, '"');
+      }
+      value = JSON.parse(cleanValue);
     } else {
       value = (action?.value as Record<string, unknown>) || {};
     }
   } catch (e) {
+    console.error("❌ 解析value失败:", e);
     value = (action?.value as Record<string, unknown>) || {};
   }
 
@@ -370,14 +406,29 @@ export async function POST(request: NextRequest) {
     // 规范化事件数据
     const { eventType, normalizedBody } = normalizeEvent(body);
     console.log("📋 事件类型:", eventType);
+    console.log("📦 完整normalizedBody:", JSON.stringify(normalizedBody, null, 2));
 
     // URL 验证
     if (eventType === "url_verification" || body.type === "url_verification") {
       return handleUrlVerification(normalizedBody);
     }
 
-    // 卡片回调
-    if (eventType === "card.action.trigger") {
+    // 先尝试提取action和tag，用于更宽松的匹配
+    let actionForCheck: any = null;
+    let tagForCheck: string | null = null;
+    try {
+      actionForCheck = body.action || (body as any).event?.action || (body as any).header?.action;
+      tagForCheck = actionForCheck?.tag || null;
+    } catch {}
+
+    // 卡片回调 - 更宽松的匹配
+    if (eventType === "card.action.trigger" || 
+        (normalizedBody.header as any)?.event_type === "card.action.trigger" ||
+        (body.header as any)?.event_type === "card.action.trigger" ||
+        (normalizedBody.event as any)?.type === "card.action.trigger" ||
+        (body.event as any)?.type === "card.action.trigger" ||
+        (actionForCheck && (tagForCheck === "button" || tagForCheck === "submit_button"))) {
+      console.log("🎯 检测到卡片回调事件，开始处理");
       return handleCardCallback(normalizedBody);
     }
 
