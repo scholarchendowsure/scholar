@@ -22,15 +22,38 @@ export async function POST(request: NextRequest) {
     // 获取tenant_access_token
     const tenantAccessToken = await getTenantAccessToken(credentials.appId, credentials.appSecret || '');
 
-    // 从fields中提取数据，如果没有提供则使用默认值
-    const productName = fields?.productName || '-';
-    const funder = fields?.funder || '-';
-    const riskLevel = fields?.riskLevel || '-';
-    const receiverName = fields?.receiverName || '-';
-    const userId = fields?.userId || '-';
-    const loanNo = fields?.loanNo || '-';
-    const dueAmount = fields?.dueAmount || '-';
-    const dueDate = fields?.dueDate || '-';
+    // 从fields中提取数据，支持数组和对象两种格式
+    let productName = '-';
+    let funder = '-';
+    let riskLevel = '-';
+    let receiverName = '-';
+    let userId = '-';
+    let loanNo = '-';
+    let dueAmount = '-';
+    let dueDate = '-';
+
+    if (Array.isArray(fields)) {
+      // 数组格式：[{ label: '产品名称', value: 'xxx' }, ...]
+      const findValue = (label: string) => fields.find((f: any) => f.label === label)?.value || '-';
+      productName = findValue('产品名称');
+      funder = findValue('资金方');
+      riskLevel = findValue('风险等级');
+      receiverName = findValue('接收人');
+      userId = findValue('用户ID');
+      loanNo = findValue('贷款单号');
+      dueAmount = findValue('待还金额');
+      dueDate = findValue('到期日');
+    } else if (fields && typeof fields === 'object') {
+      // 对象格式：{ productName: 'xxx', ... }
+      productName = fields.productName || '-';
+      funder = fields.funder || '-';
+      riskLevel = fields.riskLevel || '-';
+      receiverName = fields.receiverName || '-';
+      userId = fields.userId || '-';
+      loanNo = fields.loanNo || '-';
+      dueAmount = fields.dueAmount || '-';
+      dueDate = fields.dueDate || '-';
+    }
 
     // 构建卡片JSON
     const card = {
