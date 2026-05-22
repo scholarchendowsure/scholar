@@ -482,11 +482,22 @@
         "followRecord": "操作：录入",
         "createdAt": "2026-05-06T17:19:05.530Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1779458533575",
+        "follower": "系统",
+        "followTime": "2026-05-22T14:02:13.575Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "overdue_promise",
+        "followRecord": "2345443",
+        "createdAt": "2026-05-22T14:02:13.575Z",
+        "createdBy": "系统"
       }
     ],
     "id": "0f6de19f-389e-4558-88e9-96b8f0703538",
     "createdAt": "2026-05-06T17:19:05.530Z",
-    "updatedAt": "2026-05-22T11:37:45.883Z"
+    "updatedAt": "2026-05-22T14:02:13.580Z"
   },
   {
     "batchNo": "20260507DCLR",

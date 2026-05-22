@@ -215,6 +215,7 @@ export default function CaseDetailPage() {
           caseId: caseData.id,
           operatorId: operatorId,
           operatorName: operatorName,
+          followerName: roleName,
           title: '案件跟进提醒',
           fields: [
             { label: '产品名称', value: caseData.productName },

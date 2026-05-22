@@ -7,12 +7,13 @@ interface SendCardRequest {
   caseId?: string;
   operatorId?: string;
   operatorName?: string;
+  followerName?: string;
   fields?: Record<string, any> | Array<{ label: string; value: string }>;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { openId, caseId, operatorId, operatorName, fields } = await request.json() as SendCardRequest;
+    const { openId, caseId, operatorId, operatorName, followerName, fields } = await request.json() as SendCardRequest;
 
     if (!openId) {
       return NextResponse.json({ success: false, error: '接收人Open ID不能为空' }, { status: 400 });
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
     const callbackDataObj = {
       case_id: caseId,
       operator_id: operatorId,
-      operator_name: operatorName
+      operator_name: operatorName,
+      follower_name: followerName
     };
     const callbackData = JSON.stringify(callbackDataObj);
 

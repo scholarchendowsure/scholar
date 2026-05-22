@@ -235,6 +235,7 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
     const caseId = (value.case_id as string) || "";
     const operatorIdFromValue = (value.operator_id as string) || "system";
     const operatorNameFromValue = (value.operator_name as string) || "系统";
+    const followerNameFromValue = (value.follower_name as string) || operatorNameFromValue;
 
     if (!caseId) {
       console.error("❌ 缺少案件ID");
@@ -252,9 +253,9 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
       );
     }
 
-    // 使用发送卡片时的operator信息（贷后系统中的操作人员）
+    // 使用follower_name作为跟进人（贷后系统中选择的提醒接收人）
     const operatorId = operatorIdFromValue;
-    const operatorName = operatorNameFromValue;
+    const operatorName = followerNameFromValue;
 
     console.log(`👤 使用跟进人信息: ${operatorName} (ID: ${operatorId})`);
 
