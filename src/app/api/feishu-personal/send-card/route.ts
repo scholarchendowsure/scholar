@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     let productName = '-';
     let funder = '-';
     let riskLevel = '-';
-    let receiverName = '-';
+    let borrowerName = '-';
     let userId = '-';
     let loanNo = '-';
     let dueAmount = '-';
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       productName = findValue('产品名称');
       funder = findValue('资金方');
       riskLevel = findValue('风险等级');
-      receiverName = findValue('接收人');
+      borrowerName = findValue('借款人姓名');
       userId = findValue('用户ID');
       loanNo = findValue('贷款单号');
       dueAmount = findValue('待还金额');
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       productName = fields.productName || '-';
       funder = fields.funder || '-';
       riskLevel = fields.riskLevel || '-';
-      receiverName = fields.receiverName || '-';
+      borrowerName = fields.borrowerName || '-';
       userId = fields.userId || '-';
       loanNo = fields.loanNo || '-';
       dueAmount = fields.dueAmount || '-';
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
                                 elements: [
                                   {
                                     tag: "markdown",
-                                    content: `产品名称：${productName}\n资金方：${funder}\n风险等级：${riskLevel}\n接收人：${receiverName}\n用户ID：${userId}\n贷款单号：${loanNo}\n待还金额：${dueAmount}\n到期日：${dueDate}`,
+                                    content: `产品名称：${productName}\n资金方：${funder}\n风险等级：${riskLevel}\n借款人姓名：${borrowerName}\n用户ID：${userId}\n贷款单号：${loanNo}\n待还金额：${dueAmount}\n到期日：${dueDate}`,
                                     text_align: "left",
                                     text_size: "normal_v2",
                                     margin: "0px 0px 0px 0px"

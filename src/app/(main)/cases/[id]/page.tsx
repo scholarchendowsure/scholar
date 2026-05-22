@@ -203,7 +203,7 @@ export default function CaseDetailPage() {
             { label: '产品名称', value: caseData.productName },
             { label: '资金方', value: caseData.funder },
             { label: '风险等级', value: caseData.riskLevel },
-            { label: '接收人', value: roleName },
+            { label: '借款人姓名', value: (caseData as any).borrowerName || '-' },
             { label: '用户ID', value: caseData.userId },
             { label: '贷款单号', value: caseData.loanNo },
             { label: '待还金额', value: dueAmount },
