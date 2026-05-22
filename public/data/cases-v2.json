@@ -662,11 +662,22 @@
         "followRecord": "5555",
         "createdAt": "2026-05-22T13:54:57.117Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1779458337047",
+        "follower": "飞书用户",
+        "followTime": "2026-05-22T13:58:57.047Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "normal_repayment",
+        "followRecord": "23232",
+        "createdAt": "2026-05-22T13:58:57.047Z",
+        "createdBy": "飞书用户"
       }
     ],
     "id": "6bd6b044-62e0-4c55-99ff-88ecdc3e9932",
     "createdAt": "2026-05-06T17:19:05.554Z",
-    "updatedAt": "2026-05-22T13:54:57.123Z"
+    "updatedAt": "2026-05-22T13:58:57.052Z"
   },
   {
     "batchNo": "20260507DCLR",
