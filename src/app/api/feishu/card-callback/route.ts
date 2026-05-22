@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import * as lark from "@larksuiteoapi/node-sdk";
+import { caseStorage } from '@/storage/database/case-storage';
+import type { FollowUp } from '@/types/case';
 
 /**
  * 飞书卡片回调接口（使用官方SDK）
@@ -260,49 +262,35 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
       ...mappedData,
     });
 
-    // 保存跟进记录到数据库
+    // 保存跟进记录到数据库 - 直接使用本地存储
     let saveSuccess = false;
     try {
-      // 构建跟进记录数据
-      const followupData = {
-        followup: {
+      // 1. 获取当前案件
+      const caseData = await caseStorage.getById(caseId);
+      if (!caseData) {
+        console.error("❌ 案件不存在:", caseId);
+      } else {
+        // 2. 构造跟进记录
+        const followupRecord: FollowUp = {
           id: Date.now().toString(),
           follower: operatorName,
           followTime: new Date().toISOString(),
-          followType: mappedData.followType,
-          contact: mappedData.contact,
-          followResult: mappedData.followResult,
-          followRecord: mappedData.followRecord,
-          fileInfo: null,
+          followType: mappedData.followType as any,
+          contact: mappedData.contact as any,
+          followResult: mappedData.followResult as any,
+          followRecord: mappedData.followRecord || '',
+          fileInfo: undefined,
           createdAt: new Date().toISOString(),
           createdBy: operatorName,
-        },
-        syncToSameUser: true
-      };
+        };
 
-      // 调用案件跟进API保存记录
-      const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT 
-        ? `https://${process.env.COZE_PROJECT_DOMAIN_DEFAULT}`
-        : "http://localhost:5000";
-      const apiUrl = `${baseUrl}/api/cases/${caseId}/followups`;
-
-      console.log("🔗 调用API:", apiUrl);
-      console.log("📤 发送数据:", JSON.stringify(followupData, null, 2));
-
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(followupData),
-      });
-
-      const result = await response.json();
-      console.log("📥 API返回:", result);
-
-      if (response.ok && result.success) {
-        console.log("✅ 跟进记录已保存到数据库");
+        // 3. 添加跟进记录到当前案件
+        const updatedFollowups = [...(caseData.followups || []), followupRecord];
+        console.log(`[Feishu Callback] 添加跟进记录到案件 ${caseId}, 原有${caseData.followups?.length || 0}条, 新增后${updatedFollowups.length}条`);
+        await caseStorage.update(caseId, { followups: updatedFollowups });
+        
         saveSuccess = true;
-      } else {
-        console.error("❌ 保存跟进记录失败:", response.status, result);
+        console.log("✅ 跟进记录已保存到数据库");
       }
     } catch (error) {
       console.error("❌ 保存跟进记录出错:", error);
