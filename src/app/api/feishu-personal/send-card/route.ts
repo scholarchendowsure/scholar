@@ -2,24 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAccessToken } from '@/lib/feishu-api';
 import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
 
-export const maxDuration = 60;
-
 export async function POST(request: NextRequest) {
   try {
-    const { 
-      openId, 
-      productName, 
-      funder, 
-      riskLevel, 
-      receiver, 
-      userId, 
-      loanNo, 
-      overdueAmount, 
-      dueDate 
-    } = await request.json();
+    const { openId, fields } = await request.json();
 
     if (!openId) {
-      return NextResponse.json({ error: '缺少openId参数' }, { status: 400 });
+      return NextResponse.json({ success: false, error: '接收人Open ID不能为空' }, { status: 400 });
     }
 
     // 获取企业自建应用凭证
@@ -34,11 +22,17 @@ export async function POST(request: NextRequest) {
     // 获取tenant_access_token
     const tenantAccessToken = await getTenantAccessToken(credentials.appId, credentials.appSecret || '');
 
-    console.log('接收到的参数:', { 
-      openId, productName, funder, riskLevel, receiver, userId, loanNo, overdueAmount, dueDate 
-    });
+    // 从fields中提取数据，如果没有提供则使用默认值
+    const productName = fields?.productName || '-';
+    const funder = fields?.funder || '-';
+    const riskLevel = fields?.riskLevel || '-';
+    const receiverName = fields?.receiverName || '-';
+    const userId = fields?.userId || '-';
+    const loanNo = fields?.loanNo || '-';
+    const dueAmount = fields?.dueAmount || '-';
+    const dueDate = fields?.dueDate || '-';
 
-    // 构建飞书卡片JSON 2.0结构
+    // 构建卡片JSON
     const card = {
       schema: "2.0",
       config: {
@@ -85,14 +79,7 @@ export async function POST(request: NextRequest) {
                                 elements: [
                                   {
                                     tag: "markdown",
-                                    content: `产品名称：${productName || '-'}
-资金方：${funder || '-'}
-风险等级：${riskLevel || '-'}
-接收人：${receiver || '-'}
-用户ID：${userId || '-'}
-贷款单号：${loanNo || '-'}
-待还金额：¥${overdueAmount || '-'}
-到期日：${dueDate || '-'}`,
+                                    content: `产品名称：${productName}\n资金方：${funder}\n风险等级：${riskLevel}\n接收人：${receiverName}\n用户ID：${userId}\n贷款单号：${loanNo}\n待还金额：${dueAmount}\n到期日：${dueDate}`,
                                     text_align: "left",
                                     text_size: "normal_v2",
                                     margin: "0px 0px 0px 0px"
@@ -351,8 +338,7 @@ export async function POST(request: NextRequest) {
     const payload = {
       receive_id: openId,
       msg_type: "interactive",
-      content: JSON.stringify(card),
-      uuid: Date.now().toString()
+      content: JSON.stringify(card)
     };
 
     const response = await fetch(feishuUrl, {
@@ -367,24 +353,26 @@ export async function POST(request: NextRequest) {
     const result = await response.json();
 
     if (result.code === 0) {
-      return NextResponse.json({ 
-        success: true, 
-        message: '消息发送成功',
+      return NextResponse.json({
+        success: true,
+        message: '卡片消息发送成功',
         msgId: result.data?.message_id,
         openId: openId
       });
     } else {
-      return NextResponse.json({ 
-        error: '发送失败', 
-        details: result.msg || '未知错误' 
+      return NextResponse.json({
+        success: false,
+        error: '发送失败',
+        details: result.msg || '未知错误'
       }, { status: 500 });
     }
 
-  } catch (error: any) {
-    console.error('发送飞书消息失败:', error);
-    return NextResponse.json({ 
-      error: '发送失败', 
-      details: error.message 
+  } catch (error) {
+    console.error('发送卡片消息失败:', error);
+    return NextResponse.json({
+      success: false,
+      error: '发送失败',
+      details: error instanceof Error ? error.message : '未知错误'
     }, { status: 500 });
   }
 }
