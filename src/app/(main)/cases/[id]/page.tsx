@@ -208,6 +208,44 @@ export default function CaseDetailPage() {
             { label: '贷款单号', value: caseData.loanNo },
             { label: '待还金额', value: dueAmount },
             { label: '到期日', value: dueDate }
+          ],
+          selects: [
+            {
+              label: '跟进类型',
+              name: 'followType',
+              placeholder: '请选择跟进类型',
+              options: [
+                { text: '线上', value: 'online' },
+                { text: '线下', value: 'offline' },
+                { text: '其他', value: 'other' }
+              ]
+            },
+            {
+              label: '联系人',
+              name: 'contact',
+              placeholder: '请选择联系人',
+              options: [
+                { text: '法人', value: 'legal_representative' },
+                { text: '实控人', value: 'actual_controller' },
+                { text: '其他', value: 'other' }
+              ]
+            },
+            {
+              label: '跟进结果',
+              name: 'followResult',
+              placeholder: '请选择跟进结果',
+              options: [
+                { text: '正常还款', value: 'normal_repayment' },
+                { text: '预警上升', value: 'warning_rise' },
+                { text: '逾期承诺', value: 'overdue_promise' },
+                { text: '其他', value: 'other' }
+              ]
+            },
+            {
+              label: '跟进记录',
+              name: 'followRecord',
+              placeholder: '请输入跟进记录内容'
+            }
           ]
         })
       });

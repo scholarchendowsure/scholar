@@ -36,9 +36,19 @@ export async function POST(request: NextRequest) {
       placeholder?: string;
       options?: Array<{ text: string; value: string }>;
     }) => {
+      // 首先添加标签div
+      const labelElement = {
+        tag: 'div' as const,
+        text: {
+          tag: 'lark_md' as const,
+          content: `**${sel.label}：**`
+        }
+      };
+      
       // 如果有选项，使用select_static
       if (sel.options && sel.options.length > 0) {
         return [
+          labelElement,
           {
             tag: 'select_static' as const,
             name: sel.name || sel.label,
@@ -50,13 +60,16 @@ export async function POST(request: NextRequest) {
           }
         ];
       }
-      // 如果没有选项，使用textarea组件（JSON 2.0格式）
-      // textarea的placeholder是对象格式: {tag: 'plain_text', content: '...'}
-      return [{
-        tag: 'textarea' as const,
-        name: sel.name || sel.label,
-        placeholder: sel.placeholder ? { tag: 'plain_text' as const, content: sel.placeholder } : undefined
-      }];
+      // 如果没有选项，使用input组件（JSON 2.0格式）
+      // input的placeholder是对象格式: {tag: 'plain_text', content: '...'}
+      return [
+        labelElement,
+        {
+          tag: 'input' as const,
+          name: sel.name || sel.label,
+          placeholder: sel.placeholder ? { tag: 'plain_text' as const, content: sel.placeholder } : undefined
+        }
+      ];
     });
 
     // 构建按钮元素（按钮放在form内部）
