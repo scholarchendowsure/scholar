@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAccessToken } from '@/lib/feishu-api';
 import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
 
+interface SendCardRequest {
+  openId: string;
+  caseId?: string;
+  operatorId?: string;
+  operatorName?: string;
+  fields?: Record<string, any> | Array<{ label: string; value: string }>;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { openId, fields } = await request.json();
+    const { openId, caseId, operatorId, operatorName, fields } = await request.json() as SendCardRequest;
 
     if (!openId) {
       return NextResponse.json({ success: false, error: '接收人Open ID不能为空' }, { status: 400 });
@@ -54,6 +62,13 @@ export async function POST(request: NextRequest) {
       dueAmount = fields.dueAmount || '-';
       dueDate = fields.dueDate || '-';
     }
+
+    // 构建回调数据
+    const callbackData = JSON.stringify({
+      case_id: caseId,
+      operator_id: operatorId,
+      operator_name: operatorName
+    });
 
     // 构建卡片JSON
     const card = {
@@ -318,7 +333,7 @@ export async function POST(request: NextRequest) {
                 behaviors: [
                   {
                     type: "callback",
-                    value: ""
+                    value: callbackData
                   }
                 ],
                 form_action_type: "submit",

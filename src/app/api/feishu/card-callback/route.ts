@@ -125,6 +125,41 @@ function handleUrlVerification(body: Record<string, unknown>): Response {
 }
 
 /**
+ * 飞书选项值映射到系统选项值
+ */
+function mapFeishuOptions(formValue: Record<string, unknown>) {
+  // 跟进方式映射
+  const followUpMethodMap: Record<string, string> = {
+    'phone': 'online',
+    'wechat': 'online',
+    'email': 'online',
+    'meeting': 'offline'
+  };
+  
+  // 跟进对象映射
+  const followUpObjectMap: Record<string, string> = {
+    'self': 'legal_representative',
+    'family': 'actual_controller',
+    'agent': 'other'
+  };
+  
+  // 跟进结果映射
+  const followUpResultMap: Record<string, string> = {
+    'repaid': 'normal_repayment',
+    'promised': 'warning_rise',
+    'follow_up_again': 'overdue_promise',
+    'refused': 'other'
+  };
+
+  return {
+    followType: followUpMethodMap[formValue.follow_up_method as string] || 'other',
+    contact: followUpObjectMap[formValue.follow_up_object as string] || 'other',
+    followResult: followUpResultMap[formValue.follow_up_result as string] || 'other',
+    followRecord: (formValue.follow_up_remark as string) || ''
+  };
+}
+
+/**
  * 处理卡片按钮点击回调
  */
 async function handleCardCallback(body: Record<string, unknown>): Promise<Response> {
@@ -132,7 +167,19 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
   const openMessageId = (action?.open_message_id as string) || "";
   const openId = (action?.open_id as string) || "";
   const tag = (action?.tag as string) || "";
-  const value = (action?.value as Record<string, unknown>) || {};
+  
+  // 提取按钮的value（包含case_id和operator信息）
+  let value: Record<string, unknown> = {};
+  try {
+    const rawValue = action?.value as string;
+    if (rawValue && typeof rawValue === 'string') {
+      value = JSON.parse(rawValue);
+    } else {
+      value = (action?.value as Record<string, unknown>) || {};
+    }
+  } catch (e) {
+    value = (action?.value as Record<string, unknown>) || {};
+  }
 
   // 提取用户选择的值
   const formValue = (action?.form_value as Record<string, unknown>) || {};
@@ -146,43 +193,65 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
   });
 
   // 如果是提交跟进记录（按钮 tag 为 "button"）
-  if (tag === "button" && value.action === "submit_followup") {
+  if (tag === "button" || tag === "submit_button") {
     const caseId = (value.case_id as string) || "";
-    const loanNo = (value.loan_no as string) || "";
-    const followupMethod = (formValue.followup_method as string) || "其他";
-    const followupTarget = (formValue.followup_target as string) || "借款人";
-    const contactStatus = (formValue.contact_status as string) || "接通";
-    const repaymentWillingness = (formValue.repayment_willingness as string) || "暂无";
-    const followupResult = (formValue.followup_result as string) || "暂无结果";
-    const followupNotes = (formValue.followup_notes as string) || "";
+    const operatorId = (value.operator_id as string) || "system";
+    const operatorName = (value.operator_name as string) || "系统";
 
-    console.log("📝 跟进记录:", {
+    if (!caseId) {
+      console.error("❌ 缺少案件ID");
+      return new NextResponse(
+        JSON.stringify({
+          toast: { type: "error", content: "缺少案件ID" },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+
+    // 映射飞书选项到系统选项
+    const mappedData = mapFeishuOptions(formValue);
+
+    console.log("📝 跟进记录数据:", {
       caseId,
-      loanNo,
-      followupMethod,
-      followupTarget,
-      contactStatus,
-      repaymentWillingness,
-      followupResult,
-      followupNotes,
+      operatorId,
+      operatorName,
+      ...mappedData,
     });
 
     // 保存跟进记录到数据库
+    let saveSuccess = false;
     try {
       // 构建跟进记录数据
       const followupData = {
-        method: followupMethod,
-        target: followupTarget,
-        contactStatus: contactStatus,
-        repaymentWillingness: repaymentWillingness,
-        result: followupResult,
-        notes: followupNotes,
-        followUpTime: new Date().toISOString(),
+        followup: {
+          id: Date.now().toString(),
+          follower: operatorName,
+          followTime: new Date().toISOString(),
+          followType: mappedData.followType,
+          contact: mappedData.contact,
+          followResult: mappedData.followResult,
+          followRecord: mappedData.followRecord,
+          fileInfo: null,
+          createdAt: new Date().toISOString(),
+          createdBy: operatorName,
+        },
+        syncToSameUser: true
       };
 
       // 调用案件跟进API保存记录
-      const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT || "http://localhost:5000";
+      const baseUrl = process.env.COZE_PROJECT_DOMAIN_DEFAULT 
+        ? `https://${process.env.COZE_PROJECT_DOMAIN_DEFAULT}`
+        : "http://localhost:5000";
       const apiUrl = `${baseUrl}/api/cases/${caseId}/followups`;
+
+      console.log("🔗 调用API:", apiUrl);
+      console.log("📤 发送数据:", JSON.stringify(followupData, null, 2));
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -190,10 +259,14 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
         body: JSON.stringify(followupData),
       });
 
-      if (response.ok) {
+      const result = await response.json();
+      console.log("📥 API返回:", result);
+
+      if (response.ok && result.success) {
         console.log("✅ 跟进记录已保存到数据库");
+        saveSuccess = true;
       } else {
-        console.error("❌ 保存跟进记录失败:", response.status);
+        console.error("❌ 保存跟进记录失败:", response.status, result);
       }
     } catch (error) {
       console.error("❌ 保存跟进记录出错:", error);
@@ -201,25 +274,31 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
 
     // 返回更新后的卡片内容（显示提交成功）
     const successCard = {
+      schema: "2.0",
       config: { wide_screen_mode: true },
       header: {
-        title: { tag: "plain_text", content: "✅ 跟进已提交" },
-        template: "green",
+        title: { tag: "plain_text", content: saveSuccess ? "✅ 跟进已提交" : "⚠️ 提交失败" },
+        template: saveSuccess ? "green" : "red",
       },
-      elements: [
-        {
-          tag: "div",
-          text: {
-            tag: "lark_md",
-            content: `**案件编号：** ${caseId || "未知"}\n\n**跟进方式：** ${followupMethod}\n\n**跟进对象：** ${followupTarget}\n\n**联系状态：** ${contactStatus}\n\n**还款意愿：** ${repaymentWillingness}\n\n**跟进结果：** ${followupResult}\n\n---\n\n**提交时间：** ${new Date().toLocaleString("zh-CN")}`,
+      body: {
+        elements: [
+          {
+            tag: "div",
+            text: {
+              tag: "lark_md",
+              content: `**案件编号：** ${caseId}\n\n**跟进方式：** ${mappedData.followType}\n\n**跟进对象：** ${mappedData.contact}\n\n**跟进结果：** ${mappedData.followResult}\n\n**跟进备注：** ${mappedData.followRecord || '无'}\n\n---\n\n**提交人：** ${operatorName}\n**提交时间：** ${new Date().toLocaleString("zh-CN")}`,
+            },
           },
-        },
-      ],
+        ],
+      }
     };
 
     return new NextResponse(
       JSON.stringify({
-        toast: { type: "success", content: "跟进记录已提交" },
+        toast: { 
+          type: saveSuccess ? "success" : "error", 
+          content: saveSuccess ? "跟进记录已提交" : "提交失败，请稍后重试" 
+        },
         card: successCard,
       }),
       {

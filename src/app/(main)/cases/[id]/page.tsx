@@ -112,6 +112,20 @@ export default function CaseDetailPage() {
 
     setSendingReminder(roleType);
     try {
+      // 获取当前用户信息
+      let operatorId = 'system';
+      let operatorName = '系统';
+      try {
+        const authRes = await fetch('/api/auth/session');
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData?.user) {
+            operatorId = authData.user.id || authData.user.name || 'system';
+            operatorName = authData.user.name || '系统';
+          }
+        }
+      } catch {}
+      
       // 1. 先从已保存用户列表中查找
       let openId: string | null = null;
       
@@ -198,6 +212,9 @@ export default function CaseDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           openId: openId,
+          caseId: caseData.id,
+          operatorId: operatorId,
+          operatorName: operatorName,
           title: '案件跟进提醒',
           fields: [
             { label: '产品名称', value: caseData.productName },
