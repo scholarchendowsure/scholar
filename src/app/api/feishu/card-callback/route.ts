@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import * as lark from "@larksuiteoapi/node-sdk";
 import { caseStorage } from '@/storage/database/case-storage';
+import { getFeishuUsers } from '@/storage/database/feishu-user-storage';
 import type { FollowUp } from '@/types/case';
 
 /**
@@ -162,6 +163,41 @@ function mapFeishuOptions(formValue: Record<string, unknown>) {
 }
 
 /**
+ * 根据openId获取飞书用户信息
+ */
+async function getFeishuUserByOpenId(openId: string): Promise<{ name: string; userId: string }> {
+  try {
+    console.log(`🔍 尝试根据openId查找用户: ${openId}`);
+    const users = await getFeishuUsers();
+    
+    // 尝试根据openId匹配
+    const user = users.find(u => 
+      u.openId === openId || 
+      u.userId === openId ||
+      u.unionId === openId
+    );
+    
+    if (user) {
+      console.log(`✅ 找到用户: ${user.name} (ID: ${user.userId})`);
+      return {
+        name: user.name,
+        userId: user.userId
+      };
+    }
+    
+    console.log(`⚠️ 未找到openId为${openId}的用户，使用默认值`);
+  } catch (error) {
+    console.error(`❌ 获取飞书用户信息失败:`, error);
+  }
+  
+  // 如果找不到，使用默认值
+  return {
+    name: '飞书用户',
+    userId: openId
+  };
+}
+
+/**
  * 处理卡片按钮点击回调
  */
 async function handleCardCallback(body: Record<string, unknown>): Promise<Response> {
@@ -233,8 +269,8 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
   // 如果是提交跟进记录（按钮 tag 为 "button"）
   if (tag === "button" || tag === "submit_button") {
     const caseId = (value.case_id as string) || "";
-    const operatorId = (value.operator_id as string) || "system";
-    const operatorName = (value.operator_name as string) || "系统";
+    const operatorIdFromValue = (value.operator_id as string) || "system";
+    const operatorNameFromValue = (value.operator_name as string) || "系统";
 
     if (!caseId) {
       console.error("❌ 缺少案件ID");
@@ -251,6 +287,13 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
         }
       );
     }
+
+    // 根据openId获取飞书用户信息（优先使用飞书填写人）
+    const feishuUser = await getFeishuUserByOpenId(openId);
+    const operatorId = feishuUser.userId || operatorIdFromValue;
+    const operatorName = feishuUser.name || operatorNameFromValue;
+
+    console.log(`👤 使用跟进人信息: ${operatorName} (ID: ${operatorId})`);
 
     // 映射飞书选项到系统选项
     const mappedData = mapFeishuOptions(formValue);

@@ -651,11 +651,22 @@
         "fileInfo": [],
         "createdAt": "2026-05-22T13:31:17.518Z",
         "createdBy": "未登记人"
+      },
+      {
+        "id": "1779458097117",
+        "follower": "系统",
+        "followTime": "2026-05-22T13:54:57.117Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "5555",
+        "createdAt": "2026-05-22T13:54:57.117Z",
+        "createdBy": "系统"
       }
     ],
     "id": "6bd6b044-62e0-4c55-99ff-88ecdc3e9932",
     "createdAt": "2026-05-06T17:19:05.554Z",
-    "updatedAt": "2026-05-22T13:31:19.011Z"
+    "updatedAt": "2026-05-22T13:54:57.123Z"
   },
   {
     "batchNo": "20260507DCLR",
