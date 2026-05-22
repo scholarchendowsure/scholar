@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
     // 获取tenant_access_token
     const tenantAccessToken = await getTenantAccessToken(credentials.appId, credentials.appSecret || '');
 
+    console.log('接收到的参数:', { 
+      openId, productName, funder, riskLevel, receiver, userId, loanNo, overdueAmount, dueDate 
+    });
+
     // 构建飞书卡片JSON 2.0结构
     const card = {
       schema: "2.0",

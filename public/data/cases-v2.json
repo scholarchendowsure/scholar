@@ -415,7 +415,7 @@
     "status": "逾期",
     "totalOutstandingBalance": 26000,
     "overdueAmount": 37543.59,
-    "overdueDays": 872,
+    "overdueDays": 828,
     "productName": "通用版跨商宝-默放保理",
     "platform": "AMAZON",
     "paymentCompany": "-",
@@ -446,7 +446,7 @@
     "householdAddress": "福建省泉州市石狮市宝岛路康城美墅5栋3梯1202",
     "borrowerPhone": "13959997978",
     "assignedSales": "钟显荣",
-    "assignedPostLoan": "君澜",
+    "assignedPostLoan": "高乐",
     "followups": [
       {
         "id": "fdb02b18-97c6-48c3-aba6-c5c02ecc398d",
@@ -462,7 +462,7 @@
     ],
     "id": "0f6de19f-389e-4558-88e9-96b8f0703538",
     "createdAt": "2026-05-06T17:19:05.530Z",
-    "updatedAt": "2026-05-06T17:19:05.530Z"
+    "updatedAt": "2026-05-22T11:37:45.883Z"
   },
   {
     "batchNo": "20260507DCLR",
