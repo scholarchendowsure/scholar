@@ -131,6 +131,84 @@ export default function SharedCasePage() {
     }
   }, [params.id]);
 
+  // 移除Next.js DevTools元素
+  useEffect(() => {
+    const removeNextJSDevTools = () => {
+      // 方法1: 直接查找并移除元素
+      const selectors = [
+        '#__nextjs-build-indicator',
+        '[data-nextjs]',
+        '[role="dialog"][aria-label="Next.js DevTools"]',
+        // 查找固定在左下角的元素
+        'body > div[style*="position: fixed"]',
+        'body > div[style*="bottom: 16px"]',
+        'body > div[style*="left: 16px"]',
+        'body > div[style*="bottom: 20px"]',
+        'body > div[style*="left: 20px"]',
+      ];
+
+      selectors.forEach(selector => {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(el => {
+            if (el && el.parentNode) {
+              el.parentNode.removeChild(el);
+            }
+          });
+        } catch (e) {
+          // 忽略错误
+        }
+      });
+
+      // 方法2: 查找所有body直接子元素中的固定定位元素
+      const bodyChildren = document.body.children;
+      for (let i = bodyChildren.length - 1; i >= 0; i--) {
+        const child = bodyChildren[i];
+        const style = window.getComputedStyle(child);
+        if (style.position === 'fixed' && 
+            (style.bottom === '16px' || style.bottom === '20px' || 
+             style.left === '16px' || style.left === '20px')) {
+          if (child.parentNode) {
+            child.parentNode.removeChild(child);
+          }
+        }
+      }
+
+      // 方法3: 使用MutationObserver持续监控
+    };
+
+    // 立即执行一次
+    removeNextJSDevTools();
+    
+    // 延迟执行多次，确保元素被移除
+    const timer1 = setTimeout(removeNextJSDevTools, 100);
+    const timer2 = setTimeout(removeNextJSDevTools, 500);
+    const timer3 = setTimeout(removeNextJSDevTools, 1000);
+    const timer4 = setTimeout(removeNextJSDevTools, 2000);
+
+    // 使用MutationObserver持续监控并移除
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length > 0) {
+          removeNextJSDevTools();
+        }
+      });
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+      observer.disconnect();
+    };
+  }, []);
+
   // 监听对话框打开，清空上传文件
   useEffect(() => {
     if (showFollowupDialog) {
@@ -520,7 +598,31 @@ export default function SharedCasePage() {
         #__nextjs-build-indicator,
         [data-nextjs],
         .nextjs-devtools,
-        .nextjs-overlay {
+        .nextjs-overlay,
+        [role="dialog"][aria-label="Next.js DevTools"],
+        div[class*="nextjs"],
+        div[class*="NextJS"] {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          position: absolute !important;
+          left: -9999px !important;
+          top: -9999px !important;
+          width: 0 !important;
+          height: 0 !important;
+          overflow: hidden !important;
+          z-index: -9999 !important;
+        }
+        
+        /* 隐藏所有固定在左下角的元素，Next.js DevTools通常在那里 */
+        body > div[style*="position: fixed"][style*="bottom: 16px"][style*="left: 16px"],
+        body > div[style*="position: fixed"][style*="bottom: 20px"][style*="left: 20px"] {
+          display: none !important;
+        }
+        
+        /* 隐藏所有Next.js相关的浮动元素 */
+        [class*="fixed"][class*="bottom-"][class*="left-"] {
           display: none !important;
         }
       `}} />
