@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { caseStorage } from '@/storage/database/case-storage';
 import { addSecurityHeaders } from '@/lib/security';
 
-export async function DELETE(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { ids } = body;

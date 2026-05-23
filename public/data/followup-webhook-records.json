@@ -1,5 +1,24 @@
 [
   {
+    "id": "1779502421784",
+    "receivedAt": "2026-05-23T02:13:41.784Z",
+    "payload": {
+      "user_id": "59929",
+      "loan_number": "DSL1721202686710",
+      "recorder": "高乐 | Scholar",
+      "follow_up_type": "23",
+      "contact_person": "324",
+      "follow_up_result": "4344",
+      "record_content": "3232",
+      "file_info": ""
+    },
+    "processResult": {
+      "success": true,
+      "message": "已成功为 1 个案件添加跟进记录",
+      "updatedCases": 1
+    }
+  },
+  {
     "id": "1778010991200",
     "receivedAt": "2026-05-05T19:56:31.200Z",
     "payload": {

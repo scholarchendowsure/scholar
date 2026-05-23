@@ -122,7 +122,7 @@ export default function RecycleBinPage() {
     setDeleting(true);
     try {
       const res = await fetch('/api/cases/recycle-bin/permanent-delete', {
-        method: 'DELETE',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds) }),
       });
