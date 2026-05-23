@@ -45,11 +45,19 @@ export function stripLargeFields(c: Case): Case {
       return rest as CaseFile;
     });
   }
-  // 剥离 followups 中的 fileInfo 大字段
+  // 保留 followups 中的 fileInfo，但剥离 fileInfo 中的 data 大字段
   if (stripped.followups && Array.isArray(stripped.followups)) {
     stripped.followups = stripped.followups.map((f: FollowUp) => {
-      const { fileInfo, ...rest } = f;
-      return rest as FollowUp;
+      if (f.fileInfo && Array.isArray(f.fileInfo)) {
+        return {
+          ...f,
+          fileInfo: f.fileInfo.map((file: any) => {
+            const { data, ...rest } = file;
+            return rest;
+          })
+        };
+      }
+      return f;
     });
   }
   return stripped;
