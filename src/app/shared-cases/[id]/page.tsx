@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -107,18 +107,22 @@ export default function SharedCasePage() {
 
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('core');
   const [showFollowupDialog, setShowFollowupDialog] = useState(false);
-  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
-    follower: '免登录用户',
-    followType: 'online',
-    contact: 'legal_representative',
-    followResult: 'normal_repayment',
-    followRecord: '',
-    fileInfo: [],
-    followTime: new Date().toISOString(),
+  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>(() => {
+    const receiver = searchParams.get('receiver') || '';
+    return {
+      follower: receiver,
+      followType: 'online',
+      contact: 'legal_representative',
+      followResult: 'normal_repayment',
+      followRecord: '',
+      fileInfo: [],
+      followTime: new Date().toISOString(),
+    };
   });
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: string }>({});
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<any[]>([]);
@@ -161,12 +165,19 @@ export default function SharedCasePage() {
     }
   }, [params.id]);
 
-  // 监听对话框打开，清空上传文件
+  // 监听对话框打开，清空上传文件并重置跟进人
   useEffect(() => {
     if (showFollowupDialog) {
+      const receiver = searchParams.get('receiver') || '';
+      setNewFollowup(prev => ({
+        ...prev,
+        follower: receiver,
+        followRecord: '',
+        fileInfo: [],
+      }));
       setUploadedCaseFiles([]);
     }
-  }, [showFollowupDialog]);
+  }, [showFollowupDialog, searchParams]);
 
   // 文件上传处理
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -770,8 +781,9 @@ export default function SharedCasePage() {
               <div className="space-y-2">
                 <Label>跟进人</Label>
                 <Input 
-                  value={newFollowup.follower || '免登录用户'} 
-                  disabled
+                  value={newFollowup.follower || ''} 
+                  onChange={(e) => setNewFollowup({...newFollowup, follower: e.target.value})}
+                  placeholder="请输入跟进人"
                 />
               </div>
               
