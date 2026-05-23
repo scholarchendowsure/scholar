@@ -153,11 +153,28 @@ function mapFeishuOptions(formValue: Record<string, unknown>) {
     'refused': 'other'
   };
 
+  // 联系状态映射（显示文本）
+  const contactStatusMap: Record<string, string> = {
+    'contacted': '已联系',
+    'uncontacted': '未联系',
+    'unreachable': '无法联系'
+  };
+
+  const followUpRemark = (formValue.follow_up_remark as string) || '';
+  const contactStatus = formValue.contact_status as string;
+  const contactStatusText = contactStatusMap[contactStatus] || '';
+  
+  // 构造最终的记录内容：联系状态 + 输入框内容
+  let finalFollowRecord = followUpRemark;
+  if (contactStatusText) {
+    finalFollowRecord = contactStatusText + (followUpRemark ? '：' + followUpRemark : '');
+  }
+
   return {
     followType: followUpMethodMap[formValue.follow_up_method as string] || 'other',
     contact: followUpObjectMap[formValue.follow_up_object as string] || 'other',
     followResult: followUpResultMap[formValue.follow_up_result as string] || 'other',
-    followRecord: (formValue.follow_up_remark as string) || ''
+    followRecord: finalFollowRecord
   };
 }
 

@@ -360,10 +360,22 @@
     "borrowerPhone": "13738519988",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779509849558",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:17:29.558Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T04:17:29.558Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "d0fa2c29-ef40-458c-9061-c67c6c8587ea",
     "createdAt": "2026-05-23T03:36:47.390Z",
-    "updatedAt": "2026-05-23T03:36:47.390Z"
+    "updatedAt": "2026-05-23T04:17:29.563Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -4186,10 +4198,22 @@
     "borrowerPhone": "13738519988",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779509849558",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:17:29.558Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T04:17:29.558Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "2d9f3302-678f-4804-a253-f0c426d0a8d5",
     "createdAt": "2026-05-23T03:36:55.371Z",
-    "updatedAt": "2026-05-23T03:36:55.371Z"
+    "updatedAt": "2026-05-23T04:17:29.582Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -13005,10 +13029,22 @@
     "borrowerPhone": "13738519988",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779509849558",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:17:29.558Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T04:17:29.558Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "b0b1c216-dddd-4489-8561-d2e2e6d74332",
     "createdAt": "2026-05-23T03:37:16.021Z",
-    "updatedAt": "2026-05-23T03:37:16.021Z"
+    "updatedAt": "2026-05-23T04:17:29.594Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -15150,10 +15186,22 @@
     "borrowerPhone": "13738519988",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779509849558",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:17:29.558Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T04:17:29.558Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "b6fd2172-c703-4fdf-b18d-0252dbb07880",
     "createdAt": "2026-05-23T03:37:20.507Z",
-    "updatedAt": "2026-05-23T03:37:20.507Z"
+    "updatedAt": "2026-05-23T04:17:29.607Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -22058,10 +22106,22 @@
     "borrowerPhone": "13738519988",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779509849558",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:17:29.558Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T04:17:29.558Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "0c8b6ee5-ee94-4921-b3fe-f85eea77c222",
     "createdAt": "2026-05-23T03:37:36.350Z",
-    "updatedAt": "2026-05-23T03:37:36.350Z"
+    "updatedAt": "2026-05-23T04:17:29.619Z"
   },
   {
     "batchNo": "20260507DCLR",
