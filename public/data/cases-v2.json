@@ -275,10 +275,22 @@
     "borrowerPhone": "13968137554",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779522994029",
+        "follower": "高乐",
+        "followTime": "2026-05-23T07:56:34.029Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "overdue_promise",
+        "followRecord": "已联系：243432423",
+        "createdAt": "2026-05-23T07:56:34.029Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "79bf2f07-269c-46a0-aca1-924c002be8b6",
     "createdAt": "2026-05-23T03:36:47.365Z",
-    "updatedAt": "2026-05-23T03:36:47.365Z"
+    "updatedAt": "2026-05-23T07:56:34.033Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -5084,10 +5096,22 @@
     "borrowerPhone": "13968137554",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779522994029",
+        "follower": "高乐",
+        "followTime": "2026-05-23T07:56:34.029Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "overdue_promise",
+        "followRecord": "已联系：243432423",
+        "createdAt": "2026-05-23T07:56:34.029Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "dac869e6-932a-4a43-a1a5-27754d74455d",
     "createdAt": "2026-05-23T03:36:57.173Z",
-    "updatedAt": "2026-05-23T03:36:57.173Z"
+    "updatedAt": "2026-05-23T07:56:34.054Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -15844,10 +15868,22 @@
     "borrowerPhone": "13968137554",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779522994029",
+        "follower": "高乐",
+        "followTime": "2026-05-23T07:56:34.029Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "overdue_promise",
+        "followRecord": "已联系：243432423",
+        "createdAt": "2026-05-23T07:56:34.029Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "ea7e678d-c796-44e7-8ca9-59da1564f2f5",
     "createdAt": "2026-05-23T03:37:21.795Z",
-    "updatedAt": "2026-05-23T03:37:21.795Z"
+    "updatedAt": "2026-05-23T07:56:34.066Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -16399,10 +16435,22 @@
     "borrowerPhone": "13968137554",
     "assignedSales": "李广艳",
     "assignedPostLoan": "高乐",
-    "followups": [],
+    "followups": [
+      {
+        "id": "1779522994029",
+        "follower": "高乐",
+        "followTime": "2026-05-23T07:56:34.029Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "overdue_promise",
+        "followRecord": "已联系：243432423",
+        "createdAt": "2026-05-23T07:56:34.029Z",
+        "createdBy": "高乐"
+      }
+    ],
     "id": "aeb6a11d-7693-4a5a-b26b-54a5860f9ce3",
     "createdAt": "2026-05-23T03:37:23.602Z",
-    "updatedAt": "2026-05-23T03:37:23.602Z"
+    "updatedAt": "2026-05-23T07:56:34.079Z"
   },
   {
     "batchNo": "20260507DCLR",
