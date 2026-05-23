@@ -249,31 +249,24 @@ export default function CaseDetailPage() {
   // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const result = event.target?.result as string;
-          const caseFile: CaseFile = {
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: file.name,
-            type: isImageFile(file.name) ? 'image' : 
-                  isDocumentFile(file.name) ? 'document' : 'other',
-            data: result,
-            uploadTime: new Date().toISOString(),
-            uploadBy: '未登记人',
-          };
-          
-          setUploadedCaseFiles(prev => [...prev, caseFile]);
-        };
-        reader.onerror = () => {
-          toast.error('文件读取失败');
-        };
-        reader.readAsDataURL(file);
-      });
+      const newFiles: CaseFile[] = files.map(file => ({
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        type: isImageFile(file.name) ? 'image' : 
+              isDocumentFile(file.name) ? 'document' : 'other',
+        data: '', // 暂时不存储base64数据，减少状态更新
+        uploadTime: new Date().toISOString(),
+        uploadBy: '未登记人',
+      }));
       
+      setUploadedCaseFiles(prev => [...prev, ...newFiles]);
       toast.success(`已选择 ${files.length} 个文件`);
+      
+      // 清空input的value，允许重新选择同一个文件
+      e.target.value = '';
     }
   };
   
