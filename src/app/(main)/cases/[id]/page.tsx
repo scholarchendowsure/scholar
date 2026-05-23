@@ -525,8 +525,8 @@ export default function CaseDetailPage() {
   const fetchCase = async (id: string) => {
     try {
       setLoading(true);
-      // 添加时间戳参数防止任何级别的缓存
-      const res = await fetch(`/api/cases/${id}?_t=${Date.now()}`, {
+      // 添加时间戳参数防止任何级别的缓存，同时请求完整文件数据
+      const res = await fetch(`/api/cases/${id}?_t=${Date.now()}&includeFiles=true`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store',

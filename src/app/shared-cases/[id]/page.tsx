@@ -103,7 +103,7 @@ export default function SharedCasePage() {
   // 获取案件数据
   const fetchCase = async () => {
     try {
-      const res = await fetch(`/api/cases/${params.id}`);
+      const res = await fetch(`/api/cases/${params.id}?includeFiles=true`);
       const json = await res.json();
       if (json.success) {
         setCaseData(json.data);
