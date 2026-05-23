@@ -145,6 +145,11 @@ export default function SharedCasePage() {
         'body > div[style*="left: 16px"]',
         'body > div[style*="bottom: 20px"]',
         'body > div[style*="left: 20px"]',
+        'body > div[style*="bottom: 24px"]',
+        'body > div[style*="left: 24px"]',
+        // 查找包含"N"文字的圆形按钮
+        'button:has(div:contains("N"))',
+        'div:has(button:contains("N"))',
       ];
 
       selectors.forEach(selector => {
@@ -166,25 +171,60 @@ export default function SharedCasePage() {
         const child = bodyChildren[i];
         const style = window.getComputedStyle(child);
         if (style.position === 'fixed' && 
-            (style.bottom === '16px' || style.bottom === '20px' || 
-             style.left === '16px' || style.left === '20px')) {
+            (style.bottom === '16px' || style.bottom === '20px' || style.bottom === '24px' ||
+             style.left === '16px' || style.left === '20px' || style.left === '24px')) {
           if (child.parentNode) {
             child.parentNode.removeChild(child);
           }
         }
       }
 
-      // 方法3: 使用MutationObserver持续监控
+      // 方法3: 查找包含"N"文本的圆形按钮
+      const allElements = document.querySelectorAll('*');
+      allElements.forEach(el => {
+        if (el.textContent && el.textContent.trim() === 'N') {
+          const parent = el.closest('button, div');
+          if (parent && parent.parentNode) {
+            const parentStyle = window.getComputedStyle(parent);
+            if (parentStyle.position === 'fixed' || 
+                parentStyle.borderRadius === '50%' || 
+                parentStyle.borderRadius.includes('px') && parseFloat(parentStyle.borderRadius) > 20) {
+              parent.parentNode.removeChild(parent);
+            }
+          }
+        }
+      });
+
+      // 方法4: 查找所有圆形的固定定位元素
+      const allDivs = document.querySelectorAll('div, button');
+      allDivs.forEach(el => {
+        const style = window.getComputedStyle(el);
+        const borderRadius = style.borderRadius;
+        const isCircle = borderRadius === '50%' || 
+                        (borderRadius.includes('px') && parseFloat(borderRadius) > 20);
+        const isFixed = style.position === 'fixed';
+        const isBottomLeft = (style.bottom && parseInt(style.bottom) < 50) && 
+                            (style.left && parseInt(style.left) < 50);
+        
+        if (isCircle && isFixed && isBottomLeft) {
+          if (el.parentNode) {
+            el.parentNode.removeChild(el);
+          }
+        }
+      });
     };
 
     // 立即执行一次
     removeNextJSDevTools();
     
     // 延迟执行多次，确保元素被移除
-    const timer1 = setTimeout(removeNextJSDevTools, 100);
-    const timer2 = setTimeout(removeNextJSDevTools, 500);
-    const timer3 = setTimeout(removeNextJSDevTools, 1000);
-    const timer4 = setTimeout(removeNextJSDevTools, 2000);
+    const timer1 = setTimeout(removeNextJSDevTools, 50);
+    const timer2 = setTimeout(removeNextJSDevTools, 100);
+    const timer3 = setTimeout(removeNextJSDevTools, 200);
+    const timer4 = setTimeout(removeNextJSDevTools, 500);
+    const timer5 = setTimeout(removeNextJSDevTools, 1000);
+    const timer6 = setTimeout(removeNextJSDevTools, 2000);
+    const timer7 = setTimeout(removeNextJSDevTools, 3000);
 
     // 使用MutationObserver持续监控并移除
     const observer = new MutationObserver((mutations) => {
@@ -205,6 +245,9 @@ export default function SharedCasePage() {
       clearTimeout(timer2);
       clearTimeout(timer3);
       clearTimeout(timer4);
+      clearTimeout(timer5);
+      clearTimeout(timer6);
+      clearTimeout(timer7);
       observer.disconnect();
     };
   }, []);
