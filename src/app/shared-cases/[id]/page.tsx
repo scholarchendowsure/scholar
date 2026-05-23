@@ -75,6 +75,36 @@ const Field = ({ label, value, highlight, action }: { label: string; value: any;
 );
 
 export default function SharedCasePage() {
+  // 枚举值转中文
+  const getFollowTypeText = (type: string) => {
+    switch(type) {
+      case 'online': return '线上';
+      case 'offline': return '线下';
+      case 'other': return '其他';
+      case 'pending': return '未跟进';
+      default: return type;
+    }
+  };
+
+  const getContactText = (contact: string) => {
+    switch(contact) {
+      case 'legal_representative': return '法人';
+      case 'actual_controller': return '实控人';
+      case 'other': return '其他';
+      default: return contact;
+    }
+  };
+
+  const getFollowResultText = (result: string) => {
+    switch(result) {
+      case 'normal_repayment': return '正常还款';
+      case 'warning_rise': return '预警上升';
+      case 'overdue_promise': return '逾期承诺';
+      case 'other': return '其他';
+      default: return result;
+    }
+  };
+
   const params = useParams();
   const router = useRouter();
   const [caseData, setCaseData] = useState<Case | null>(null);
@@ -625,17 +655,17 @@ export default function SharedCasePage() {
                       <div className="flex items-center gap-2">
                         <span className="text-slate-500">|</span>
                         <span className="text-slate-500">跟进类型:</span>
-                        <Badge variant="secondary">{followup.followType || '-'}</Badge>
+                        <Badge variant="secondary">{getFollowTypeText(followup.followType || '-')}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-slate-500">|</span>
                         <span className="text-slate-500">联系人:</span>
-                        <span className="font-medium text-slate-900">{followup.contact || '-'}</span>
+                        <span className="font-medium text-slate-900">{getContactText(followup.contact || '-')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-slate-500">|</span>
                         <span className="text-slate-500">跟进结果:</span>
-                        <Badge>{followup.followResult || '-'}</Badge>
+                        <Badge>{getFollowResultText(followup.followResult || '-')}</Badge>
                       </div>
                     </div>
                     
