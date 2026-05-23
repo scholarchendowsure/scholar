@@ -377,37 +377,6 @@ export async function processFeishuBitableRecord(record: FeishuBitableRecord): P
         await caseStorage.update(existingCase.id, updateData);
       }
 
-      // 如果有跟进记录信息，添加跟进记录
-      if (followupInfo.content || followupInfo.action) {
-        const followupRecord = [
-          followupInfo.action ? `操作：${followupInfo.action}` : '',
-          followupInfo.recorder ? `记录人：${followupInfo.recorder}` : '',
-          followupInfo.time ? `时间：${followupInfo.time}` : '',
-          followupInfo.content ? `内容：${followupInfo.content}` : '',
-        ].filter(Boolean).join('\n');
-
-        if (followupRecord) {
-          const existingFollowups = existingCase.followups || [];
-          const newFollowup: FollowUp = {
-            id: crypto.randomUUID(),
-            follower: followupInfo.recorder || '未登记人',
-            followTime: followupInfo.time || new Date().toISOString(),
-            followType: 'online',
-            contact: 'legal_representative',
-            followResult: 'normal_repayment',
-            followRecord: followupRecord,
-            createdAt: new Date().toISOString(),
-            createdBy: followupInfo.recorder || '系统',
-          };
-          await caseStorage.update(existingCase.id, {
-            followups: [
-              ...existingFollowups,
-              newFollowup,
-            ],
-          });
-        }
-      }
-
       return {
         success: true,
         action: 'updated',
@@ -434,31 +403,6 @@ export async function processFeishuBitableRecord(record: FeishuBitableRecord): P
         ...caseData,
         followups: caseData.followups || [],
       };
-
-      // 如果有跟进记录信息，添加到初始跟进记录
-      if (followupInfo.content || followupInfo.action) {
-        const followupRecord = [
-          followupInfo.action ? `操作：${followupInfo.action}` : '',
-          followupInfo.recorder ? `记录人：${followupInfo.recorder}` : '',
-          followupInfo.time ? `时间：${followupInfo.time}` : '',
-          followupInfo.content ? `内容：${followupInfo.content}` : '',
-        ].filter(Boolean).join('\n');
-
-        if (followupRecord) {
-          const newFollowup: FollowUp = {
-            id: crypto.randomUUID(),
-            follower: followupInfo.recorder || '未登记人',
-            followTime: followupInfo.time || new Date().toISOString(),
-            followType: 'online',
-            contact: 'legal_representative',
-            followResult: 'normal_repayment',
-            followRecord: followupRecord,
-            createdAt: new Date().toISOString(),
-            createdBy: followupInfo.recorder || '系统',
-          };
-          newCaseData.followups = [newFollowup];
-        }
-      }
 
       const newCase = await caseStorage.create(newCaseData);
 
