@@ -248,12 +248,13 @@ export default function CaseDetailPage() {
   
   // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       files.forEach(file => {
         const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
           const caseFile: CaseFile = {
             id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: file.name,
@@ -265,6 +266,9 @@ export default function CaseDetailPage() {
           };
           
           setUploadedCaseFiles(prev => [...prev, caseFile]);
+        };
+        reader.onerror = () => {
+          toast.error('文件读取失败');
         };
         reader.readAsDataURL(file);
       });
@@ -1561,6 +1565,7 @@ export default function CaseDetailPage() {
                     multiple 
                     className="hidden" 
                     onChange={handleFileUpload}
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                   />
                   <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload')?.click()}>
                     <Upload className="w-4 h-4 mr-2" />

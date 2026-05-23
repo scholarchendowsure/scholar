@@ -180,13 +180,14 @@ export default function SharedCasePage() {
   }, [showFollowupDialog, searchParams]);
 
   // 文件上传处理
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
     if (!e.target.files || e.target.files.length === 0) return;
     
     const files = Array.from(e.target.files);
     for (const file of files) {
       const reader = new FileReader();
-      reader.onload = async (event) => {
+      reader.onload = (event) => {
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = file.type.startsWith('image/');
@@ -199,6 +200,9 @@ export default function SharedCasePage() {
           uploadBy: '免登录用户',
           data: base64Data
         }]);
+      };
+      reader.onerror = () => {
+        toast.error('文件读取失败');
       };
       reader.readAsDataURL(file);
     }
@@ -874,6 +878,7 @@ export default function SharedCasePage() {
                   onChange={handleFileUpload}
                   className="hidden"
                   id="file-upload"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                 />
                 <Button 
                   type="button" 
