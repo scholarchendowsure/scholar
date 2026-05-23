@@ -2298,8 +2298,8 @@
     "homeAddress": "广东省江门市新会区睦洲镇睦洲社区新兴街80号",
     "householdAddress": "广东省深圳市龙华区景龙建设路金苹果3单元502室",
     "borrowerPhone": "13632068106",
-    "assignedSales": "陈鑫昌",
-    "assignedPostLoan": "萧何",
+    "assignedSales": "嘉鑫",
+    "assignedPostLoan": "高乐",
     "followups": [
       {
         "id": "47d59882-df3c-4802-935e-64019b14dd2b",
@@ -2311,11 +2311,33 @@
         "followRecord": "操作：录入",
         "createdAt": "2026-05-06T17:21:29.945Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1779458847331",
+        "follower": "高乐",
+        "followTime": "2026-05-22T14:07:27.331Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "overdue_promise",
+        "followRecord": "343243",
+        "createdAt": "2026-05-22T14:07:27.331Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779458897341",
+        "follower": "嘉鑫",
+        "followTime": "2026-05-22T14:08:17.341Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "other",
+        "followRecord": "1",
+        "createdAt": "2026-05-22T14:08:17.341Z",
+        "createdBy": "嘉鑫"
       }
     ],
     "id": "fde04e7c-ed0b-44a3-9826-d30439c46c5c",
     "createdAt": "2026-05-06T17:21:29.945Z",
-    "updatedAt": "2026-05-06T17:21:29.945Z"
+    "updatedAt": "2026-05-22T14:08:17.348Z"
   },
   {
     "batchNo": "20260507DCLR",
