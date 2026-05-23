@@ -638,7 +638,13 @@ export default function SharedCasePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {(caseData.followups || []).map((followup, index) => (
+                {(caseData.followups || [])
+                  .sort((a, b) => {
+                    const timeA = a.followTime ? new Date(a.followTime).getTime() : 0;
+                    const timeB = b.followTime ? new Date(b.followTime).getTime() : 0;
+                    return timeB - timeA;
+                  })
+                  .map((followup, index) => (
                   <div key={followup.id || index} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
                     <div className="flex flex-wrap items-center gap-4 mb-3 text-sm">
                       <div className="flex items-center gap-2">
