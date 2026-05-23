@@ -73,6 +73,10 @@ export async function POST(request: NextRequest) {
     };
     const callbackData = JSON.stringify(callbackDataObj);
 
+    // 构建查看案件详情的免登录链接
+    const domain = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
+    const caseDetailUrl = `${domain}/shared-cases/${caseId}`;
+
     // 构建卡片JSON
     const card = {
       schema: "2.0",
@@ -120,7 +124,7 @@ export async function POST(request: NextRequest) {
                                 elements: [
                                   {
                                     tag: "markdown",
-                                    content: `产品名称：${productName}\n资金方：${funder}\n风险等级：${riskLevel}\n借款人姓名：${borrowerName}\n用户ID：${userId}\n贷款单号：${loanNo}\n待还金额：${dueAmount}\n到期日：${dueDate}`,
+                                    content: `产品名称：${productName}\n资金方：${funder}\n风险等级：${riskLevel}\n借款人姓名：${borrowerName}\n用户ID：${userId}\n贷款单号：${loanNo}\n待还金额：${dueAmount}\n到期日：${dueDate}\n\n[查看案件详情](${caseDetailUrl})`,
                                     text_align: "left",
                                     text_size: "normal_v2",
                                     margin: "0px 0px 0px 0px"

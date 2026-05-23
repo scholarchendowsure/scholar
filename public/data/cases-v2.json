@@ -371,11 +371,44 @@
         "followRecord": "飞书卡片测试",
         "createdAt": "2026-05-23T04:17:29.558Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1779510205018",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:25.018Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "已联系：飞书卡片记录已联系",
+        "createdAt": "2026-05-23T04:23:25.018Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510219755",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:39.755Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "未联系：飞书卡片记录没有联系",
+        "createdAt": "2026-05-23T04:23:39.755Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510236199",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:56.199Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "无法联系：飞书卡片记录无法联系上",
+        "createdAt": "2026-05-23T04:23:56.199Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "d0fa2c29-ef40-458c-9061-c67c6c8587ea",
     "createdAt": "2026-05-23T03:36:47.390Z",
-    "updatedAt": "2026-05-23T04:17:29.563Z"
+    "updatedAt": "2026-05-23T04:23:56.222Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -4209,11 +4242,44 @@
         "followRecord": "飞书卡片测试",
         "createdAt": "2026-05-23T04:17:29.558Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1779510205018",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:25.018Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "已联系：飞书卡片记录已联系",
+        "createdAt": "2026-05-23T04:23:25.018Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510219755",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:39.755Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "未联系：飞书卡片记录没有联系",
+        "createdAt": "2026-05-23T04:23:39.755Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510236199",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:56.199Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "无法联系：飞书卡片记录无法联系上",
+        "createdAt": "2026-05-23T04:23:56.199Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "2d9f3302-678f-4804-a253-f0c426d0a8d5",
     "createdAt": "2026-05-23T03:36:55.371Z",
-    "updatedAt": "2026-05-23T04:17:29.582Z"
+    "updatedAt": "2026-05-23T04:23:56.233Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -13040,11 +13106,44 @@
         "followRecord": "飞书卡片测试",
         "createdAt": "2026-05-23T04:17:29.558Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1779510205018",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:25.018Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "已联系：飞书卡片记录已联系",
+        "createdAt": "2026-05-23T04:23:25.018Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510219755",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:39.755Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "未联系：飞书卡片记录没有联系",
+        "createdAt": "2026-05-23T04:23:39.755Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510236199",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:56.199Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "无法联系：飞书卡片记录无法联系上",
+        "createdAt": "2026-05-23T04:23:56.199Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "b0b1c216-dddd-4489-8561-d2e2e6d74332",
     "createdAt": "2026-05-23T03:37:16.021Z",
-    "updatedAt": "2026-05-23T04:17:29.594Z"
+    "updatedAt": "2026-05-23T04:23:56.243Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -15197,11 +15296,44 @@
         "followRecord": "飞书卡片测试",
         "createdAt": "2026-05-23T04:17:29.558Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1779510205018",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:25.018Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "已联系：飞书卡片记录已联系",
+        "createdAt": "2026-05-23T04:23:25.018Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510219755",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:39.755Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "未联系：飞书卡片记录没有联系",
+        "createdAt": "2026-05-23T04:23:39.755Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510236199",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:56.199Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "无法联系：飞书卡片记录无法联系上",
+        "createdAt": "2026-05-23T04:23:56.199Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "b6fd2172-c703-4fdf-b18d-0252dbb07880",
     "createdAt": "2026-05-23T03:37:20.507Z",
-    "updatedAt": "2026-05-23T04:17:29.607Z"
+    "updatedAt": "2026-05-23T04:23:56.204Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -22117,11 +22249,44 @@
         "followRecord": "飞书卡片测试",
         "createdAt": "2026-05-23T04:17:29.558Z",
         "createdBy": "高乐"
+      },
+      {
+        "id": "1779510205018",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:25.018Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "已联系：飞书卡片记录已联系",
+        "createdAt": "2026-05-23T04:23:25.018Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510219755",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:39.755Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "warning_rise",
+        "followRecord": "未联系：飞书卡片记录没有联系",
+        "createdAt": "2026-05-23T04:23:39.755Z",
+        "createdBy": "高乐"
+      },
+      {
+        "id": "1779510236199",
+        "follower": "高乐",
+        "followTime": "2026-05-23T04:23:56.199Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "无法联系：飞书卡片记录无法联系上",
+        "createdAt": "2026-05-23T04:23:56.199Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "0c8b6ee5-ee94-4921-b3fe-f85eea77c222",
     "createdAt": "2026-05-23T03:37:36.350Z",
-    "updatedAt": "2026-05-23T04:17:29.619Z"
+    "updatedAt": "2026-05-23T04:23:56.254Z"
   },
   {
     "batchNo": "20260507DCLR",
