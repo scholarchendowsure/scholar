@@ -519,28 +519,11 @@ export default function SharedCasePage() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                返回
-              </Button>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900">案件详情 - {caseData.loanNo}</h1>
-                <p className="text-sm text-slate-500 mt-1">免登录查看</p>
-              </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">案件详情 - {caseData.loanNo}</h1>
+              <p className="text-sm text-slate-500 mt-1">免登录查看</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                onClick={fetchCase}
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                刷新
-              </Button>
               <Button 
                 onClick={() => {
                   setNewFollowup({
@@ -564,21 +547,6 @@ export default function SharedCasePage() {
 
       {/* 主要内容区域 */}
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* 案件摘要卡片 */}
-        <Card className="p-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
-              {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
-            </Badge>
-            <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
-              {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
-            </Badge>
-            <span className="text-slate-500">借款人: {caseData.borrowerName}</span>
-            <span className="text-slate-500">用户ID: {caseData.userId}</span>
-            <span className="text-slate-700 font-mono font-semibold">待还: {formatCurrency(caseData.overdueAmount || 0)}</span>
-          </div>
-        </Card>
-
         {/* 折叠标签卡片 */}
         <Card>
           {/* 标签栏 */}
