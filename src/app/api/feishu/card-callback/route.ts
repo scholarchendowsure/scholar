@@ -271,12 +271,19 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
 
     // 保存跟进记录到数据库 - 直接使用本地存储
     let saveSuccess = false;
+    let syncedToSameUserCount = 0;
+    let syncedToBitableCount = 0;
+    let caseDataForSync: any = null;
+    let followupRecordForSync: FollowUp | null = null;
+    
     try {
       // 1. 获取当前案件
       const caseData = await caseStorage.getById(caseId);
       if (!caseData) {
         console.error("❌ 案件不存在:", caseId);
       } else {
+        caseDataForSync = caseData;
+        
         // 2. 构造跟进记录
         const followupRecord: FollowUp = {
           id: Date.now().toString(),
@@ -290,11 +297,30 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
           createdAt: new Date().toISOString(),
           createdBy: operatorName,
         };
+        
+        followupRecordForSync = followupRecord;
 
         // 3. 添加跟进记录到当前案件
         const updatedFollowups = [...(caseData.followups || []), followupRecord];
         console.log(`[Feishu Callback] 添加跟进记录到案件 ${caseId}, 原有${caseData.followups?.length || 0}条, 新增后${updatedFollowups.length}条`);
         await caseStorage.update(caseId, { followups: updatedFollowups });
+        
+        // 4. 同步到相同用户ID的所有案件
+        if (caseData.userId) {
+          const relatedCases = await caseStorage.getByUserId(caseData.userId);
+          const otherCases = relatedCases.filter(c => c.id !== caseId);
+          
+          for (const relatedCase of otherCases) {
+            try {
+              const relatedFollowups = [...(relatedCase.followups || []), followupRecord];
+              await caseStorage.update(relatedCase.id, { followups: relatedFollowups });
+              syncedToSameUserCount++;
+              console.log(`✅ 已同步到案件 ${relatedCase.id}`);
+            } catch (err) {
+              console.error(`❌ 同步跟进记录到案件 ${relatedCase.id} 失败:`, err);
+            }
+          }
+        }
         
         saveSuccess = true;
         console.log("✅ 跟进记录已保存到数据库");
@@ -302,8 +328,43 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
     } catch (error) {
       console.error("❌ 保存跟进记录出错:", error);
     }
+    
+    // 5. 同步到飞书多维表格
+    if (saveSuccess && caseDataForSync && followupRecordForSync) {
+      try {
+        console.log("📋 开始同步到飞书多维表格...");
+        const response = await fetch('http://localhost:5000/api/feishu-bitable/followup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            followup: followupRecordForSync,
+            caseData: caseDataForSync
+          }),
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          syncedToBitableCount = result.successCount || 0;
+          console.log(`✅ 已同步到 ${syncedToBitableCount} 个飞书多维表格`);
+        } else {
+          console.warn("⚠️ 同步到飞书多维表格失败:", result);
+        }
+      } catch (bitableError) {
+        console.error("❌ 同步到飞书多维表格出错:", bitableError);
+      }
+    }
 
     // 返回更新后的卡片内容（显示提交成功）
+    const syncMessages: string[] = [];
+    if (syncedToSameUserCount > 0) {
+      syncMessages.push(`已同步到 ${syncedToSameUserCount} 个相关案件`);
+    }
+    if (syncedToBitableCount > 0) {
+      syncMessages.push(`已同步到 ${syncedToBitableCount} 个飞书多维表格`);
+    }
+    
     const successCard = {
       schema: "2.0",
       config: { wide_screen_mode: true },
@@ -317,18 +378,33 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
             tag: "div",
             text: {
               tag: "lark_md",
-              content: `**案件编号：** ${caseId}\n\n**跟进方式：** ${mappedData.followType}\n\n**跟进对象：** ${mappedData.contact}\n\n**跟进结果：** ${mappedData.followResult}\n\n**跟进备注：** ${mappedData.followRecord || '无'}\n\n---\n\n**提交人：** ${operatorName}\n**提交时间：** ${new Date().toLocaleString("zh-CN")}`,
+              content: `**案件编号：** ${caseId}\n\n**跟进方式：** ${mappedData.followType}\n\n**跟进对象：** ${mappedData.contact}\n\n**跟进结果：** ${mappedData.followResult}\n\n**跟进备注：** ${mappedData.followRecord || '无'}\n\n---\n\n**提交人：** ${operatorName}\n**提交时间：** ${new Date().toLocaleString("zh-CN")}${syncMessages.length > 0 ? `\n\n**同步信息：**\n${syncMessages.map(m => '- ' + m).join('\n')}` : ''}`,
             },
           },
         ],
       }
     };
 
+    // 构造toast消息
+    let toastContent = saveSuccess ? "跟进记录已提交" : "提交失败，请稍后重试";
+    if (saveSuccess) {
+      const toastSyncParts: string[] = [];
+      if (syncedToSameUserCount > 0) {
+        toastSyncParts.push(`同步到${syncedToSameUserCount}个案件`);
+      }
+      if (syncedToBitableCount > 0) {
+        toastSyncParts.push(`同步到${syncedToBitableCount}个多维表格`);
+      }
+      if (toastSyncParts.length > 0) {
+        toastContent = `跟进记录已提交，${toastSyncParts.join('、')}`;
+      }
+    }
+    
     return new NextResponse(
       JSON.stringify({
         toast: { 
           type: saveSuccess ? "success" : "error", 
-          content: saveSuccess ? "跟进记录已提交" : "提交失败，请稍后重试" 
+          content: toastContent
         },
         card: successCard,
       }),

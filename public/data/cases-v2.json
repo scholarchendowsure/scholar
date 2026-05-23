@@ -87,11 +87,22 @@
         "fileInfo": [],
         "createdAt": "2026-05-14T15:54:49.891Z",
         "createdBy": "风控"
+      },
+      {
+        "id": "1779500376109",
+        "follower": "高乐",
+        "followTime": "2026-05-23T01:39:36.109Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T01:39:36.109Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "3476a89c-d290-4acd-bfb5-c84702507b94",
     "createdAt": "2026-05-06T17:16:13.068Z",
-    "updatedAt": "2026-05-14T15:54:45.952Z"
+    "updatedAt": "2026-05-23T01:39:36.115Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -7907,7 +7918,7 @@
     "status": "逾期",
     "totalOutstandingBalance": 32900,
     "overdueAmount": 42574.99,
-    "overdueDays": 538,
+    "overdueDays": 495,
     "productName": "通用版跨商宝-默放保理",
     "platform": "AMAZON",
     "paymentCompany": "PingPong",
@@ -7938,7 +7949,7 @@
     "householdAddress": "广东省深圳市龙华区民治街道龙光玖钻4B",
     "borrowerPhone": "13656996046",
     "assignedSales": "龚鑫",
-    "assignedPostLoan": "萧何",
+    "assignedPostLoan": "高乐",
     "followups": [
       {
         "id": "1cc421f7-3c18-4aee-9a3b-7132f19ee982",
@@ -7950,11 +7961,22 @@
         "followRecord": "操作：录入",
         "createdAt": "2026-05-06T17:21:38.289Z",
         "createdBy": "系统"
+      },
+      {
+        "id": "1779500512389",
+        "follower": "高乐",
+        "followTime": "2026-05-23T01:41:52.389Z",
+        "followType": "online",
+        "contact": "actual_controller",
+        "followResult": "overdue_promise",
+        "followRecord": "飞书卡片测试",
+        "createdAt": "2026-05-23T01:41:52.389Z",
+        "createdBy": "高乐"
       }
     ],
     "id": "9c73f6bf-e5ef-434b-b022-ef0a9acefd4d",
     "createdAt": "2026-05-06T17:21:38.290Z",
-    "updatedAt": "2026-05-06T17:21:38.290Z"
+    "updatedAt": "2026-05-23T01:41:52.398Z"
   },
   {
     "batchNo": "20260507DCLR",
