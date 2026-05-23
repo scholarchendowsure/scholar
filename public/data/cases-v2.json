@@ -456,11 +456,23 @@
         ],
         "createdAt": "2026-05-23T08:14:49.190Z",
         "createdBy": "34343"
+      },
+      {
+        "id": "1779531969729",
+        "follower": "免登录用户",
+        "followTime": "2026-05-23T10:26:05.977Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "232423",
+        "fileInfo": [],
+        "createdAt": "2026-05-23T10:26:09.729Z",
+        "createdBy": "免登录用户"
       }
     ],
     "id": "79bf2f07-269c-46a0-aca1-924c002be8b6",
     "createdAt": "2026-05-23T03:36:47.365Z",
-    "updatedAt": "2026-05-23T08:14:50.075Z"
+    "updatedAt": "2026-05-23T10:26:11.530Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -5533,11 +5545,23 @@
         ],
         "createdAt": "2026-05-23T08:14:49.190Z",
         "createdBy": "34343"
+      },
+      {
+        "id": "1779531969729",
+        "follower": "免登录用户",
+        "followTime": "2026-05-23T10:26:05.977Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "232423",
+        "fileInfo": [],
+        "createdAt": "2026-05-23T10:26:09.729Z",
+        "createdBy": "免登录用户"
       }
     ],
     "id": "dac869e6-932a-4a43-a1a5-27754d74455d",
     "createdAt": "2026-05-23T03:36:57.173Z",
-    "updatedAt": "2026-05-23T08:14:50.161Z"
+    "updatedAt": "2026-05-23T10:26:11.675Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -16518,11 +16542,23 @@
         ],
         "createdAt": "2026-05-23T08:14:49.190Z",
         "createdBy": "34343"
+      },
+      {
+        "id": "1779531969729",
+        "follower": "免登录用户",
+        "followTime": "2026-05-23T10:26:05.977Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "232423",
+        "fileInfo": [],
+        "createdAt": "2026-05-23T10:26:09.729Z",
+        "createdBy": "免登录用户"
       }
     ],
     "id": "ea7e678d-c796-44e7-8ca9-59da1564f2f5",
     "createdAt": "2026-05-23T03:37:21.795Z",
-    "updatedAt": "2026-05-23T08:14:50.214Z"
+    "updatedAt": "2026-05-23T10:26:11.746Z"
   },
   {
     "batchNo": "20260507DCLR",
@@ -17255,11 +17291,23 @@
         ],
         "createdAt": "2026-05-23T08:14:49.190Z",
         "createdBy": "34343"
+      },
+      {
+        "id": "1779531969729",
+        "follower": "免登录用户",
+        "followTime": "2026-05-23T10:26:05.977Z",
+        "followType": "online",
+        "contact": "legal_representative",
+        "followResult": "normal_repayment",
+        "followRecord": "232423",
+        "fileInfo": [],
+        "createdAt": "2026-05-23T10:26:09.729Z",
+        "createdBy": "免登录用户"
       }
     ],
     "id": "aeb6a11d-7693-4a5a-b26b-54a5860f9ce3",
     "createdAt": "2026-05-23T03:37:23.602Z",
-    "updatedAt": "2026-05-23T08:14:50.271Z"
+    "updatedAt": "2026-05-23T10:26:11.807Z"
   },
   {
     "batchNo": "20260507DCLR",
