@@ -586,8 +586,170 @@ export async function POST(request: NextRequest) {
         
         if (isGroupFollowup) {
           console.log("🎯 检测到群跟进记录格式，开始直接处理...");
-          // 直接处理群跟进记录，不调用内部API
-          processGroupFollowupDirect(normalizedBody);
+          
+          // ==================== 直接在这里处理，不调用任何函数 ====================
+          console.log("🚀 ========== 开始直接处理群跟进记录 ==========");
+          
+          // 1. 提取所有信息 - 直接从原始content中提取
+          console.log("📝 原始content:", content);
+          
+          // 提取用户ID
+          const userIdMatch = content.match(/用户ID[：:]\s*(\d+)/);
+          const userId = userIdMatch?.[1];
+          console.log("🆔 提取到的用户ID:", userId);
+          
+          // 提取记录内容
+          let recordContent = '';
+          const recordKeyword = '记录内容：';
+          const recordIndex = content.indexOf(recordKeyword);
+          if (recordIndex !== -1) {
+            const afterRecord = content.substring(recordIndex + recordKeyword.length);
+            const endIndex = afterRecord.search(/[{}\[\]"']/);
+            recordContent = (endIndex === -1 ? afterRecord : afterRecord.substring(0, endIndex)).trim();
+          }
+          console.log("📝 提取到的记录内容:", recordContent);
+          
+          // 提取所有image_key
+          const imageKeys: string[] = [];
+          const imageKeyRegex = /"image_key"\s*:\s*"([^"]+)"/g;
+          let imageMatch;
+          while ((imageMatch = imageKeyRegex.exec(content)) !== null) {
+            if (imageMatch[1]) {
+              imageKeys.push(imageMatch[1]);
+              console.log("🖼️ 提取到图片key:", imageMatch[1]);
+            }
+          }
+          
+          console.log("✅ 提取结果汇总:");
+          console.log("  用户ID:", userId);
+          console.log("  记录内容:", recordContent);
+          console.log("  图片keys:", imageKeys);
+          console.log("  图片数量:", imageKeys.length);
+          
+          if (!userId) {
+            console.log("❌ 未找到用户ID");
+          } else if (!recordContent) {
+            console.log("❌ 未找到记录内容");
+          } else {
+            console.log("✅ 信息提取成功，继续处理...");
+            
+            // 2. 获取发送者信息
+            const sender = normalizedBody.sender as Record<string, unknown>;
+            const senderId = (sender?.sender_id as any)?.open_id as string;
+            console.log("👤 发送者Open ID:", senderId);
+            
+            // 获取跟进人姓名
+            let followerName = senderId || "未知用户";
+            if (senderId) {
+              try {
+                const feishuUsers = await getFeishuUsers();
+                const matchedUser = feishuUsers.find(u => u.openId === senderId);
+                if (matchedUser) {
+                  followerName = matchedUser.name;
+                  console.log("✅ 找到匹配的飞书用户:", followerName);
+                }
+              } catch (error) {
+                console.log("❌ 获取飞书用户失败:", error);
+              }
+            }
+            
+            // 3. 查找案件
+            const allCases = await caseStorage.getAll();
+            const userCases = allCases.filter(c => c.userId === userId);
+            console.log("📋 找到案件数量:", userCases.length);
+            
+            if (userCases.length === 0) {
+              console.log("❌ 未找到对应用户ID的案件");
+              const chatId = (normalizedBody as any)?.chat_id || "";
+              if (chatId) {
+                const errorMessage = "目前该案件未录入案件库，存在贷后未介入情况，请联系管理员：高乐，核实具体情况";
+                await sendConfirmationMessage(chatId, errorMessage);
+              }
+            } else {
+              // 4. 下载图片
+              console.log("🖼️ 开始下载图片，共", imageKeys.length, "张");
+              const savedFiles: any[] = [];
+              
+              for (const imageKey of imageKeys) {
+                try {
+                  console.log("📷 开始下载图片:", imageKey);
+                  const { buffer, fileName } = await feishuService.downloadImage(imageKey);
+                  console.log("✅ 图片下载成功，大小:", buffer.length, "字节");
+                  
+                  const base64Data = buffer.toString('base64');
+                  const dataUrl = `data:image/jpeg;base64,${base64Data}`;
+                  
+                  savedFiles.push({
+                    id: uuidv4(),
+                    name: fileName || `图片_${Date.now()}.jpg`,
+                    type: 'image' as const,
+                    url: dataUrl,
+                    data: dataUrl
+                  });
+                  console.log("✅ 图片处理完成");
+                } catch (error) {
+                  console.error("❌ 下载图片失败:", imageKey, error);
+                }
+              }
+              
+              console.log("✅ 图片下载完成，共保存:", savedFiles.length, "张");
+              
+              // 5. 创建跟进记录
+              console.log("📝 创建跟进记录...");
+              const now = new Date().toISOString();
+              
+              const followUp: FollowUp = {
+                id: uuidv4(),
+                follower: followerName,
+                followTime: now,
+                followType: "other" as any,
+                contact: "other" as any,
+                followResult: "other" as any,
+                followRecord: recordContent,
+                fileInfo: savedFiles.map(f => ({
+                  ...f,
+                  uploadTime: now,
+                  uploadBy: followerName
+                })),
+                createdAt: now,
+                createdBy: followerName
+              };
+              
+              console.log("✅ 跟进记录创建完成:");
+              console.log("  跟进人:", followUp.follower);
+              console.log("  记录内容:", followUp.followRecord);
+              console.log("  文件数量:", followUp.fileInfo?.length || 0);
+              
+              // 6. 保存到所有案件
+              let successCount = 0;
+              for (const userCase of userCases) {
+                try {
+                  const existingFollowups = userCase.followups || [];
+                  const updatedCase = {
+                    ...userCase,
+                    followups: [...existingFollowups, followUp]
+                  };
+                  
+                  await caseStorage.update(updatedCase.id, updatedCase, { skipHistory: true });
+                  successCount++;
+                  console.log("✅ 跟进记录已保存到案件:", userCase.id);
+                } catch (error) {
+                  console.error("❌ 保存跟进记录失败:", error);
+                }
+              }
+              
+              // 7. 发送确认消息
+              const chatId = (normalizedBody as any)?.chat_id || "";
+              if (chatId) {
+                const successMessage = `✅ 跟进记录已保存成功！\n用户ID：${userId}\n保存到 ${successCount} 个案件\n图片：${savedFiles.length} 张`;
+                await sendConfirmationMessage(chatId, successMessage);
+              }
+            }
+          }
+          
+          console.log("🏁 ========== 群跟进记录处理完成 ==========");
+          // ==================== 直接处理结束 ====================
+          
         } else {
           console.log("💬 普通@消息，开始处理...");
           // 异步处理普通@消息，避免超时
