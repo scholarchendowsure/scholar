@@ -89,6 +89,18 @@ export default function CaseDetailPage() {
   // 单独存上传的CaseFile[]
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<CaseFile[]>([]);
 
+  // 新增跟进记录二的状态
+  const [showFollowupDialog2, setShowFollowupDialog2] = useState(false);
+  const [newFollowup2, setNewFollowup2] = useState<Partial<FollowUp>>({
+    follower: '',
+    followType: 'online',
+    contact: 'legal_representative',
+    followResult: 'normal_repayment',
+    followRecord: '',
+    fileInfo: [],
+  });
+  const [uploadedCaseFiles2, setUploadedCaseFiles2] = useState<CaseFile[]>([]);
+
   // 导航状态
   const [navigationState, setNavigationState] = useState<{
     caseIds: string[];
@@ -260,6 +272,35 @@ export default function CaseDetailPage() {
         const isImage = isImageFile(fileName);
         
         setUploadedCaseFiles(prev => [...prev, {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: fileName,
+          type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
+          uploadTime: new Date().toISOString(),
+          uploadBy: '未登记人',
+          data: base64Data
+        }]);
+      };
+      reader.onerror = () => {
+        toast.error('文件读取失败');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // 新增跟进记录二的文件上传处理
+  const handleFileUpload2 = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const files = Array.from(e.target.files);
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target?.result as string;
+        const fileName = file.name;
+        const isImage = isImageFile(fileName);
+        
+        setUploadedCaseFiles2(prev => [...prev, {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: fileName,
           type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
@@ -1319,24 +1360,45 @@ export default function CaseDetailPage() {
                 <h3 className="text-xl font-bold text-slate-900">跟进记录</h3>
                 <span className="text-sm text-slate-500">({caseData?.followups?.length || 0}条)</span>
               </div>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  setNewFollowup({
-                    follower: '未登记人',
-                    followType: 'online',
-                    contact: 'legal_representative',
-                    followResult: 'normal_repayment',
-                    followRecord: '',
-                    fileInfo: [],
-                    followTime: new Date().toISOString(),
-                  });
-                  setShowFollowupDialog(true);
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                新增跟进记录
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    setNewFollowup({
+                      follower: '未登记人',
+                      followType: 'online',
+                      contact: 'legal_representative',
+                      followResult: 'normal_repayment',
+                      followRecord: '',
+                      fileInfo: [],
+                      followTime: new Date().toISOString(),
+                    });
+                    setShowFollowupDialog(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  新增跟进记录
+                </Button>
+                <Button 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => {
+                    setNewFollowup2({
+                      follower: '未登记人',
+                      followType: 'online',
+                      contact: 'legal_representative',
+                      followResult: 'normal_repayment',
+                      followRecord: '',
+                      fileInfo: [],
+                      followTime: new Date().toISOString(),
+                    });
+                    setUploadedCaseFiles2([]);
+                    setShowFollowupDialog2(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  新增跟进记录二
+                </Button>
+              </div>
             </div>
 
             {/* 跟进记录列表 */}
@@ -1768,6 +1830,225 @@ export default function CaseDetailPage() {
                 }}
               >
                 保存
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 新增跟进记录二对话框 */}
+        <Dialog open={showFollowupDialog2} onOpenChange={setShowFollowupDialog2}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>新增跟进记录二</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>跟进人</Label>
+                  <Input 
+                    value={newFollowup2.follower || ''} 
+                    onChange={(e) => setNewFollowup2({...newFollowup2, follower: e.target.value})}
+                    placeholder="请输入跟进人"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>跟进时间</Label>
+                  <Input 
+                    value={newFollowup2.followTime ? new Date(newFollowup2.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')} 
+                    disabled
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>跟进类型</Label>
+                  <Select 
+                    value={newFollowup2.followType as any || 'online'} 
+                    onValueChange={(value) => setNewFollowup2({...newFollowup2, followType: value as any})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择跟进类型" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FOLLOWUP_TYPE_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>联系人</Label>
+                  <Select 
+                    value={newFollowup2.contact as any || 'legal_representative'} 
+                    onValueChange={(value) => setNewFollowup2({...newFollowup2, contact: value as any})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择联系人" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTACT_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>跟进结果</Label>
+                  <Select 
+                    value={newFollowup2.followResult as any || 'normal_repayment'} 
+                    onValueChange={(value) => setNewFollowup2({...newFollowup2, followResult: value as any})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择跟进结果" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FOLLOWUP_RESULT_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>跟进记录内容 *</Label>
+                <Textarea
+                  value={newFollowup2.followRecord || ''}
+                  onChange={(e) => setNewFollowup2({...newFollowup2, followRecord: e.target.value})}
+                  placeholder="请输入跟进记录内容"
+                  rows={6}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>上传文件 (可选)</Label>
+                <div className="flex gap-2">
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileUpload2}
+                    className="hidden"
+                    id="file-upload-2"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => document.getElementById('file-upload-2')?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    选择文件
+                  </Button>
+                </div>
+              
+                {uploadedCaseFiles2.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-sm text-slate-600">已选择 {uploadedCaseFiles2.length} 个文件：</div>
+                    <div className="flex flex-wrap gap-2">
+                      {uploadedCaseFiles2.map((file, index) => (
+                        <div key={file.id} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
+                          <span className="truncate max-w-[150px]">{file.name}</span>
+                          <button
+                            onClick={() => setUploadedCaseFiles2(prev => prev.filter((_, i) => i !== index))}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowFollowupDialog2(false)}>
+                取消
+              </Button>
+              <Button onClick={async () => {
+                if (!caseData) return;
+                
+                if (!newFollowup2.followRecord?.trim()) {
+                  toast.error('请填写跟进记录内容');
+                  return;
+                }
+            
+                setShowFollowupDialog2(false);
+                try {
+                  const followup: FollowUp = {
+                    id: Date.now().toString(),
+                    follower: newFollowup2.follower || '未登记人',
+                    followTime: newFollowup2.followTime || new Date().toISOString(),
+                    followType: newFollowup2.followType as any,
+                    contact: newFollowup2.contact as any,
+                    followResult: newFollowup2.followResult as any,
+                    followRecord: newFollowup2.followRecord || '',
+                    fileInfo: uploadedCaseFiles2,
+                    createdAt: new Date().toISOString(),
+                    createdBy: newFollowup2.follower || '未登记人',
+                  };
+                  
+                  // 立即更新本地状态
+                  if (caseData) {
+                    const immediateUpdatedCase: Case = {
+                      ...caseData,
+                      followups: [...(caseData.followups || []), followup],
+                      updatedAt: new Date().toISOString(),
+                    };
+                    setCaseData(immediateUpdatedCase);
+                  }
+                  
+                  // 使用 followups API 保存
+                  const followupRes = await fetch(`/api/cases/${caseData?.id}/followups`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      followup,
+                      syncToSameUser: true,
+                    }),
+                  });
+                  
+                  const followupResult = await followupRes.json();
+                  
+                  if (!followupResult.success) {
+                    toast.error(followupResult.error || '跟进记录添加失败');
+                    return;
+                  }
+                  
+                  toast.success('跟进记录添加成功');
+                  
+                  // 重置状态
+                  setNewFollowup2({
+                    followType: 'online',
+                    contact: 'legal_representative',
+                    followResult: 'normal_repayment',
+                    followRecord: '',
+                    fileInfo: [],
+                    followTime: new Date().toISOString(),
+                  });
+                  setUploadedCaseFiles2([]);
+                  
+                  // 重新获取案件数据以确保同步
+                  fetchCase(params.id as string);
+                  
+                } catch (e) {
+                  console.error('添加跟进记录失败:', e);
+                  toast.error('添加跟进记录失败');
+                }
+              }}>
+                提交
               </Button>
             </DialogFooter>
           </DialogContent>
