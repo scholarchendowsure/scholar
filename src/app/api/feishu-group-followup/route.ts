@@ -4,23 +4,60 @@ import { caseStorage } from "@/storage/database/case-storage";
 import { getFeishuUsers } from "@/storage/database/feishu-user-storage";
 import { FollowUp } from "@/types/case";
 import { v4 as uuidv4 } from "uuid";
+import { S3Storage } from "coze-coding-dev-sdk";
 
 const feishuService = new FeishuService();
+
+// 初始化对象存储
+const storage = new S3Storage({
+  endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+  accessKey: "",
+  secretKey: "",
+  bucketName: process.env.COZE_BUCKET_NAME,
+  region: "cn-beijing",
+});
 
 /**
  * 解析群跟进记录
  */
 function parseGroupFollowupContent(content: string) {
   try {
-    console.log("📝 解析内容:", content);
+    console.log("📝 原始content:", content);
+    
+    // 先尝试解析content是否是JSON
+    let textToParse = content;
+    try {
+      const parsed = JSON.parse(content);
+      console.log("📋 content是JSON格式:", parsed);
+      
+      // 从JSON中提取text字段
+      if (parsed.text) {
+        textToParse = parsed.text;
+      } else if (Array.isArray(parsed)) {
+        // 如果是数组，查找text类型的元素
+        const textElement = parsed.find((item: any) => item.type === 'text' && item.text);
+        if (textElement) {
+          textToParse = textElement.text;
+        }
+      }
+      console.log("📝 提取后的文本:", textToParse);
+    } catch (e) {
+      console.log("ℹ️ content不是JSON格式，直接使用");
+    }
     
     // 提取用户ID
-    const userIdMatch = content.match(/用户ID[：:]\s*(\d+)/);
+    const userIdMatch = textToParse.match(/用户ID[：:]\s*(\d+)/);
     const userId = userIdMatch?.[1];
     
-    // 提取记录内容
-    const recordMatch = content.match(/记录内容[：:]\s*(.+?)(?=\n|$)/);
-    const recordContent = recordMatch?.[1]?.trim();
+    // 提取记录内容 - 更健壮的匹配
+    const recordMatch = textToParse.match(/记录内容[：:]\s*([^]*?)(?=\n|$)/);
+    let recordContent = recordMatch?.[1]?.trim();
+    
+    // 清理可能的多余符号
+    if (recordContent) {
+      // 移除结尾可能多余的 } 或其他符号
+      recordContent = recordContent.replace(/[}\]]+$/, '').trim();
+    }
     
     console.log("✅ 解析结果 - 用户ID:", userId, "记录内容:", recordContent);
     
@@ -72,6 +109,76 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
   } catch (error) {
     console.error("❌ 提取媒体失败:", error);
     return { images: [], files: [] };
+  }
+}
+
+/**
+ * 保存图片到对象存储
+ */
+async function saveImageToStorage(imageKey: string): Promise<{ key: string; url: string } | null> {
+  try {
+    console.log("📤 开始保存图片，imageKey:", imageKey);
+    
+    // 从飞书下载图片
+    const { buffer, fileName } = await feishuService.downloadImage(imageKey);
+    console.log("✅ 图片下载成功，文件大小:", buffer.length, "字节，文件名:", fileName);
+    
+    // 上传到对象存储
+    const storageKey = await storage.uploadFile({
+      fileContent: buffer,
+      fileName: `feishu-images/${fileName}`,
+      contentType: "image/png"
+    });
+    
+    console.log("✅ 图片上传成功，storageKey:", storageKey);
+    
+    // 生成访问URL
+    const url = await storage.generatePresignedUrl({
+      key: storageKey,
+      expireTime: 86400 * 365 // 1年有效期
+    });
+    
+    console.log("✅ 图片URL生成成功");
+    
+    return { key: storageKey, url };
+  } catch (error) {
+    console.error("❌ 保存图片失败:", error);
+    return null;
+  }
+}
+
+/**
+ * 保存文件到对象存储
+ */
+async function saveFileToStorage(fileKey: string): Promise<{ key: string; url: string } | null> {
+  try {
+    console.log("📤 开始保存文件，fileKey:", fileKey);
+    
+    // 从飞书下载文件
+    const { buffer, fileName } = await feishuService.downloadFileByKey(fileKey);
+    console.log("✅ 文件下载成功，文件大小:", buffer.length, "字节，文件名:", fileName);
+    
+    // 上传到对象存储
+    const storageKey = await storage.uploadFile({
+      fileContent: buffer,
+      fileName: `feishu-files/${fileName}`,
+      contentType: "application/octet-stream"
+    });
+    
+    console.log("✅ 文件上传成功，storageKey:", storageKey);
+    
+    // 生成访问URL
+    const url = await storage.generatePresignedUrl({
+      key: storageKey,
+      expireTime: 86400 * 365 // 1年有效期
+    });
+    
+    console.log("✅ 文件URL生成成功");
+    
+    return { key: storageKey, url };
+  } catch (error) {
+    console.error("❌ 保存文件失败:", error);
+    return null;
   }
 }
 
@@ -209,7 +316,36 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     // 5. 提取图片和文件
     const { images, files } = extractMediaFromMessage(event);
     
-    // 6. 创建跟进记录
+    // 6. 保存图片和文件到对象存储
+    const savedFiles: Array<{ key: string; url: string; name: string; type: 'image' | 'file' }> = [];
+    
+    // 保存图片
+    for (const imageKey of images) {
+      const result = await saveImageToStorage(imageKey);
+      if (result) {
+        savedFiles.push({
+          ...result,
+          name: `图片_${Date.now()}.png`,
+          type: 'image'
+        });
+      }
+    }
+    
+    // 保存文件
+    for (const fileKey of files) {
+      const result = await saveFileToStorage(fileKey);
+      if (result) {
+        savedFiles.push({
+          ...result,
+          name: `文件_${Date.now()}`,
+          type: 'file'
+        });
+      }
+    }
+    
+    console.log("✅ 保存文件完成，共保存:", savedFiles.length, "个文件");
+    
+    // 7. 创建跟进记录
     const followUpId = uuidv4();
     const now = new Date().toISOString();
     
@@ -221,7 +357,14 @@ async function processGroupFollowup(event: Record<string, unknown>) {
       contact: "other" as any,
       followResult: "other" as any,
       followRecord: recordContent,
-      fileInfo: [], // TODO: 后续实现文件下载
+      fileInfo: savedFiles.map(f => ({
+        id: uuidv4(),
+        name: f.name,
+        type: f.type === 'image' ? 'image' : 'document',
+        url: f.url,
+        uploadTime: now,
+        uploadBy: followerName
+      })),
       createdAt: now,
       createdBy: followerName
     };

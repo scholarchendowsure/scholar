@@ -273,4 +273,76 @@ export class FeishuService {
     const arrayBuffer = await response.arrayBuffer();
     return Buffer.from(arrayBuffer);
   }
+
+  /**
+   * 下载飞书图片并返回Buffer
+   */
+  async downloadImage(imageKey: string): Promise<{ buffer: Buffer; fileName: string }> {
+    const accessToken = await this.getTenantAccessToken();
+
+    // 获取图片资源
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/im/v1/images/${imageKey}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`下载图片失败: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 尝试从响应头获取文件名，或者使用默认名称
+    let fileName = `image_${Date.now()}.png`;
+    const contentDisposition = response.headers.get('Content-Disposition');
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = match[1].replace(/['"]/g, '');
+      }
+    }
+
+    return { buffer, fileName };
+  }
+
+  /**
+   * 下载飞书文件并返回Buffer
+   */
+  async downloadFileByKey(fileKey: string): Promise<{ buffer: Buffer; fileName: string }> {
+    const accessToken = await this.getTenantAccessToken();
+
+    // 获取文件资源
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/im/v1/files/${fileKey}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`下载文件失败: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 尝试从响应头获取文件名，或者使用默认名称
+    let fileName = `file_${Date.now()}`;
+    const contentDisposition = response.headers.get('Content-Disposition');
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = match[1].replace(/['"]/g, '');
+      }
+    }
+
+    return { buffer, fileName };
+  }
 }
