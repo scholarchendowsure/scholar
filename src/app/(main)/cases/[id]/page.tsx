@@ -548,6 +548,14 @@ export default function CaseDetailPage() {
     }
   };
 
+  const handleRefresh = async () => {
+    if (params.id) {
+      toast.success('正在刷新...');
+      await fetchCase(String(params.id));
+      toast.success('刷新成功');
+    }
+  };
+
   const fetchRelatedLoans = async (userId: string | number) => {
     try {
       setRelatedLoansLoading(true);
@@ -1269,6 +1277,16 @@ export default function CaseDetailPage() {
                   <Separator orientation="vertical" className="h-8" />
                 </>
               )}
+              <Button 
+                variant="outline" 
+                className="gap-2" 
+                onClick={handleRefresh}
+                disabled={loading}
+                title="刷新页面"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                刷新
+              </Button>
               <Button variant="outline" className="gap-2" onClick={handleViewHistory}>
                 <Eye className="w-4 h-4" />
                 查看历史
