@@ -8,8 +8,8 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // 本地 JSON 文件路径（fallback）
 const path = require('path');
-const LOCAL_DATA_PATH = path.join(process.cwd(), 'public', 'data', 'feishu_users.json');
-const FALLBACK_DATA_PATH = path.join(process.cwd(), 'public', 'data', 'feishu_users.json');
+const LOCAL_DATA_PATH = path.join(process.cwd(), 'public', 'data', 'feishu-users.json');
+const FALLBACK_DATA_PATH = path.join(process.cwd(), 'public', 'data', 'feishu-users.json');
 
 // 飞书用户类型
 export interface FeishuUser {
