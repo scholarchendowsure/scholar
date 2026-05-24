@@ -368,38 +368,54 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     }
     
     // 5. 提取图片和文件
+    console.log("🔍 开始提取图片和文件...");
     const { images, files } = extractMediaFromMessage(event);
+    console.log("✅ 提取结果 - 图片数量:", images.length, "文件数量:", files.length);
+    console.log("📸 提取到的图片keys:", images);
+    console.log("📁 提取到的文件keys:", files);
     
     // 6. 保存图片和文件到对象存储
     const savedFiles: Array<{ key: string; url: string; data: string; name: string; type: 'image' | 'file' }> = [];
     
     // 保存图片
+    console.log("🖼️ 开始保存图片...");
     for (const imageKey of images) {
+      console.log("  📷 正在处理图片:", imageKey);
       const result = await saveImageToStorage(imageKey);
       if (result) {
+        console.log("  ✅ 图片保存成功:", result.key);
         savedFiles.push({
           ...result,
           name: `图片_${Date.now()}.jpg`,
           type: 'image'
         });
+      } else {
+        console.log("  ❌ 图片保存失败:", imageKey);
       }
     }
     
     // 保存文件
+    console.log("📄 开始保存文件...");
     for (const fileKey of files) {
+      console.log("  📁 正在处理文件:", fileKey);
       const result = await saveFileToStorage(fileKey);
       if (result) {
+        console.log("  ✅ 文件保存成功:", result.key);
         savedFiles.push({
           ...result,
           name: `文件_${Date.now()}`,
           type: 'file'
         });
+      } else {
+        console.log("  ❌ 文件保存失败:", fileKey);
       }
     }
     
     console.log("✅ 保存文件完成，共保存:", savedFiles.length, "个文件");
+    console.log("📦 保存的文件详情:", savedFiles.map(f => ({name: f.name, type: f.type, hasData: !!f.data})));
     
     // 7. 创建跟进记录
+    console.log("📝 开始创建跟进记录...");
     const followUpId = uuidv4();
     const now = new Date().toISOString();
     
@@ -424,7 +440,20 @@ async function processGroupFollowup(event: Record<string, unknown>) {
       createdBy: followerName
     };
     
-    console.log("📝 创建跟进记录:", followUp);
+    console.log("✅ 跟进记录创建完成");
+    console.log("📋 跟进人:", followUp.follower);
+    console.log("📝 记录内容:", followUp.followRecord);
+    console.log("📁 文件信息数量:", followUp.fileInfo?.length || 0);
+    if (followUp.fileInfo && followUp.fileInfo.length > 0) {
+      console.log("📄 文件详情:");
+      followUp.fileInfo.forEach((file, index) => {
+        if (typeof file === 'object' && file !== null) {
+          console.log(`  ${index + 1}. 名称: ${file.name}, 类型: ${file.type}, 有数据: ${!!file.data}`);
+        } else {
+          console.log(`  ${index + 1}. 字符串: ${file}`);
+        }
+      });
+    }
     
     // 7. 保存到所有案件
     let successCount = 0;
