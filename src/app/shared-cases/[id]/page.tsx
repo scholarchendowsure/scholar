@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -75,54 +75,20 @@ const Field = ({ label, value, highlight, action }: { label: string; value: any;
 );
 
 export default function SharedCasePage() {
-  // 枚举值转中文
-  const getFollowTypeText = (type: string) => {
-    switch(type) {
-      case 'online': return '线上';
-      case 'offline': return '线下';
-      case 'other': return '其他';
-      case 'pending': return '未跟进';
-      default: return type;
-    }
-  };
-
-  const getContactText = (contact: string) => {
-    switch(contact) {
-      case 'legal_representative': return '法人';
-      case 'actual_controller': return '实控人';
-      case 'other': return '其他';
-      default: return contact;
-    }
-  };
-
-  const getFollowResultText = (result: string) => {
-    switch(result) {
-      case 'normal_repayment': return '正常还款';
-      case 'warning_rise': return '预警上升';
-      case 'overdue_promise': return '逾期承诺';
-      case 'other': return '其他';
-      default: return result;
-    }
-  };
-
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('core');
   const [showFollowupDialog, setShowFollowupDialog] = useState(false);
-  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>(() => {
-    const receiver = searchParams.get('receiver') || '';
-    return {
-      follower: receiver,
-      followType: 'online',
-      contact: 'legal_representative',
-      followResult: 'normal_repayment',
-      followRecord: '',
-      fileInfo: [],
-      followTime: new Date().toISOString(),
-    };
+  const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
+    follower: '免登录用户',
+    followType: 'online',
+    contact: 'legal_representative',
+    followResult: 'normal_repayment',
+    followRecord: '',
+    fileInfo: [],
+    followTime: new Date().toISOString(),
   });
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: string }>({});
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<any[]>([]);
@@ -165,29 +131,21 @@ export default function SharedCasePage() {
     }
   }, [params.id]);
 
-  // 监听对话框打开，清空上传文件并重置跟进人
+  // 监听对话框打开，清空上传文件
   useEffect(() => {
     if (showFollowupDialog) {
-      const receiver = searchParams.get('receiver') || '';
-      setNewFollowup(prev => ({
-        ...prev,
-        follower: receiver,
-        followRecord: '',
-        fileInfo: [],
-      }));
       setUploadedCaseFiles([]);
     }
-  }, [showFollowupDialog, searchParams]);
+  }, [showFollowupDialog]);
 
   // 文件上传处理
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
     const files = Array.from(e.target.files);
     for (const file of files) {
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = file.type.startsWith('image/');
@@ -200,9 +158,6 @@ export default function SharedCasePage() {
           uploadBy: '免登录用户',
           data: base64Data
         }]);
-      };
-      reader.onerror = () => {
-        toast.error('文件读取失败');
       };
       reader.readAsDataURL(file);
     }
@@ -591,44 +546,43 @@ export default function SharedCasePage() {
         </div>
       </div>
 
-      {/* 标签页导航 */}
-      <div className="bg-white border-b border-slate-200 overflow-x-auto">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-1 py-2">
+      {/* 主要内容区域 */}
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* 折叠标签卡片 */}
+        <Card>
+          {/* 标签栏 */}
+          <div className="flex flex-wrap border-b border-slate-200 bg-slate-50">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                className={`px-6 py-4 text-sm font-medium transition-colors relative ${
                   activeTab === tab.id
-                    ? tab.color
-                    : 'text-slate-600 hover:bg-slate-100'
+                    ? `${tab.color} text-white`
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* 主要内容区域 */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <Card className="shadow-lg">
+          
+          {/* 标签内容 */}
           {renderTabContent()}
         </Card>
 
-        {/* 跟进记录列表 */}
-        <Card className="shadow-lg mt-6">
+        {/* 跟进记录卡片 */}
+        <Card>
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-6 bg-indigo-500 rounded"></div>
-                <h3 className="text-lg font-bold text-slate-900">跟进记录</h3>
-                <span className="text-sm text-slate-500">
-                  ({(caseData.followups || []).length}条)
-                </span>
-              </div>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                跟进记录
+                {caseData?.followups && (
+                  <span className="text-sm font-normal text-slate-500">
+                    ({caseData.followups.length}条)
+                  </span>
+                )}
+              </h2>
               <Button 
                 onClick={() => {
                   setNewFollowup({
@@ -647,171 +601,188 @@ export default function SharedCasePage() {
               </Button>
             </div>
 
-            {(caseData.followups || []).length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
-                <p className="text-2xl">暂无跟进记录，点击"新增跟进记录"添加第一条记录</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {(caseData.followups || [])
-                  .sort((a, b) => {
-                    const timeA = a.followTime ? new Date(a.followTime).getTime() : 0;
-                    const timeB = b.followTime ? new Date(b.followTime).getTime() : 0;
-                    return timeB - timeA;
-                  })
-                  .map((followup, index) => (
-                  <div key={followup.id || index} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
-                    <div className="flex flex-wrap items-center gap-4 mb-3 text-sm">
-                      <div className="flex items-center gap-2">
+            {/* 跟进记录列表 */}
+            {caseData?.followups && caseData.followups.length > 0 ? (
+              <div className="space-y-3">
+                {/* 最新记录排序，最新在最上面，无效日期排底部 */}
+                {[...caseData.followups].sort((a, b) => {
+                  const getTime = (f: any) => {
+                    const t = new Date(f.followTime || f.createdAt || '').getTime();
+                    return isNaN(t) ? 0 : t;
+                  };
+                  return getTime(b) - getTime(a);
+                }).map((followup) => (
+                  <div key={followup.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                    {/* 所有内容都在一行显示 */}
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      {/* 基本字段 */}
+                      <div className="flex items-center gap-1">
                         <span className="text-slate-500">跟进人:</span>
-                        <span className="font-medium text-slate-900">{followup.follower || '-'} </span>
+                        <span className="font-medium">{followup.follower}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">|</span>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
                         <span className="text-slate-500">跟进时间:</span>
-                        <span className="font-medium text-slate-900">
-                          {followup.followTime ? new Date(followup.followTime).toLocaleString('zh-CN') : '-'}
-                        </span>
+                        <span className="font-medium">{new Date(followup.followTime).toLocaleString('zh-CN')}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">|</span>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
                         <span className="text-slate-500">跟进类型:</span>
-                        <Badge variant="secondary">{getFollowTypeText(followup.followType || '-')}</Badge>
+                        <Badge variant="outline">{
+                          FOLLOWUP_TYPE_OPTIONS.find(o => o.value === followup.followType)?.label || followup.followType
+                        }</Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">|</span>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
                         <span className="text-slate-500">联系人:</span>
-                        <span className="font-medium text-slate-900">{getContactText(followup.contact || '-')}</span>
+                        <span>{
+                          CONTACT_OPTIONS.find(o => o.value === followup.contact)?.label || followup.contact
+                        }</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500">|</span>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
                         <span className="text-slate-500">跟进结果:</span>
-                        <Badge>{getFollowResultText(followup.followResult || '-')}</Badge>
+                        <Badge variant="outline">{
+                          FOLLOWUP_RESULT_OPTIONS.find(o => o.value === followup.followResult)?.label || followup.followResult
+                        }</Badge>
                       </div>
-                    </div>
-                    
-                    <div className="mb-3">
-                      <div className="text-slate-600 mb-1">记录:</div>
-                      <div className="bg-white p-3 rounded border border-slate-200">
-                        <p className="text-slate-900 whitespace-pre-wrap">
-                          {viewFullRecord === followup.id ? (
-                            followup.followRecord
-                          ) : (
-                            <>
-                              {(followup.followRecord || '').length > 200 ? (
-                                <>
-                                  {(followup.followRecord || '').substring(0, 200)}...
-                                  <button
-                                    onClick={() => setViewFullRecord(followup.id)}
-                                    className="text-blue-600 hover:underline ml-1"
-                                  >
-                                    查看全部
-                                  </button>
-                                </>
-                              ) : (
-                                followup.followRecord
-                              )}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 显示文件信息 */}
-                    {followup.fileInfo && followup.fileInfo.length > 0 && (
-                      <div>
-                        <div className="text-slate-600 mb-2">文件: {followup.fileInfo.length}个</div>
-                        <div className="flex flex-wrap gap-2">
-                          {followup.fileInfo.map((file: any, fileIndex: number) => (
-                            <div key={fileIndex} className="flex items-center gap-1">
-                              {file.type === 'image' ? (
-                                // 图片类型：显示缩略图，可点击放大
-                                <button
-                                  onClick={() => setPreviewImage(file.data || file.url || null)}
-                                  className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
-                                  title={`点击放大: ${file.name}`}
-                                >
-                                  {file.data ? (
-                                    <img src={file.data} alt={file.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    '图'
-                                  )}
-                                </button>
-                              ) : (
-                                // 文件类型：提供下载
-                                <button
-                                  onClick={() => {
-                                    if (file.data) {
-                                      // 有data的话，直接下载
-                                      const link = document.createElement('a');
-                                      link.href = file.data;
-                                      link.download = file.name;
-                                      link.click();
-                                    } else {
-                                      toast.info('文件下载中...');
-                                    }
-                                  }}
-                                  className="w-10 h-10 bg-blue-100 text-blue-800 rounded border border-blue-200 flex items-center justify-center text-xs hover:bg-blue-200 transition-colors"
-                                  title={`下载: ${file.name}`}
-                                >
-                                  文
-                                </button>
-                              )}
-                              <span className="text-xs text-slate-500 max-w-[100px] truncate" title={file.name}>
-                                {file.name}
-                              </span>
+                      
+                      {/* 记录内容，支持展开查看完整内容 */}
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <div className="text-slate-500">记录:</div>
+                        {viewFullRecord === followup.id ? (
+                          <div className="flex-1 min-w-0">
+                            <div className="text-slate-800 bg-white p-3 rounded border whitespace-pre-wrap break-words">
+                              {followup.followRecord}
                             </div>
-                          ))}
-                        </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs mt-1"
+                              onClick={() => setViewFullRecord(null)}
+                            >
+                              收起
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex-1 min-w-0 flex items-center gap-2">
+                            <span className="text-slate-800 truncate">
+                              {followup.followRecord}
+                            </span>
+                            {(followup.followRecord?.length || 0) > 50 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs shrink-0"
+                                onClick={() => setViewFullRecord(followup.id)}
+                              >
+                                展开
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
+                      
+                      {/* 文件信息（在一行显示，图片可点击放大） */}
+                      {followup.fileInfo && followup.fileInfo.length > 0 && (
+                        <>
+                          <div className="text-slate-300">|</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-500">文件:</span>
+                            <div className="flex gap-1">
+                              {followup.fileInfo.map((caseFile) => {
+                                // caseFile 现在已经是 CaseFile 类型
+                                const file = typeof caseFile === 'string' 
+                                  ? { id: Math.random().toString(), name: caseFile, type: isImageFile(caseFile) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人', data: undefined, url: undefined } as const
+                                  : caseFile;
+                                return (
+                                  <div key={file.id} className="flex items-center gap-1">
+                                    {file.type === 'image' ? (
+                                      // 图片类型：显示缩略图，可点击放大
+                                      <button
+                                        onClick={() => setPreviewImage((file as any).data || (file as any).url || null)}
+                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
+                                        title={`点击放大: ${file.name}`}
+                                      >
+                                        {(file as any).data ? (
+                                          <img src={(file as any).data} alt={file.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          '图'
+                                        )}
+                                      </button>
+                                    ) : (
+                                      // 文件类型：提供下载
+                                      <button
+                                        onClick={() => {
+                                          if ((file as any).data) {
+                                            // 有data的话，直接下载
+                                            const link = document.createElement('a');
+                                            link.href = (file as any).data;
+                                            link.download = file.name;
+                                            link.click();
+                                          } else {
+                                            toast.info(`正在下载: ${file.name}`);
+                                          }
+                                        }}
+                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
+                                        title={`下载: ${file.name}`}
+                                      >
+                                        {file.name.length > 8 ? `${file.name.substring(0, 6)}...` : file.name}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                暂无跟进记录，点击"新增跟进记录"添加第一条记录
               </div>
             )}
           </div>
         </Card>
-      </div>
 
-      {/* 新增跟进记录对话框 */}
-      <Dialog open={showFollowupDialog} onOpenChange={setShowFollowupDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>新增跟进记录</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+        {/* 新增跟进记录对话框 */}
+        <Dialog open={showFollowupDialog} onOpenChange={setShowFollowupDialog}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>新增跟进记录</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label>跟进人</Label>
                 <Input 
-                  value={newFollowup.follower || ''} 
-                  onChange={(e) => setNewFollowup({...newFollowup, follower: e.target.value})}
+                  value={newFollowup.follower || ''}
+                  onChange={(e) => setNewFollowup({ ...newFollowup, follower: e.target.value })}
                   placeholder="请输入跟进人"
                 />
               </div>
-              
               <div className="space-y-2">
                 <Label>跟进时间</Label>
                 <Input 
-                  value={newFollowup.followTime ? new Date(newFollowup.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')} 
+                  value={newFollowup.followTime ? new Date(newFollowup.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')}
                   disabled
+                  className="bg-slate-50"
                 />
               </div>
-            </div>
-            
-              <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>跟进类型</Label>
                 <Select 
-                  value={newFollowup.followType as any || 'online'} 
-                  onValueChange={(value) => setNewFollowup({...newFollowup, followType: value as any})}
+                  value={newFollowup.followType} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followType: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="选择跟进类型" />
+                    <SelectValue placeholder="请选择跟进类型" />
                   </SelectTrigger>
                   <SelectContent>
-                    {FOLLOWUP_TYPE_OPTIONS.map((opt) => (
+                    {FOLLOWUP_TYPE_OPTIONS.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -819,18 +790,17 @@ export default function SharedCasePage() {
                   </SelectContent>
                 </Select>
               </div>
-              
               <div className="space-y-2">
                 <Label>联系人</Label>
                 <Select 
-                  value={newFollowup.contact as any || 'legal_representative'} 
-                  onValueChange={(value) => setNewFollowup({...newFollowup, contact: value as any})}
+                  value={newFollowup.contact} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, contact: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="选择联系人" />
+                    <SelectValue placeholder="请选择联系人" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONTACT_OPTIONS.map((opt) => (
+                    {CONTACT_OPTIONS.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -838,18 +808,17 @@ export default function SharedCasePage() {
                   </SelectContent>
                 </Select>
               </div>
-              
               <div className="space-y-2">
                 <Label>跟进结果</Label>
                 <Select 
-                  value={newFollowup.followResult as any || 'normal_repayment'} 
-                  onValueChange={(value) => setNewFollowup({...newFollowup, followResult: value as any})}
+                  value={newFollowup.followResult} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followResult: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="选择跟进结果" />
+                    <SelectValue placeholder="请选择跟进结果" />
                   </SelectTrigger>
                   <SelectContent>
-                    {FOLLOWUP_RESULT_OPTIONS.map((opt) => (
+                    {FOLLOWUP_RESULT_OPTIONS.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -857,92 +826,85 @@ export default function SharedCasePage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>跟进记录内容 *</Label>
-              <Textarea
-                value={newFollowup.followRecord || ''}
-                onChange={(e) => setNewFollowup({...newFollowup, followRecord: e.target.value})}
-                placeholder="请输入跟进记录内容"
-                rows={6}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label>上传文件 (可选)</Label>
-              <div className="flex gap-2">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="file-upload"
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              <div className="space-y-2 col-span-2">
+                <Label>跟进记录</Label>
+                <Textarea 
+                  value={newFollowup.followRecord || ''}
+                  onChange={(e) => setNewFollowup({ ...newFollowup, followRecord: e.target.value })}
+                  placeholder="请输入跟进记录内容"
+                  rows={6}
                 />
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  选择文件
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleCameraUpload}
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  拍照
-                </Button>
               </div>
-              
-              {uploadedCaseFiles.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <div className="text-sm text-slate-600">已选择 {uploadedCaseFiles.length} 个文件：</div>
-                  <div className="flex flex-wrap gap-2">
-                    {uploadedCaseFiles.map((file, index) => (
-                      <div key={file.id} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
-                        <span className="truncate max-w-[150px]">{file.name}</span>
-                        <button
-                          onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== index))}
-                          className="text-red-500 hover:text-red-700"
+              <div className="space-y-2 col-span-2">
+                <Label>文件信息</Label>
+                <div className="flex gap-2">
+                  <input 
+                    type="file" 
+                    id="shared-file-upload" 
+                    multiple 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                  />
+                  <Button variant="outline" type="button" onClick={() => document.getElementById('shared-file-upload')?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    选择文件上传
+                  </Button>
+                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
+                    <Camera className="w-4 h-4 mr-2" />
+                    拍照上传
+                  </Button>
+                </div>
+                {uploadedCaseFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {uploadedCaseFiles.map((file, idx) => (
+                      <div key={file.id} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
+                        {file.name}
+                        <button 
+                          onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-blue-600 hover:text-blue-800"
                         >
                           ×
                         </button>
                       </div>
                     ))}
                   </div>
-                </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowFollowupDialog(false)}>
+                取消
+              </Button>
+              <Button onClick={handleAddFollowup}>
+                保存
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 图片预览对话框 */}
+        <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>图片预览</DialogTitle>
+            </DialogHeader>
+            <div className="flex justify-center items-center p-4">
+              {previewImage && (
+                <img 
+                  src={previewImage} 
+                  alt="预览图片" 
+                  className="max-w-full max-h-[70vh] object-contain"
+                />
               )}
             </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFollowupDialog(false)}>
-              取消
-            </Button>
-            <Button onClick={handleAddFollowup}>
-              提交
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 图片预览对话框 */}
-      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>图片预览</DialogTitle>
-          </DialogHeader>
-          {previewImage && (
-            <div className="flex justify-center">
-              <img src={previewImage} alt="预览" className="max-w-full max-h-[80vh] object-contain" />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPreviewImage(null)}>
+                关闭
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
