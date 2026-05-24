@@ -11,10 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Plus, RefreshCw, Upload, Camera, ArrowLeft, Store, Download, Bell } from 'lucide-react';
+import { Plus, RefreshCw, Upload, Camera, ArrowLeft, Store, Download, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Case, FollowUp } from '@/types/case';
 import { formatCurrency } from '@/lib/utils';
+import { ShopDataParser } from '@/components/shop/shop-data-parser';
+import { ShopCharts } from '@/components/shop/shop-charts';
+import LegalLitigationTab from '@/components/legal-litigation-tab';
 
 // 检查是否为图片文件
 function isImageFile(filename: string): boolean {
@@ -61,6 +64,16 @@ const RISK_CONFIG: Record<string, { label: string; color: string }> = {
   normal: { label: '正常', color: 'bg-green-100 text-green-800' }
 };
 
+// 金额格式化
+const formatMoney = (amount: number): string => {
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
 // Field组件
 const Field = ({ label, value, highlight, action }: { label: string; value: any; highlight?: boolean; action?: React.ReactNode }) => (
   <div className="space-y-1">
@@ -80,6 +93,15 @@ export default function SharedCasePage() {
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('core');
+  
+  // 相关贷款记录相关状态
+  const [relatedLoans, setRelatedLoans] = useState<Case[]>([]);
+  const [relatedLoansLoading, setRelatedLoansLoading] = useState(false);
+  
+  // 店铺详情相关状态
+  const [shopData, setShopData] = useState<any>(null);
+  const [shopDataLoading, setShopDataLoading] = useState(false);
+  
   const [showFollowupDialog, setShowFollowupDialog] = useState(false);
   const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
     follower: '免登录用户',
@@ -125,11 +147,138 @@ export default function SharedCasePage() {
     }
   };
 
+  // 获取相关贷款记录
+  const fetchRelatedLoans = async (userId: string | number) => {
+    try {
+      setRelatedLoansLoading(true);
+      const res = await fetch(`/api/cases/user/${userId}`);
+      const json: { success: boolean; data: Case[] } = await res.json();
+
+      if (json.success) {
+        setRelatedLoans(json.data);
+      }
+    } catch (error) {
+      console.error('获取相关贷款失败:', error);
+    } finally {
+      setRelatedLoansLoading(false);
+    }
+  };
+
+  // 加载已保存的店铺数据
+  const loadSavedShopData = async () => {
+    if (!caseData?.userId) return;
+    
+    try {
+      const savedRes = await fetch(`/api/shop-data?userId=${encodeURIComponent(caseData.userId)}`);
+      const savedJson = await savedRes.json();
+      
+      if (savedJson.success && savedJson.data) {
+        try {
+          const parsedData = typeof savedJson.data.latestDataset === 'string'
+            ? JSON.parse(savedJson.data.latestDataset)
+            : savedJson.data.latestDataset;
+          setShopData({
+            ...parsedData,
+            _updateTime: savedJson.data.updateTime
+          });
+        } catch (e) {
+          console.error('解析已保存的店铺数据失败:', e);
+        }
+      }
+    } catch (error) {
+      console.error('加载已保存的店铺数据失败:', error);
+    }
+  };
+
+  // 一键获取店铺运营资料
+  const fetchShopData = async () => {
+    if (!caseData?.loanNo) {
+      toast.error('缺少贷款单号');
+      return;
+    }
+    
+    setShopDataLoading(true);
+    try {
+      const res = await fetch('/api/complex-loan-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanCode: caseData.loanNo })
+      });
+      
+      const json = await res.json();
+      
+      if (json.success) {
+        const allRecords = json.data?.step3?.allRecords || [];
+        if (allRecords.length > 0) {
+          const sortedRecords = [...allRecords].sort((a: any, b: any) => {
+            return new Date(b.update_time).getTime() - new Date(a.update_time).getTime();
+          });
+          
+          const latestRecord = sortedRecords[0];
+          if (latestRecord?.latest_dataset) {
+            try {
+              const parsedData = typeof latestRecord.latest_dataset === 'string' 
+                ? JSON.parse(latestRecord.latest_dataset)
+                : latestRecord.latest_dataset;
+              
+              setShopData(parsedData);
+              
+              // 保存到数据库
+              try {
+                await fetch('/api/shop-data', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: caseData.userId,
+                    updateTime: latestRecord.update_time,
+                    latestDataset: latestRecord.latest_dataset
+                  })
+                });
+              } catch (saveError) {
+                console.error('保存店铺数据失败:', saveError);
+              }
+              
+              toast.success('获取店铺数据成功');
+            } catch (parseError) {
+              console.error('解析店铺数据失败:', parseError);
+              toast.error('解析店铺数据失败');
+            }
+          } else {
+            toast.error('暂无店铺数据');
+          }
+        } else {
+          toast.error('暂无店铺数据');
+        }
+      } else {
+        toast.error(json.error || '获取店铺数据失败');
+      }
+    } catch (error) {
+      console.error('获取店铺数据失败:', error);
+      toast.error('获取店铺数据失败');
+    } finally {
+      setShopDataLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (params.id) {
       fetchCase();
     }
   }, [params.id]);
+
+  // 当activeTab切换到timeline且有caseData时，获取相关贷款
+  useEffect(() => {
+    if (activeTab === 'timeline' && caseData?.userId) {
+      fetchRelatedLoans(caseData.userId);
+    }
+  }, [activeTab, caseData?.userId]);
+
+  // 当activeTab切换到shop且有caseData时，自动加载已保存的店铺数据
+  useEffect(() => {
+    if (activeTab === 'shop' && caseData?.userId && !shopData) {
+      loadSavedShopData();
+    }
+  }, [activeTab, caseData?.userId]);
 
   // 监听对话框打开，清空上传文件
   useEffect(() => {
@@ -316,14 +465,76 @@ export default function SharedCasePage() {
       
       case 'timeline':
         return (
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-1 h-6 bg-red-500 rounded"></div>
-              <h3 className="text-lg font-bold text-slate-900">相关贷款记录</h3>
+          <div className="p-0">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 bg-red-500 rounded"></div>
+                <h3 className="text-lg font-bold text-slate-900">相关贷款记录</h3>
+                <span className="text-sm text-slate-500">
+                  ({relatedLoans.length}条)
+                </span>
+              </div>
             </div>
-            <div className="text-center py-12 text-slate-400">
-              暂无相关贷款记录
-            </div>
+            
+            {relatedLoansLoading ? (
+              <div className="p-8 text-center">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400" />
+                <p className="mt-2 text-slate-500">加载中...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-left text-sm font-medium text-slate-600">
+                      <th className="px-6 py-4">贷款编号</th>
+                      <th className="px-6 py-4">用户ID</th>
+                      <th className="px-6 py-4">资金方</th>
+                      <th className="px-6 py-4">产品名称</th>
+                      <th className="px-6 py-4">借款人姓名</th>
+                      <th className="px-6 py-4">逾期金额</th>
+                      <th className="px-6 py-4">币种</th>
+                      <th className="px-6 py-4">逾期天数</th>
+                      <th className="px-6 py-4">所属贷后</th>
+                      <th className="px-6 py-4">所属销售</th>
+                      <th className="px-6 py-4 text-red-600 font-bold">在贷金额</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {relatedLoans.map((loan) => (
+                      <tr key={loan.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-slate-900 font-mono">{loan.loanNo}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{loan.userId}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.funder || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.productName || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{loan.borrowerName}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={loan.overdueAmount > 0 ? 'text-red-600 font-semibold' : 'text-slate-700'}>
+                            {formatMoney(loan.overdueAmount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.currency || '-'}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={loan.overdueDays > 0 ? 'text-orange-600' : 'text-slate-700'}>
+                            {loan.overdueDays}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedPostLoan || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedSales || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-red-600 font-bold">
+                          {formatMoney(loan.outstandingBalance || 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {relatedLoans.length === 0 && (
+                  <div className="p-8 text-center text-slate-500">
+                    暂无相关贷款记录
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       
@@ -455,28 +666,46 @@ export default function SharedCasePage() {
       case 'shop':
         return (
           <div className="p-6 space-y-6">
+            {/* 一键获取按钮 */}
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">店铺详情</h3>
-                <p className="text-sm text-slate-500 mt-1">暂无店铺数据</p>
+                <p className="text-sm text-slate-500 mt-1">点击一键获取店铺运营资料</p>
               </div>
+              <Button 
+                className="bg-violet-600 hover:bg-violet-700"
+                onClick={fetchShopData}
+                disabled={shopDataLoading}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {shopDataLoading ? '获取中...' : '一键获取店铺运营资料'}
+              </Button>
             </div>
-            
-            <div className="text-center py-12">
-              <div className="bg-slate-100 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-                <Store className="w-8 h-8 text-slate-400" />
+
+            {shopData ? (
+              <>
+                {/* 数据解析和健康评分 */}
+                <ShopDataParser data={shopData} />
+                
+                {/* 可视化图表 */}
+                <ShopCharts data={shopData} />
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <div className="bg-slate-100 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+                  <Store className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-500 mt-4">暂无店铺数据</p>
+                <p className="text-sm text-slate-400 mt-1">点击上方按钮获取店铺运营资料</p>
               </div>
-              <p className="text-slate-500 mt-4">暂无店铺数据</p>
-            </div>
+            )}
           </div>
         );
       
       case 'legal':
         return (
           <div className="p-6">
-            <div className="text-center py-12 text-slate-400">
-              暂无法律诉讼信息
-            </div>
+            <LegalLitigationTab caseId={caseData?.id || ''} />
           </div>
         );
       
