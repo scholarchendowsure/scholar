@@ -183,60 +183,50 @@
     "judicialCases": [
       {
         "id": "lit-1",
-        "caseName": "郝**与山东科迈橡胶集团有限公司、青岛伊克迈斯进出口有限公司、青岛盛悦祥贸易有限公司的案件",
-        "caseRole": "被告",
-        "caseNumber": "（2025）鲁0212执8825号",
-        "caseReason": "-",
-        "amount": 41141,
-        "latestProcess": "2025-09-30 首次执行",
-        "courtName": "山东省青岛市崂山区人民法院"
+        "caseName": 2,
+        "caseRole": "",
+        "caseNumber": 3,
+        "caseReason": 4,
+        "amount": 5,
+        "latestProcess": 6,
+        "courtName": 7
       }
     ],
     "限制高消费": [
       {
         "id": "limit-1",
-        "caseNumber": "（2025）鲁0212执8825号",
-        "target": "青岛盛悦祥贸易有限公司",
-        "relatedPerson": "管玉芹",
-        "applicant": "郝**",
-        "court": "山东省青岛市崂山区人民法院",
-        "filingDate": 45930,
-        "publishDate": 46163
-      },
-      {
-        "id": "limit-2",
-        "caseNumber": "（2025）鲁0212执8825号",
-        "target": "青岛盛悦祥贸易有限公司",
-        "relatedPerson": "李昌龙",
-        "applicant": "郝**",
-        "court": "山东省青岛市崂山区人民法院",
-        "filingDate": 45930,
-        "publishDate": 46038
+        "caseNumber": 2,
+        "target": "",
+        "relatedPerson": 3,
+        "applicant": 4,
+        "court": 5,
+        "filingDate": 6,
+        "publishDate": 7
       }
     ],
     "终本案件": [
       {
         "id": "end-1",
-        "caseNumber": "（2025）鲁0212执8825号",
-        "subject": "青岛盛悦祥贸易有限公司",
-        "unfulfilledAmount": 41658.06,
-        "executionAmount": 41141,
-        "court": "山东省青岛市崂山区人民法院",
-        "filingDate": 45930,
-        "endDate": 46090
+        "caseNumber": 2,
+        "subject": "",
+        "unfulfilledAmount": 3,
+        "executionAmount": 4,
+        "court": 5,
+        "filingDate": 6,
+        "endDate": 7
       }
     ],
     "开庭公告": [
       {
         "id": "notice-1",
-        "caseNumber": "",
+        "caseNumber": 2,
         "caseReason": "",
-        "parties": "",
-        "court": "",
-        "hearingDate": ""
+        "parties": 3,
+        "court": 4,
+        "hearingDate": 5
       }
     ],
-    "updatedAt": "2026-05-24T04:41:35.055Z"
+    "updatedAt": "2026-05-24T04:44:30.309Z"
   },
   "case-00": {
     "caseId": "case-00",
