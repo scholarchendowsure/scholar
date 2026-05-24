@@ -3,7 +3,7 @@
 // 案件详情页
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera, Bell, Download, Store } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Bell, Download, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -246,35 +246,35 @@ export default function CaseDetailPage() {
     }
   };
   
-  // 文件上传处理
+  // 文件上传处理 - 和免登录页面保持一致
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          const caseFile: CaseFile = {
-            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: file.name,
-            type: isImageFile(file.name) ? 'image' : 
-                  isDocumentFile(file.name) ? 'document' : 'other',
-            data: result,
-            uploadTime: new Date().toISOString(),
-            uploadBy: '未登记人',
-          };
-          
-          setUploadedCaseFiles(prev => [...prev, caseFile]);
-        };
-        reader.readAsDataURL(file);
-      });
-      
-      toast.success(`已选择 ${files.length} 个文件`);
+    e.preventDefault();
+    if (!e.target.files || e.target.files.length === 0) {
+      return;
     }
-  };
-  
-  const handleCameraUpload = () => {
-    toast.info('拍照功能正在开发中');
+    
+    const files = Array.from(e.target.files);
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Data = event.target?.result as string;
+        const fileName = file.name;
+        const isImage = isImageFile(fileName);
+        
+        setUploadedCaseFiles(prev => [...prev, {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          name: fileName,
+          type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
+          uploadTime: new Date().toISOString(),
+          uploadBy: '未登记人',
+          data: base64Data
+        }]);
+      };
+      reader.onerror = () => {
+        toast.error('文件读取失败');
+      };
+      reader.readAsDataURL(file);
+    }
   };
   
   // 图片预览状态
@@ -525,8 +525,8 @@ export default function CaseDetailPage() {
   const fetchCase = async (id: string) => {
     try {
       setLoading(true);
-      // 添加时间戳参数防止任何级别的缓存
-      const res = await fetch(`/api/cases/${id}?_t=${Date.now()}`, {
+      // 添加时间戳参数防止任何级别的缓存，同时请求完整文件数据
+      const res = await fetch(`/api/cases/${id}?_t=${Date.now()}&includeFiles=true`, {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store',
@@ -536,7 +536,6 @@ export default function CaseDetailPage() {
       const json: { success: boolean; data: Case } = await res.json();
 
       if (json.success) {
-        console.log(`[fetchCase] 获取案件成功, followups数量: ${json.data.followups?.length || 0}`);
         setCaseData(json.data);
       } else {
         toast.error('获取案件详情失败');
@@ -1321,24 +1320,27 @@ export default function CaseDetailPage() {
                 <h3 className="text-xl font-bold text-slate-900">跟进记录</h3>
                 <span className="text-sm text-slate-500">({caseData?.followups?.length || 0}条)</span>
               </div>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  setNewFollowup({
-                    follower: '未登记人',
-                    followType: 'online',
-                    contact: 'legal_representative',
-                    followResult: 'normal_repayment',
-                    followRecord: '',
-                    fileInfo: [],
-                    followTime: new Date().toISOString(),
-                  });
-                  setShowFollowupDialog(true);
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                新增跟进记录
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    setNewFollowup({
+                      follower: '未登记人',
+                      followType: 'online',
+                      contact: 'legal_representative',
+                      followResult: 'normal_repayment',
+                      followRecord: '',
+                      fileInfo: [],
+                      followTime: new Date().toISOString(),
+                    });
+                    setShowFollowupDialog(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  新增跟进记录
+                </Button>
+
+              </div>
             </div>
 
             {/* 跟进记录列表 */}
@@ -1553,48 +1555,56 @@ export default function CaseDetailPage() {
                 />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label>文件信息</Label>
+                <Label>上传文件 (可选)</Label>
                 <div className="flex gap-2">
-                  <input 
-                    type="file" 
-                    id="file-upload" 
-                    multiple 
-                    className="hidden" 
-                    onChange={handleFileUpload}
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => handleFileUpload(e)}
+                    className="hidden"
+                    id="file-upload"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                   />
-                  <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload')?.click()}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                  >
                     <Upload className="w-4 h-4 mr-2" />
-                    选择文件上传
-                  </Button>
-                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
-                    <Camera className="w-4 h-4 mr-2" />
-                    拍照上传
+                    选择文件
                   </Button>
                 </div>
+              
                 {uploadedCaseFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {uploadedCaseFiles.map((file, idx) => (
-                      <div key={file.id} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
-                        {file.name}
-                        <button 
-                          onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx))}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                  <div className="mt-3 space-y-2">
+                    <div className="text-sm text-slate-600">已选择 {uploadedCaseFiles.length} 个文件：</div>
+                    <div className="flex flex-wrap gap-2">
+                      {uploadedCaseFiles.map((file, index) => (
+                        <div key={file.id} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
+                          <span className="truncate max-w-[150px]">{file.name}</span>
+                          <button
+                            onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== index))}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowFollowupDialog(false)}>
+              <Button variant="outline" type="button" onClick={() => setShowFollowupDialog(false)}>
                 取消
               </Button>
               <Button 
+                type="button"
                 className="bg-blue-600 hover:bg-blue-700"
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (!newFollowup.follower || !newFollowup.followRecord) {
                     toast.error('请填写跟进人和跟进记录');
                     return;
@@ -1766,6 +1776,8 @@ export default function CaseDetailPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        
+
         
         {/* 记录内容查看弹窗 */}
         <Dialog open={viewFullRecord !== null} onOpenChange={(open) => !open && setViewFullRecord(null)}>
