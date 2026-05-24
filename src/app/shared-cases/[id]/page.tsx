@@ -82,7 +82,6 @@ export default function SharedCasePage() {
   const [activeTab, setActiveTab] = useState('core');
   const [showFollowupDialog, setShowFollowupDialog] = useState(false);
   const [newFollowup, setNewFollowup] = useState<Partial<FollowUp>>({
-    follower: '免登录用户',
     followType: 'online',
     contact: 'legal_representative',
     followResult: 'normal_repayment',
@@ -762,6 +761,7 @@ export default function SharedCasePage() {
                   value={newFollowup.follower || ''}
                   onChange={(e) => setNewFollowup({ ...newFollowup, follower: e.target.value })}
                   placeholder="请输入跟进人"
+                  defaultValue="免登录用户"
                 />
               </div>
               <div className="space-y-2">
