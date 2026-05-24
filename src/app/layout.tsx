@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className={`antialiased`}>
-        {/* {isDev && <Inspector />} */}
+        {isDev && <Inspector />}
         <AuthProvider>
           {children}
         </AuthProvider>
