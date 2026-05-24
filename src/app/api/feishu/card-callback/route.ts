@@ -3,6 +3,18 @@ import crypto from "crypto";
 import * as lark from "@larksuiteoapi/node-sdk";
 import { caseStorage } from '@/storage/database/case-storage';
 import type { FollowUp } from '@/types/case';
+import { getTenantAccessToken } from '@/lib/feishu-api';
+import { getFeishuAppCredentials } from '@/storage/database/feishu-config-storage';
+
+/**
+ * 格式化金额
+ */
+function formatMoney(amount: number | string | null | undefined): string {
+  if (amount === null || amount === undefined) return '-';
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(num)) return '-';
+  return `¥${num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 /**
  * 飞书卡片回调接口（使用官方SDK）
@@ -246,6 +258,343 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
     openId,
     openMessageId,
   });
+
+  // 如果是发送提醒的action（从案件选择卡片来的）
+  const actionValue = value.action as string;
+  if (actionValue === "send_reminder") {
+    console.log("🎯 收到发送提醒请求");
+
+    const caseId = value.caseId as string;
+    const senderOpenId = value.senderOpenId as string;
+
+    if (!caseId || !senderOpenId) {
+      console.error("❌ 缺少必要参数");
+      return new NextResponse(
+        JSON.stringify({
+          toast: { type: "error", content: "缺少必要参数" },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+
+    try {
+      // 获取案件数据
+      const caseData = await caseStorage.getById(caseId);
+      if (!caseData) {
+        console.error("❌ 案件不存在:", caseId);
+        return new NextResponse(
+          JSON.stringify({
+            toast: { type: "error", content: "案件不存在" },
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+              "Access-Control-Allow-Origin": "*",
+            },
+          }
+        );
+      }
+
+      // 获取飞书应用凭证和token
+      const credentials = await getFeishuAppCredentials();
+      if (!credentials?.appId) {
+        throw new Error("请先配置飞书自建应用App ID和App Secret");
+      }
+
+      const tenantAccessToken = await getTenantAccessToken(credentials.appId, credentials.appSecret || '');
+
+      // 构建免登录链接
+      const domain = process.env.COZE_PROJECT_DOMAIN_DEFAULT || 'http://localhost:5000';
+      const caseDetailUrl = `${domain}/shared-cases/${caseId}`;
+
+      // 构建回调数据
+      const callbackDataObj = {
+        case_id: caseId,
+        operator_id: senderOpenId,
+        operator_name: '飞书用户',
+        follower_name: '飞书用户'
+      };
+      const callbackData = JSON.stringify(callbackDataObj);
+
+      // 构建跟进提醒卡片
+      const card = {
+        schema: "2.0",
+        config: {
+          update_multi: true,
+          style: {
+            text_size: {
+              normal_v2: {
+                default: "normal",
+                pc: "normal",
+                mobile: "heading"
+              }
+            }
+          }
+        },
+        body: {
+          direction: "vertical",
+          elements: [
+            {
+              tag: "column_set",
+              flex_mode: "stretch",
+              horizontal_spacing: "12px",
+              horizontal_align: "left",
+              columns: [
+                {
+                  tag: "column",
+                  width: "weighted",
+                  elements: [
+                    {
+                      tag: "column_set",
+                      horizontal_spacing: "8px",
+                      horizontal_align: "left",
+                      columns: [
+                        {
+                          tag: "column",
+                          width: "weighted",
+                          elements: [
+                            {
+                              tag: "column_set",
+                              horizontal_align: "left",
+                              columns: [
+                                {
+                                  tag: "column",
+                                  width: "weighted",
+                                  elements: [
+                                    {
+                                      tag: "markdown",
+                                      content: `产品名称：${caseData.productName || '-'}\n资金方：${caseData.funder || '-'}\n风险等级：${caseData.riskLevel || '-'}\n借款人姓名：${caseData.borrowerName || '-'}\n用户ID：${caseData.userId || '-'}\n贷款单号：${caseData.loanNo || '-'}\n待还金额：${formatMoney(caseData.overdueAmount)}\n到期日：${caseData.dueDate || '-'}\n\n[查看案件详情](${caseDetailUrl})`,
+                                      text_align: "left",
+                                      text_size: "normal_v2",
+                                      margin: "0px 0px 0px 0px"
+                                    }
+                                  ],
+                                  vertical_spacing: "8px",
+                                  horizontal_align: "left",
+                                  vertical_align: "top",
+                                  weight: 1
+                                }
+                              ]
+                            }
+                          ],
+                          vertical_spacing: "8px",
+                          horizontal_align: "left",
+                          vertical_align: "top",
+                          weight: 1
+                        }
+                      ],
+                      margin: "0px 0px 0px 0px"
+                    }
+                  ],
+                  vertical_spacing: "8px",
+                  horizontal_align: "left",
+                  vertical_align: "top",
+                  weight: 2
+                }
+              ],
+              margin: "0px 0px 0px 0px"
+            },
+            {
+              tag: "hr",
+              margin: "0px 0px 0px 0px"
+            },
+            {
+              tag: "form",
+              elements: [
+                {
+                  tag: "select_static",
+                  placeholder: {
+                    tag: "plain_text",
+                    content: "请选择跟进方式"
+                  },
+                  options: [
+                    { text: { tag: "plain_text", content: "线上" }, value: "phone" },
+                    { text: { tag: "plain_text", content: "线下" }, value: "wechat" },
+                    { text: { tag: "plain_text", content: "其他" }, value: "email" },
+                    { text: { tag: "plain_text", content: "未跟进" }, value: "meeting" }
+                  ],
+                  type: "default",
+                  width: "default",
+                  required: true,
+                  name: "follow_up_method",
+                  margin: "0px 0px 0px 0px"
+                },
+                {
+                  tag: "select_static",
+                  placeholder: {
+                    tag: "plain_text",
+                    content: "请选择跟进对象"
+                  },
+                  options: [
+                    { text: { tag: "plain_text", content: "法人" }, value: "self" },
+                    { text: { tag: "plain_text", content: "实控人" }, value: "family" },
+                    { text: { tag: "plain_text", content: "其他" }, value: "agent" }
+                  ],
+                  type: "default",
+                  width: "default",
+                  required: true,
+                  name: "follow_up_object",
+                  margin: "0px 0px 0px 0px"
+                },
+                {
+                  tag: "select_static",
+                  placeholder: {
+                    tag: "plain_text",
+                    content: "请选择联系状态"
+                  },
+                  options: [
+                    { text: { tag: "plain_text", content: "已联系" }, value: "contacted" },
+                    { text: { tag: "plain_text", content: "未联系" }, value: "uncontacted" },
+                    { text: { tag: "plain_text", content: "无法联系" }, value: "unreachable" }
+                  ],
+                  type: "default",
+                  width: "default",
+                  required: true,
+                  name: "contact_status",
+                  margin: "0px 0px 0px 0px"
+                },
+                {
+                  tag: "select_static",
+                  placeholder: {
+                    tag: "plain_text",
+                    content: "请选择跟进结果"
+                  },
+                  options: [
+                    { text: { tag: "plain_text", content: "正常还款" }, value: "repaid" },
+                    { text: { tag: "plain_text", content: "预警上升" }, value: "promised" },
+                    { text: { tag: "plain_text", content: "逾期承诺" }, value: "follow_up_again" },
+                    { text: { tag: "plain_text", content: "其他" }, value: "refused" }
+                  ],
+                  type: "default",
+                  width: "default",
+                  required: true,
+                  name: "follow_up_result",
+                  margin: "0px 0px 0px 0px"
+                },
+                {
+                  tag: "input",
+                  placeholder: {
+                    tag: "plain_text",
+                    content: "请输入跟进备注"
+                  },
+                  default_value: "",
+                  max_length: 1000,
+                  width: "fill",
+                  required: true,
+                  name: "follow_up_remark",
+                  margin: "0px 0px 0px 0px"
+                },
+                {
+                  tag: "button",
+                  text: {
+                    tag: "plain_text",
+                    content: "提交跟进记录"
+                  },
+                  type: "primary_filled",
+                  width: "fill",
+                  behaviors: [
+                    {
+                      type: "callback",
+                      value: callbackData
+                    }
+                  ],
+                  form_action_type: "submit",
+                  name: "submit_button",
+                  margin: "4px 0px 4px 0px"
+                }
+              ],
+              direction: "horizontal",
+              horizontal_spacing: "8px",
+              vertical_spacing: "12px",
+              horizontal_align: "left",
+              vertical_align: "top",
+              padding: "0px 0px 0px 0px",
+              margin: "0px 0px 0px 0px",
+              name: "repayment_form"
+            }
+          ]
+        },
+        header: {
+          title: {
+            tag: "plain_text",
+            content: "案件跟进提醒"
+          },
+          subtitle: {
+            tag: "plain_text",
+            content: ""
+          },
+          template: "blue",
+          icon: {
+            tag: "standard_icon",
+            token: "payment_outlined"
+          },
+          padding: "12px 8px 12px 8px"
+        }
+      };
+
+      // 发送跟进提醒卡片
+      const feishuUrl = `https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id`;
+      const payload = {
+        receive_id: senderOpenId,
+        msg_type: "interactive",
+        content: JSON.stringify(card)
+      };
+
+      console.log("📤 发送跟进提醒卡片给:", senderOpenId);
+
+      const response = await fetch(feishuUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tenantAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      console.log("📊 飞书API响应:", JSON.stringify(result, null, 2));
+
+      if (result.code !== 0) {
+        throw new Error(`发送卡片失败: code=${result.code}, msg=${result.msg}`);
+      }
+
+      console.log("✅ 跟进提醒卡片发送成功");
+
+      return new NextResponse(
+        JSON.stringify({
+          toast: { type: "success", content: "跟进提醒卡片已发送" },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    } catch (error) {
+      console.error("❌ 发送跟进提醒卡片失败:", error);
+      return new NextResponse(
+        JSON.stringify({
+          toast: { type: "error", content: "发送失败，请稍后重试" },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+  }
 
   // 如果是提交跟进记录（按钮 tag 为 "button"）
   if (tag === "button" || tag === "submit_button") {
