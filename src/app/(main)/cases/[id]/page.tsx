@@ -3,7 +3,7 @@
 // 案件详情页
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera, Bell, Download, Store } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Bell, Download, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -246,39 +246,40 @@ export default function CaseDetailPage() {
     }
   };
   
-  // 文件上传处理
+  // 文件上传处理 - 重写稳定版本
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    if (!e.target.files || e.target.files.length === 0) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     
-    const files = Array.from(e.target.files);
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const reader = new FileReader();
+      
       reader.onload = (event) => {
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = isImageFile(fileName);
         
-        setUploadedCaseFiles(prev => [...prev, {
+        const newFile: CaseFile = {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: fileName,
           type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
           uploadTime: new Date().toISOString(),
           uploadBy: '未登记人',
           data: base64Data
-        }]);
+        };
+        
+        setUploadedCaseFiles(prev => [...prev, newFile]);
       };
+      
       reader.onerror = () => {
-        toast.error('文件读取失败');
+        toast.error(`文件 ${file.name} 读取失败`);
       };
+      
       reader.readAsDataURL(file);
     }
     
     toast.success(`已选择 ${files.length} 个文件`);
-  };
-  
-  const handleCameraUpload = () => {
-    toast.info('拍照功能正在开发中');
   };
   
   // 图片预览状态
@@ -1571,10 +1572,6 @@ export default function CaseDetailPage() {
                     <Upload className="w-4 h-4 mr-2" />
                     选择文件上传
                   </Button>
-                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
-                    <Camera className="w-4 h-4 mr-2" />
-                    拍照上传
-                  </Button>
                 </div>
                 {uploadedCaseFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -1583,9 +1580,7 @@ export default function CaseDetailPage() {
                         {file.name}
                         <button 
                           type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                          onClick={() => {
                             setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx));
                           }}
                           className="text-blue-600 hover:text-blue-800"
