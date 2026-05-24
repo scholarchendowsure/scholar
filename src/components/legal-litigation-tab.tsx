@@ -242,6 +242,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     if (!file) return;
 
     console.log('开始导入文件:', file.name);
+    console.log('当前caseId:', caseId);
     setImporting(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -255,6 +256,8 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
         endCaseRecords: parsed.endCaseRecords.length,
         courtNoticeRecords: parsed.courtNoticeRecords.length
       });
+
+      console.log('准备发送的请求体:', { caseId, ...parsed });
 
       // 保存到服务器
       const res = await fetch('/api/legal-litigation', {

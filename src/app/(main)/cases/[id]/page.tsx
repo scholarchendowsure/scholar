@@ -31,6 +31,8 @@ export default function CaseDetailPage() {
       const res = await fetch(`/api/cases/${caseId}`);
       if (!res.ok) throw new Error('案件不存在');
       const data = await res.json();
+      console.log('案件数据:', data);
+      console.log('案件ID:', data.id);
       setCaseData(data);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '加载案件失败');
