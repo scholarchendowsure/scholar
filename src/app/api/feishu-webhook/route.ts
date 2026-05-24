@@ -295,6 +295,7 @@ export async function POST(request: NextRequest) {
       // 检查是否是@消息
       if (isMentionMessage(normalizedBody)) {
         console.log("🤖 检测到@消息");
+        console.log("📋 完整事件结构:", JSON.stringify(normalizedBody, null, 2));
         
         // 检查是否是群跟进记录格式
         const message = normalizedBody.message as Record<string, unknown>;
