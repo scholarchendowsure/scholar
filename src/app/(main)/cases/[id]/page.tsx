@@ -1551,37 +1551,42 @@ export default function CaseDetailPage() {
                 />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label>文件信息</Label>
+                <Label>上传文件 (可选)</Label>
                 <div className="flex gap-2">
-                  <input 
-                    type="file" 
-                    id="file-upload" 
-                    multiple 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    multiple
                     onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                   />
-                  <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload')?.click()}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                  >
                     <Upload className="w-4 h-4 mr-2" />
-                    选择文件上传
+                    选择文件
                   </Button>
                 </div>
+              
                 {uploadedCaseFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {uploadedCaseFiles.map((file, idx) => (
-                      <div key={file.id} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
-                        {file.name}
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx));
-                          }}
-                          className="text-blue-600 hover:text-blue-800"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                  <div className="mt-3 space-y-2">
+                    <div className="text-sm text-slate-600">已选择 {uploadedCaseFiles.length} 个文件：</div>
+                    <div className="flex flex-wrap gap-2">
+                      {uploadedCaseFiles.map((file, index) => (
+                        <div key={file.id} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
+                          <span className="truncate max-w-[150px]">{file.name}</span>
+                          <button
+                            onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== index))}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
