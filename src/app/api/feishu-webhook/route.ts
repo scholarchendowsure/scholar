@@ -586,6 +586,8 @@ export async function POST(request: NextRequest) {
         
         if (isGroupFollowup) {
           console.log("🎯 检测到群跟进记录格式，开始直接处理...");
+          console.log("✅ 测试1 - 这里能执行到！");
+          console.log("✅ 测试2 - content长度:", content.length);
           
           // ==================== 直接在这里处理，不调用任何函数 ====================
           console.log("🚀 ========== 开始直接处理群跟进记录 ==========");
