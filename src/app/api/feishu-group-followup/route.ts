@@ -147,12 +147,27 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
 /**
  * 保存图片到对象存储
  */
-async function saveImageToStorage(imageKey: string): Promise<{ key: string; url: string } | null> {
+async function saveImageToStorage(messageId: string, imageKey: string): Promise<{ key: string; url: string } | null> {
   try {
-    console.log("📤 开始保存图片，imageKey:", imageKey);
+    console.log("📤 开始保存图片，messageId:", messageId, "imageKey:", imageKey);
     
     // 从飞书下载图片
-    const { buffer, fileName } = await feishuService.downloadImage(imageKey);
+    let buffer: Buffer;
+    let fileName: string;
+    
+    try {
+      // 首先尝试使用message_id的方式
+      const result = await feishuService.downloadImage(messageId, imageKey);
+      buffer = result.buffer;
+      fileName = result.fileName;
+    } catch (error) {
+      console.log("⚠️ 使用message_id方式失败，尝试备用方案:", error);
+      // 如果失败，使用备用方案
+      const result = await feishuService.downloadImageByKey(imageKey);
+      buffer = result.buffer;
+      fileName = result.fileName;
+    }
+    
     console.log("✅ 图片下载成功，文件大小:", buffer.length, "字节，文件名:", fileName);
     
     // 上传到对象存储
@@ -267,6 +282,8 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     // 1. 解析消息内容
     const message = event.message as Record<string, unknown>;
     const content = message.content as string;
+    const messageId = message.message_id as string;
+    console.log("📨 消息ID:", messageId);
     const { userId, recordContent } = parseGroupFollowupContent(content);
     
     if (!userId) {
@@ -353,7 +370,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     
     // 保存图片
     for (const imageKey of images) {
-      const result = await saveImageToStorage(imageKey);
+      const result = await saveImageToStorage(messageId, imageKey);
       if (result) {
         savedFiles.push({
           ...result,

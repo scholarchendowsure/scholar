@@ -276,28 +276,106 @@ export class FeishuService {
 
   /**
    * 下载飞书图片并返回Buffer
+   * 使用正确的飞书图片下载API - 通过message_id获取资源
    */
-  async downloadImage(imageKey: string): Promise<{ buffer: Buffer; fileName: string }> {
+  async downloadImage(messageId: string, imageKey: string): Promise<{ buffer: Buffer; fileName: string }> {
     const accessToken = await this.getTenantAccessToken();
+    console.log("🔄 开始下载飞书图片，messageId:", messageId, "imageKey:", imageKey);
 
-    // 获取图片资源
-    const response = await fetch(
-      `https://open.feishu.cn/open-apis/im/v1/images/${imageKey}`,
+    // 首先获取消息资源信息
+    const resourceResponse = await fetch(
+      `https://open.feishu.cn/open-apis/im/v1/messages/${messageId}/resources?type=image`,
       {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       }
     );
 
+    console.log("📥 获取资源信息响应状态:", resourceResponse.status);
+
+    if (!resourceResponse.ok) {
+      const errorText = await resourceResponse.text();
+      console.error("❌ 获取资源信息失败:", errorText);
+      throw new Error(`获取资源信息失败: ${resourceResponse.status} - ${errorText}`);
+    }
+
+    const resourceData = await resourceResponse.json();
+    console.log("📋 资源信息:", JSON.stringify(resourceData, null, 2));
+
+    if (resourceData.code !== 0) {
+      throw new Error(`获取资源信息失败: ${resourceData.msg}`);
+    }
+
+    // 获取下载URL
+    const downloadUrl = resourceData.data?.url;
+    if (!downloadUrl) {
+      throw new Error("未获取到下载URL");
+    }
+
+    console.log("📥 下载URL:", downloadUrl);
+
+    // 下载图片
+    const response = await fetch(downloadUrl, {
+      method: 'GET'
+    });
+
     if (!response.ok) {
-      throw new Error(`下载图片失败: ${response.status}`);
+      const errorText = await response.text();
+      console.error("❌ 下载图片失败:", errorText);
+      throw new Error(`下载图片失败: ${response.status} - ${errorText}`);
     }
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    
+    console.log("✅ 图片下载成功，大小:", buffer.length, "字节");
 
     // 尝试从响应头获取文件名，或者使用默认名称
+    let fileName = `image_${Date.now()}.png`;
+    const contentDisposition = response.headers.get('Content-Disposition');
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = match[1].replace(/['"]/g, '');
+      }
+    }
+
+    return { buffer, fileName };
+  }
+
+  /**
+   * 直接通过image_key下载图片（备用方案）
+   */
+  async downloadImageByKey(imageKey: string): Promise<{ buffer: Buffer; fileName: string }> {
+    const accessToken = await this.getTenantAccessToken();
+    console.log("🔄 备用方案：直接下载飞书图片，imageKey:", imageKey);
+
+    // 尝试使用image API
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/im/v1/images/${imageKey}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    console.log("📥 飞书图片API响应状态:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ 下载图片失败:", errorText);
+      throw new Error(`下载图片失败: ${response.status} - ${errorText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    console.log("✅ 图片下载成功，大小:", buffer.length, "字节");
+
     let fileName = `image_${Date.now()}.png`;
     const contentDisposition = response.headers.get('Content-Disposition');
     if (contentDisposition) {
