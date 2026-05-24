@@ -11,19 +11,35 @@ import * as XLSX from 'xlsx';
 
 // 日期格式化函数
 const formatDate = (dateStr: string | number | undefined | null): string => {
-  if (!dateStr) return '-';
+  if (!dateStr || dateStr === '-') return '-';
   
   let date: Date;
   
-  // 如果是数字（时间戳）
+  // 如果是数字
   if (typeof dateStr === 'number') {
-    date = new Date(dateStr);
+    // 检查是否是 Excel 日期序列号（通常在 20000-50000 之间）
+    if (dateStr > 20000 && dateStr < 50000) {
+      // Excel 日期序列号转日期：1900-01-01 为第1天
+      // 注意：Excel 有 1900 年闰年bug，需要减去2天
+      const excelEpoch = new Date(1899, 11, 30);
+      date = new Date(excelEpoch.getTime() + dateStr * 24 * 60 * 60 * 1000);
+    } else {
+      // 假设是时间戳
+      date = new Date(dateStr);
+    }
   } 
   // 如果是数字字符串
   else if (/^\d+$/.test(dateStr)) {
-    date = new Date(parseInt(dateStr));
+    const num = parseInt(dateStr);
+    // 检查是否是 Excel 日期序列号
+    if (num > 20000 && num < 50000) {
+      const excelEpoch = new Date(1899, 11, 30);
+      date = new Date(excelEpoch.getTime() + num * 24 * 60 * 60 * 1000);
+    } else {
+      date = new Date(num);
+    }
   } 
-  // 其他格式
+  // 其他格式（如 "2026-03-03"）
   else {
     date = new Date(dateStr);
   }
@@ -33,10 +49,10 @@ const formatDate = (dateStr: string | number | undefined | null): string => {
     return String(dateStr);
   }
   
-  // 格式化为 YYYY/MM/DD 或 YYYY-M-D 等中文友好格式
+  // 格式化为 YYYY/MM/DD
   const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   
   return `${year}/${month}/${day}`;
 };
