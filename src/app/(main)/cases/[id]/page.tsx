@@ -246,40 +246,33 @@ export default function CaseDetailPage() {
     }
   };
   
-  // 文件上传处理 - 重写稳定版本
+  // 文件上传处理 - 和免登录页面保持一致
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    e.preventDefault();
+    if (!e.target.files || e.target.files.length === 0) return;
     
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    const files = Array.from(e.target.files);
+    for (const file of files) {
       const reader = new FileReader();
-      
       reader.onload = (event) => {
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = isImageFile(fileName);
         
-        const newFile: CaseFile = {
+        setUploadedCaseFiles(prev => [...prev, {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           name: fileName,
           type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
           uploadTime: new Date().toISOString(),
           uploadBy: '未登记人',
           data: base64Data
-        };
-        
-        setUploadedCaseFiles(prev => [...prev, newFile]);
+        }]);
       };
-      
       reader.onerror = () => {
-        toast.error(`文件 ${file.name} 读取失败`);
+        toast.error('文件读取失败');
       };
-      
       reader.readAsDataURL(file);
     }
-    
-    toast.success(`已选择 ${files.length} 个文件`);
   };
   
   // 图片预览状态
