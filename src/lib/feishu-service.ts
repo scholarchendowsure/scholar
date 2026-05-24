@@ -220,4 +220,57 @@ export class FeishuService {
 
     return data.data.items || [];
   }
+
+  /**
+   * 获取飞书用户信息
+   */
+  async getUserInfo(userId: string): Promise<any> {
+    const accessToken = await this.getTenantAccessToken();
+
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/contact/v3/users/${userId}`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+    );
+
+    const data = await response.json();
+    
+    if (data.code !== 0) {
+      throw new Error(`获取用户信息失败: ${data.msg}`);
+    }
+
+    return data.data.user;
+  }
+
+  /**
+   * 获取飞书消息资源（图片/文件）
+   */
+  async getMessageResource(messageId: string, type: 'image' | 'file' = 'image'): Promise<any> {
+    const accessToken = await this.getTenantAccessToken();
+
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/im/v1/messages/${messageId}/resources?type=${type}`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      }
+    );
+
+    const data = await response.json();
+    
+    if (data.code !== 0) {
+      throw new Error(`获取消息资源失败: ${data.msg}`);
+    }
+
+    return data.data;
+  }
+
+  /**
+   * 下载飞书文件
+   */
+  async downloadFile(url: string): Promise<Buffer> {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
 }

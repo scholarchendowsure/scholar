@@ -204,6 +204,36 @@ async function handleMentionMessage(event: Record<string, unknown>) {
   }
 }
 
+/**
+ * 处理群跟进记录消息
+ */
+async function handleGroupFollowupMessage(event: Record<string, unknown>) {
+  try {
+    console.log("🎯 开始处理群跟进记录");
+
+    // 调用群跟进记录处理API
+    const domain = process.env.COZE_PROJECT_DOMAIN_DEFAULT || "http://localhost:5000";
+    const groupFollowupApiUrl = `${domain}/api/feishu-group-followup`;
+
+    console.log("🔗 调用群跟进记录处理API:", groupFollowupApiUrl);
+
+    const response = await fetch(groupFollowupApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        event: event,
+      }),
+    });
+
+    const result = await response.json();
+    console.log("✅ 群跟进记录处理完成:", result);
+  } catch (error) {
+    console.error("❌ 处理群跟进记录失败:", error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // 读取原始请求体
@@ -264,8 +294,19 @@ export async function POST(request: NextRequest) {
 
       // 检查是否是@消息
       if (isMentionMessage(normalizedBody)) {
-        // 异步处理@消息，避免超时
-        handleMentionMessage(normalizedBody);
+        // 检查是否是群跟进记录格式
+        const message = normalizedBody.message as Record<string, unknown>;
+        const content = message.content as string;
+        const isGroupFollowup = content.includes('用户ID：') && content.includes('记录内容：');
+        
+        if (isGroupFollowup) {
+          console.log("🎯 检测到群跟进记录格式");
+          // 异步处理群跟进记录，避免超时
+          handleGroupFollowupMessage(normalizedBody);
+        } else {
+          // 异步处理普通@消息，避免超时
+          handleMentionMessage(normalizedBody);
+        }
       }
     }
 
