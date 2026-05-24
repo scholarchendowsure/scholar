@@ -294,19 +294,27 @@ export async function POST(request: NextRequest) {
 
       // 检查是否是@消息
       if (isMentionMessage(normalizedBody)) {
+        console.log("🤖 检测到@消息");
+        
         // 检查是否是群跟进记录格式
         const message = normalizedBody.message as Record<string, unknown>;
         const content = message.content as string;
+        console.log("📝 消息内容:", content);
+        
         const isGroupFollowup = content.includes('用户ID：') && content.includes('记录内容：');
+        console.log("🔍 是否群跟进记录格式:", isGroupFollowup);
         
         if (isGroupFollowup) {
-          console.log("🎯 检测到群跟进记录格式");
+          console.log("🎯 检测到群跟进记录格式，开始处理...");
           // 异步处理群跟进记录，避免超时
           handleGroupFollowupMessage(normalizedBody);
         } else {
+          console.log("💬 普通@消息，开始处理...");
           // 异步处理普通@消息，避免超时
           handleMentionMessage(normalizedBody);
         }
+      } else {
+        console.log("❌ 不是@消息，跳过处理");
       }
     }
 
