@@ -16,12 +16,6 @@ import { toast } from 'sonner';
 import { Case, FollowUp } from '@/types/case';
 import { formatCurrency } from '@/lib/utils';
 
-// 检查是否为图片文件
-function isImageFile(filename: string): boolean {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext || '');
-}
-
 // 跟进类型选项
 const FOLLOWUP_TYPE_OPTIONS = [
   { label: '线上', value: 'online' },
@@ -92,7 +86,6 @@ export default function SharedCasePage() {
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: string }>({});
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<any[]>([]);
   const [viewFullRecord, setViewFullRecord] = useState<string | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // 标签页定义
   const tabs = [
@@ -110,7 +103,7 @@ export default function SharedCasePage() {
   // 获取案件数据
   const fetchCase = async () => {
     try {
-      const res = await fetch(`/api/cases/${params.id}?includeFiles=true`);
+      const res = await fetch(`/api/cases/${params.id}`);
       const json = await res.json();
       if (json.success) {
         setCaseData(json.data);
@@ -519,11 +512,28 @@ export default function SharedCasePage() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">案件详情 - {caseData.loanNo}</h1>
-              <p className="text-sm text-slate-500 mt-1">免登录查看</p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                返回
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">案件详情 - {caseData.loanNo}</h1>
+                <p className="text-sm text-slate-500 mt-1">免登录查看</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={fetchCase}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                刷新
+              </Button>
               <Button 
                 onClick={() => {
                   setNewFollowup({
@@ -547,6 +557,21 @@ export default function SharedCasePage() {
 
       {/* 主要内容区域 */}
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {/* 案件摘要卡片 */}
+        <Card className="p-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
+              {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+            </Badge>
+            <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
+              {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
+            </Badge>
+            <span className="text-slate-500">借款人: {caseData.borrowerName}</span>
+            <span className="text-slate-500">用户ID: {caseData.userId}</span>
+            <span className="text-slate-700 font-mono font-semibold">待还: {formatCurrency(caseData.overdueAmount || 0)}</span>
+          </div>
+        </Card>
+
         {/* 折叠标签卡片 */}
         <Card>
           {/* 标签栏 */}
@@ -682,57 +707,13 @@ export default function SharedCasePage() {
                         )}
                       </div>
                       
-                      {/* 文件信息（在一行显示，图片可点击放大） */}
-                      {followup.fileInfo && followup.fileInfo.length > 0 && (
+                      {/* 文件信息 */}
+                      {(followup.fileInfo && followup.fileInfo.length > 0) && (
                         <>
                           <div className="text-slate-300">|</div>
                           <div className="flex items-center gap-1">
                             <span className="text-slate-500">文件:</span>
-                            <div className="flex gap-1">
-                              {followup.fileInfo.map((caseFile) => {
-                                // caseFile 现在已经是 CaseFile 类型
-                                const file = typeof caseFile === 'string' 
-                                  ? { id: Math.random().toString(), name: caseFile, type: isImageFile(caseFile) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人', data: undefined, url: undefined } as const
-                                  : caseFile;
-                                return (
-                                  <div key={file.id} className="flex items-center gap-1">
-                                    {file.type === 'image' ? (
-                                      // 图片类型：显示缩略图，可点击放大
-                                      <button
-                                        onClick={() => setPreviewImage((file as any).data || (file as any).url || null)}
-                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
-                                        title={`点击放大: ${file.name}`}
-                                      >
-                                        {(file as any).data ? (
-                                          <img src={(file as any).data} alt={file.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                          '图'
-                                        )}
-                                      </button>
-                                    ) : (
-                                      // 文件类型：提供下载
-                                      <button
-                                        onClick={() => {
-                                          if ((file as any).data) {
-                                            // 有data的话，直接下载
-                                            const link = document.createElement('a');
-                                            link.href = (file as any).data;
-                                            link.download = file.name;
-                                            link.click();
-                                          } else {
-                                            toast.info(`正在下载: ${file.name}`);
-                                          }
-                                        }}
-                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
-                                        title={`下载: ${file.name}`}
-                                      >
-                                        {file.name.length > 8 ? `${file.name.substring(0, 6)}...` : file.name}
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                            <span className="text-blue-600">{followup.fileInfo.length}个</span>
                           </div>
                         </>
                       )}
@@ -877,29 +858,6 @@ export default function SharedCasePage() {
               </Button>
               <Button onClick={handleAddFollowup}>
                 保存
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* 图片预览对话框 */}
-        <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-auto">
-            <DialogHeader>
-              <DialogTitle>图片预览</DialogTitle>
-            </DialogHeader>
-            <div className="flex justify-center items-center p-4">
-              {previewImage && (
-                <img 
-                  src={previewImage} 
-                  alt="预览图片" 
-                  className="max-w-full max-h-[70vh] object-contain"
-                />
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPreviewImage(null)}>
-                关闭
               </Button>
             </DialogFooter>
           </DialogContent>
