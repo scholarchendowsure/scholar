@@ -1638,7 +1638,11 @@ export default function CaseDetailPage() {
                   <input
                     type="file"
                     multiple
-                    onChange={handleFileUpload}
+                    onChange={(e) => {
+                      console.log('[Input onChange事件被触发, e:', e);
+                      console.log('[Input onChange事件被触发, e.target.files:', e.target.files);
+                      handleFileUpload(e);
+                    }}
                     className="hidden"
                     id="file-upload"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
@@ -1960,7 +1964,11 @@ export default function CaseDetailPage() {
                   <input
                     type="file"
                     multiple
-                    onChange={handleFileUpload2}
+                    onChange={(e) => {
+                      console.log('[Input onChange事件被触发, e:', e);
+                      console.log('[Input onChange事件被触发, e.target.files:', e.target.files);
+                      handleFileUpload2(e);
+                    }}
                     className="hidden"
                     id="file-upload-2"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
