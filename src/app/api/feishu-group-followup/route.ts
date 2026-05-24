@@ -160,6 +160,12 @@ async function processGroupFollowup(event: Record<string, unknown>) {
         const feishuUsers = await getFeishuUsers();
         console.log("📋 飞书用户列表数量:", feishuUsers.length);
         
+        // 打印所有飞书用户的openId和姓名（用于调试）
+        console.log("📊 飞书用户列表详情:");
+        feishuUsers.forEach((user, index) => {
+          console.log(`  ${index + 1}. openId: ${user.openId}, name: ${user.name}`);
+        });
+        
         // 查找openId匹配的用户
         const matchedUser = feishuUsers.find(u => u.openId === senderId);
         
@@ -168,6 +174,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
           console.log("✅ 找到匹配的飞书用户，使用姓名:", followerName);
         } else {
           console.log("❌ 未找到匹配的飞书用户，使用完整senderId:", followerName);
+          console.log("💡 提示：请检查飞书用户表中是否有openId为", senderId, "的用户");
         }
       } catch (error) {
         console.log("❌ 获取飞书用户失败，使用完整senderId:", error);
