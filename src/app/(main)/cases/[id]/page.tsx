@@ -260,13 +260,21 @@ export default function CaseDetailPage() {
   
   // 文件上传处理 - 和免登录页面保持一致
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[handleFileUpload] 函数被调用');
+    console.log('[handleFileUpload] e.target.files:', e.target.files);
     e.preventDefault();
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0) {
+      console.log('[handleFileUpload] 没有文件');
+      return;
+    }
     
     const files = Array.from(e.target.files);
+    console.log('[handleFileUpload] 文件数量:', files.length);
     for (const file of files) {
+      console.log('[handleFileUpload] 处理文件:', file.name);
       const reader = new FileReader();
       reader.onload = (event) => {
+        console.log('[handleFileUpload] 文件读取成功:', file.name);
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = isImageFile(fileName);
@@ -279,8 +287,10 @@ export default function CaseDetailPage() {
           uploadBy: '未登记人',
           data: base64Data
         }]);
+        console.log('[handleFileUpload] uploadedCaseFiles已更新');
       };
       reader.onerror = () => {
+        console.log('[handleFileUpload] 文件读取失败');
         toast.error('文件读取失败');
       };
       reader.readAsDataURL(file);
@@ -289,13 +299,21 @@ export default function CaseDetailPage() {
   
   // 新增跟进记录二的文件上传处理
   const handleFileUpload2 = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[handleFileUpload2] 函数被调用');
+    console.log('[handleFileUpload2] e.target.files:', e.target.files);
     e.preventDefault();
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0) {
+      console.log('[handleFileUpload2] 没有文件');
+      return;
+    }
     
     const files = Array.from(e.target.files);
+    console.log('[handleFileUpload2] 文件数量:', files.length);
     for (const file of files) {
+      console.log('[handleFileUpload2] 处理文件:', file.name);
       const reader = new FileReader();
       reader.onload = (event) => {
+        console.log('[handleFileUpload2] 文件读取成功:', file.name);
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = isImageFile(fileName);
@@ -308,8 +326,10 @@ export default function CaseDetailPage() {
           uploadBy: '未登记人',
           data: base64Data
         }]);
+        console.log('[handleFileUpload2] uploadedCaseFiles2已更新');
       };
       reader.onerror = () => {
+        console.log('[handleFileUpload2] 文件读取失败');
         toast.error('文件读取失败');
       };
       reader.readAsDataURL(file);
@@ -1626,7 +1646,10 @@ export default function CaseDetailPage() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => document.getElementById('file-upload')?.click()}
+                    onClick={() => {
+                      console.log('[按钮点击] 新增跟进记录的选择文件按钮被点击');
+                      document.getElementById('file-upload')?.click();
+                    }}
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     选择文件
@@ -1945,7 +1968,10 @@ export default function CaseDetailPage() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => document.getElementById('file-upload-2')?.click()}
+                    onClick={() => {
+                      console.log('[按钮点击] 新增跟进记录二的选择文件按钮被点击');
+                      document.getElementById('file-upload-2')?.click();
+                    }}
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     选择文件
