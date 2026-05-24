@@ -380,7 +380,19 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     (data?.courtNoticeRecords?.length || 0);
 
   return (
-    <Card>
+    <div>
+      <div className="mb-4 p-4 bg-muted rounded-lg">
+        <h3 className="text-sm font-semibold mb-2">测试文件上传（最简单版本）</h3>
+        <input
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={(e) => {
+            console.log('文件选择成功！', e.target.files?.[0]?.name);
+            alert('文件选择成功：' + (e.target.files?.[0]?.name || '无文件'));
+          }}
+        />
+      </div>
+      <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -636,6 +648,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }
 
