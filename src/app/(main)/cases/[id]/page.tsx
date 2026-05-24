@@ -1603,12 +1603,15 @@ export default function CaseDetailPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowFollowupDialog(false)}>
+              <Button variant="outline" type="button" onClick={() => setShowFollowupDialog(false)}>
                 取消
               </Button>
               <Button 
+                type="button"
                 className="bg-blue-600 hover:bg-blue-700"
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (!newFollowup.follower || !newFollowup.followRecord) {
                     toast.error('请填写跟进人和跟进记录');
                     return;
