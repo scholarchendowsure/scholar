@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试文件上传</title>
+</head>
+<body>
+  <h1>最简单的文件上传测试</h1>
+  
+  <h2>测试1: 最简单的input</h2>
+  <input type="file" id="test1" />
+  <p id="result1"></p>
+  
+  <h2>测试2: 带onchange的input</h2>
+  <input type="file" id="test2" onchange="handleTest2(event)" />
+  <p id="result2"></p>
+  
+  <h2>测试3: accept=".xlsx"的input</h2>
+  <input type="file" id="test3" accept=".xlsx" onchange="handleTest3(event)" />
+  <p id="result3"></p>
+
+  <script>
+    // 测试1: 监听change事件
+    document.getElementById('test1').addEventListener('change', function(e) {
+      console.log('测试1: change事件触发', e);
+      if (e.target.files && e.target.files.length > 0) {
+        document.getElementById('result1').textContent = '选择了文件: ' + e.target.files[0].name;
+        alert('测试1: 选择了文件: ' + e.target.files[0].name);
+      }
+    });
+    
+    // 测试2: onchange函数
+    function handleTest2(e) {
+      console.log('测试2: onchange触发', e);
+      if (e.target.files && e.target.files.length > 0) {
+        document.getElementById('result2').textContent = '选择了文件: ' + e.target.files[0].name;
+        alert('测试2: 选择了文件: ' + e.target.files[0].name);
+      }
+    }
+    
+    // 测试3: accept=".xlsx"
+    function handleTest3(e) {
+      console.log('测试3: onchange触发', e);
+      if (e.target.files && e.target.files.length > 0) {
+        document.getElementById('result3').textContent = '选择了文件: ' + e.target.files[0].name;
+        alert('测试3: 选择了文件: ' + e.target.files[0].name);
+      }
+    }
+    
+    console.log('页面加载完成');
+  </script>
+</body>
+</html>
