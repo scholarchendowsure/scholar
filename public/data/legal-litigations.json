@@ -10,7 +10,7 @@
         "caseRole": "被告",
         "caseNumber": "（2026）粤0304执8502号",
         "caseReason": "-",
-        "amount": 15009.0,
+        "amount": 15009,
         "latestProcess": "2026-03-03 首次执行",
         "courtName": "广东省深圳市福田区人民法院"
       },
@@ -30,7 +30,7 @@
         "caseRole": "被告",
         "caseNumber": "（2025）粤0304执20281号",
         "caseReason": "-",
-        "amount": 45000.0,
+        "amount": 45000,
         "latestProcess": "2025-06-09 首次执行",
         "courtName": "广东省深圳市福田区人民法院"
       },
@@ -92,8 +92,8 @@
         "id": 2,
         "caseNumber": "（2025）粤0304执20281号",
         "subject": "深圳大象电子商务有限公司",
-        "unfulfilledAmount": 45000.0,
-        "executionAmount": 45000.0,
+        "unfulfilledAmount": 45000,
+        "executionAmount": 45000,
         "court": "广东省深圳市福田区人民法院",
         "filingDate": "2025-06-09",
         "endDate": "2025-09-08"
@@ -117,5 +117,56 @@
         "hearingDate": "2021-11-25"
       }
     ]
+  },
+  "81cc7613-8f2f-4005-b1df-333db8abdb20": {
+    "caseId": "81cc7613-8f2f-4005-b1df-333db8abdb20",
+    "judicialCases": [
+      {
+        "id": "lit-1",
+        "caseName": "郝**与山东科迈橡胶集团有限公司、青岛伊克迈斯进出口有限公司、青岛盛悦祥贸易有限公司的案件",
+        "caseRole": "被告",
+        "caseNumber": "（2025）鲁0212执8825号",
+        "caseReason": "-",
+        "amount": 41141,
+        "latestProcess": "2025-09-30 首次执行",
+        "courtName": "山东省青岛市崂山区人民法院"
+      }
+    ],
+    "限制高消费": [
+      {
+        "id": "limit-1",
+        "caseNumber": "（2025）鲁0212执8825号",
+        "target": "青岛盛悦祥贸易有限公司",
+        "relatedPerson": "管玉芹",
+        "applicant": "郝**",
+        "court": "山东省青岛市崂山区人民法院",
+        "filingDate": 45930,
+        "publishDate": 46163
+      },
+      {
+        "id": "limit-2",
+        "caseNumber": "（2025）鲁0212执8825号",
+        "target": "青岛盛悦祥贸易有限公司",
+        "relatedPerson": "李昌龙",
+        "applicant": "郝**",
+        "court": "山东省青岛市崂山区人民法院",
+        "filingDate": 45930,
+        "publishDate": 46038
+      }
+    ],
+    "终本案件": [
+      {
+        "id": "end-1",
+        "caseNumber": "（2025）鲁0212执8825号",
+        "subject": "青岛盛悦祥贸易有限公司",
+        "unfulfilledAmount": 41658.06,
+        "executionAmount": 41141,
+        "court": "山东省青岛市崂山区人民法院",
+        "filingDate": 45930,
+        "endDate": 46090
+      }
+    ],
+    "开庭公告": [],
+    "updatedAt": "2026-05-24T11:26:28.233Z"
   }
 }

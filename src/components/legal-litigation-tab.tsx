@@ -9,6 +9,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Download, Trash2, Plus, AlertCircle, Scale, Ban, FileText, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
+// 日期格式化函数
+const formatDate = (dateStr: string | number | undefined | null): string => {
+  if (!dateStr) return '-';
+  
+  let date: Date;
+  
+  // 如果是数字（时间戳）
+  if (typeof dateStr === 'number') {
+    date = new Date(dateStr);
+  } 
+  // 如果是数字字符串
+  else if (/^\d+$/.test(dateStr)) {
+    date = new Date(parseInt(dateStr));
+  } 
+  // 其他格式
+  else {
+    date = new Date(dateStr);
+  }
+  
+  // 检查日期是否有效
+  if (isNaN(date.getTime())) {
+    return String(dateStr);
+  }
+  
+  // 格式化为 YYYY/MM/DD 或 YYYY-M-D 等中文友好格式
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  
+  return `${year}/${month}/${day}`;
+};
+
 interface LitigationRecord {
   id: string;
   caseNumber: string;
@@ -527,8 +559,8 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
                         <TableCell>{record.relatedObject}</TableCell>
                         <TableCell>{record.applicant}</TableCell>
                         <TableCell className="max-w-[150px] truncate text-xs">{record.executionCourt}</TableCell>
-                        <TableCell>{record.filingDate}</TableCell>
-                        <TableCell>{record.publishDate}</TableCell>
+                        <TableCell>{formatDate(record.filingDate)}</TableCell>
+                        <TableCell>{formatDate(record.publishDate)}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -575,8 +607,8 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
                           {record.executionAmount ? `¥${Number(record.executionAmount).toLocaleString()}` : '-'}
                         </TableCell>
                         <TableCell className="max-w-[150px] truncate text-xs">{record.executionCourt}</TableCell>
-                        <TableCell>{record.filingDate}</TableCell>
-                        <TableCell>{record.endDate}</TableCell>
+                        <TableCell>{formatDate(record.filingDate)}</TableCell>
+                        <TableCell>{formatDate(record.endDate)}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -616,7 +648,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
                         <TableCell>{record.caseCause}</TableCell>
                         <TableCell className="max-w-[200px] truncate">{record.parties}</TableCell>
                         <TableCell className="max-w-[150px] truncate text-xs">{record.court}</TableCell>
-                        <TableCell>{record.hearingDate}</TableCell>
+                        <TableCell>{formatDate(record.hearingDate)}</TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
