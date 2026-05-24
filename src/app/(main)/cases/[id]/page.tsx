@@ -204,8 +204,9 @@ export default function CaseDetailPage() {
   }, [params.id]);
 
   // 页面获得焦点时自动刷新数据（确保从提醒链接保存后能看到最新跟进记录）
-  // 只在页面已经加载完成后才触发，避免影响文件上传功能
-  useEffect(() => {
+  // 暂时禁用此功能，因为它会导致文件上传功能失败
+  // 用户可以通过点击刷新按钮手动更新案件数据
+  /* useEffect(() => {
     let isMounted = true;
     let isPageLoaded = false;
     
@@ -237,7 +238,7 @@ export default function CaseDetailPage() {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [params.id]);
+  }, [params.id]); */
 
   const fetchCase = async (id: string) => {
     try {
