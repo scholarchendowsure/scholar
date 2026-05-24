@@ -354,4 +354,41 @@ export class FeishuService {
 
     return { buffer, fileName };
   }
+
+  /**
+   * 使用 message_id + file_key 下载用户在群里发的图片
+   */
+  async downloadMessageResource(messageId: string, fileKey: string, type: 'image' | 'file' = 'image'): Promise<{ buffer: Buffer; fileName: string }> {
+    console.log("📥 [FeishuService] 使用message_id下载资源:", { messageId, fileKey, type });
+    
+    const accessToken = await this.getTenantAccessToken();
+    
+    const response = await fetch(
+      `https://open.feishu.cn/open-apis/im/v1/messages/${messageId}/resources/${fileKey}?type=${type}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`下载消息资源失败: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    let fileName = `${type}_${Date.now()}.${type === 'image' ? 'jpg' : 'dat'}`;
+    const contentDisposition = response.headers.get('Content-Disposition');
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (match && match[1]) {
+        fileName = match[1].replace(/['"]/g, '');
+      }
+    }
+
+    return { buffer, fileName };
+  }
 }

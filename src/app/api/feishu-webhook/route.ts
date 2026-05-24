@@ -273,9 +273,11 @@ async function processGroupFollowupDirect(event: Record<string, unknown>) {
     console.log("🎯 开始处理群跟进记录");
     console.log("📋 完整事件:", JSON.stringify(event, null, 2));
     
-    // 1. 获取content
+    // 1. 获取message_id和content
     const message = event.message as Record<string, unknown>;
+    const messageId = message.message_id as string;
     const content = message.content as string;
+    console.log("🆔 Message ID:", messageId);
     
     if (!content) {
       console.log("❌ 没有content");
@@ -283,6 +285,7 @@ async function processGroupFollowupDirect(event: Record<string, unknown>) {
     }
     
     // 2. 解析所有信息
+    console.log("📄 Message完整结构:", JSON.stringify(message, null, 2));
     const { userId, recordContent, imageKeys } = parseEverything(content);
     
     if (!userId) {
