@@ -483,6 +483,9 @@ export async function POST(request: NextRequest) {
   try {
     // 读取原始请求体
     const rawBody = await request.text();
+    console.log("📦 ==================== 完整webhook消息开始 ====================");
+    console.log("📦 完整rawBody:", rawBody);
+    console.log("📦 ==================== 完整webhook消息结束 ====================");
     console.log("📥 收到飞书webhook请求，原始长度:", rawBody.length);
 
     // 获取头部信息
