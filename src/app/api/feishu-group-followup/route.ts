@@ -117,10 +117,10 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
           console.log("📋 检查元素:", item);
           if (item.tag === "img" && item.image_key) {
             images.push(item.image_key);
-            console.log("✅ 找到图片，image_key:", item.image_key);
+            console.log("✅ 找到图片(tag:img)，image_key:", item.image_key);
           } else if (item.type === "image" && item.image_key) {
             images.push(item.image_key);
-            console.log("✅ 找到图片，image_key:", item.image_key);
+            console.log("✅ 找到图片(type:image)，image_key:", item.image_key);
           } else if (item.type === "file" && item.file_key) {
             files.push(item.file_key);
             console.log("✅ 找到文件，file_key:", item.file_key);
@@ -128,7 +128,19 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
         }
       }
     } catch (e) {
-      console.log("ℹ️ 消息内容不是JSON格式，跳过媒体提取，错误:", e);
+      console.log("ℹ️ 消息内容不是JSON格式，尝试正则提取，错误:", e);
+      
+      // JSON解析失败时，尝试用正则提取image_key
+      const imageKeyMatches = content.match(/"image_key"\s*:\s*"([^"]+)"/g);
+      if (imageKeyMatches) {
+        for (const match of imageKeyMatches) {
+          const keyMatch = match.match(/"image_key"\s*:\s*"([^"]+)"/);
+          if (keyMatch && keyMatch[1]) {
+            images.push(keyMatch[1]);
+            console.log("✅ 正则提取到图片，image_key:", keyMatch[1]);
+          }
+        }
+      }
     }
     
     console.log("📷 提取完成 - 图片:", images.length, "个, 文件:", files.length, "个");
