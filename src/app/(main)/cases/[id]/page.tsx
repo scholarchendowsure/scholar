@@ -204,25 +204,40 @@ export default function CaseDetailPage() {
   }, [params.id]);
 
   // 页面获得焦点时自动刷新数据（确保从提醒链接保存后能看到最新跟进记录）
-  /* useEffect(() => {
+  // 只在页面已经加载完成后才触发，避免影响文件上传功能
+  useEffect(() => {
+    let isMounted = true;
+    let isPageLoaded = false;
+    
+    // 页面加载完成后设置标志
+    const timer = setTimeout(() => {
+      if (isMounted) {
+        isPageLoaded = true;
+      }
+    }, 1000);
+
     const handleFocus = () => {
-      if (params.id) {
+      if (isMounted && isPageLoaded && params.id) {
         fetchCase(params.id as string);
       }
     };
     window.addEventListener('focus', handleFocus);
+    
     // 同时监听 visibilitychange，处理移动端场景
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && params.id) {
+      if (isMounted && isPageLoaded && document.visibilityState === 'visible' && params.id) {
         fetchCase(params.id as string);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     return () => {
+      isMounted = false;
+      clearTimeout(timer);
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [params.id]); */
+  }, [params.id]);
 
   const fetchCase = async (id: string) => {
     try {

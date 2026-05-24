@@ -241,23 +241,12 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    console.log('开始导入文件:', file.name);
-    console.log('当前caseId:', caseId);
     setImporting(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
-      console.log('工作表列表:', workbook.SheetNames);
       
       const parsed = parseExcel(workbook);
-      console.log('解析结果:', {
-        litigationRecords: parsed.litigationRecords.length,
-        limitHighRecords: parsed.limitHighRecords.length,
-        endCaseRecords: parsed.endCaseRecords.length,
-        courtNoticeRecords: parsed.courtNoticeRecords.length
-      });
-
-      console.log('准备发送的请求体:', { caseId, ...parsed });
 
       // 保存到服务器
       const res = await fetch('/api/legal-litigation', {
@@ -270,7 +259,6 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
       });
 
       const result = await res.json();
-      console.log('服务器响应:', result);
 
       if (result.success) {
         await loadData();
