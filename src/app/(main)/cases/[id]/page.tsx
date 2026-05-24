@@ -3,7 +3,7 @@
 // 案件详情页
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Bell, Download, Store } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Edit, Eye, ChevronDown, ChevronLeft, ChevronRight, Plus, Upload, Camera, Bell, Download, Store } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -72,7 +72,7 @@ export default function CaseDetailPage() {
   const router = useRouter();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>('legal');
+  const [activeTab, setActiveTab] = useState<string>('core');
   const [relatedLoans, setRelatedLoans] = useState<Case[]>([]);
   const [relatedLoansLoading, setRelatedLoansLoading] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
@@ -246,35 +246,39 @@ export default function CaseDetailPage() {
     }
   };
   
-  // 文件上传处理 - 和免登录页面保持一致
+  // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
-    if (!e.target.files || e.target.files.length === 0) {
-      return;
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          const caseFile: CaseFile = {
+            id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            type: isImageFile(file.name) ? 'image' : 
+                  isDocumentFile(file.name) ? 'document' : 'other',
+            data: result,
+            uploadTime: new Date().toISOString(),
+            uploadBy: '未登记人',
+          };
+          
+          setUploadedCaseFiles(prev => [...prev, caseFile]);
+        };
+        reader.onerror = () => {
+          toast.error('文件读取失败');
+        };
+        reader.readAsDataURL(file);
+      });
+      
+      toast.success(`已选择 ${files.length} 个文件`);
     }
-    
-    const files = Array.from(e.target.files);
-    for (const file of files) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64Data = event.target?.result as string;
-        const fileName = file.name;
-        const isImage = isImageFile(fileName);
-        
-        setUploadedCaseFiles(prev => [...prev, {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          name: fileName,
-          type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
-          uploadTime: new Date().toISOString(),
-          uploadBy: '未登记人',
-          data: base64Data
-        }]);
-      };
-      reader.onerror = () => {
-        toast.error('文件读取失败');
-      };
-      reader.readAsDataURL(file);
-    }
+  };
+  
+  const handleCameraUpload = () => {
+    toast.info('拍照功能正在开发中');
   };
   
   // 图片预览状态
@@ -502,9 +506,7 @@ export default function CaseDetailPage() {
   }, [params.id]);
 
   // 页面获得焦点时自动刷新数据（确保从提醒链接保存后能看到最新跟进记录）
-  // 暂时禁用此功能，因为它会导致文件上传功能失败
-  // 用户可以通过点击刷新按钮手动更新案件数据
-  /* useEffect(() => {
+  useEffect(() => {
     const handleFocus = () => {
       if (params.id) {
         fetchCase(params.id as string);
@@ -522,7 +524,7 @@ export default function CaseDetailPage() {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [params.id]); */
+  }, [params.id]);
 
   const fetchCase = async (id: string) => {
     try {
@@ -538,6 +540,7 @@ export default function CaseDetailPage() {
       const json: { success: boolean; data: Case } = await res.json();
 
       if (json.success) {
+        console.log(`[fetchCase] 获取案件成功, followups数量: ${json.data.followups?.length || 0}`);
         setCaseData(json.data);
       } else {
         toast.error('获取案件详情失败');
@@ -713,274 +716,467 @@ export default function CaseDetailPage() {
                 </span>
               } highlight />
               <Field label="借款人手机号" value={caseData.borrowerPhone || '-'} highlight />
-              <Field label="状态" value={
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-slate-100 text-slate-800'}`}>
-                  {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+              <Field label="资金方" value={caseData.funder || '-'} />
+              <Field label="支付公司" value={caseData.paymentCompany || '-'} />
+              <Field label="逾期天数" value={
+                <span className={(caseData.overdueDays || 0) > 90 ? 'text-red-600 font-semibold' : (caseData.overdueDays || 0) > 0 ? 'text-orange-600' : ''}>
+                  {caseData.overdueDays || 0}天
                 </span>
-              } />
-              <Field label="风险等级" value={
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-slate-100 text-slate-800'}`}>
-                  {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
-                </span>
-              } />
+              } highlight />
+              <Field label="产品名称" value={caseData.productName || '-'} />
+              <Field label="所属销售" value={caseData.assignedSales || '-'} highlight />
+              <Field label="所属贷后" value={caseData.assignedPostLoan || '-'} highlight />
+              <Field label="风险等级" value={caseData.riskLevel || '-'} highlight />
+              <Field label="贷款期限" value={caseData.loanTerm ? `${caseData.loanTerm}${caseData.loanTermUnit || ''}` : '-'} />
+              <Field label="贷款期限单位" value={caseData.loanTermUnit || '-'} />
+              <Field label="贷款日期" value={caseData.loanDate ? new Date(caseData.loanDate).toLocaleDateString('zh-CN') : '-'} />
+              <Field label="到期日" value={caseData.dueDate ? new Date(caseData.dueDate).toLocaleDateString('zh-CN') : '-'} />
+              <Field label="逾期开始时间" value={caseData.overdueStartTime ? new Date(caseData.overdueStartTime).toLocaleString('zh-CN') : '-'} />
+              <Field label="首次逾期时间" value={caseData.firstOverdueTime ? new Date(caseData.firstOverdueTime).toLocaleString('zh-CN') : '-'} />
+              <Field label="代偿日期" value={caseData.compensationDate ? new Date(caseData.compensationDate).toLocaleDateString('zh-CN') : '-'} />
             </dl>
           </div>
         );
+      
       case 'finance':
+        // 计算金额统计
+        const stats = relatedLoans.reduce((acc, loan) => {
+          const key = `${loan.funder || '-'}-${loan.currency || '-'}`;
+          if (!acc[key]) {
+            acc[key] = {
+              funder: loan.funder || '-',
+              currency: loan.currency || '-',
+              loanCount: 0,
+              totalLoanAmount: 0,
+              totalOutstandingBalance: 0,
+              totalOverdueAmount: 0,
+              totalRepaidAmount: 0,
+              totalCompensationAmount: 0
+            };
+          }
+          acc[key].loanCount++;
+          acc[key].totalLoanAmount += loan.totalLoanAmount || 0;
+          acc[key].totalOutstandingBalance += loan.totalOutstandingBalance || 0;
+          acc[key].totalOverdueAmount += loan.overdueAmount || 0;
+          acc[key].totalRepaidAmount += loan.totalRepaidAmount || 0;
+          acc[key].totalCompensationAmount += loan.compensationAmount || 0;
+          return acc;
+        }, {} as Record<string, any>);
+        
+        const statsList = Object.values(stats);
+        
         return (
           <div className="p-6">
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Field label="贷款金额" value={formatMoney((caseData as any).loanAmount || 0)} />
-              <Field label="未结余额" value={formatMoney(caseData.outstandingBalance || 0)} highlight />
-              <Field label="逾期金额" value={formatMoney(caseData.overdueAmount || 0)} highlight />
-              <Field label="逾期天数" value={(caseData as any).overdueDays || 0} />
-              <Field label="应还日期" value={(caseData as any).dueDate ? new Date((caseData as any).dueDate).toLocaleDateString('zh-CN') : '-'} />
-              <Field label="首逾日期" value={(caseData as any).firstOverdueTime ? new Date((caseData as any).firstOverdueTime).toLocaleDateString('zh-CN') : '-'} />
+            {/* 原有的金额信息字段 */}
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Field label="币种" value={caseData.currency || '-'} />
+              <Field label="贷款金额" value={formatMoney(caseData.loanAmount || 0)} highlight />
+              <Field label="总贷款金额" value={formatMoney(caseData.totalLoanAmount || 0)} highlight />
+              <Field label="总在贷余额" value={formatMoney(caseData.totalOutstandingBalance)} highlight />
+              <Field label="已还款总额" value={formatMoney(caseData.totalRepaidAmount || 0)} />
+              <Field label="在贷余额" value={formatMoney(caseData.outstandingBalance || 0)} highlight />
+              <Field label="逾期金额" value={
+                <span className={(caseData.overdueAmount || 0) > 0 ? 'text-red-600 font-semibold' : ''}>
+                  {formatMoney(caseData.overdueAmount || 0)}
+                </span>
+              } highlight />
+              <Field label="逾期本金" value={formatMoney(caseData.overduePrincipal || 0)} />
+              <Field label="逾期利息" value={formatMoney(caseData.overdueInterest || 0)} />
+              <Field label="已还金额" value={formatMoney(caseData.repaidAmount || 0)} />
+              <Field label="已还本金" value={formatMoney(caseData.repaidPrincipal || 0)} />
+              <Field label="已还利息" value={formatMoney(caseData.repaidInterest || 0)} />
+              <Field label="代偿总额" value={formatMoney(caseData.compensationAmount || 0)} />
             </dl>
+            
+            {/* 金额统计表 */}
+            <Separator className="mb-8" />
+            <div className="mb-4 flex items-center gap-3">
+              <div className="w-1 h-6 bg-amber-500 rounded"></div>
+              <h3 className="text-lg font-bold text-slate-900">金额统计</h3>
+              <span className="text-sm text-slate-500">
+                ({statsList.length}组)
+              </span>
+            </div>
+            
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full">
+                <thead className="bg-slate-50">
+                  <tr className="text-left text-sm font-medium text-slate-600">
+                    <th className="px-4 py-3">贷款单号数量</th>
+                    <th className="px-4 py-3">资金方</th>
+                    <th className="px-4 py-3">币种</th>
+                    <th className="px-4 py-3">总贷款金额</th>
+                    <th className="px-4 py-3">总在贷金额</th>
+                    <th className="px-4 py-3">总逾期金额</th>
+                    <th className="px-4 py-3">总已还金额</th>
+                    <th className="px-4 py-3">总代偿金额</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {statsList.map((stat, index) => (
+                    <tr key={index} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-slate-900 font-medium">
+                        {stat.loanCount}条
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        {stat.funder}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-700">
+                        {stat.currency}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900 font-mono">
+                        {formatMoney(stat.totalLoanAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-red-600 font-semibold font-mono">
+                        {formatMoney(stat.totalOutstandingBalance)}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={stat.totalOverdueAmount > 0 ? 'text-red-600 font-semibold' : 'text-slate-700'}>
+                          {formatMoney(stat.totalOverdueAmount)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900 font-mono">
+                        {formatMoney(stat.totalRepaidAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-900 font-mono">
+                        {formatMoney(stat.totalCompensationAmount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {statsList.length === 0 && (
+                <div className="p-8 text-center text-slate-500">
+                  暂无金额统计数据
+                </div>
+              )}
+            </div>
           </div>
         );
+      
       case 'timeline':
         return (
-          <div className="p-6">
-            <h3 className="text-lg font-medium mb-4">相关贷款记录</h3>
+          <div className="p-0">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-6 bg-red-500 rounded"></div>
+                <h3 className="text-lg font-bold text-slate-900">相关贷款记录</h3>
+                <span className="text-sm text-slate-500">
+                  ({relatedLoans.length}条)
+                </span>
+              </div>
+            </div>
+            
             {relatedLoansLoading ? (
-              <div className="text-center py-8 text-slate-500">加载中...</div>
-            ) : relatedLoans.length > 0 ? (
-              <div className="space-y-4">
-                {relatedLoans.map((loan) => (
-                  <div key={loan.id} className="border rounded-lg p-4 hover:bg-slate-50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium">贷款单号: {loan.loanNo}</div>
-                        <div className="text-sm text-slate-500 mt-1">
-                          在贷金额: {formatMoney(loan.outstandingBalance || 0)}
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          状态: <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[loan.status as keyof typeof STATUS_CONFIG]?.color || 'bg-slate-100 text-slate-800'}`}>
-                            {STATUS_CONFIG[loan.status as keyof typeof STATUS_CONFIG]?.label || loan.status}
-                          </span>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => router.push(`/cases/${loan.id}`)}>
-                        <Eye className="w-4 h-4 mr-2" />
-                        查看
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="p-8 text-center">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-slate-400" />
+                <p className="mt-2 text-slate-500">加载中...</p>
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-500">暂无相关贷款记录</div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr className="text-left text-sm font-medium text-slate-600">
+                      <th className="px-6 py-4">贷款编号</th>
+                      <th className="px-6 py-4">用户ID</th>
+                      <th className="px-6 py-4">资金方</th>
+                      <th className="px-6 py-4">产品名称</th>
+                      <th className="px-6 py-4">借款人姓名</th>
+                      <th className="px-6 py-4">逾期金额</th>
+                      <th className="px-6 py-4">币种</th>
+                      <th className="px-6 py-4">逾期天数</th>
+                      <th className="px-6 py-4">所属贷后</th>
+                      <th className="px-6 py-4">所属销售</th>
+                      <th className="px-6 py-4 text-red-600 font-bold">在贷金额</th>
+                      <th className="px-6 py-4">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {relatedLoans.map((loan) => (
+                      <tr key={loan.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-slate-900 font-mono">{loan.loanNo}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{loan.userId}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.funder || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.productName || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-900">{loan.borrowerName}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={loan.overdueAmount > 0 ? 'text-red-600 font-semibold' : 'text-slate-700'}>
+                            {formatMoney(loan.overdueAmount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.currency || '-'}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <span className={loan.overdueDays > 0 ? 'text-orange-600' : 'text-slate-700'}>
+                            {loan.overdueDays}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedPostLoan || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-700">{loan.assignedSales || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-red-600 font-bold">
+                          {formatMoney(loan.outstandingBalance || 0)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => {
+                              // 保存导航状态
+                              const allCaseIds = relatedLoans.map(c => c.id);
+                              const currentIndex = allCaseIds.indexOf(loan.id);
+                              if (typeof window !== 'undefined') {
+                                sessionStorage.setItem(NAVIGATION_KEY, JSON.stringify({
+                                  caseIds: allCaseIds,
+                                  currentIndex,
+                                }));
+                              }
+                              router.push(`/cases/${loan.id}`);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            查看详情
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {relatedLoans.length === 0 && (
+                  <div className="p-8 text-center text-slate-500">
+                    暂无相关贷款记录
+                  </div>
+                )}
+              </div>
             )}
           </div>
         );
+      
       case 'borrower':
         return (
           <div className="p-6">
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="公司名称" value={(caseData as any).companyName || '-'} />
-              <Field label="公司地址" value={(caseData as any).companyAddress || '-'} />
-              <Field label="法定代表人" value={(caseData as any).legalRepresentative || '-'} />
-              <Field label="实际控制人" value={(caseData as any).actualController || '-'} />
-              <Field label="联系人" value={(caseData as any).contactPerson || '-'} />
-              <Field label="联系电话" value={(caseData as any).contactPhone || '-'} />
+            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Field label="公司名称" value={caseData.companyName} />
+              <Field label="公司地址" value={caseData.companyAddress} />
+              <Field label="家庭地址" value={caseData.homeAddress} />
+              <Field label="户籍地址" value={caseData.householdAddress} />
+              <Field label="借款人手机号" value={caseData.borrowerPhone} highlight />
+              <Field label="注册手机号" value={caseData.registeredPhone} />
+              <Field label="联系方式" value={caseData.contactInfo} />
             </dl>
           </div>
         );
+      
       case 'repayment':
         return (
           <div className="p-6">
-            <h3 className="text-lg font-medium mb-4">还款记录</h3>
-            {(caseData as any).repaymentRecords && (caseData as any).repaymentRecords.length > 0 ? (
-              <div className="space-y-4">
-                {(caseData as any).repaymentRecords.map((record: any, index: number) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="还款日期" value={record.repaymentDate ? new Date(record.repaymentDate).toLocaleDateString('zh-CN') : '-'} />
-                      <Field label="还款金额" value={formatMoney(record.repaymentAmount || 0)} highlight />
-                      <Field label="还款方式" value={record.repaymentMethod || '-'} />
-                      <Field label="备注" value={record.remark || '-'} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">暂无还款记录</div>
-            )}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1 h-6 bg-rose-500 rounded"></div>
+              <h3 className="text-lg font-bold text-slate-900">还款记录</h3>
+              <span className="text-sm text-slate-500">(暂无记录)</span>
+            </div>
+            <div className="text-center py-12 text-slate-400">
+              暂无还款记录
+            </div>
           </div>
         );
+      
       case 'files':
+        const files = caseData?.files || [];
         return (
           <div className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">文件信息</h3>
-              <Button onClick={() => setShowFollowupDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                添加文件
-              </Button>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1 h-6 bg-cyan-500 rounded"></div>
+              <h3 className="text-lg font-bold text-slate-900">文件信息</h3>
+              {files.length > 0 && (
+                <span className="text-sm text-slate-500">({files.length} 个文件)</span>
+              )}
             </div>
-            {(caseData as any).files && (caseData as any).files.length > 0 ? (
-              <div className="space-y-4">
-                {(caseData as any).files.map((file: CaseFile) => (
-                  <div key={file.id} className="border rounded-lg p-4 flex items-center justify-between">
-                    <div className="flex items-center">
-                      {file.type === 'image' && file.data && (
-                        <div 
-                          className="w-12 h-12 bg-slate-100 rounded mr-4 cursor-pointer flex items-center justify-center"
-                          onClick={() => setPreviewImage(file.data as string)}
-                        >
-                          <img 
-                            src={file.data as string} 
-                            alt={file.name}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        </div>
-                      )}
-                      {file.type === 'document' && (
-                        <div className="w-12 h-12 bg-blue-100 rounded mr-4 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                      )}
-                      {file.type === 'other' && (
-                        <div className="w-12 h-12 bg-slate-100 rounded mr-4 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-medium">{file.name}</div>
-                        <div className="text-sm text-slate-500">
-                          {file.uploadBy} · {file.uploadTime ? new Date(file.uploadTime).toLocaleString('zh-CN') : ''}
+
+            {/* 企业信用资产评估表 */}
+            <CaseEvaluationForm caseId={params.id as string} />
+
+            <div className="border-t border-slate-200 my-6"></div>
+            
+            {files.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {files.map((file) => (
+                  <div key={file.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-8 h-8 rounded flex items-center justify-center text-xs font-medium ${
+                        file.type === 'image' ? 'bg-green-100 text-green-800' :
+                        file.type === 'document' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {file.type === 'image' ? '图' :
+                         file.type === 'document' ? '文' : '其'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">{file.name}</div>
+                        <div className="text-xs text-slate-500">
+                          {new Date(file.uploadTime).toLocaleString('zh-CN')} · {file.uploadBy}
                         </div>
                       </div>
                     </div>
+                    
+                    {file.type === 'image' && (
+                      <div className="mt-2">
+                        <div className="w-full h-32 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-sm">
+                          图片预览
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={() => toast.info(`正在下载: ${file.name}`)}
+                      className="mt-3 w-full px-3 py-1.5 bg-cyan-100 text-cyan-800 rounded text-sm hover:bg-cyan-200"
+                    >
+                      下载文件
+                    </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-500">暂无文件</div>
+              <div className="text-center py-12 text-slate-400">
+                暂无文件信息，在跟进记录中上传文件后会显示在这里
+              </div>
             )}
           </div>
         );
+      
       case 'ownership':
         return (
           <div className="p-6">
-            <div className="space-y-4">
-              <Field label="分配销售" value={(caseData as any).assignedSales || '-'} />
-              <Field label="分配贷后" value={(caseData as any).assignedPostLoan || '-'} />
-              <div>
-                <dt className="text-sm font-medium text-slate-500 mb-2">案件标签</dt>
-                <dd className="flex flex-wrap gap-2">
-                  {caseData.caseTags && caseData.caseTags.length > 0 ? (
-                    caseData.caseTags.map((tag: string, index: number) => (
-                      <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                        {tag}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-slate-400">-</span>
-                  )}
-                </dd>
+            {/* 状态标签区域 */}
+            <div className="mb-8">
+              <h4 className="text-sm font-semibold text-slate-600 mb-4">案件状态</h4>
+              <div className="flex items-center gap-4">
+                <Badge className={STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100'}>
+                  {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
+                </Badge>
+                <Badge className={RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-gray-100'}>
+                  {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
+                </Badge>
+                {caseData.isLocked && (
+                  <Badge variant="destructive">已锁定</Badge>
+                )}
+                {caseData.isExtended && (
+                  <Badge className="bg-purple-100 text-purple-800">已展期</Badge>
+                )}
               </div>
             </div>
+            
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Field 
+                label="所属销售" 
+                value={caseData.assignedSales} 
+                highlight 
+                action={
+                  caseData.assignedSales && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSendReminder('sales', caseData.assignedSales!)}
+                      disabled={sendingReminder === 'sales'}
+                    >
+                      <Bell className="w-3 h-3 mr-1" />
+                      {sendingReminder === 'sales' ? '发送中...' : '提醒跟进'}
+                    </Button>
+                  )
+                }
+              />
+              <Field 
+                label="所属风控" 
+                value={caseData.assignedRiskControl} 
+                highlight 
+                action={
+                  caseData.assignedRiskControl && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSendReminder('risk', caseData.assignedRiskControl!)}
+                      disabled={sendingReminder === 'risk'}
+                    >
+                      <Bell className="w-3 h-3 mr-1" />
+                      {sendingReminder === 'risk' ? '发送中...' : '提醒跟进'}
+                    </Button>
+                  )
+                }
+              />
+              <Field 
+                label="所属贷后" 
+                value={caseData.assignedPostLoan} 
+                highlight 
+                action={
+                  caseData.assignedPostLoan && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleSendReminder('postLoan', caseData.assignedPostLoan!)}
+                      disabled={sendingReminder === 'postLoan'}
+                    >
+                      <Bell className="w-3 h-3 mr-1" />
+                      {sendingReminder === 'postLoan' ? '发送中...' : '提醒跟进'}
+                    </Button>
+                  )
+                }
+              />
+            </dl>
+            <Separator className="my-6" />
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Field label="创建时间" value={new Date(caseData.createdAt).toLocaleString('zh-CN')} />
+              <Field label="更新时间" value={new Date(caseData.updatedAt).toLocaleString('zh-CN')} />
+            </dl>
           </div>
         );
+
       case 'shop':
         return (
-          <div className="p-6">
-            {shopData ? (
+          <div className="p-6 space-y-6">
+            {/* 一键获取按钮 */}
+            <div className="flex items-center justify-between">
               <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium">店铺详情</h3>
-                  <div className="flex items-center gap-2">
-                    {shopData._updateTime && (
-                      <span className="text-sm text-slate-500">
-                        更新时间: {new Date(shopData._updateTime).toLocaleString('zh-CN')}
-                      </span>
-                    )}
-                    <Button onClick={fetchShopData} disabled={shopDataLoading}>
-                      <RefreshCw className={`w-4 h-4 mr-2 ${shopDataLoading ? 'animate-spin' : ''}`} />
-                      重新获取
-                    </Button>
-                  </div>
-                </div>
-                <div className="border-b mb-6">
-                  <nav className="flex space-x-4">
-                    <button
-                      onClick={() => setShopActiveTab('overview')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        shopActiveTab === 'overview'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      概览
-                    </button>
-                    <button
-                      onClick={() => setShopActiveTab('charts')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        shopActiveTab === 'charts'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      图表
-                    </button>
-                    <button
-                      onClick={() => setShopActiveTab('data')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        shopActiveTab === 'data'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      数据明细
-                    </button>
-                  </nav>
-                </div>
-                {shopActiveTab === 'overview' && (
-                  <ShopDataParser shopData={shopData} />
-                )}
-                {shopActiveTab === 'charts' && (
-                  <ShopCharts shopData={shopData} />
-                )}
-                {shopActiveTab === 'data' && (
-                  <div className="bg-slate-50 p-4 rounded-lg overflow-x-auto">
-                    <pre className="text-sm font-mono whitespace-pre-wrap">
-                      {JSON.stringify(shopData, null, 2)}
-                    </pre>
-                  </div>
-                )}
+                <h3 className="text-lg font-semibold text-slate-900">店铺详情</h3>
+                <p className="text-sm text-slate-500 mt-1">点击一键获取店铺运营资料</p>
               </div>
+              <Button 
+                className="bg-violet-600 hover:bg-violet-700"
+                onClick={fetchShopData}
+                disabled={shopDataLoading}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {shopDataLoading ? '获取中...' : '一键获取店铺运营资料'}
+              </Button>
+            </div>
+
+            {shopData ? (
+              <>
+                {/* 数据解析和健康评分 */}
+                <ShopDataParser data={shopData} />
+                
+                {/* 可视化图表 */}
+                <ShopCharts data={shopData} />
+              </>
             ) : (
               <div className="text-center py-12">
-                <Store className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-2">暂无店铺数据</h3>
-                <p className="text-slate-500 mb-6">点击下方按钮获取店铺运营资料</p>
-                <Button onClick={fetchShopData} disabled={shopDataLoading}>
-                  {shopDataLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      获取中...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      获取店铺运营资料
-                    </>
-                  )}
-                </Button>
+                <div className="bg-slate-100 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+                  <Store className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-500 mt-4">暂无店铺数据</p>
+                <p className="text-sm text-slate-400 mt-1">点击上方按钮获取店铺运营资料</p>
               </div>
             )}
           </div>
         );
+      
       case 'legal':
         return (
-          <LegalLitigationTab caseId={caseData.id} />
+          <div className="p-6">
+            <LegalLitigationTab caseId={caseData?.id || ''} />
+          </div>
         );
+      
       default:
         return null;
     }
@@ -988,10 +1184,10 @@ export default function CaseDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">加载中...</p>
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto text-slate-400" />
+          <p className="mt-2 text-slate-500">加载中...</p>
         </div>
       </div>
     );
@@ -999,10 +1195,16 @@ export default function CaseDetailPage() {
 
   if (!caseData) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-slate-600 mb-4">未找到案件</p>
-          <Button onClick={() => router.push('/cases')}>返回案件列表</Button>
+          <p className="text-slate-500">案件不存在</p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => router.back()}
+          >
+            返回
+          </Button>
         </div>
       </div>
     );
@@ -1010,42 +1212,73 @@ export default function CaseDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* 顶部导航栏 */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Button variant="ghost" onClick={() => router.push('/cases')} className="mr-4">
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                返回
+      {/* 头部 - 可折叠 */}
+      <div className="bg-white border-b border-slate-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.back()}
+              >
+                <ArrowLeft className="w-4 h-4" />
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">{caseData.loanNo}</h1>
-                <p className="text-sm text-slate-500">贷款单号: {caseData.loanNo}</p>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-slate-900">案件详情</h1>
+                  {/* 折叠按钮 - 放在标题旁边 */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                    className="ml-2"
+                  >
+                    <ChevronDown className={`w-5 h-5 transition-transform ${headerCollapsed ? '' : 'rotate-180'}`} />
+                  </Button>
+                </div>
+                {/* 可折叠的贷款单号 */}
+                {!headerCollapsed && (
+                  <p className="text-sm text-slate-500 mt-1">
+                    贷款单号：{caseData.loanNo}
+                  </p>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* 上一个/下一个案件导航 */}
-              {hasPrev && (
-                <Button variant="ghost" size="sm" onClick={goToPrev} title="上一个案件">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
+            <div className="flex items-center gap-3">
+              {/* 上下案件导航 */}
+              {navigationState && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToPrev}
+                    disabled={!hasPrev}
+                    title="上一个案件"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <div className="text-sm text-slate-500 px-2 min-w-[120px] text-center">
+                    {navigationState.currentIndex + 1} / {navigationState.caseIds.length}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={goToNext}
+                    disabled={!hasNext}
+                    title="下一个案件"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Separator orientation="vertical" className="h-8" />
+                </>
               )}
-              {hasNext && (
-                <Button variant="ghost" size="sm" onClick={goToNext} title="下一个案件">
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={() => fetchCase(params.id as string)}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                刷新
+              <Button variant="outline" className="gap-2" onClick={handleViewHistory}>
+                <Eye className="w-4 h-4" />
+                查看历史
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleViewHistory}>
-                <Eye className="w-4 h-4 mr-2" />
-                历史
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleEditCase}>
-                <Edit className="w-4 h-4 mr-2" />
+              <Button className="bg-blue-600 hover:bg-blue-700 gap-2" onClick={handleEditCase}>
+                <Edit className="w-4 h-4" />
                 编辑
               </Button>
             </div>
@@ -1053,458 +1286,766 @@ export default function CaseDetailPage() {
         </div>
       </div>
 
-      {/* 案件信息头 */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.color || 'bg-slate-100 text-slate-800'}`}>
-                {STATUS_CONFIG[caseData.status as keyof typeof STATUS_CONFIG]?.label || caseData.status}
-              </span>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.color || 'bg-slate-100 text-slate-800'}`}>
-                {RISK_CONFIG[caseData.riskLevel as keyof typeof RISK_CONFIG]?.label || caseData.riskLevel}
-              </span>
-              {/* 提醒跟进按钮 - 仅对有法定代表人的案件显示 */}
-              {((caseData as any).legalRepresentative) && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => handleSendReminder('legal_representative', (caseData as any).legalRepresentative)}
-                  disabled={sendingReminder === 'legal_representative'}
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  {sendingReminder === 'legal_representative' ? '发送中...' : `提醒 ${(caseData as any).legalRepresentative} 跟进`}
-                </Button>
-              )}
-              {/* 提醒跟进按钮 - 实际控制人 */}
-              {((caseData as any).actualController) && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => handleSendReminder('actual_controller', (caseData as any).actualController)}
-                  disabled={sendingReminder === 'actual_controller'}
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  {sendingReminder === 'actual_controller' ? '发送中...' : `提醒 ${(caseData as any).actualController} 跟进`}
-                </Button>
-              )}
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setHeaderCollapsed(!headerCollapsed)}>
-              {headerCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronDown className="w-4 h-4 rotate-180" />}
-            </Button>
-          </div>
-          
-          {!headerCollapsed && (
-            <dl className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              <Field label="借款人姓名" value={caseData.borrowerName} highlight />
-              <Field label="在贷金额" value={formatMoney(caseData.outstandingBalance || 0)} highlight />
-              <Field label="逾期金额" value={
-                <span className={(caseData.overdueAmount || 0) > 0 ? 'text-red-600 font-semibold' : ''}>
-                  {formatMoney(caseData.overdueAmount || 0)}
-                </span>
-              } highlight />
-              <Field label="用户ID" value={caseData.userId} />
-              <Field label="产品名称" value={caseData.productName || '-'} />
-              <Field label="资金方" value={caseData.funder || '-'} />
-            </dl>
-          )}
-        </div>
-      </div>
+      <div className="p-6">
 
-      {/* 标签页导航 */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-1 overflow-x-auto py-2">
+        {/* 折叠标签卡片 */}
+        <Card>
+          {/* 标签栏 */}
+          <div className="flex flex-wrap border-b border-slate-200 bg-slate-50">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`px-6 py-4 text-sm font-medium transition-colors relative ${
                   activeTab === tab.id
-                    ? tab.color
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? `${tab.color} text-white`
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 {tab.label}
+                {activeTab === tab.id && (
+                  <ChevronDown className="w-4 h-4 inline ml-1" />
+                )}
               </button>
             ))}
-          </nav>
-        </div>
-      </div>
+          </div>
 
-      {/* 标签页内容 */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Card>
-          <CardContent className="p-0">
+          {/* 内容区域 */}
+          <div className="bg-white border-t border-slate-200">
             {renderTabContent()}
-          </CardContent>
+          </div>
         </Card>
-      </div>
 
-      {/* 跟进记录对话框 */}
-      <Dialog open={showFollowupDialog} onOpenChange={setShowFollowupDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>添加跟进记录</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        {/* 跟进记录卡片 */}
+        <Card className="mt-6">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-8 bg-red-500 rounded-full" />
+                <h3 className="text-xl font-bold text-slate-900">跟进记录</h3>
+                <span className="text-sm text-slate-500">({caseData?.followups?.length || 0}条)</span>
+              </div>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  setNewFollowup({
+                    follower: '未登记人',
+                    followType: 'online',
+                    contact: 'legal_representative',
+                    followResult: 'normal_repayment',
+                    followRecord: '',
+                    fileInfo: [],
+                    followTime: new Date().toISOString(),
+                  });
+                  setShowFollowupDialog(true);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                新增跟进记录
+              </Button>
+            </div>
+
+            {/* 跟进记录列表 */}
+            {caseData?.followups && caseData.followups.length > 0 ? (
+              <div className="space-y-3">
+                {/* 最新记录排序，最新在最上面，无效日期排底部 */}
+                {[...caseData.followups].sort((a, b) => {
+                  const getTime = (f: any) => {
+                    const t = new Date(f.followTime || f.createdAt || '').getTime();
+                    return isNaN(t) ? 0 : t;
+                  };
+                  return getTime(b) - getTime(a);
+                }).map((followup) => (
+                  <div key={followup.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                    {/* 所有内容都在一行显示 */}
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      {/* 基本字段 */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进人:</span>
+                        <span className="font-medium">{followup.follower}</span>
+                      </div>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进时间:</span>
+                        <span className="font-medium">{new Date(followup.followTime).toLocaleString('zh-CN')}</span>
+                      </div>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进类型:</span>
+                        <span className="font-medium">
+                          {FOLLOWUP_TYPE_OPTIONS.find(opt => opt.value === followup.followType)?.label}
+                        </span>
+                      </div>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">联系人:</span>
+                        <span className="font-medium">
+                          {CONTACT_OPTIONS.find(opt => opt.value === followup.contact)?.label}
+                        </span>
+                      </div>
+                      <div className="text-slate-300">|</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">跟进结果:</span>
+                        <span className="font-medium">
+                          {FOLLOWUP_RESULT_OPTIONS.find(opt => opt.value === followup.followResult)?.label}
+                        </span>
+                      </div>
+                      
+                      {/* 跟进记录（在一行显示，全部显示） */}
+                      {followup.followRecord && (
+                        <>
+                          <div className="text-slate-300">|</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-500">记录:</span>
+                            <span className="text-slate-800">
+                              {followup.followRecord}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* 文件信息（在一行显示，图片可点击放大） */}
+                      {followup.fileInfo && followup.fileInfo.length > 0 && (
+                        <>
+                          <div className="text-slate-300">|</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-slate-500">文件:</span>
+                            <div className="flex gap-1">
+                              {followup.fileInfo.map((caseFile) => {
+                                // caseFile 现在已经是 CaseFile 类型
+                                const file = typeof caseFile === 'string' 
+                                  ? { id: Math.random().toString(), name: caseFile, type: isImageFile(caseFile) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人' } as CaseFile
+                                  : caseFile;
+                                return (
+                                  <div key={file.id} className="flex items-center gap-1">
+                                    {file.type === 'image' ? (
+                                      // 图片类型：显示缩略图，可点击放大
+                                      <button
+                                        onClick={() => setPreviewImage(file.data || file.url || null)}
+                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
+                                        title={`点击放大: ${file.name}`}
+                                      >
+                                        {file.data ? (
+                                          <img src={file.data} alt={file.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                          '图'
+                                        )}
+                                      </button>
+                                    ) : (
+                                      // 文件类型：提供下载
+                                      <button
+                                        onClick={() => {
+                                          if (file.data) {
+                                            // 有data的话，直接下载
+                                            const link = document.createElement('a');
+                                            link.href = file.data;
+                                            link.download = file.name;
+                                            link.click();
+                                          } else {
+                                            toast.info(`正在下载: ${file.name}`);
+                                          }
+                                        }}
+                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
+                                        title={`下载: ${file.name}`}
+                                      >
+                                        {file.name.length > 8 ? `${file.name.substring(0, 6)}...` : file.name}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                暂无跟进记录，点击"新增跟进记录"添加第一条记录
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* 新增跟进记录对话框 */}
+        <Dialog open={showFollowupDialog} onOpenChange={setShowFollowupDialog}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>新增跟进记录</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <Label>跟进人</Label>
-                <Input
+                <Input 
                   value={newFollowup.follower || ''}
-                  onChange={(e) => setNewFollowup(prev => ({ ...prev, follower: e.target.value }))}
-                  placeholder="请输入跟进人姓名"
+                  onChange={(e) => setNewFollowup({ ...newFollowup, follower: e.target.value })}
+                  placeholder="请输入跟进人"
                 />
               </div>
               <div className="space-y-2">
-                <Label>跟进方式</Label>
-                <Select
-                  value={newFollowup.followType || 'online'}
-                  onValueChange={(value) => setNewFollowup(prev => ({ ...prev, followType: value }))}
+                <Label>跟进时间</Label>
+                <Input 
+                  value={newFollowup.followTime ? new Date(newFollowup.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')}
+                  disabled
+                  className="bg-slate-50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>跟进类型</Label>
+                <Select 
+                  value={newFollowup.followType} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followType: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="请选择跟进类型" />
                   </SelectTrigger>
                   <SelectContent>
-                    {FOLLOWUP_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                    {FOLLOWUP_TYPE_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>联系对象</Label>
-                <Select
-                  value={newFollowup.contact || 'legal_representative'}
-                  onValueChange={(value) => setNewFollowup(prev => ({ ...prev, contact: value }))}
+                <Label>联系人</Label>
+                <Select 
+                  value={newFollowup.contact} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, contact: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="请选择联系人" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONTACT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                    {CONTACT_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 col-span-2">
                 <Label>跟进结果</Label>
-                <Select
-                  value={newFollowup.followResult || 'normal_repayment'}
-                  onValueChange={(value) => setNewFollowup(prev => ({ ...prev, followResult: value }))}
+                <Select 
+                  value={newFollowup.followResult} 
+                  onValueChange={(value: any) => setNewFollowup({ ...newFollowup, followResult: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="请选择跟进结果" />
                   </SelectTrigger>
                   <SelectContent>
-                    {FOLLOWUP_RESULT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                    {FOLLOWUP_RESULT_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>跟进记录</Label>
-              <Textarea
-                value={newFollowup.followRecord || ''}
-                onChange={(e) => setNewFollowup(prev => ({ ...prev, followRecord: e.target.value }))}
-                placeholder="请输入跟进记录内容"
-                rows={4}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>上传文件</Label>
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-4">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="followup-file-upload"
+              <div className="space-y-2 col-span-2">
+                <Label>跟进记录</Label>
+                <Textarea 
+                  value={newFollowup.followRecord || ''}
+                  onChange={(e) => setNewFollowup({ ...newFollowup, followRecord: e.target.value })}
+                  placeholder="请输入跟进记录内容"
+                  rows={6}
                 />
-                <label htmlFor="followup-file-upload" className="cursor-pointer">
-                  <div className="text-center">
-                    <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-600">点击或拖拽文件到此处上传</p>
-                  </div>
-                </label>
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>文件信息</Label>
+                <div className="flex gap-2">
+                  <input 
+                    type="file" 
+                    id="file-upload" 
+                    multiple 
+                    className="hidden" 
+                    onChange={handleFileUpload}
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  />
+                  <Button variant="outline" type="button" onClick={() => document.getElementById('file-upload')?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    选择文件上传
+                  </Button>
+                  <Button variant="outline" type="button" onClick={handleCameraUpload}>
+                    <Camera className="w-4 h-4 mr-2" />
+                    拍照上传
+                  </Button>
+                </div>
                 {uploadedCaseFiles.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    {uploadedCaseFiles.map((file) => (
-                      <div key={file.id} className="flex items-center justify-between bg-slate-50 p-2 rounded">
-                        <span className="text-sm">{file.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setUploadedCaseFiles(prev => prev.filter(f => f.id !== file.id))}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {uploadedCaseFiles.map((file, idx) => (
+                      <div key={file.id} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
+                        {file.name}
+                        <button 
+                          onClick={() => setUploadedCaseFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-blue-600 hover:text-blue-800"
                         >
-                          移除
-                        </Button>
+                          ×
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowFollowupDialog(false)}>
-              取消
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!newFollowup.follower || !newFollowup.followRecord) {
-                  toast.error('请填写跟进人和跟进记录');
-                  return;
-                }
-                
-                try {
-                  // 获取当前用户
-                  let currentUser = '系统';
-                  try {
-                    const authRes = await fetch('/api/auth/session');
-                    if (authRes.ok) {
-                      const authData = await authRes.json();
-                      if (authData?.user?.name) {
-                        currentUser = authData.user.name;
-                      }
-                    }
-                  } catch {}
-
-                  const followup: FollowUp = {
-                    id: Date.now().toString(),
-                    followTime: new Date().toISOString(),
-                    follower: newFollowup.follower,
-                    followType: newFollowup.followType as any,
-                    contact: newFollowup.contact as any,
-                    followResult: newFollowup.followResult as any,
-                    followRecord: newFollowup.followRecord,
-                    fileInfo: uploadedCaseFiles,
-                    createdBy: currentUser,
-                  };
-
-                  const res = await fetch(`/api/cases/${caseData.id}/followups`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ followup }),
-                  });
-
-                  const data = await res.json();
-                  if (data.success) {
-                    toast.success('添加成功');
-                    setShowFollowupDialog(false);
-                    setNewFollowup({
-                      follower: '',
-                      followType: 'online',
-                      contact: 'legal_representative',
-                      followResult: 'normal_repayment',
-                      followRecord: '',
-                      fileInfo: [],
-                    });
-                    setUploadedCaseFiles([]);
-                    fetchCase(params.id as string);
-                  } else {
-                    toast.error(data.error || '添加失败');
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowFollowupDialog(false)}>
+                取消
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={async () => {
+                  if (!newFollowup.follower || !newFollowup.followRecord) {
+                    toast.error('请填写跟进人和跟进记录');
+                    return;
                   }
-                } catch (error) {
-                  toast.error('添加失败');
-                }
-              }}
-            >
-              保存
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 编辑对话框 */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>编辑案件</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>借款人姓名</Label>
-                <Input
-                  value={editData.borrowerName || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, borrowerName: e.target.value }))}
-                />
+                  // 先关闭弹窗！
+                  setShowFollowupDialog(false);
+                  try {
+                    const followup: FollowUp = {
+                      id: Date.now().toString(),
+                      follower: newFollowup.follower || '未登记人',
+                      followTime: newFollowup.followTime || new Date().toISOString(),
+                      followType: newFollowup.followType as any,
+                      contact: newFollowup.contact as any,
+                      followResult: newFollowup.followResult as any,
+                      followRecord: newFollowup.followRecord || '',
+                      fileInfo: uploadedCaseFiles,
+                      createdAt: new Date().toISOString(),
+                      createdBy: newFollowup.follower || '未登记人',
+                    };
+                    
+                    // 立即更新本地状态，让用户第一时间看到新增的记录
+                    if (caseData) {
+                      const immediateUpdatedCase: Case = {
+                        ...caseData,
+                        followups: [...(caseData.followups || []), followup],
+                        updatedAt: new Date().toISOString(),
+                      };
+                      setCaseData(immediateUpdatedCase);
+                    }
+                    
+                    // 使用 followups API 保存（自动同步到同用户ID的所有案件）
+                    const followupRes = await fetch(`/api/cases/${caseData?.id}/followups`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        followup,
+                        syncToSameUser: true,
+                      }),
+                    });
+                    
+                    const followupResult = await followupRes.json();
+                    
+                    if (!followupResult.success) {
+                      toast.error(followupResult.error || '跟进记录添加失败');
+                      return;
+                    }
+                    
+                    const syncedCount = followupResult.syncedCount || 0;
+                    
+                    // 调用后端API同步到飞书Webhook（避免CORS问题）
+                    // 时间格式化
+                    const formatDateTime = (dateStr: string) => {
+                      const date = new Date(dateStr);
+                      const year = date.getFullYear();
+                      const month = date.getMonth() + 1;
+                      const day = date.getDate();
+                      const hours = String(date.getHours()).padStart(2, '0');
+                      const minutes = String(date.getMinutes()).padStart(2, '0');
+                      const seconds = String(date.getSeconds()).padStart(2, '0');
+                      return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+                    };
+                    
+                    // 枚举值转中文
+                    const getFollowTypeText = (type: string) => {
+                      switch(type) {
+                        case 'online': return '线上';
+                        case 'offline': return '线下';
+                        case 'other': return '其他';
+                        default: return type;
+                      }
+                    };
+                    
+                    const getContactText = (contact: string) => {
+                      switch(contact) {
+                        case 'legal_representative': return '法人';
+                        case 'actual_controller': return '实控人';
+                        case 'other': return '其他';
+                        default: return contact;
+                      }
+                    };
+                    
+                    const getFollowResultText = (result: string) => {
+                      switch(result) {
+                        case 'normal_repayment': return '正常还款';
+                        case 'warning_rise': return '预警上升';
+                        case 'overdue_promise': return '逾期承诺';
+                        case 'other': return '其他';
+                        default: return result;
+                      }
+                    };
+                    
+                    // 文件信息生成短链接
+                    const formatFileInfo = (files: any, caseId: string) => {
+                      if (!files || files.length === 0) return [];
+                      return (files as any[]).map((file: any) => {
+                        let fileName = '';
+                        let fileType = 'file';
+                        
+                        if (file.name) {
+                          fileName = file.name;
+                          fileType = file.type || 'file';
+                        } else if (typeof file === 'string') {
+                          fileName = file;
+                        }
+                        
+                        // 生成短链接：/api/files/[caseId]/[fileName]
+                        const shortUrl = `/api/files/${caseId}/${encodeURIComponent(fileName)}`;
+                        
+                        return { 
+                          name: fileName, 
+                          type: fileType,
+                          url: shortUrl
+                        };
+                      });
+                    };
+                    
+                    fetch('/api/webhook/feishu', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        event_type: 'follow_up_created',
+                        case_data: {
+                          user_id: caseData.userId,
+                          loan_number: caseData.loanNo
+                        },
+                        followup_data: {
+                          follower: followup.follower,
+                          follow_time: formatDateTime(followup.followTime),
+                          follow_type: getFollowTypeText(followup.followType),
+                          contact: getContactText(followup.contact),
+                          follow_result: getFollowResultText(followup.followResult),
+                          follow_record: followup.followRecord,
+                          file_info: formatFileInfo(followup.fileInfo, params.id as string)
+                        }
+                      })
+                    }).catch((webhookError) => {
+                      console.error('Webhook调用失败:', webhookError);
+                      // 不影响主流程，只记录日志
+                    });
+                    
+                    // 同步到飞书多维表格
+                    fetch('/api/feishu-bitable/followup', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        followup: followup,
+                        caseData: caseData
+                      }),
+                    }).catch((bitableError) => {
+                      console.error('飞书多维表格同步失败:', bitableError);
+                      // 不影响主流程，只记录日志
+                    });
+                    
+                    setUploadedCaseFiles([]);
+                    toast.success(`跟进记录添加成功，已同步到 ${syncedCount + 1} 个案件`);
+                    
+                    // 强制重新获取案件数据，确保页面显示最新跟进记录
+                    fetchCase(params.id as string);
+                  } catch (error) {
+                    console.error('保存跟进记录失败:', error);
+                    toast.error('跟进记录添加失败');
+                  }
+                }}
+              >
+                保存
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 记录内容查看弹窗 */}
+        <Dialog open={viewFullRecord !== null} onOpenChange={(open) => !open && setViewFullRecord(null)}>
+          <DialogContent className="sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>跟进记录详情</DialogTitle>
+            </DialogHeader>
+            {viewFullRecord && (
+              <div className="space-y-4">
+                <div className="p-6 bg-slate-50 rounded-lg">
+                  <p className="text-slate-800 whitespace-pre-wrap break-words">
+                    {viewFullRecord}
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setViewFullRecord(null)}
+                  >
+                    关闭
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>公司名称</Label>
-                <Input
-                  value={(editData as any).companyName || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, companyName: e.target.value }))}
-                />
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* 图片预览弹窗 */}
+        <Dialog open={previewImage !== null} onOpenChange={(open) => !open && setPreviewImage(null)}>
+          <DialogContent className="sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>图片预览</DialogTitle>
+            </DialogHeader>
+            {previewImage && (
+              <div className="flex flex-col items-center">
+                <div className="w-full max-h-[60vh] overflow-hidden flex items-center justify-center bg-slate-100 rounded-lg">
+                  <img 
+                    src={previewImage} 
+                    alt="预览图片"
+                    className="max-w-full max-h-[60vh] object-contain"
+                  />
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button 
+                    onClick={() => toast.info('正在下载图片')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    下载图片
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setPreviewImage(null)}
+                  >
+                    关闭
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>联系电话</Label>
-                <Input
-                  value={editData.borrowerPhone || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, borrowerPhone: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>案件状态</Label>
-                <Select
-                  value={editData.status || ''}
-                  onValueChange={(value) => setEditData(prev => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(STATUS_CONFIG).map(([value, config]) => (
-                      <SelectItem key={value} value={value}>
-                        {config.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>风险等级</Label>
-                <Select
-                  value={editData.riskLevel || ''}
-                  onValueChange={(value) => setEditData(prev => ({ ...prev, riskLevel: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(RISK_CONFIG).map(([value, config]) => (
-                      <SelectItem key={value} value={value}>
-                        {config.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>在贷金额</Label>
-                <Input
-                  type="number"
-                  value={editData.outstandingBalance || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, outstandingBalance: Number(e.target.value) || 0 }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>逾期金额</Label>
-                <Input
-                  type="number"
-                  value={editData.overdueAmount || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, overdueAmount: Number(e.target.value) || 0 }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>逾期天数</Label>
-                <Input
-                  type="number"
-                  value={(editData as any).overdueDays || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, overdueDays: Number(e.target.value) || 0 }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>分配销售</Label>
-                <Input
-                  value={(editData as any).assignedSales || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, assignedSales: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>分配贷后</Label>
-                <Input
-                  value={(editData as any).assignedPostLoan || ''}
-                  onChange={(e) => setEditData(prev => ({ ...prev, assignedPostLoan: e.target.value }))}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowEditDialog(false)}>
-              取消
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={savingEdit}>
-              {savingEdit ? '保存中...' : '保存'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 历史记录对话框 */}
-      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>修改历史</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto">
-            {historyLoading ? (
-              <div className="text-center py-8">加载中...</div>
-            ) : groupedHistory.length > 0 ? (
-              <div className="space-y-6">
-                {groupedHistory.map((group) => (
-                  <div key={group.id} className="border-l-2 border-slate-200 pl-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="font-medium">{group.modifiedBy}</div>
-                      <div className="text-sm text-slate-500">
-                        {new Date(group.modifiedAt).toLocaleString('zh-CN')}
-                      </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* 编辑案件对话框 */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>编辑案件信息</DialogTitle>
+            </DialogHeader>
+            {caseData && (
+              <div className="space-y-6 py-4">
+                {/* 核心信息 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">核心信息</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>借款人姓名</Label>
+                      <Input 
+                        value={editData.borrowerName || ''} 
+                        onChange={(e) => setEditData({...editData, borrowerName: e.target.value})}
+                      />
                     </div>
                     <div className="space-y-2">
-                      {group.changes.map((change: any, index: number) => (
-                        <div key={index} className="bg-slate-50 p-3 rounded">
-                          <div className="text-sm font-medium text-slate-900">{change.field}</div>
-                          <div className="mt-1 grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <div className="text-slate-500">修改前</div>
-                              <div className="text-slate-700 break-all">{change.oldValue}</div>
-                            </div>
-                            <div>
-                              <div className="text-slate-500">修改后</div>
-                              <div className="text-slate-700 break-all">{change.newValue}</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      <Label>公司名称</Label>
+                      <Input 
+                        value={editData.companyName || ''} 
+                        onChange={(e) => setEditData({...editData, companyName: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>联系电话</Label>
+                      <Input 
+                        value={editData.borrowerPhone || ''} 
+                        onChange={(e) => setEditData({...editData, borrowerPhone: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>案件状态</Label>
+                      <Select 
+                        value={editData.status || ''} 
+                        onValueChange={(val) => setEditData({...editData, status: val})}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="待分配">待分配</SelectItem>
+                          <SelectItem value="待外访">待外访</SelectItem>
+                          <SelectItem value="跟进中">跟进中</SelectItem>
+                          <SelectItem value="已结案">已结案</SelectItem>
+                          <SelectItem value="逾期">逾期</SelectItem>
+                          <SelectItem value="正常">正常</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>风险等级</Label>
+                      <Select 
+                        value={editData.riskLevel || ''} 
+                        onValueChange={(val) => setEditData({...editData, riskLevel: val})}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="低风险">低风险</SelectItem>
+                          <SelectItem value="中风险">中风险</SelectItem>
+                          <SelectItem value="高风险">高风险</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                ))}
+                </div>
+                
+                {/* 金额信息 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">金额信息</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>未结余额</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.outstandingBalance || ''} 
+                        onChange={(e) => setEditData({...editData, outstandingBalance: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>逾期金额</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.overdueAmount || ''} 
+                        onChange={(e) => setEditData({...editData, overdueAmount: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>逾期天数</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.overdueDays || ''} 
+                        onChange={(e) => setEditData({...editData, overdueDays: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>贷款金额</Label>
+                      <Input 
+                        type="number" 
+                        value={editData.loanAmount || ''} 
+                        onChange={(e) => setEditData({...editData, loanAmount: Number(e.target.value) || 0})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 信息详情 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">信息详情</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>分配销售</Label>
+                      <Input 
+                        value={editData.assignedSales || ''} 
+                        onChange={(e) => setEditData({...editData, assignedSales: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>分配贷后</Label>
+                      <Input 
+                        value={editData.assignedPostLoan || ''} 
+                        onChange={(e) => setEditData({...editData, assignedPostLoan: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label>产品名称</Label>
+                      <Input 
+                        value={editData.productName || ''} 
+                        onChange={(e) => setEditData({...editData, productName: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">暂无修改记录</div>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 图片预览对话框 */}
-      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>图片预览</DialogTitle>
-          </DialogHeader>
-          {previewImage && (
-            <div className="flex justify-center">
-              <img
-                src={previewImage}
-                alt="Preview"
-                className="max-w-full max-h-[70vh] object-contain"
-              />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+                取消
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? '保存中...' : '保存'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* 查看历史对话框 */}
+        <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+          <DialogContent className="sm:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>修改历史记录</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              {historyLoading ? (
+                <div className="py-12 text-center text-slate-500">
+                  加载中...
+                </div>
+              ) : caseHistory.length === 0 ? (
+                <div className="py-12 text-center text-slate-500">
+                  暂无修改历史
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {groupedHistory.map((record) => (
+                    <div key={record.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium text-slate-900">
+                            {record.modifiedBy}
+                          </span>
+                          <span className="text-sm text-slate-500">
+                            {new Date(record.modifiedAt).toLocaleString('zh-CN')}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {record.changes && record.changes.length > 0 && (
+                        <div className="space-y-2 mt-3 border-t border-slate-100 pt-3">
+                          <h4 className="text-sm font-medium text-slate-700">修改详情：</h4>
+                          <div className="space-y-2">
+                            {record.changes.map((change: any, idx: number) => (
+                              <div key={idx} className="grid grid-cols-12 gap-2 items-center text-sm">
+                                <div className="col-span-3 font-medium text-slate-600">
+                                  {change.field}
+                                </div>
+                                <div className="col-span-4 text-slate-500 line-through bg-red-50 px-2 py-1 rounded text-xs">
+                                  {change.oldValue}
+                                </div>
+                                <div className="col-span-1 text-center text-slate-400">→</div>
+                                <div className="col-span-4 text-emerald-700 bg-emerald-50 px-2 py-1 rounded text-xs">
+                                  {change.newValue}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <DialogFooter className="border-t border-slate-100 pt-4">
+              <Button variant="outline" onClick={() => setShowHistoryDialog(false)}>
+                关闭
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

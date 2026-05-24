@@ -241,12 +241,20 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.log('开始导入文件:', file.name);
     setImporting(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+      console.log('工作表列表:', workbook.SheetNames);
       
       const parsed = parseExcel(workbook);
+      console.log('解析结果:', {
+        litigationRecords: parsed.litigationRecords.length,
+        limitHighRecords: parsed.limitHighRecords.length,
+        endCaseRecords: parsed.endCaseRecords.length,
+        courtNoticeRecords: parsed.courtNoticeRecords.length
+      });
 
       // 保存到服务器
       const res = await fetch('/api/legal-litigation', {
@@ -259,6 +267,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
       });
 
       const result = await res.json();
+      console.log('服务器响应:', result);
 
       if (result.success) {
         await loadData();
@@ -371,19 +380,7 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
     (data?.courtNoticeRecords?.length || 0);
 
   return (
-    <div>
-      <div className="mb-4 p-4 bg-muted rounded-lg">
-        <h3 className="text-sm font-semibold mb-2">测试文件上传（最简单版本）</h3>
-        <input
-          type="file"
-          accept=".xlsx,.xls"
-          onChange={(e) => {
-            console.log('文件选择成功！', e.target.files?.[0]?.name);
-            alert('文件选择成功：' + (e.target.files?.[0]?.name || '无文件'));
-          }}
-        />
-      </div>
-      <Card>
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -639,7 +636,6 @@ export function LegalLitigationTab({ caseId }: LegalLitigationTabProps) {
         )}
       </CardContent>
     </Card>
-    </div>
   );
 }
 
