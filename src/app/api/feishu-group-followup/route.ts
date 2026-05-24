@@ -151,32 +151,14 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     // 先尝试从sender中直接获取姓名
     let followerName = "未知用户";
     
-    // 尝试多种方式获取发送者姓名
-    if (sender) {
-      // 方式1: 直接从sender中获取
-      const directName = (sender as any)?.name;
-      if (directName) {
-        followerName = directName;
-        console.log("📛 直接从sender获取姓名:", followerName);
-      }
-      
-      // 方式2: 尝试从sender_id中获取
-      const senderIdObj = sender.sender_id as any;
-      if (senderIdObj?.name) {
-        followerName = senderIdObj.name;
-        console.log("📛 从sender_id获取姓名:", followerName);
-      }
-      
-      // 方式3: 尝试调用飞书API获取
-      if (senderId && followerName === "未知用户") {
-        try {
-          const userInfo = await feishuService.getUserInfo(senderId);
-          followerName = userInfo?.name || "未知用户";
-          console.log("📛 从飞书API获取姓名:", followerName);
-        } catch (error) {
-          console.log("❌ 获取发送者信息失败:", error);
-        }
-      }
+    // 临时调试：先显示senderId或者event的部分信息
+    if (senderId) {
+      followerName = `调试-${senderId.substring(0, 8)}`;
+      console.log("🔧 临时调试：使用senderId作为跟进人:", followerName);
+    } else if (sender) {
+      // 如果没有senderId，尝试显示sender的JSON
+      followerName = `调试-${JSON.stringify(sender).substring(0, 20)}`;
+      console.log("🔧 临时调试：使用sender部分JSON作为跟进人:", followerName);
     }
     
     console.log("✅ 最终跟进人姓名:", followerName);
