@@ -1960,6 +1960,22 @@ export default function CaseDetailPage() {
               
               <div className="space-y-2">
                 <Label>上传文件 (可选)</Label>
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">
+                    测试用可见文件上传框：
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      console.log('[可见Input onChange事件被触发, e:', e);
+                      console.log('[可见Input onChange事件被触发, e.target.files:', e.target.files);
+                      handleFileUpload2(e);
+                    }}
+                    id="visible-file-upload-2"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="file"
