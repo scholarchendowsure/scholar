@@ -115,7 +115,10 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
       if (Array.isArray(contentJson)) {
         for (const item of contentJson) {
           console.log("📋 检查元素:", item);
-          if (item.type === "image" && item.image_key) {
+          if (item.tag === "img" && item.image_key) {
+            images.push(item.image_key);
+            console.log("✅ 找到图片，image_key:", item.image_key);
+          } else if (item.type === "image" && item.image_key) {
             images.push(item.image_key);
             console.log("✅ 找到图片，image_key:", item.image_key);
           } else if (item.type === "file" && item.file_key) {
