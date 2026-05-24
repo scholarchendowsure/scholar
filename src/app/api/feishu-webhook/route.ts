@@ -114,37 +114,84 @@ function isMentionMessage(event: Record<string, unknown>): boolean {
 }
 
 /**
- * 直接用正则提取所有信息
+ * 先尝试JSON解析，再提取信息
  */
 function parseEverything(content: string) {
   console.log("🔍 开始解析，原始content:", content);
   
-  // 1. 提取用户ID
-  const userIdMatch = content.match(/用户ID[：:]\s*(\d+)/);
-  const userId = userIdMatch?.[1];
-  
-  // 2. 提取记录内容
+  let userId: string | undefined;
   let recordContent = '';
-  const recordKeyword = '记录内容：';
-  const recordIndex = content.indexOf(recordKeyword);
-  if (recordIndex !== -1) {
-    const afterRecord = content.substring(recordIndex + recordKeyword.length);
-    // 截取到第一个 { 或 [ 或 " 之前
-    const endIndex = afterRecord.search(/[{}\[\]"']/);
-    recordContent = (endIndex === -1 ? afterRecord : afterRecord.substring(0, endIndex)).trim();
+  const imageKeys: string[] = [];
+  
+  // 首先尝试JSON解析content
+  let parsedContent: any = null;
+  try {
+    parsedContent = JSON.parse(content);
+    console.log("✅ content JSON解析成功");
+  } catch (e) {
+    console.log("ℹ️ content不是JSON，用原始字符串处理");
   }
   
-  // 3. 提取所有image_key
-  const imageKeys: string[] = [];
-  const imageKeyRegex = /"image_key"\s*:\s*"([^"]+)"/g;
-  let match;
-  while ((match = imageKeyRegex.exec(content)) !== null) {
-    if (match[1]) {
-      imageKeys.push(match[1]);
+  // 从content中提取所有text元素
+  const allTexts: string[] = [];
+  
+  if (parsedContent && parsedContent.content) {
+    // 从JSON结构中提取
+    const contentArray = parsedContent.content;
+    if (Array.isArray(contentArray)) {
+      for (const line of contentArray) {
+        if (Array.isArray(line)) {
+          for (const element of line) {
+            if (element.tag === 'text' && element.text) {
+              allTexts.push(element.text);
+            }
+            if (element.tag === 'img' && element.image_key) {
+              imageKeys.push(element.image_key);
+            }
+          }
+        }
+      }
+    }
+  } else {
+    // 从原始字符串中提取
+    // 先提取所有文本
+    const textRegex = /"tag":"text","text":"([^"]+)"/g;
+    let textMatch;
+    while ((textMatch = textRegex.exec(content)) !== null) {
+      if (textMatch[1]) {
+        allTexts.push(textMatch[1]);
+      }
+    }
+    
+    // 再提取所有image_key
+    const imageKeyRegex = /"image_key"\s*:\s*"([^"]+)"/g;
+    let imageMatch;
+    while ((imageMatch = imageKeyRegex.exec(content)) !== null) {
+      if (imageMatch[1]) {
+        imageKeys.push(imageMatch[1]);
+      }
     }
   }
   
-  console.log("✅ 解析结果:");
+  console.log("📝 提取到的所有文本:", allTexts);
+  
+  // 从提取的文本中查找用户ID和记录内容
+  const fullText = allTexts.join(' ');
+  console.log("📋 合并后的文本:", fullText);
+  
+  // 提取用户ID
+  const userIdMatch = fullText.match(/用户ID[：:]\s*(\d+)/);
+  userId = userIdMatch?.[1];
+  
+  // 提取记录内容
+  for (const text of allTexts) {
+    if (text.includes('记录内容：')) {
+      recordContent = text.replace('记录内容：', '').trim();
+      break;
+    }
+  }
+  
+  console.log("✅ 最终解析结果:");
   console.log("  用户ID:", userId);
   console.log("  记录内容:", recordContent);
   console.log("  图片keys:", imageKeys);
