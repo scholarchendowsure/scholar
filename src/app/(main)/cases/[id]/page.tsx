@@ -89,18 +89,6 @@ export default function CaseDetailPage() {
   // 单独存上传的CaseFile[]
   const [uploadedCaseFiles, setUploadedCaseFiles] = useState<CaseFile[]>([]);
 
-  // 新增跟进记录二的状态
-  const [showFollowupDialog2, setShowFollowupDialog2] = useState(false);
-  const [newFollowup2, setNewFollowup2] = useState<Partial<FollowUp>>({
-    follower: '',
-    followType: 'online',
-    contact: 'legal_representative',
-    followResult: 'normal_repayment',
-    followRecord: '',
-    fileInfo: [],
-  });
-  const [uploadedCaseFiles2, setUploadedCaseFiles2] = useState<CaseFile[]>([]);
-
   // 导航状态
   const [navigationState, setNavigationState] = useState<{
     caseIds: string[];
@@ -260,21 +248,15 @@ export default function CaseDetailPage() {
   
   // 文件上传处理 - 和免登录页面保持一致
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('[handleFileUpload] 函数被调用');
-    console.log('[handleFileUpload] e.target.files:', e.target.files);
     e.preventDefault();
     if (!e.target.files || e.target.files.length === 0) {
-      console.log('[handleFileUpload] 没有文件');
       return;
     }
     
     const files = Array.from(e.target.files);
-    console.log('[handleFileUpload] 文件数量:', files.length);
     for (const file of files) {
-      console.log('[handleFileUpload] 处理文件:', file.name);
       const reader = new FileReader();
       reader.onload = (event) => {
-        console.log('[handleFileUpload] 文件读取成功:', file.name);
         const base64Data = event.target?.result as string;
         const fileName = file.name;
         const isImage = isImageFile(fileName);
@@ -287,49 +269,8 @@ export default function CaseDetailPage() {
           uploadBy: '未登记人',
           data: base64Data
         }]);
-        console.log('[handleFileUpload] uploadedCaseFiles已更新');
       };
       reader.onerror = () => {
-        console.log('[handleFileUpload] 文件读取失败');
-        toast.error('文件读取失败');
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  
-  // 新增跟进记录二的文件上传处理
-  const handleFileUpload2 = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('[handleFileUpload2] 函数被调用');
-    console.log('[handleFileUpload2] e.target.files:', e.target.files);
-    e.preventDefault();
-    if (!e.target.files || e.target.files.length === 0) {
-      console.log('[handleFileUpload2] 没有文件');
-      return;
-    }
-    
-    const files = Array.from(e.target.files);
-    console.log('[handleFileUpload2] 文件数量:', files.length);
-    for (const file of files) {
-      console.log('[handleFileUpload2] 处理文件:', file.name);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        console.log('[handleFileUpload2] 文件读取成功:', file.name);
-        const base64Data = event.target?.result as string;
-        const fileName = file.name;
-        const isImage = isImageFile(fileName);
-        
-        setUploadedCaseFiles2(prev => [...prev, {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          name: fileName,
-          type: isImage ? 'image' : isDocumentFile(fileName) ? 'document' : 'other',
-          uploadTime: new Date().toISOString(),
-          uploadBy: '未登记人',
-          data: base64Data
-        }]);
-        console.log('[handleFileUpload2] uploadedCaseFiles2已更新');
-      };
-      reader.onerror = () => {
-        console.log('[handleFileUpload2] 文件读取失败');
         toast.error('文件读取失败');
       };
       reader.readAsDataURL(file);
@@ -595,7 +536,6 @@ export default function CaseDetailPage() {
       const json: { success: boolean; data: Case } = await res.json();
 
       if (json.success) {
-        console.log(`[fetchCase] 获取案件成功, followups数量: ${json.data.followups?.length || 0}`);
         setCaseData(json.data);
       } else {
         toast.error('获取案件详情失败');
@@ -1267,24 +1207,6 @@ export default function CaseDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* 测试用的最简单的文件上传 */}
-      <div className="p-4 bg-yellow-100 border-b border-yellow-300">
-        <p className="font-bold text-yellow-800 mb-2">测试用最简单的文件上传：</p>
-        <input
-          type="file"
-          onChange={(e) => {
-            console.log("最简单的文件上传 onChange事件被触发！");
-            console.log("文件：", e.target.files);
-            alert("最简单的文件上传 onChange事件被触发！");
-          }}
-          className="block w-full text-sm text-gray-500
-            file:mr-4 file:py-2 file:px-4
-            file:rounded-lg file:border-0
-            file:text-sm file:font-semibold
-            file:bg-blue-50 file:text-blue-700
-            hover:file:bg-blue-100"
-        />
-      </div>
       {/* 头部 - 可折叠 */}
       <div className="bg-white border-b border-slate-200">
         <div className="px-6 py-4">
@@ -1417,25 +1339,7 @@ export default function CaseDetailPage() {
                   <Plus className="w-4 h-4 mr-2" />
                   新增跟进记录
                 </Button>
-                <Button 
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => {
-                    setNewFollowup2({
-                      follower: '未登记人',
-                      followType: 'online',
-                      contact: 'legal_representative',
-                      followResult: 'normal_repayment',
-                      followRecord: '',
-                      fileInfo: [],
-                      followTime: new Date().toISOString(),
-                    });
-                    setUploadedCaseFiles2([]);
-                    setShowFollowupDialog2(true);
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  新增跟进记录二
-                </Button>
+
               </div>
             </div>
 
@@ -1656,11 +1560,7 @@ export default function CaseDetailPage() {
                   <input
                     type="file"
                     multiple
-                    onChange={(e) => {
-                      console.log('[Input onChange事件被触发, e:', e);
-                      console.log('[Input onChange事件被触发, e.target.files:', e.target.files);
-                      handleFileUpload(e);
-                    }}
+                    onChange={(e) => handleFileUpload(e)}
                     className="hidden"
                     id="file-upload"
                     accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
@@ -1668,10 +1568,7 @@ export default function CaseDetailPage() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => {
-                      console.log('[按钮点击] 新增跟进记录的选择文件按钮被点击');
-                      document.getElementById('file-upload')?.click();
-                    }}
+                    onClick={() => document.getElementById('file-upload')?.click()}
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     选择文件
@@ -1880,247 +1777,7 @@ export default function CaseDetailPage() {
           </DialogContent>
         </Dialog>
         
-        {/* 新增跟进记录二对话框 */}
-        <Dialog open={showFollowupDialog2} onOpenChange={setShowFollowupDialog2}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>新增跟进记录二</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>跟进人</Label>
-                  <Input 
-                    value={newFollowup2.follower || ''} 
-                    onChange={(e) => setNewFollowup2({...newFollowup2, follower: e.target.value})}
-                    placeholder="请输入跟进人"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>跟进时间</Label>
-                  <Input 
-                    value={newFollowup2.followTime ? new Date(newFollowup2.followTime).toLocaleString('zh-CN') : new Date().toLocaleString('zh-CN')} 
-                    disabled
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>跟进类型</Label>
-                  <Select 
-                    value={newFollowup2.followType as any || 'online'} 
-                    onValueChange={(value) => setNewFollowup2({...newFollowup2, followType: value as any})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择跟进类型" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FOLLOWUP_TYPE_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>联系人</Label>
-                  <Select 
-                    value={newFollowup2.contact as any || 'legal_representative'} 
-                    onValueChange={(value) => setNewFollowup2({...newFollowup2, contact: value as any})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择联系人" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONTACT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>跟进结果</Label>
-                  <Select 
-                    value={newFollowup2.followResult as any || 'normal_repayment'} 
-                    onValueChange={(value) => setNewFollowup2({...newFollowup2, followResult: value as any})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="选择跟进结果" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FOLLOWUP_RESULT_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>跟进记录内容 *</Label>
-                <Textarea
-                  value={newFollowup2.followRecord || ''}
-                  onChange={(e) => setNewFollowup2({...newFollowup2, followRecord: e.target.value})}
-                  placeholder="请输入跟进记录内容"
-                  rows={6}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>上传文件 (可选)</Label>
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    测试用可见文件上传框：
-                  </div>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) => {
-                      console.log('[可见Input onChange事件被触发, e:', e);
-                      console.log('[可见Input onChange事件被触发, e.target.files:', e.target.files);
-                      handleFileUpload2(e);
-                    }}
-                    id="visible-file-upload-2"
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) => {
-                      console.log('[Input onChange事件被触发, e:', e);
-                      console.log('[Input onChange事件被触发, e.target.files:', e.target.files);
-                      handleFileUpload2(e);
-                    }}
-                    className="hidden"
-                    id="file-upload-2"
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      console.log('[按钮点击] 新增跟进记录二的选择文件按钮被点击');
-                      document.getElementById('file-upload-2')?.click();
-                    }}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    选择文件
-                  </Button>
-                </div>
-              
-                {uploadedCaseFiles2.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <div className="text-sm text-slate-600">已选择 {uploadedCaseFiles2.length} 个文件：</div>
-                    <div className="flex flex-wrap gap-2">
-                      {uploadedCaseFiles2.map((file, index) => (
-                        <div key={file.id} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded text-sm">
-                          <span className="truncate max-w-[150px]">{file.name}</span>
-                          <button
-                            onClick={() => setUploadedCaseFiles2(prev => prev.filter((_, i) => i !== index))}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowFollowupDialog2(false)}>
-                取消
-              </Button>
-              <Button onClick={async () => {
-                if (!caseData) return;
-                
-                if (!newFollowup2.followRecord?.trim()) {
-                  toast.error('请填写跟进记录内容');
-                  return;
-                }
-            
-                setShowFollowupDialog2(false);
-                try {
-                  const followup: FollowUp = {
-                    id: Date.now().toString(),
-                    follower: newFollowup2.follower || '未登记人',
-                    followTime: newFollowup2.followTime || new Date().toISOString(),
-                    followType: newFollowup2.followType as any,
-                    contact: newFollowup2.contact as any,
-                    followResult: newFollowup2.followResult as any,
-                    followRecord: newFollowup2.followRecord || '',
-                    fileInfo: uploadedCaseFiles2,
-                    createdAt: new Date().toISOString(),
-                    createdBy: newFollowup2.follower || '未登记人',
-                  };
-                  
-                  // 立即更新本地状态
-                  if (caseData) {
-                    const immediateUpdatedCase: Case = {
-                      ...caseData,
-                      followups: [...(caseData.followups || []), followup],
-                      updatedAt: new Date().toISOString(),
-                    };
-                    setCaseData(immediateUpdatedCase);
-                  }
-                  
-                  // 使用 followups API 保存
-                  const followupRes = await fetch(`/api/cases/${caseData?.id}/followups`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      followup,
-                      syncToSameUser: true,
-                    }),
-                  });
-                  
-                  const followupResult = await followupRes.json();
-                  
-                  if (!followupResult.success) {
-                    toast.error(followupResult.error || '跟进记录添加失败');
-                    return;
-                  }
-                  
-                  toast.success('跟进记录添加成功');
-                  
-                  // 重置状态
-                  setNewFollowup2({
-                    followType: 'online',
-                    contact: 'legal_representative',
-                    followResult: 'normal_repayment',
-                    followRecord: '',
-                    fileInfo: [],
-                    followTime: new Date().toISOString(),
-                  });
-                  setUploadedCaseFiles2([]);
-                  
-                  // 重新获取案件数据以确保同步
-                  fetchCase(params.id as string);
-                  
-                } catch (e) {
-                  console.error('添加跟进记录失败:', e);
-                  toast.error('添加跟进记录失败');
-                }
-              }}>
-                提交
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
         
         {/* 记录内容查看弹窗 */}
         <Dialog open={viewFullRecord !== null} onOpenChange={(open) => !open && setViewFullRecord(null)}>
