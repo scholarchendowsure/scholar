@@ -28,9 +28,9 @@ function buildCaseSelectionCard(cases: any[], userId: string, senderOpenId: stri
   const caseElements = cases.map((caseItem, index) => {
     const caseDetailUrl = `${domain}/shared-cases/${caseItem.id}`;
     const riskLevel = caseItem.riskLevel || '-';
-    const dueAmount = formatMoney(caseItem.dueAmount);
+    const overdueAmount = formatMoney(caseItem.overdueAmount);
     const status = caseItem.status || '-';
-    const customerName = caseItem.customerName || '-';
+    const customerName = caseItem.borrowerName || '-';
 
     const statusColors: Record<string, string> = {
       'pending_assign': 'orange',
@@ -53,7 +53,7 @@ function buildCaseSelectionCard(cases: any[], userId: string, senderOpenId: stri
           elements: [
             {
               tag: "markdown",
-              content: `**案件 ${index + 1}**\n👤 ${customerName}\n📊 风险等级: ${riskLevel}\n💰 待还: ${dueAmount}\n📋 状态: ${status}`,
+              content: `**案件 ${index + 1}**\n👤 ${customerName}\n📊 风险等级: ${riskLevel}\n💰 逾期金额: ${overdueAmount}\n📋 状态: ${status}`,
               text_size: "normal_v2",
               text_align: "left"
             }
@@ -257,7 +257,7 @@ async function sendFollowUpReminderCard(
                               elements: [
                                 {
                                   tag: "markdown",
-                                  content: `产品名称：${caseItem.productName || '-'}\n资金方：${caseItem.funder || '-'}\n风险等级：${caseItem.riskLevel || '-'}\n借款人姓名：${caseItem.customerName || '-'}\n用户ID：${caseItem.userId || '-'}\n贷款单号：${caseItem.loanNo || '-'}\n待还金额：${formatMoney(caseItem.dueAmount)}\n到期日：${caseItem.dueDate || '-'}\n\n[查看案件详情](${caseDetailUrl})`,
+                                  content: `产品名称：${caseItem.productName || '-'}\n资金方：${caseItem.funder || '-'}\n风险等级：${caseItem.riskLevel || '-'}\n借款人姓名：${caseItem.borrowerName || '-'}\n用户ID：${caseItem.userId || '-'}\n贷款单号：${caseItem.loanNo || '-'}\n逾期金额：${formatMoney(caseItem.overdueAmount)}\n到期日：${caseItem.dueDate || '-'}\n\n[查看案件详情](${caseDetailUrl})`,
                                   text_align: "left",
                                   text_size: "normal_v2",
                                   margin: "0px 0px 0px 0px"

@@ -370,7 +370,7 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
                                   elements: [
                                     {
                                       tag: "markdown",
-                                      content: `产品名称：${caseData.productName || '-'}\n资金方：${caseData.funder || '-'}\n风险等级：${caseData.riskLevel || '-'}\n借款人姓名：${caseData.borrowerName || '-'}\n用户ID：${caseData.userId || '-'}\n贷款单号：${caseData.loanNo || '-'}\n待还金额：${formatMoney(caseData.overdueAmount)}\n到期日：${caseData.dueDate || '-'}\n\n[查看案件详情](${caseDetailUrl})`,
+                                      content: `产品名称：${caseData.productName || '-'}\n资金方：${caseData.funder || '-'}\n风险等级：${caseData.riskLevel || '-'}\n借款人姓名：${caseData.borrowerName || '-'}\n用户ID：${caseData.userId || '-'}\n贷款单号：${caseData.loanNo || '-'}\n逾期金额：${formatMoney(caseData.overdueAmount)}\n到期日：${caseData.dueDate || '-'}\n\n[查看案件详情](${caseDetailUrl})`,
                                       text_align: "left",
                                       text_size: "normal_v2",
                                       margin: "0px 0px 0px 0px"
