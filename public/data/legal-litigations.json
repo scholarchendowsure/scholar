@@ -122,7 +122,7 @@
     "caseId": "DSL17421023520618258",
     "judicialCases": [
       {
-        "id": "litigation-1",
+        "id": "lit-1",
         "caseName": "郝**与山东科迈橡胶集团有限公司、青岛伊克迈斯进出口有限公司、青岛盛悦祥贸易有限公司的案件",
         "caseRole": "被告",
         "caseNumber": "（2025）鲁0212执8825号",
@@ -176,6 +176,6 @@
         "hearingDate": ""
       }
     ],
-    "updatedAt": "2026-05-24T02:44:41.768Z"
+    "updatedAt": "2026-05-24T03:14:48.788Z"
   }
 }
