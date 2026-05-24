@@ -57,26 +57,21 @@ function parseGroupFollowupContent(content: string) {
     const userIdMatch = textToParse.match(/用户ID[：:]\s*(\d+)/);
     const userId = userIdMatch?.[1];
     
-    // 提取记录内容 - 更精确的匹配
-    // 匹配"记录内容："之后的所有内容，直到遇到换行或结束
-    const recordMatch = textToParse.match(/记录内容[：:]\s*([\s\S]*?)(?=\n|$)/);
-    let recordContent = recordMatch?.[1]?.trim();
+    // 提取记录内容 - 更简单直接的方式
+    // 找到"记录内容："的位置，然后取后面的所有内容
+    const recordKeyword = '记录内容：';
+    const recordKeywordIndex = textToParse.indexOf(recordKeyword);
     
-    // 清理可能的多余符号和JSON残留
-    if (recordContent) {
-      // 移除结尾可能多余的 }、]、" 等符号
-      recordContent = recordContent.replace(/[}\]"'\s]+$/, '').trim();
+    let recordContent = '';
+    if (recordKeywordIndex !== -1) {
+      // 从关键词后面开始截取
+      recordContent = textToParse.substring(recordKeywordIndex + recordKeyword.length).trim();
       
-      // 如果内容看起来像JSON，尝试进一步清理
-      if (recordContent.startsWith('{') || recordContent.startsWith('[')) {
-        try {
-          const jsonParsed = JSON.parse(recordContent);
-          if (jsonParsed.text) {
-            recordContent = jsonParsed.text;
-          }
-        } catch {
-          // 如果不是有效的JSON，保留原样
-        }
+      // 清理可能的后续JSON或其他格式残留
+      // 如果遇到{、[、"等符号，可能是富文本的后续部分，截取到这些符号之前
+      const cleanMatch = recordContent.match(/^([^{}\[\]"']+)/);
+      if (cleanMatch) {
+        recordContent = cleanMatch[1].trim();
       }
     }
     
