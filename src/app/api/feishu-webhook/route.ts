@@ -284,75 +284,32 @@ async function processGroupFollowupDirect(event: Record<string, unknown>) {
       return { success: false, error: "没有content" };
     }
     
-    // 2. 解析所有信息 - 直接解析，不调用函数
+    // 2. 解析所有信息 - 用最简单粗暴的方式直接从原始字符串提取
     console.log("📄 Message完整结构:", JSON.stringify(message, null, 2));
-    console.log("🔍 开始直接解析content...");
+    console.log("🔍 开始解析content，原始长度:", content.length);
+    console.log("🔍 content原始内容:", content);
     
-    let userId: string | undefined;
+    // 直接从原始字符串中提取用户ID
+    const userIdMatch = content.match(/用户ID[：:]\s*(\d+)/);
+    const userId = userIdMatch?.[1];
+    console.log("🆔 提取到的用户ID:", userId);
+    
+    // 直接从原始字符串中提取记录内容
     let recordContent = '';
+    const recordContentMatch = content.match(/记录内容[：:]([^"{}\[\]]+)/);
+    if (recordContentMatch && recordContentMatch[1]) {
+      recordContent = recordContentMatch[1].trim();
+    }
+    console.log("📝 提取到的记录内容:", recordContent);
+    
+    // 直接从原始字符串中提取所有image_key
     const imageKeys: string[] = [];
-    
-    // 先尝试JSON解析
-    let parsedContent: any = null;
-    try {
-      parsedContent = JSON.parse(content);
-      console.log("✅ content JSON解析成功");
-    } catch (e) {
-      console.log("ℹ️ content不是JSON，用原始字符串处理");
-    }
-    
-    // 提取所有text和image_key
-    const allTexts: string[] = [];
-    
-    if (parsedContent && parsedContent.content) {
-      const contentArray = parsedContent.content;
-      if (Array.isArray(contentArray)) {
-        for (const line of contentArray) {
-          if (Array.isArray(line)) {
-            for (const element of line) {
-              if (element.tag === 'text' && element.text) {
-                allTexts.push(element.text);
-                console.log("📝 提取到文本:", element.text);
-              }
-              if (element.tag === 'img' && element.image_key) {
-                imageKeys.push(element.image_key);
-                console.log("🖼️ 提取到图片key:", element.image_key);
-              }
-            }
-          }
-        }
-      }
-    } else {
-      // 从原始字符串中提取
-      const textRegex = /"tag":"text","text":"([^"]+)"/g;
-      let textMatch;
-      while ((textMatch = textRegex.exec(content)) !== null) {
-        if (textMatch[1]) {
-          allTexts.push(textMatch[1]);
-        }
-      }
-      
-      const imageKeyRegex = /"image_key"\s*:\s*"([^"]+)"/g;
-      let imageMatch;
-      while ((imageMatch = imageKeyRegex.exec(content)) !== null) {
-        if (imageMatch[1]) {
-          imageKeys.push(imageMatch[1]);
-        }
-      }
-    }
-    
-    console.log("📋 所有提取的文本:", allTexts);
-    console.log("🖼️ 所有提取的图片keys:", imageKeys);
-    
-    // 从文本中提取用户ID和记录内容
-    const fullText = allTexts.join(' ');
-    const userIdMatch = fullText.match(/用户ID[：:]\s*(\d+)/);
-    userId = userIdMatch?.[1];
-    
-    for (const text of allTexts) {
-      if (text.includes('记录内容：')) {
-        recordContent = text.replace('记录内容：', '').trim();
-        break;
+    const imageKeyRegex = /"image_key"\s*:\s*"([^"]+)"/g;
+    let imageMatch;
+    while ((imageMatch = imageKeyRegex.exec(content)) !== null) {
+      if (imageMatch[1]) {
+        imageKeys.push(imageMatch[1]);
+        console.log("🖼️ 提取到图片key:", imageMatch[1]);
       }
     }
     
@@ -360,6 +317,7 @@ async function processGroupFollowupDirect(event: Record<string, unknown>) {
     console.log("  用户ID:", userId);
     console.log("  记录内容:", recordContent);
     console.log("  图片keys:", imageKeys);
+    console.log("  图片数量:", imageKeys.length);
     
     if (!userId) {
       console.log("❌ 未找到用户ID");
