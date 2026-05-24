@@ -1168,6 +1168,23 @@ export default function CaseDetailPage() {
       case 'legal':
         return (
           <div className="p-6">
+            {/* 测试用最简单的文件上传 */}
+            <div className="mb-6 p-4 border-2 border-dashed border-blue-500 bg-blue-50 rounded-lg">
+              <h3 className="font-bold text-blue-700 mb-2">测试文件上传（最简单版本）</h3>
+              <input 
+                type="file" 
+                onChange={(e) => {
+                  console.log('真实案件详情页面 - 文件选择成功:', e.target.files?.[0]?.name);
+                  alert('真实案件详情页面 - 文件选择成功: ' + e.target.files?.[0]?.name);
+                }}
+                className="block w-full text-sm text-slate-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+            </div>
             <LegalLitigationTab caseId={caseData?.id || ''} />
           </div>
         );
@@ -1207,6 +1224,23 @@ export default function CaseDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* 测试用最简单的文件上传 - 页面最顶部 */}
+      <div className="p-4 border-b-4 border-red-500 bg-red-50">
+        <h3 className="font-bold text-red-700 mb-2">测试文件上传（页面最顶部）</h3>
+        <input 
+          type="file" 
+          onChange={(e) => {
+            console.log('页面最顶部 - 文件选择成功:', e.target.files?.[0]?.name);
+            alert('页面最顶部 - 文件选择成功: ' + e.target.files?.[0]?.name);
+          }}
+          className="block w-full text-sm text-slate-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-full file:border-0
+            file:text-sm file:font-semibold
+            file:bg-red-50 file:text-red-700
+            hover:file:bg-red-100"
+        />
+      </div>
       {/* 头部 - 可折叠 */}
       <div className="bg-white border-b border-slate-200">
         <div className="px-6 py-4">
