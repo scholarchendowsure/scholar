@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FeishuService } from "@/lib/feishu-service";
 import { caseStorage } from "@/storage/database/case-storage";
+import { getFeishuUsers } from "@/storage/database/feishu-user-storage";
 import { FollowUp } from "@/types/case";
 import { v4 as uuidv4 } from "uuid";
 
@@ -148,28 +149,29 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     const senderId = (sender?.sender_id as any)?.open_id as string;
     console.log("👤 发送者Open ID:", senderId);
     
-    // 先尝试从sender中直接获取姓名
-    let followerName = "未知用户";
+    // 根据senderId（openId）在飞书用户中查找匹配
+    let followerName = senderId || "未知用户";
     
-    // 先用senderId的前8位作为跟进人，至少能看到一个友好的显示
     if (senderId) {
-      followerName = `飞书用户-${senderId.substring(0, 8)}`;
-      console.log("🔧 使用senderId前8位作为跟进人:", followerName);
-      
-      // 同时尝试调用飞书API获取用户信息（后台尝试）
       try {
-        console.log("🔍 后台尝试：用senderId调用飞书API获取用户信息:", senderId);
-        const userInfo = await feishuService.getUserInfo(senderId);
-        console.log("📋 飞书返回的用户信息:", JSON.stringify(userInfo, null, 2));
+        console.log("🔍 在飞书用户中查找匹配，openId:", senderId);
         
-        // 如果API返回了姓名，就用姓名
-        if (userInfo?.name || userInfo?.en_name) {
-          followerName = userInfo?.name || userInfo?.en_name || followerName;
-          console.log("✅ 从飞书API获取到的姓名，更新为:", followerName);
+        // 获取所有飞书用户
+        const feishuUsers = await getFeishuUsers();
+        console.log("📋 飞书用户列表数量:", feishuUsers.length);
+        
+        // 查找openId匹配的用户
+        const matchedUser = feishuUsers.find(u => u.openId === senderId);
+        
+        if (matchedUser) {
+          followerName = matchedUser.name;
+          console.log("✅ 找到匹配的飞书用户，使用姓名:", followerName);
+        } else {
+          console.log("❌ 未找到匹配的飞书用户，使用完整senderId:", followerName);
         }
       } catch (error) {
-        console.log("❌ 后台尝试：调用飞书API获取用户信息失败:", error);
-        // 继续使用senderId前8位
+        console.log("❌ 获取飞书用户失败，使用完整senderId:", error);
+        // 继续使用完整senderId
       }
     } else {
       followerName = "未知用户";
