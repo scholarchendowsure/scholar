@@ -147,7 +147,7 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
 /**
  * 保存图片到对象存储
  */
-async function saveImageToStorage(imageKey: string): Promise<{ key: string; url: string } | null> {
+async function saveImageToStorage(imageKey: string): Promise<{ key: string; url: string; data: string } | null> {
   try {
     console.log("📤 开始保存图片，imageKey:", imageKey);
     
@@ -155,24 +155,36 @@ async function saveImageToStorage(imageKey: string): Promise<{ key: string; url:
     const { buffer, fileName } = await feishuService.downloadImage(imageKey);
     console.log("✅ 图片下载成功，文件大小:", buffer.length, "字节，文件名:", fileName);
     
-    // 上传到对象存储
-    const storageKey = await storage.uploadFile({
-      fileContent: buffer,
-      fileName: `feishu-images/${fileName}`,
-      contentType: "image/jpeg"
-    });
+    // 转换为base64
+    const base64Data = buffer.toString('base64');
+    const dataUrl = `data:image/jpeg;base64,${base64Data}`;
     
-    console.log("✅ 图片上传成功，storageKey:", storageKey);
+    console.log("✅ 图片转换为base64成功");
     
-    // 生成访问URL
-    const url = await storage.generatePresignedUrl({
-      key: storageKey,
-      expireTime: 86400 * 365 // 1年有效期
-    });
+    // 同时也上传到对象存储作为备份
+    let storageUrl = '';
+    try {
+      const storageKey = await storage.uploadFile({
+        fileContent: buffer,
+        fileName: `feishu-images/${fileName}`,
+        contentType: "image/jpeg"
+      });
+      
+      storageUrl = await storage.generatePresignedUrl({
+        key: storageKey,
+        expireTime: 86400 * 365 // 1年有效期
+      });
+      
+      console.log("✅ 图片上传到对象存储成功");
+    } catch (storageError) {
+      console.log("⚠️ 对象存储上传失败，仅使用base64:", storageError);
+    }
     
-    console.log("✅ 图片URL生成成功");
-    
-    return { key: storageKey, url };
+    return { 
+      key: imageKey, 
+      url: storageUrl || dataUrl,
+      data: dataUrl 
+    };
   } catch (error) {
     console.error("❌ 保存图片失败:", error);
     return null;
@@ -182,7 +194,7 @@ async function saveImageToStorage(imageKey: string): Promise<{ key: string; url:
 /**
  * 保存文件到对象存储
  */
-async function saveFileToStorage(fileKey: string): Promise<{ key: string; url: string } | null> {
+async function saveFileToStorage(fileKey: string): Promise<{ key: string; url: string; data: string } | null> {
   try {
     console.log("📤 开始保存文件，fileKey:", fileKey);
     
@@ -207,7 +219,7 @@ async function saveFileToStorage(fileKey: string): Promise<{ key: string; url: s
     
     console.log("✅ 文件URL生成成功");
     
-    return { key: storageKey, url };
+    return { key: storageKey, url, data: '' };
   } catch (error) {
     console.error("❌ 保存文件失败:", error);
     return null;
@@ -349,7 +361,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     const { images, files } = extractMediaFromMessage(event);
     
     // 6. 保存图片和文件到对象存储
-    const savedFiles: Array<{ key: string; url: string; name: string; type: 'image' | 'file' }> = [];
+    const savedFiles: Array<{ key: string; url: string; data: string; name: string; type: 'image' | 'file' }> = [];
     
     // 保存图片
     for (const imageKey of images) {
@@ -394,6 +406,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
         name: f.name,
         type: f.type === 'image' ? 'image' : 'document',
         url: f.url,
+        data: f.data,
         uploadTime: now,
         uploadBy: followerName
       })),
