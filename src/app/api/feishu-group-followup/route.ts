@@ -28,19 +28,27 @@ function parseGroupFollowupContent(content: string) {
     let textToParse = content;
     try {
       const parsed = JSON.parse(content);
-      console.log("📋 content是JSON格式:", parsed);
+      console.log("📋 content是JSON格式:", JSON.stringify(parsed, null, 2));
       
-      // 从JSON中提取text字段
-      if (parsed.text) {
-        textToParse = parsed.text;
-      } else if (Array.isArray(parsed)) {
-        // 如果是数组，查找text类型的元素
-        const textElement = parsed.find((item: any) => item.type === 'text' && item.text);
-        if (textElement) {
-          textToParse = textElement.text;
+      // 如果是数组格式（富文本）
+      if (Array.isArray(parsed)) {
+        // 遍历数组，提取所有text元素的内容
+        const textParts: string[] = [];
+        for (const item of parsed) {
+          if (item.type === 'text' && item.text) {
+            textParts.push(item.text);
+          }
         }
+        if (textParts.length > 0) {
+          textToParse = textParts.join('');
+        }
+      } 
+      // 如果是对象格式，有text字段
+      else if (parsed.text) {
+        textToParse = parsed.text;
       }
-      console.log("📝 提取后的文本:", textToParse);
+      
+      console.log("📝 提取后的纯文本:", textToParse);
     } catch (e) {
       console.log("ℹ️ content不是JSON格式，直接使用");
     }
@@ -49,14 +57,27 @@ function parseGroupFollowupContent(content: string) {
     const userIdMatch = textToParse.match(/用户ID[：:]\s*(\d+)/);
     const userId = userIdMatch?.[1];
     
-    // 提取记录内容 - 更健壮的匹配
-    const recordMatch = textToParse.match(/记录内容[：:]\s*([^]*?)(?=\n|$)/);
+    // 提取记录内容 - 更精确的匹配
+    // 匹配"记录内容："之后的所有内容，直到遇到换行或结束
+    const recordMatch = textToParse.match(/记录内容[：:]\s*([\s\S]*?)(?=\n|$)/);
     let recordContent = recordMatch?.[1]?.trim();
     
-    // 清理可能的多余符号
+    // 清理可能的多余符号和JSON残留
     if (recordContent) {
-      // 移除结尾可能多余的 } 或其他符号
-      recordContent = recordContent.replace(/[}\]]+$/, '').trim();
+      // 移除结尾可能多余的 }、]、" 等符号
+      recordContent = recordContent.replace(/[}\]"'\s]+$/, '').trim();
+      
+      // 如果内容看起来像JSON，尝试进一步清理
+      if (recordContent.startsWith('{') || recordContent.startsWith('[')) {
+        try {
+          const jsonParsed = JSON.parse(recordContent);
+          if (jsonParsed.text) {
+            recordContent = jsonParsed.text;
+          }
+        } catch {
+          // 如果不是有效的JSON，保留原样
+        }
+      }
     }
     
     console.log("✅ 解析结果 - 用户ID:", userId, "记录内容:", recordContent);
@@ -83,28 +104,39 @@ function extractMediaFromMessage(event: Record<string, unknown>) {
     const content = message.content as string;
     
     if (!content) {
+      console.log("ℹ️ 消息内容为空，无媒体提取");
       return { images: [], files: [] };
     }
+    
+    console.log("📋 开始提取媒体，原始content:", content);
     
     let images: string[] = [];
     let files: string[] = [];
     
     try {
       const contentJson = JSON.parse(content);
+      console.log("📋 解析后的contentJson:", JSON.stringify(contentJson, null, 2));
+      
       if (Array.isArray(contentJson)) {
         for (const item of contentJson) {
+          console.log("📋 检查元素:", item);
           if (item.type === "image" && item.image_key) {
             images.push(item.image_key);
+            console.log("✅ 找到图片，image_key:", item.image_key);
           } else if (item.type === "file" && item.file_key) {
             files.push(item.file_key);
+            console.log("✅ 找到文件，file_key:", item.file_key);
           }
         }
       }
     } catch (e) {
-      console.log("ℹ️ 消息内容不是JSON格式，跳过媒体提取");
+      console.log("ℹ️ 消息内容不是JSON格式，跳过媒体提取，错误:", e);
     }
     
-    console.log("📷 提取到图片:", images.length, "个, 文件:", files.length, "个");
+    console.log("📷 提取完成 - 图片:", images.length, "个, 文件:", files.length, "个");
+    console.log("📷 图片列表:", images);
+    console.log("📷 文件列表:", files);
+    
     return { images, files };
   } catch (error) {
     console.error("❌ 提取媒体失败:", error);
