@@ -1267,6 +1267,24 @@ export default function CaseDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* 测试用的最简单的文件上传 */}
+      <div className="p-4 bg-yellow-100 border-b border-yellow-300">
+        <p className="font-bold text-yellow-800 mb-2">测试用最简单的文件上传：</p>
+        <input
+          type="file"
+          onChange={(e) => {
+            console.log("最简单的文件上传 onChange事件被触发！");
+            console.log("文件：", e.target.files);
+            alert("最简单的文件上传 onChange事件被触发！");
+          }}
+          className="block w-full text-sm text-gray-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-lg file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-50 file:text-blue-700
+            hover:file:bg-blue-100"
+        />
+      </div>
       {/* 头部 - 可折叠 */}
       <div className="bg-white border-b border-slate-200">
         <div className="px-6 py-4">
