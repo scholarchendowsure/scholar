@@ -364,9 +364,10 @@ export async function POST(request: NextRequest) {
           }
           
           console.log("🔍 最终提取的文本用于检查:", JSON.stringify(textToCheck));
-          isGroupFollowup = textToCheck.includes('用户ID：') && textToCheck.includes('记录内容：');
-          console.log("🔍 是否包含'用户ID：':", textToCheck.includes('用户ID：'));
-          console.log("🔍 是否包含'记录内容：':", textToCheck.includes('记录内容：'));
+          isGroupFollowup = (textToCheck.includes('用户ID：') || textToCheck.includes('用户ID:')) && 
+                           (textToCheck.includes('记录内容：') || textToCheck.includes('记录内容:'));
+          console.log("🔍 是否包含'用户ID：'或'用户ID:':", textToCheck.includes('用户ID：') || textToCheck.includes('用户ID:'));
+          console.log("🔍 是否包含'记录内容：'或'记录内容:':", textToCheck.includes('记录内容：') || textToCheck.includes('记录内容:'));
         } catch (e) {
           console.log("🔍 解析content失败，直接检查原始内容:", e);
           // 如果不是JSON格式，直接检查原始内容
