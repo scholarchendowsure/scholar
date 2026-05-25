@@ -642,10 +642,24 @@ export async function POST(request: NextRequest) {
             const allCases = await caseStorage.getAll();
             const userCases = allCases.filter(c => c.userId === userId);
             console.log("📋 找到案件数量:", userCases.length);
+            console.log("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥");
+            console.log("🔥 准备进入if语句，userCases.length =", userCases.length);
+            console.log("🔥 imageKeys =", imageKeys);
+            console.log("🔥 imageKeys.length =", imageKeys.length);
+            console.log("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥");
             
             if (userCases.length > 0) {
+              console.log("✅✅✅✅✅✅✅✅✅✅");
+              console.log("✅ 进入if语句成功！");
+              console.log("✅✅✅✅✅✅✅✅✅✅");
+              
               // 下载图片
               const savedFiles: any[] = [];
+              console.log("🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯");
+              console.log("🎯 开始下载图片循环，imageKeys.length =", imageKeys.length);
+              console.log("🎯 imageKeys =", imageKeys);
+              console.log("🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯");
+              
               for (const imageKey of imageKeys) {
                 try {
                   console.log("📷 开始下载图片:", imageKey);
