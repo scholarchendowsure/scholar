@@ -302,7 +302,32 @@ export async function POST(request: NextRequest) {
         const content = message.content as string;
         console.log("📝 消息内容:", content);
         
-        const isGroupFollowup = content.includes('用户ID：') && content.includes('记录内容：');
+        // 先解析content，检查是否包含群跟进记录格式
+        let isGroupFollowup = false;
+        try {
+          const parsedContent = JSON.parse(content);
+          let textToCheck = "";
+          
+          // 如果是数组格式（富文本）
+          if (Array.isArray(parsedContent)) {
+            for (const item of parsedContent) {
+              if (item.tag === "text" && item.text) {
+                textToCheck += item.text;
+              }
+            }
+          } 
+          // 如果是对象格式
+          else if (parsedContent.text) {
+            textToCheck = parsedContent.text;
+          }
+          
+          console.log("📝 提取的文本用于检查:", textToCheck);
+          isGroupFollowup = textToCheck.includes('用户ID：') && textToCheck.includes('记录内容：');
+        } catch (e) {
+          // 如果不是JSON格式，直接检查原始内容
+          isGroupFollowup = content.includes('用户ID：') && content.includes('记录内容：');
+        }
+        
         console.log("🔍 是否群跟进记录格式:", isGroupFollowup);
         
         if (isGroupFollowup) {

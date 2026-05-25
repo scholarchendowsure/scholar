@@ -97,20 +97,23 @@ function parseFeishuMessage(event: Record<string, unknown>) {
  */
 function extractUserAndRecord(text: string) {
   try {
-    console.log("🔍 从文本中提取信息:", text);
+    console.log("🔍 从文本中提取信息，原始text:", JSON.stringify(text));
     
     // 提取用户ID
     const userIdMatch = text.match(/用户ID[：:]\s*(\d+)/);
     const userId = userIdMatch?.[1];
+    console.log("🔍 用户ID匹配结果:", userIdMatch, "提取的userId:", userId);
     
     // 提取记录内容 - 匹配"记录内容："之后的所有内容，直到遇到结束
     const recordMatch = text.match(/记录内容[：:]\s*([\s\S]*)/);
     let recordContent = recordMatch?.[1]?.trim();
+    console.log("🔍 记录内容匹配结果:", recordMatch, "提取的recordContent:", recordContent);
     
     // 清理可能的多余符号
     if (recordContent) {
       // 移除结尾可能多余的 }、]、" 等符号
       recordContent = recordContent.replace(/[}\]"'\s]+$/, '').trim();
+      console.log("🔍 清理后的recordContent:", recordContent);
     }
     
     console.log("✅ 提取结果 - 用户ID:", userId, "记录内容:", recordContent);
