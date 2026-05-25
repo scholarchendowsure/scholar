@@ -927,16 +927,16 @@ export default function SharedCasePage() {
                                 return (
                                   <div key={file.id} className="flex items-center gap-1">
                                     {file.type === 'image' ? (
-                                      // 图片类型：显示缩略图，可点击放大
+                                      // 图片类型：直接显示预览图，可点击放大
                                       <button
                                         onClick={() => setPreviewImage((file as any).data || (file as any).url || null)}
-                                        className="w-10 h-10 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-slate-400 text-xs hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
+                                        className="max-w-xs max-h-48 bg-slate-100 rounded border border-slate-300 flex items-center justify-center text-slate-400 hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
                                         title={`点击放大: ${file.name}`}
                                       >
                                         {(file as any).data ? (
-                                          <img src={(file as any).data} alt={file.name} className="w-full h-full object-cover" />
+                                          <img src={(file as any).data} alt={file.name} className="max-w-full max-h-full object-contain" />
                                         ) : (
-                                          '图'
+                                          '图片'
                                         )}
                                       </button>
                                     ) : (
