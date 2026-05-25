@@ -924,6 +924,13 @@ export default function SharedCasePage() {
                                 const file = typeof caseFile === 'string' 
                                   ? { id: Math.random().toString(), name: caseFile, type: isImageFile(caseFile) ? 'image' : 'document', uploadTime: new Date().toISOString(), uploadBy: '未登记人', data: undefined, url: undefined } as const
                                   : caseFile;
+                                console.log("🎨 处理文件:", { 
+                                  caseFile, 
+                                  file, 
+                                  type: file.type, 
+                                  hasData: !!(file as any).data, 
+                                  hasUrl: !!(file as any).url 
+                                });
                                 return (
                                   <div key={file.id} className="flex items-center gap-1">
                                     {file.type === 'image' ? (
