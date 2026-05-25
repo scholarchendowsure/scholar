@@ -933,8 +933,8 @@ export default function SharedCasePage() {
                                         className="max-w-xs max-h-48 bg-slate-100 rounded border border-slate-300 flex items-center justify-center text-slate-400 hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
                                         title={`点击放大: ${file.name}`}
                                       >
-                                        {(file as any).data ? (
-                                          <img src={(file as any).data} alt={file.name} className="max-w-full max-h-full object-contain" />
+                                        {(file as any).data || (file as any).url ? (
+                                          <img src={(file as any).data || (file as any).url} alt={file.name} className="max-w-full max-h-full object-contain" />
                                         ) : (
                                           '图片'
                                         )}

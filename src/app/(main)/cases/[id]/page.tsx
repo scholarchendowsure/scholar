@@ -1439,8 +1439,8 @@ export default function CaseDetailPage() {
                                         className="max-w-xs max-h-48 bg-slate-100 rounded border border-slate-300 flex items-center justify-center text-slate-400 hover:border-blue-400 hover:bg-blue-50 transition-colors overflow-hidden"
                                         title={`点击放大: ${file.name}`}
                                       >
-                                        {file.data ? (
-                                          <img src={file.data} alt={file.name} className="max-w-full max-h-full object-contain" />
+                                        {file.data || file.url ? (
+                                          <img src={file.data || file.url} alt={file.name} className="max-w-full max-h-full object-contain" />
                                         ) : (
                                           '图片'
                                         )}
