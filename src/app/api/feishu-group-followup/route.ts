@@ -18,139 +18,107 @@ const storage = new S3Storage({
 });
 
 /**
- * 解析群跟进记录
+ * 统一解析飞书消息，提取文本、图片、文件和消息ID
  */
-function parseGroupFollowupContent(content: string) {
+function parseFeishuMessage(event: Record<string, unknown>) {
   try {
-    console.log("📝 原始content:", content);
+    const message = event.message as Record<string, unknown>;
+    const messageId = message.message_id as string;
+    const messageType = message.message_type as string;
+    const contentStr = message.content as string;
     
-    // 先尝试解析content是否是JSON
-    let textToParse = content;
+    console.log("📋 原始消息内容:", contentStr);
+    console.log("📋 消息ID:", messageId);
+    console.log("📋 消息类型:", messageType);
+    
+    let text = "";
+    let images: string[] = [];
+    let files: Array<{ fileKey: string; fileName: string }> = [];
+    
     try {
-      const parsed = JSON.parse(content);
-      console.log("📋 content是JSON格式:", JSON.stringify(parsed, null, 2));
+      const content = JSON.parse(contentStr);
+      console.log("📋 解析后的content:", JSON.stringify(content, null, 2));
       
-      // 如果是数组格式（富文本）
-      if (Array.isArray(parsed)) {
-        // 遍历数组，提取所有text元素的内容
-        const textParts: string[] = [];
-        for (const item of parsed) {
-          if (item.tag === 'text' && item.text) {
-            textParts.push(item.text);
+      // 情况1：富文本（文字+图片）- 数组格式
+      if (Array.isArray(content)) {
+        for (const node of content) {
+          if (node.tag === "text" && node.text) {
+            text += node.text;
+          }
+          if (node.tag === "img" && node.image_key) {
+            images.push(node.image_key);
+            console.log("✅ 找到图片，image_key:", node.image_key);
+          }
+          if (node.tag === "file" && node.file_key) {
+            files.push({
+              fileKey: node.file_key,
+              fileName: node.file_name || "文件"
+            });
+            console.log("✅ 找到文件，file_key:", node.file_key);
           }
         }
-        if (textParts.length > 0) {
-          textToParse = textParts.join('');
-        }
-      } 
-      // 如果是对象格式，有text字段
-      else if (parsed.text) {
-        textToParse = parsed.text;
+      }
+      // 情况2：纯文本
+      else if (messageType === "text" && content.text) {
+        text = content.text;
+      }
+      // 情况3：纯图片
+      else if (messageType === "image" && content.image_key) {
+        images.push(content.image_key);
+        console.log("✅ 找到纯图片，image_key:", content.image_key);
+      }
+      // 情况4：纯文件
+      else if (messageType === "file" && content.file_key) {
+        files.push({
+          fileKey: content.file_key,
+          fileName: content.file_name || "文件"
+        });
+        console.log("✅ 找到纯文件，file_key:", content.file_key);
       }
       
-      console.log("📝 提取后的纯文本:", textToParse);
     } catch (e) {
-      console.log("ℹ️ content不是JSON格式，直接使用");
+      console.log("ℹ️ content不是JSON格式，直接使用作为文本");
+      text = contentStr;
     }
     
-    // 提取用户ID
-    const userIdMatch = textToParse.match(/用户ID[：:]\s*(\d+)/);
-    const userId = userIdMatch?.[1];
+    console.log("📝 提取完成 - 文本:", text);
+    console.log("📝 提取完成 - 图片:", images.length, "个", images);
+    console.log("📝 提取完成 - 文件:", files.length, "个", files);
     
-    // 提取记录内容 - 更精确的匹配
-    // 匹配"记录内容："之后的所有内容，直到遇到下一个JSON结构或结束
-    // 或者匹配到第一个逗号、引号或JSON结构开始的地方
-    let recordContent;
-    const simpleMatch = textToParse.match(/记录内容[：:]\s*([^，,}"\[\{]*)/);
-    if (simpleMatch && simpleMatch[1]?.trim()) {
-      recordContent = simpleMatch[1].trim();
-    } else {
-      // 如果简单匹配失败，尝试匹配到第一个JSON结构开始之前
-      const recordMatch = textToParse.match(/记录内容[：:]\s*([\s\S]*?)(?=\s*[,}\]"'\[\{]|$)/);
-      recordContent = recordMatch?.[1]?.trim();
-    }
-    
-    // 清理可能的多余符号和JSON残留
-    if (recordContent) {
-      // 移除结尾可能多余的 }、]、" 等符号
-      recordContent = recordContent.replace(/[}\]"'\s]+$/, '').trim();
-      
-      // 如果内容看起来像JSON，尝试进一步清理
-      if (recordContent.startsWith('{') || recordContent.startsWith('[')) {
-        try {
-          const jsonParsed = JSON.parse(recordContent);
-          if (jsonParsed.text) {
-            recordContent = jsonParsed.text;
-          }
-        } catch {
-          // 如果不是有效的JSON，保留原样
-        }
-      }
-    }
-    
-    console.log("✅ 解析结果 - 用户ID:", userId, "记录内容:", recordContent);
-    
-    return {
-      userId,
-      recordContent
-    };
+    return { text, images, files, messageId };
   } catch (error) {
-    console.error("❌ 解析群跟进记录失败:", error);
-    return {
-      userId: null,
-      recordContent: null
-    };
+    console.error("❌ 解析飞书消息失败:", error);
+    return { text: "", images: [], files: [], messageId: "" };
   }
 }
 
 /**
- * 提取消息中的图片和文件
+ * 从文本中提取用户ID和记录内容
  */
-function extractMediaFromMessage(event: Record<string, unknown>) {
+function extractUserAndRecord(text: string) {
   try {
-    const message = event.message as Record<string, unknown>;
-    const content = message.content as string;
-    const messageId = message.message_id as string;
+    console.log("🔍 从文本中提取信息:", text);
     
-    if (!content) {
-      console.log("ℹ️ 消息内容为空，无媒体提取");
-      return { images: [], files: [], messageId };
+    // 提取用户ID
+    const userIdMatch = text.match(/用户ID[：:]\s*(\d+)/);
+    const userId = userIdMatch?.[1];
+    
+    // 提取记录内容 - 匹配"记录内容："之后的所有内容，直到遇到结束
+    const recordMatch = text.match(/记录内容[：:]\s*([\s\S]*)/);
+    let recordContent = recordMatch?.[1]?.trim();
+    
+    // 清理可能的多余符号
+    if (recordContent) {
+      // 移除结尾可能多余的 }、]、" 等符号
+      recordContent = recordContent.replace(/[}\]"'\s]+$/, '').trim();
     }
     
-    console.log("📋 开始提取媒体，原始content:", content);
-    console.log("📋 消息ID:", messageId);
+    console.log("✅ 提取结果 - 用户ID:", userId, "记录内容:", recordContent);
     
-    let images: string[] = [];
-    let files: string[] = [];
-    
-    try {
-      const contentJson = JSON.parse(content);
-      console.log("📋 解析后的contentJson:", JSON.stringify(contentJson, null, 2));
-      
-      if (Array.isArray(contentJson)) {
-        for (const item of contentJson) {
-          console.log("📋 检查元素:", item);
-          if (item.tag === "img" && item.image_key) {
-            images.push(item.image_key);
-            console.log("✅ 找到图片，image_key:", item.image_key);
-          } else if (item.tag === "file" && item.file_key) {
-            files.push(item.file_key);
-            console.log("✅ 找到文件，file_key:", item.file_key);
-          }
-        }
-      }
-    } catch (e) {
-      console.log("ℹ️ 消息内容不是JSON格式，跳过媒体提取，错误:", e);
-    }
-    
-    console.log("📷 提取完成 - 图片:", images.length, "个, 文件:", files.length, "个");
-    console.log("📷 图片列表:", images);
-    console.log("📷 文件列表:", files);
-    
-    return { images, files, messageId };
+    return { userId, recordContent };
   } catch (error) {
-    console.error("❌ 提取媒体失败:", error);
-    return { images: [], files: [], messageId: "" };
+    console.error("❌ 提取用户和记录信息失败:", error);
+    return { userId: null, recordContent: null };
   }
 }
 
@@ -192,18 +160,18 @@ async function saveImageToStorage(messageId: string, imageKey: string): Promise<
 /**
  * 保存文件到对象存储
  */
-async function saveFileToStorage(messageId: string, fileKey: string): Promise<{ key: string; url: string } | null> {
+async function saveFileToStorage(messageId: string, fileKey: string, fileName: string): Promise<{ key: string; url: string } | null> {
   try {
-    console.log("📤 开始保存文件，messageId:", messageId, "fileKey:", fileKey);
+    console.log("📤 开始保存文件，messageId:", messageId, "fileKey:", fileKey, "fileName:", fileName);
     
     // 从飞书下载文件 - 使用message_id + file_key方式
-    const { buffer, fileName } = await feishuService.downloadMessageResource(messageId, fileKey, "file");
-    console.log("✅ 文件下载成功，文件大小:", buffer.length, "字节，文件名:", fileName);
+    const { buffer, fileName: downloadedFileName } = await feishuService.downloadMessageResource(messageId, fileKey, "file");
+    console.log("✅ 文件下载成功，文件大小:", buffer.length, "字节，文件名:", downloadedFileName);
     
     // 上传到对象存储
     const storageKey = await storage.uploadFile({
       fileContent: buffer,
-      fileName: `feishu-files/${fileName}`,
+      fileName: `feishu-files/${downloadedFileName || fileName}`,
       contentType: "application/octet-stream"
     });
     
@@ -274,10 +242,11 @@ async function processGroupFollowup(event: Record<string, unknown>) {
   try {
     console.log("🎯 开始处理群跟进记录");
     
-    // 1. 解析消息内容
-    const message = event.message as Record<string, unknown>;
-    const content = message.content as string;
-    const { userId, recordContent } = parseGroupFollowupContent(content);
+    // 1. 统一解析消息
+    const { text, images, files: fileInfos, messageId } = parseFeishuMessage(event);
+    
+    // 2. 从文本中提取用户ID和记录内容
+    const { userId, recordContent } = extractUserAndRecord(text);
     
     if (!userId) {
       console.log("❌ 未找到用户ID");
@@ -289,7 +258,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
       return { success: false, error: "未找到记录内容" };
     }
     
-    // 2. 获取发送者信息
+    // 3. 获取发送者信息
     console.log("📨 完整事件结构:", JSON.stringify(event, null, 2));
     
     const sender = event.sender as Record<string, unknown>;
@@ -309,12 +278,6 @@ async function processGroupFollowup(event: Record<string, unknown>) {
         const feishuUsers = await getFeishuUsers();
         console.log("📋 飞书用户列表数量:", feishuUsers.length);
         
-        // 打印所有飞书用户的openId和姓名（用于调试）
-        console.log("📊 飞书用户列表详情:");
-        feishuUsers.forEach((user, index) => {
-          console.log(`  ${index + 1}. openId: ${user.openId}, name: ${user.name}`);
-        });
-        
         // 查找openId匹配的用户
         const matchedUser = feishuUsers.find(u => u.openId === senderId);
         
@@ -323,27 +286,22 @@ async function processGroupFollowup(event: Record<string, unknown>) {
           console.log("✅ 找到匹配的飞书用户，使用姓名:", followerName);
         } else {
           console.log("❌ 未找到匹配的飞书用户，使用完整senderId:", followerName);
-          console.log("💡 提示：请检查飞书用户表中是否有openId为", senderId, "的用户");
         }
       } catch (error) {
         console.log("❌ 获取飞书用户失败，使用完整senderId:", error);
-        // 继续使用完整senderId
       }
-    } else {
-      followerName = "未知用户";
-      console.log("❌ 没有senderId，使用默认值");
     }
     
     console.log("✅ 最终跟进人姓名:", followerName);
     
-    // 3. 查找用户ID的所有案件
+    // 4. 查找用户ID的所有案件
     console.log("🔍 查找用户ID的案件:", userId);
     const allCases = await caseStorage.getAll();
     const userCases = allCases.filter(c => c.userId === userId);
     
     console.log("📋 找到案件数量:", userCases.length);
     
-    // 4. 获取chat_id用于回复消息
+    // 5. 获取chat_id用于回复消息
     const chatId = (event as any)?.chat_id || "";
     console.log("💬 群聊ID:", chatId);
     
@@ -354,9 +312,6 @@ async function processGroupFollowup(event: Record<string, unknown>) {
       }
       return { success: false, error: "未找到对应用户ID的案件" };
     }
-    
-    // 5. 提取图片和文件
-    const { images, files, messageId } = extractMediaFromMessage(event);
     
     // 6. 保存图片和文件到对象存储
     const savedFiles: Array<{ key: string; url: string; name: string; type: 'image' | 'file' }> = [];
@@ -374,12 +329,12 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     }
     
     // 保存文件
-    for (const fileKey of files) {
-      const result = await saveFileToStorage(messageId, fileKey);
+    for (const fileInfo of fileInfos) {
+      const result = await saveFileToStorage(messageId, fileInfo.fileKey, fileInfo.fileName);
       if (result) {
         savedFiles.push({
           ...result,
-          name: `文件_${Date.now()}`,
+          name: fileInfo.fileName || `文件_${Date.now()}`,
           type: 'file'
         });
       }
@@ -413,7 +368,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     
     console.log("📝 创建跟进记录:", followUp);
     
-    // 7. 保存到所有案件
+    // 8. 保存到所有案件
     let successCount = 0;
     for (const userCase of userCases) {
       try {
@@ -425,25 +380,20 @@ async function processGroupFollowup(event: Record<string, unknown>) {
         
         await caseStorage.update(updatedCase.id, updatedCase, { skipHistory: true });
         successCount++;
-        console.log("✅ 跟进记录已保存到案件:", userCase.id);
       } catch (error) {
-        console.error("❌ 保存跟进记录失败:", error);
+        console.error("❌ 更新案件失败:", error);
       }
     }
     
-    // 8. 发送确认消息
+    console.log("✅ 成功更新案件数量:", successCount);
+    
+    // 9. 发送确认消息
     if (chatId) {
-      const successMessage = `✅ 跟进记录已保存成功！\n用户ID：${userId}\n保存到 ${successCount} 个案件`;
-      await sendConfirmationMessage(chatId, successMessage);
+      const confirmMessage = `跟进记录已成功保存！\n用户ID: ${userId}\n跟进人: ${followerName}\n记录内容: ${recordContent}\n附件: ${savedFiles.length}个`;
+      await sendConfirmationMessage(chatId, confirmMessage);
     }
     
-    return {
-      success: true,
-      userId,
-      caseCount: userCases.length,
-      successCount,
-      followUp
-    };
+    return { success: true, savedCount: successCount };
   } catch (error) {
     console.error("❌ 处理群跟进记录失败:", error);
     return { success: false, error: String(error) };
@@ -453,27 +403,16 @@ async function processGroupFollowup(event: Record<string, unknown>) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log("📥 收到群跟进记录请求:", JSON.stringify(body, null, 2));
+    console.log("📨 收到飞书群跟进请求:", JSON.stringify(body, null, 2));
     
-    const event = body.event;
-    if (!event) {
-      return NextResponse.json(
-        { success: false, error: "缺少event参数" },
-        { status: 400 }
-      );
-    }
+    const event = body.event || body;
+    const result = await processGroupFollowup(event);
     
-    // 异步处理，避免超时
-    processGroupFollowup(event);
-    
-    return NextResponse.json({
-      success: true,
-      message: "群跟进记录处理中"
-    });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("❌ 群跟进记录API错误:", error);
+    console.error("❌ 处理飞书群跟进请求失败:", error);
     return NextResponse.json(
-      { success: false, error: "服务器错误" },
+      { success: false, error: String(error) },
       { status: 500 }
     );
   }
