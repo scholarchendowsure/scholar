@@ -7,7 +7,7 @@ export function middleware(request: NextRequest) {
   // Content-Security-Policy
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://coze-coding-project.tos.coze.site https://*.tos.coze.site; font-src 'self' data:; connect-src 'self';"
   );
 
   // X-Frame-Options
