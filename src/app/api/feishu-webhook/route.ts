@@ -317,12 +317,46 @@ export async function POST(request: NextRequest) {
             console.log("🔍 是数组格式（富文本）");
             for (const item of parsedContent) {
               console.log("🔍 遍历item:", item);
-              if (item.tag === "text" && item.text) {
+              if (Array.isArray(item)) {
+                // 如果是嵌套数组，继续遍历
+                console.log("🔍 是嵌套数组，继续遍历");
+                for (const subItem of item) {
+                  console.log("🔍 遍历subItem:", subItem);
+                  if (subItem.tag === "text" && subItem.text) {
+                    textToCheck += subItem.text;
+                    console.log("🔍 添加text:", subItem.text);
+                  }
+                }
+              } else if (item.tag === "text" && item.text) {
                 textToCheck += item.text;
                 console.log("🔍 添加text:", item.text);
               }
             }
           } 
+          // 如果是对象格式，可能有content字段
+          else if (parsedContent.content) {
+            console.log("🔍 是对象格式，有content字段:", parsedContent.content);
+            // 检查content是否是数组
+            if (Array.isArray(parsedContent.content)) {
+              for (const item of parsedContent.content) {
+                console.log("🔍 遍历content中的item:", item);
+                if (Array.isArray(item)) {
+                  // 如果是嵌套数组，继续遍历
+                  console.log("🔍 是嵌套数组，继续遍历");
+                  for (const subItem of item) {
+                    console.log("🔍 遍历subItem:", subItem);
+                    if (subItem.tag === "text" && subItem.text) {
+                      textToCheck += subItem.text;
+                      console.log("🔍 添加text:", subItem.text);
+                    }
+                  }
+                } else if (item.tag === "text" && item.text) {
+                  textToCheck += item.text;
+                  console.log("🔍 添加text:", item.text);
+                }
+              }
+            }
+          }
           // 如果是对象格式
           else if (parsedContent.text) {
             textToCheck = parsedContent.text;

@@ -41,20 +41,86 @@ function parseFeishuMessage(event: Record<string, unknown>) {
       
       // 情况1：富文本（文字+图片）- 数组格式
       if (Array.isArray(content)) {
+        console.log("📋 是数组格式（富文本）");
         for (const node of content) {
-          if (node.tag === "text" && node.text) {
+          console.log("📋 遍历node:", node);
+          // 如果是嵌套数组，继续遍历
+          if (Array.isArray(node)) {
+            console.log("📋 是嵌套数组，继续遍历");
+            for (const subNode of node) {
+              console.log("📋 遍历subNode:", subNode);
+              if (subNode.tag === "text" && subNode.text) {
+                text += subNode.text;
+                console.log("📋 添加text:", subNode.text);
+              }
+              if (subNode.tag === "img" && subNode.image_key) {
+                images.push(subNode.image_key);
+                console.log("✅ 找到图片，image_key:", subNode.image_key);
+              }
+              if (subNode.tag === "file" && subNode.file_key) {
+                files.push({
+                  fileKey: subNode.file_key,
+                  fileName: subNode.file_name || "文件"
+                });
+                console.log("✅ 找到文件，file_key:", subNode.file_key);
+              }
+            }
+          } else if (node.tag === "text" && node.text) {
             text += node.text;
-          }
-          if (node.tag === "img" && node.image_key) {
+            console.log("📋 添加text:", node.text);
+          } else if (node.tag === "img" && node.image_key) {
             images.push(node.image_key);
             console.log("✅ 找到图片，image_key:", node.image_key);
-          }
-          if (node.tag === "file" && node.file_key) {
+          } else if (node.tag === "file" && node.file_key) {
             files.push({
               fileKey: node.file_key,
               fileName: node.file_name || "文件"
             });
             console.log("✅ 找到文件，file_key:", node.file_key);
+          }
+        }
+      } 
+      // 如果是对象格式，可能有content字段
+      else if (content.content) {
+        console.log("📋 是对象格式，有content字段:", content.content);
+        // 检查content是否是数组
+        if (Array.isArray(content.content)) {
+          for (const node of content.content) {
+            console.log("📋 遍历content中的node:", node);
+            // 如果是嵌套数组，继续遍历
+            if (Array.isArray(node)) {
+              console.log("📋 是嵌套数组，继续遍历");
+              for (const subNode of node) {
+                console.log("📋 遍历subNode:", subNode);
+                if (subNode.tag === "text" && subNode.text) {
+                  text += subNode.text;
+                  console.log("📋 添加text:", subNode.text);
+                }
+                if (subNode.tag === "img" && subNode.image_key) {
+                  images.push(subNode.image_key);
+                  console.log("✅ 找到图片，image_key:", subNode.image_key);
+                }
+                if (subNode.tag === "file" && subNode.file_key) {
+                  files.push({
+                    fileKey: subNode.file_key,
+                    fileName: subNode.file_name || "文件"
+                  });
+                  console.log("✅ 找到文件，file_key:", subNode.file_key);
+                }
+              }
+            } else if (node.tag === "text" && node.text) {
+              text += node.text;
+              console.log("📋 添加text:", node.text);
+            } else if (node.tag === "img" && node.image_key) {
+              images.push(node.image_key);
+              console.log("✅ 找到图片，image_key:", node.image_key);
+            } else if (node.tag === "file" && node.file_key) {
+              files.push({
+                fileKey: node.file_key,
+                fileName: node.file_name || "文件"
+              });
+              console.log("✅ 找到文件，file_key:", node.file_key);
+            }
           }
         }
       }
