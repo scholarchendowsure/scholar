@@ -586,16 +586,16 @@ export async function POST(request: NextRequest) {
         
         if (isGroupFollowup) {
           console.log("🎯 检测到群跟进记录格式，开始直接处理...");
-          console.log("🔥 🔥 🔥 🔥 🔥 🔥 🔥 🔥 🔥 🔥");
-          console.log("🔥 开始处理群跟进记录！");
-          console.log("🔥 content:", content.substring(0, 200));
           
-          // 直接提取用户ID
+          // ========== 超简单测试 - 直接提取并保存 ==========
+          console.log("🚀 ========== 开始超简单测试 ==========");
+          
+          // 1. 直接提取用户ID
           const userIdMatch = content.match(/用户ID[：:]\s*(\d+)/);
           const userId = userIdMatch?.[1];
-          console.log("🔥 用户ID:", userId);
+          console.log("👤 用户ID:", userId);
           
-          // 直接提取记录内容
+          // 2. 直接提取记录内容
           let recordContent = '';
           const recordKeyword = '记录内容：';
           const recordIndex = content.indexOf(recordKeyword);
@@ -604,19 +604,19 @@ export async function POST(request: NextRequest) {
             const endIndex = afterRecord.search(/[{}\[\]"']/);
             recordContent = (endIndex === -1 ? afterRecord : afterRecord.substring(0, endIndex)).trim();
           }
-          console.log("🔥 记录内容:", recordContent);
+          console.log("📝 记录内容:", recordContent);
           
-          // 直接提取图片key
+          // 3. 直接提取图片key
           const imageKeys: string[] = [];
           const imageKeyRegex = /"image_key"\s*:\s*"([^"]+)"/g;
           let imageMatch;
           while ((imageMatch = imageKeyRegex.exec(content)) !== null) {
             if (imageMatch[1]) {
               imageKeys.push(imageMatch[1]);
-              console.log("🔥 找到图片key:", imageMatch[1]);
+              console.log("🖼️ 找到图片key:", imageMatch[1]);
             }
           }
-          console.log("🔥 图片数量:", imageKeys.length);
+          console.log("📸 图片数量:", imageKeys.length);
           
           if (userId && recordContent) {
             // 获取发送者信息
@@ -633,24 +633,24 @@ export async function POST(request: NextRequest) {
                   followerName = matchedUser.name;
                 }
               } catch (error) {
-                console.log("🔥 获取飞书用户失败:", error);
+                console.log("❌ 获取飞书用户失败:", error);
               }
             }
-            console.log("🔥 跟进人:", followerName);
+            console.log("👤 跟进人:", followerName);
             
             // 查找案件
             const allCases = await caseStorage.getAll();
             const userCases = allCases.filter(c => c.userId === userId);
-            console.log("🔥 找到案件数量:", userCases.length);
+            console.log("📋 找到案件数量:", userCases.length);
             
             if (userCases.length > 0) {
               // 下载图片
               const savedFiles: any[] = [];
               for (const imageKey of imageKeys) {
                 try {
-                  console.log("🔥 开始下载图片:", imageKey);
+                  console.log("📷 开始下载图片:", imageKey);
                   const { buffer, fileName } = await feishuService.downloadImage(imageKey);
-                  console.log("🔥 图片下载成功，大小:", buffer.length);
+                  console.log("✅ 图片下载成功，大小:", buffer.length);
                   
                   const base64Data = buffer.toString('base64');
                   const dataUrl = `data:image/jpeg;base64,${base64Data}`;
@@ -662,12 +662,12 @@ export async function POST(request: NextRequest) {
                     url: dataUrl,
                     data: dataUrl
                   });
-                  console.log("🔥 图片处理完成");
+                  console.log("✅ 图片处理完成");
                 } catch (error) {
-                  console.error("🔥 下载图片失败:", error);
+                  console.error("❌ 下载图片失败:", error);
                 }
               }
-              console.log("🔥 保存图片数量:", savedFiles.length);
+              console.log("💾 保存图片数量:", savedFiles.length);
               
               // 创建跟进记录
               const now = new Date().toISOString();
@@ -687,7 +687,7 @@ export async function POST(request: NextRequest) {
                 createdAt: now,
                 createdBy: followerName
               };
-              console.log("🔥 跟进记录创建完成");
+              console.log("📝 跟进记录创建完成");
               
               // 保存到所有案件
               for (const userCase of userCases) {
@@ -698,9 +698,9 @@ export async function POST(request: NextRequest) {
                     followups: [...existingFollowups, followUp]
                   };
                   await caseStorage.update(updatedCase.id, updatedCase, { skipHistory: true });
-                  console.log("🔥 跟进记录已保存到案件:", userCase.id);
+                  console.log("✅ 跟进记录已保存到案件:", userCase.id);
                 } catch (error) {
-                  console.error("🔥 保存跟进记录失败:", error);
+                  console.error("❌ 保存跟进记录失败:", error);
                 }
               }
               
@@ -713,8 +713,8 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          console.log("🔥 🔥 🔥 🔥 🔥 🔥 🔥 🔥 🔥 🔥");
-          console.log("🔥 处理完成！");
+          console.log("🏁 ========== 超简单测试完成 ==========");
+          // ========== 超简单测试结束 ==========
           
         } else {
           console.log("💬 普通@消息，开始处理...");
