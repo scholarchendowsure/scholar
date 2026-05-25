@@ -371,8 +371,15 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     console.log("📋 找到案件数量:", userCases.length);
     
     // 5. 获取chat_id用于回复消息
-    const chatId = (event as any)?.chat_id || "";
-    console.log("💬 群聊ID:", chatId);
+    console.log("🔍 查找chat_id，完整事件结构:", JSON.stringify(event, null, 2));
+    const chatId = (event as any)?.chat_id || 
+                   (event as any)?.message?.chat_id || 
+                   (event as any)?.message?.chat_id || 
+                   "";
+    console.log("💬 群聊ID (chatId):", chatId);
+    console.log("💬 所有可能的chat_id位置:");
+    console.log("  - event.chat_id:", (event as any)?.chat_id);
+    console.log("  - event.message.chat_id:", (event as any)?.message?.chat_id);
     
     if (userCases.length === 0) {
       console.log("❌ 未找到对应用户ID的案件");
@@ -458,7 +465,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     
     // 9. 发送确认消息
     if (chatId) {
-      const confirmMessage = `跟进记录已成功保存！\n用户ID: ${userId}\n跟进人: ${followerName}\n记录内容: ${recordContent}\n附件: ${savedFiles.length}个`;
+      const confirmMessage = "✅ 跟进记录已保存成功！";
       await sendConfirmationMessage(chatId, confirmMessage);
     }
     
