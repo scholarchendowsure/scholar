@@ -35,7 +35,7 @@ function parseGroupFollowupContent(content: string) {
         // 遍历数组，提取所有text元素的内容
         const textParts: string[] = [];
         for (const item of parsed) {
-          if (item.type === 'text' && item.text) {
+          if (item.tag === 'text' && item.text) {
             textParts.push(item.text);
           }
         }
@@ -58,9 +58,17 @@ function parseGroupFollowupContent(content: string) {
     const userId = userIdMatch?.[1];
     
     // 提取记录内容 - 更精确的匹配
-    // 匹配"记录内容："之后的所有内容，直到遇到换行或结束
-    const recordMatch = textToParse.match(/记录内容[：:]\s*([\s\S]*?)(?=\n|$)/);
-    let recordContent = recordMatch?.[1]?.trim();
+    // 匹配"记录内容："之后的所有内容，直到遇到下一个JSON结构或结束
+    // 或者匹配到第一个逗号、引号或JSON结构开始的地方
+    let recordContent;
+    const simpleMatch = textToParse.match(/记录内容[：:]\s*([^，,}"\[\{]*)/);
+    if (simpleMatch && simpleMatch[1]?.trim()) {
+      recordContent = simpleMatch[1].trim();
+    } else {
+      // 如果简单匹配失败，尝试匹配到第一个JSON结构开始之前
+      const recordMatch = textToParse.match(/记录内容[：:]\s*([\s\S]*?)(?=\s*[,}\]"'\[\{]|$)/);
+      recordContent = recordMatch?.[1]?.trim();
+    }
     
     // 清理可能的多余符号和JSON残留
     if (recordContent) {
