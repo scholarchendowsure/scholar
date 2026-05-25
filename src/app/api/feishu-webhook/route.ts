@@ -236,9 +236,11 @@ async function handleGroupFollowupMessage(event: Record<string, unknown>) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("📥 ======== 收到飞书webhook请求 ========");
     // 读取原始请求体
     const rawBody = await request.text();
-    console.log("📥 收到飞书webhook请求，原始长度:", rawBody.length);
+    console.log("📥 原始长度:", rawBody.length);
+    console.log("📥 原始内容:", rawBody);
 
     // 获取头部信息
     const timestamp = request.headers.get("x-lark-request-timestamp") || "";
@@ -304,30 +306,41 @@ export async function POST(request: NextRequest) {
         
         // 先解析content，检查是否包含群跟进记录格式
         let isGroupFollowup = false;
+        console.log("🔍 ======== 开始检查群跟进记录格式 ========");
         try {
           const parsedContent = JSON.parse(content);
+          console.log("🔍 解析后的content:", JSON.stringify(parsedContent, null, 2));
           let textToCheck = "";
           
           // 如果是数组格式（富文本）
           if (Array.isArray(parsedContent)) {
+            console.log("🔍 是数组格式（富文本）");
             for (const item of parsedContent) {
+              console.log("🔍 遍历item:", item);
               if (item.tag === "text" && item.text) {
                 textToCheck += item.text;
+                console.log("🔍 添加text:", item.text);
               }
             }
           } 
           // 如果是对象格式
           else if (parsedContent.text) {
             textToCheck = parsedContent.text;
+            console.log("🔍 是对象格式，text:", textToCheck);
           }
           
-          console.log("📝 提取的文本用于检查:", textToCheck);
+          console.log("🔍 最终提取的文本用于检查:", JSON.stringify(textToCheck));
           isGroupFollowup = textToCheck.includes('用户ID：') && textToCheck.includes('记录内容：');
+          console.log("🔍 是否包含'用户ID：':", textToCheck.includes('用户ID：'));
+          console.log("🔍 是否包含'记录内容：':", textToCheck.includes('记录内容：'));
         } catch (e) {
+          console.log("🔍 解析content失败，直接检查原始内容:", e);
           // 如果不是JSON格式，直接检查原始内容
           isGroupFollowup = content.includes('用户ID：') && content.includes('记录内容：');
+          console.log("🔍 原始内容检查结果:", isGroupFollowup);
         }
         
+        console.log("🔍 ======== 群跟进记录格式检查完成 ========");
         console.log("🔍 是否群跟进记录格式:", isGroupFollowup);
         
         if (isGroupFollowup) {
