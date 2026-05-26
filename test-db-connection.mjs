@@ -1,25 +1,18 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-import * as fs from 'fs';
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// 手动加载.env.local文件
-const envPath = path.resolve(process.cwd(), '.env.local');
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf-8');
-  envContent.split('\n').forEach(line => {
-    const [key, ...values] = line.split('=');
-    if (key && values.length > 0) {
-      process.env[key.trim()] = values.join('=').trim();
-    }
-  });
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+config({ path: join(__dirname, '.env.local') });
+
+const { Pool } = pg;
 
 async function testDbConnection() {
-  const { Pool } = pg;
-  
   console.log('🔍 开始测试数据库连接...');
+  
   console.log('📋 数据库配置:');
   console.log('   - DB_HOST:', process.env.DB_HOST);
   console.log('   - DB_PORT:', process.env.DB_PORT);
@@ -33,7 +26,9 @@ async function testDbConnection() {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    ssl: process.env.DATABASE_URL?.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined
+    ssl: {
+      rejectUnauthorized: false,
+    },
   });
 
   const client = await pool.connect();
@@ -51,16 +46,17 @@ async function testDbConnection() {
     const versionResult = await client.query('SELECT version();');
     console.log(`✅ PostgreSQL版本: ${versionResult.rows[0].version}`);
     
-    // 查看所有表
+    // 查看数据库中的表
     const tablesResult = await client.query(`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public'
-      ORDER BY table_name;
+      ORDER BY table_name
     `);
+    
     console.log(`✅ 数据库中的表 (${tablesResult.rows.length}个):`);
     tablesResult.rows.forEach(row => {
-      console.log(`   - ${row.table_name}`);
+      console.log(`  - ${row.table_name}`);
     });
     
     console.log('');
