@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client';
 import { cases, followups, caseFiles, caseHistory } from './shared/schema';
-import { eq, and, like, or, desc, isNull, isNotNull, count, sql } from 'drizzle-orm';
+import { eq, and, like, or, desc, isNull, isNotNull, count, sql, inArray } from 'drizzle-orm';
 import type { Case as DBCase, FollowUp as DBFollowUp, CaseFile as DBCaseFile, CaseHistory as DBCaseHistory } from './shared/schema';
 import type { Case, FollowUp, CaseFile, CaseHistory } from '@/types/case';
 import { v4 as uuidv4 } from 'uuid';
@@ -119,10 +119,16 @@ export async function getAll(): Promise<Case[]> {
   
   // 获取所有关联数据
   const caseIds = dbCases.map(c => c.id);
-  const [dbFollowUps, dbFiles] = await Promise.all([
-    db.select().from(followups).where(sql`${followups.caseId} in ${caseIds}`),
-    db.select().from(caseFiles).where(sql`${caseFiles.caseId} in ${caseIds}`)
-  ]);
+  
+  let dbFollowUps: DBFollowUp[] = [];
+  let dbFiles: DBCaseFile[] = [];
+  
+  if (caseIds.length > 0) {
+    [dbFollowUps, dbFiles] = await Promise.all([
+      db.select().from(followups).where(inArray(followups.caseId, caseIds)),
+      db.select().from(caseFiles).where(inArray(caseFiles.caseId, caseIds))
+    ]);
+  }
 
   // 组织关联数据
   const followUpsByCaseId = new Map<string, DBFollowUp[]>();

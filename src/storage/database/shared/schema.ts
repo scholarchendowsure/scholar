@@ -212,6 +212,20 @@ export const healthCheck = pgTable('health_check', {
   details: jsonb('details'),
 });
 
+// ===== 店铺数据表
+export const shopData = pgTable('shop_data', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  updateTime: text('update_time').notNull(),
+  latestDataset: text('latest_dataset').notNull(), // JSON字符串
+  createdAt: text('created_at'),
+  updatedAt: text('updated_at')
+}, (table) => {
+  return {
+    userIdIdx: index('shop_data_user_id_idx').on(table.userId),
+  };
+});
+
 // ===== 数据库类型定义
 export type Case = typeof cases.$inferSelect;
 export type NewCase = typeof cases.$inferInsert;
@@ -229,4 +243,6 @@ export type MerchantSalesMapping = typeof merchantSalesMappings.$inferSelect;
 export type NewMerchantSalesMapping = typeof merchantSalesMappings.$inferInsert;
 export type HealthCheck = typeof healthCheck.$inferSelect;
 export type NewHealthCheck = typeof healthCheck.$inferInsert;
+export type ShopData = typeof shopData.$inferSelect;
+export type NewShopData = typeof shopData.$inferInsert;
 

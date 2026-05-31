@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS merchant_sales_mappings CASCADE;
 DROP TABLE IF EXISTS hsbc_loans CASCADE;
 DROP TABLE IF EXISTS hsbc_loan_batches CASCADE;
 DROP TABLE IF EXISTS health_check CASCADE;
+DROP TABLE IF EXISTS shop_data CASCADE;
 
 -- 1. 健康检查表
 CREATE TABLE IF NOT EXISTS health_check (
@@ -190,6 +191,18 @@ CREATE TABLE IF NOT EXISTS case_history (
 
 CREATE INDEX IF NOT EXISTS case_history_case_id_idx ON case_history(case_id);
 CREATE INDEX IF NOT EXISTS case_history_modified_at_idx ON case_history(modified_at);
+
+-- 9. 店铺数据表（完全匹配 schema.ts）
+CREATE TABLE IF NOT EXISTS shop_data (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    update_time TEXT NOT NULL,
+    latest_dataset TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS shop_data_user_id_idx ON shop_data(user_id);
 
 -- 插入健康检查记录
 INSERT INTO health_check (status, details) 
