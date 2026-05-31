@@ -2,7 +2,7 @@ import { HSBCLoan, HSBCLoanFilter, HSBCLoanLog } from '@/lib/hsbc-loan';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db/client';
 import { hsbcLoans, hsbcLoanBatches, merchantSalesMappings } from './shared/schema';
-import { eq, and, desc, like, or, isNotNull } from 'drizzle-orm';
+import { eq, and, desc, like, or, isNotNull, inArray } from 'drizzle-orm';
 
 // ============================================================
 // 数据转换函数
@@ -41,6 +41,42 @@ function convertDbLoanToHsbcLoan(dbLoan: any): HSBCLoan {
     lastFollowUpDate: dbLoan.lastFollowUpDate || undefined,
     createdAt: dbLoan.createdAt || undefined,
     updatedAt: dbLoan.updatedAt || undefined,
+  };
+}
+
+function transformLoanForStorage(loan: HSBCLoan) {
+  return {
+    id: loan.id,
+    loanReference: loan.loanReference,
+    merchantId: loan.merchantId,
+    merchantName: loan.merchantName || null,
+    borrowerName: loan.borrowerName,
+    loanStartDate: loan.loanStartDate || null,
+    loanDate: loan.loanDate || null,
+    loanCurrency: loan.loanCurrency,
+    loanAmount: String(loan.loanAmount),
+    loanInterest: loan.loanInterest || null,
+    totalInterestRate: loan.totalInterestRate,
+    loanTenor: loan.loanTenor || null,
+    maturityDate: loan.maturityDate || null,
+    repaymentSchedule: loan.repaymentSchedule || [],
+    balance: loan.balance !== undefined ? String(loan.balance) : null,
+    pastdueAmount: loan.pastdueAmount !== undefined ? String(loan.pastdueAmount) : null,
+    totalRepaid: loan.totalRepaid !== undefined ? String(loan.totalRepaid) : null,
+    freezeAccountRequested: loan.freezeAccountRequested || null,
+    forceDebitRequested: loan.forceDebitRequested || null,
+    approvalFromRM: loan.approvalFromRM || null,
+    confirmationFreezeAccount: loan.confirmationFreezeAccount || null,
+    confirmationForceDebit: loan.confirmationForceDebit || null,
+    remarks: loan.remarks || null,
+    batchDate: loan.batchDate || null,
+    status: loan.status || null,
+    overdueDays: loan.overdueDays !== undefined ? loan.overdueDays : null,
+    assignedTo: loan.assignedTo || null,
+    followUpCount: loan.followUpCount !== undefined ? loan.followUpCount : null,
+    lastFollowUpDate: loan.lastFollowUpDate || null,
+    createdAt: loan.createdAt || new Date().toISOString(),
+    updatedAt: loan.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -199,8 +235,64 @@ export async function saveLoan(loan: HSBCLoan): Promise<HSBCLoan> {
 }
 
 export async function saveLoans(loans: HSBCLoan[]): Promise<void> {
-  for (const loan of loans) {
-    await saveLoan(loan);
+  if (loans.length === 0) {
+    return;
+  }
+  
+  const now = new Date().toISOString();
+  
+  // 批量插入：先删除现有记录，再一次性插入所有新记录
+  const valuesToInsert = loans.map((loan, index) => {
+    const loanToSave = transformLoanForStorage(loan);
+    return {
+      id: loanToSave.id || uuidv4(),
+      loanReference: loanToSave.loanReference,
+      merchantId: loanToSave.merchantId,
+      merchantName: loanToSave.merchantName || null,
+      borrowerName: loanToSave.borrowerName,
+      loanStartDate: loanToSave.loanStartDate || null,
+      loanDate: loanToSave.loanDate || null,
+      loanCurrency: loanToSave.loanCurrency || null,
+      loanAmount: loanToSave.loanAmount,
+      loanInterest: loanToSave.loanInterest || null,
+      totalInterestRate: loanToSave.totalInterestRate,
+      loanTenor: loanToSave.loanTenor || null,
+      maturityDate: loanToSave.maturityDate || null,
+      repaymentSchedule: loanToSave.repaymentSchedule,
+      balance: loanToSave.balance !== undefined ? loanToSave.balance : null,
+      pastdueAmount: loanToSave.pastdueAmount !== undefined ? loanToSave.pastdueAmount : null,
+      totalRepaid: loanToSave.totalRepaid !== undefined ? loanToSave.totalRepaid : null,
+      freezeAccountRequested: loanToSave.freezeAccountRequested || null,
+      forceDebitRequested: loanToSave.forceDebitRequested || null,
+      approvalFromRM: loanToSave.approvalFromRM || null,
+      confirmationFreezeAccount: loanToSave.confirmationFreezeAccount || null,
+      confirmationForceDebit: loanToSave.confirmationForceDebit || null,
+      remarks: loanToSave.remarks || null,
+      batchDate: loanToSave.batchDate || null,
+      status: loanToSave.status || null,
+      overdueDays: loanToSave.overdueDays !== undefined ? loanToSave.overdueDays : null,
+      assignedTo: loanToSave.assignedTo || null,
+      followUpCount: loanToSave.followUpCount !== undefined ? loanToSave.followUpCount : null,
+      lastFollowUpDate: loanToSave.lastFollowUpDate || null,
+      createdAt: loanToSave.createdAt || now,
+      updatedAt: now,
+    };
+  });
+  
+  try {
+    // 批量删除现有记录
+    const idsToDelete = loans.map(loan => loan.id).filter(id => id !== undefined) as string[];
+    if (idsToDelete.length > 0) {
+      await db.delete(hsbcLoans).where(inArray(hsbcLoans.id, idsToDelete));
+    }
+    
+    // 批量插入所有新记录
+    await db.insert(hsbcLoans).values(valuesToInsert);
+    
+    clearCache();
+  } catch (error) {
+    console.error('批量保存汇丰贷款失败:', error);
+    throw error;
   }
 }
 
