@@ -13,12 +13,10 @@ export async function GET(request: NextRequest) {
     const calcDate = new Date(calcDateStr);
 
     // 从数据库获取贷款数据
-    let loans: HSBCLoan[];
+    let loans: HSBCLoan[] = await getAllHSBCLoans();
     if (batchDate && batchDate !== 'all') {
       // 按批次日期筛选
-      loans = await getAllHSBCLoans(batchDate);
-    } else {
-      loans = await getAllHSBCLoans();
+      loans = loans.filter(loan => loan.batchDate === batchDate);
     }
 
     if (loans.length === 0) {

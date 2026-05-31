@@ -6,7 +6,10 @@ import { getAllHSBCLoans } from '@/storage/database/hsbc-loan-storage';
 export async function GET(request: NextRequest) {
   try {
     const batchDate = request.nextUrl.searchParams.get('batchDate');
-    const loans = await getAllHSBCLoans(batchDate || undefined);
+    let loans = await getAllHSBCLoans();
+    if (batchDate) {
+      loans = loans.filter(loan => loan.batchDate === batchDate);
+    }
 
     const totalLoans = loans.length;
     const totalAmount = loans.reduce((sum: number, l: HSBCLoan) => sum + (l.loanAmount || 0), 0);

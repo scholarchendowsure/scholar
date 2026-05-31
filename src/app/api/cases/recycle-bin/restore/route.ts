@@ -15,7 +15,11 @@ export async function POST(req: NextRequest) {
       return addSecurityHeaders(response);
     }
 
-    const restoredCount = await caseStorage.restore(ids);
+    let restoredCount = 0;
+    for (const id of ids) {
+      await caseStorage.restore(id);
+      restoredCount++;
+    }
 
     const response = NextResponse.json({
       success: true,

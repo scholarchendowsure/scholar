@@ -9,12 +9,12 @@ export async function GET() {
     // 转换格式供前端使用
     const formattedData = recycleBin.map(item => ({
       id: item.id,
-      caseNo: item.caseData.loanNo,
-      borrowerName: item.caseData.borrowerName,
-      debtAmount: item.caseData.overdueAmount?.toString() || '0',
-      status: item.caseData.status,
-      deletedAt: item.deletedAt,
-      deletedBy: item.deletedBy,
+      caseNo: item.loanNo,
+      borrowerName: item.borrowerName,
+      debtAmount: item.overdueAmount?.toString() || '0',
+      status: item.status,
+      deletedAt: item.updatedAt,
+      deletedBy: 'System',
     }));
 
     const response = NextResponse.json({

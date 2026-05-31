@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllHSBCLoans } from '@/storage/database/hsbc-loan-storage';
-import { getAllMerchantSalesMappings } from '@/storage/database/merchant-sales-mapping-storage';
+import { getAllHSBCLoans, getMerchantSalesMappings } from '@/storage/database/hsbc-loan-storage';
 import { 
   getFeishuConfig, 
   getFeishuAppCredentials,
@@ -44,11 +43,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取商户-销售映射
-    const { mappings: merchantMappings } = await getAllMerchantSalesMappings(1, 100000);
+    const merchantMappings = await getMerchantSalesMappings();
     console.log('📋 商户-销售映射数量:', merchantMappings.length);
 
     // 获取所有贷款
-    const loans = await getAllHSBCLoans(batchDate);
+    let loans = await getAllHSBCLoans();
+    if (batchDate) {
+      loans = loans.filter(loan => loan.batchDate === batchDate);
+    }
     console.log('📋 贷款数据数量:', loans.length);
 
     // 计算日期范围
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
       
       // 如果飞书映射中没有，从商户-销售映射中查找并创建
       if (!feishuMapping) {
-        const merchantMapping = merchantMappings.find(m => m.merchantId === loan.merchantId);
+        const merchantMapping = merchantMappings.find((m: any) => m.merchantName === loan.merchantName);
         if (merchantMapping) {
           console.log(`📝 为商户 ${loan.merchantId} 创建飞书映射`);
           // 这里我们暂时只记录，不自动创建

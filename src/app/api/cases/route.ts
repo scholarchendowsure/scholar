@@ -70,46 +70,63 @@ export async function GET(request: NextRequest) {
     }
 
     // 使用统一的查询
-    const result = await caseStorage.query(options);
+    const result = await caseStorage.query();
 
-    // 不再需要在API层剥离大字段，因为query已经使用轻量数据
-    let processedData = result.data;
-    let processedTotal = result.total;
-    let processedTotalPages = result.totalPages;
-
-    // 后端去重逻辑（更快！）
+    // 简单的筛选和分页
+    let processedData = result;
+    
+    // 应用状态筛选
+    if (status) {
+      processedData = processedData.filter(c => c.status === status);
+    }
+    
+    // 应用风险等级筛选
+    if (riskLevel) {
+      processedData = processedData.filter(c => c.riskLevel === riskLevel);
+    }
+    
+    // 应用搜索
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      processedData = processedData.filter(c => 
+        c.borrowerName?.toLowerCase().includes(lowerSearch) || 
+        c.loanNo?.toLowerCase().includes(lowerSearch)
+      );
+    }
+    
+    // 后端去重逻辑
     if (enableDedup) {
       // 按用户ID分组，保留逾期金额最大的
       const userMap = new Map<string, any>();
       
-      result.data.forEach(c => {
-        const existing = userMap.get(c.userId);
+      processedData.forEach(c => {
+        const existing = userMap.get(c.userId!);
         if (!existing) {
-          userMap.set(c.userId, c);
+          userMap.set(c.userId!, c);
         } else {
           const currentOverdue = c.overdueAmount || 0;
           const existingOverdue = existing.overdueAmount || 0;
           if (currentOverdue > existingOverdue) {
-            userMap.set(c.userId, c);
+            userMap.set(c.userId!, c);
           }
         }
       });
 
-      const dedupedData = Array.from(userMap.values());
-      processedTotal = dedupedData.length;
-      processedTotalPages = Math.ceil(processedTotal / pageSize);
-      
-      // 应用分页
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      processedData = dedupedData.slice(start, end);
+      processedData = Array.from(userMap.values());
     }
+    
+    // 应用分页
+    const total = processedData.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedData = processedData.slice(start, end);
 
     const responseData = {
       success: true,
-      data: processedData,
-      total: processedTotal,
-      totalPages: processedTotalPages,
+      data: paginatedData,
+      total,
+      totalPages,
     };
     
     // ============ P0优化：保存到查询缓存 ============

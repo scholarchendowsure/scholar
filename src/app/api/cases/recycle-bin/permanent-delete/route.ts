@@ -15,7 +15,11 @@ export async function POST(req: NextRequest) {
       return addSecurityHeaders(response);
     }
 
-    const deletedCount = await caseStorage.permanentDelete(ids);
+    let deletedCount = 0;
+    for (const id of ids) {
+      await caseStorage.permanentDelete(id);
+      deletedCount++;
+    }
 
     const response = NextResponse.json({
       success: true,

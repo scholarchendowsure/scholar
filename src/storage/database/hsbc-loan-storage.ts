@@ -1,539 +1,437 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { HSBCLoan } from '@/lib/hsbc-loan';
-import * as fs from 'fs';
-import * as path from 'path';
+import { HSBCLoan, HSBCLoanFilter, HSBCLoanLog } from '@/lib/hsbc-loan';
+import { v4 as uuidv4 } from 'uuid';
+import { db } from '@/lib/db/client';
+import { hsbcLoans, hsbcLoanBatches, merchantSalesMappings } from './shared/schema';
+import { eq, and, desc, like, or, isNotNull } from 'drizzle-orm';
 
-// Re-export HSBCLoan type
-export type { HSBCLoan } from '@/lib/hsbc-loan';
+// ============================================================
+// 数据转换函数
+// ============================================================
 
-// 本地存储文件路径 - 在生产环境使用 /tmp 目录（因为 Coze 生产环境文件系统只读）
-function getHSBCStoragePath(): string {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
-  if (isProd) {
-    console.log('[HSBC Storage] 生产环境，使用 /tmp 目录');
-    return path.join('/tmp', 'hsbc-loans.json');
-  }
-  return path.join(process.cwd(), 'public', 'data', 'hsbc-loans.json');
-}
-
-function getHSBCBatchDatesPath(): string {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
-  if (isProd) {
-    return path.join('/tmp', 'hsbc-batch-dates.json');
-  }
-  return path.join(process.cwd(), 'public', 'data', 'hsbc-batch-dates.json');
-}
-
-const STORAGE_FILE = getHSBCStoragePath();
-const BATCH_DATES_FILE = getHSBCBatchDatesPath();
-
-// 内存缓存
-let loansCache: HSBCLoan[] | null = null;
-let batchDatesCache: string[] | null = null;
-
-// 获取 Supabase 客户端（延迟导入，避免循环依赖）
-let supabaseClient: SupabaseClient | null = null;
-
-async function getSupabaseClient(): Promise<SupabaseClient | null> {
-  if (supabaseClient) return supabaseClient;
-  
-  const { getSupabase } = await import('./supabase-client');
-  const client = getSupabase();
-  supabaseClient = client;
-  return client;
-}
-
-// 检查 Supabase 是否可用
-async function isSupabaseAvailable(): Promise<boolean> {
-  try {
-    const client = await getSupabaseClient();
-    if (!client) {
-      return false;
-    }
-    
-    const { error } = await client.from('hsbc_loans').select('id').limit(1);
-    if (error) {
-      console.log('⚠️ Supabase 表不存在或连接失败，使用本地存储');
-      return false;
-    }
-    console.log('✅ Supabase 可用，使用 Supabase 存储');
-    return true;
-  } catch (err) {
-    console.log('⚠️ Supabase 连接失败，使用本地存储:', err);
-    return false;
-  }
-}
-
-// 从本地文件加载数据
-function loadFromLocalStorage(): HSBCLoan[] {
-  try {
-    if (fs.existsSync(STORAGE_FILE)) {
-      const content = fs.readFileSync(STORAGE_FILE, 'utf-8');
-      const data = JSON.parse(content);
-      console.log(`✅ 从本地文件加载了 ${data.length} 条汇丰贷款数据`);
-      return data;
-    }
-  } catch (err) {
-    console.error('从本地文件加载数据失败:', err);
-  }
-  return [];
-}
-
-// 保存到本地文件
-function saveToLocalStorage(loans: HSBCLoan[]) {
-  try {
-    // 确保目录存在
-    const dir = path.dirname(STORAGE_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(loans, null, 2));
-    console.log(`✅ 保存了 ${loans.length} 条汇丰贷款数据到本地文件`);
-  } catch (err) {
-    console.error('保存到本地文件失败:', err);
-  }
-}
-
-// 从本地文件加载批次日期
-function loadBatchDatesFromLocalStorage(): string[] {
-  try {
-    if (fs.existsSync(BATCH_DATES_FILE)) {
-      const content = fs.readFileSync(BATCH_DATES_FILE, 'utf-8');
-      const data = JSON.parse(content);
-      console.log(`✅ 从本地文件加载了 ${data.length} 个批次日期`);
-      return data;
-    }
-  } catch (err) {
-    console.error('从本地文件加载批次日期失败:', err);
-  }
-  return [];
-}
-
-// 保存批次日期到本地文件
-function saveBatchDatesToLocalStorage(dates: string[]) {
-  try {
-    // 确保目录存在
-    const dir = path.dirname(BATCH_DATES_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-      console.log(`✅ 创建目录: ${dir}`);
-    }
-    fs.writeFileSync(BATCH_DATES_FILE, JSON.stringify(dates, null, 2));
-    console.log(`✅ 保存了 ${dates.length} 个批次日期到本地文件`);
-  } catch (err) {
-    console.error('保存批次日期到本地文件失败:', err);
-  }
-}
-
-// 初始化内存缓存
-function initCache(forceReload = false) {
-  if (loansCache === null || forceReload) {
-    loansCache = loadFromLocalStorage();
-  }
-  if (batchDatesCache === null || forceReload) {
-    batchDatesCache = loadBatchDatesFromLocalStorage();
-  }
-}
-
-// 将数据库行转换为 HSBCLoan 类型
-function transformRow(row: Record<string, unknown>): HSBCLoan {
-  const repaymentSchedule = (row.repayment_schedule as HSBCLoan['repaymentSchedule']) || [];
-  const loanAmount = Number(row.loan_amount) || 0;
-  const balance = Number(row.balance) || 0;
-  const totalRepaid = Number(row.total_repaid) || 0;
-  
-  const baseLoan: HSBCLoan = {
-    id: String(row.id || ''),
-    loanReference: String(row.loan_reference || ''),
-    merchantId: String(row.merchant_id || ''),
-    merchantName: String(row.merchant_name || ''),
-    borrowerName: String(row.borrower_name || ''),
-    loanCurrency: String(row.currency || 'CNY') === 'USD' ? 'USD' : 'CNY',
-    loanStartDate: String(row.loan_date || ''),
-    maturityDate: String(row.maturity_date || ''),
-    loanAmount,
-    loanInterest: String(row.loan_interest || ''),
-    totalInterestRate: Number(row.interest_rate) || 0,
-    loanTenor: String(row.loan_tenor || ''),
-    balance,
-    pastdueAmount: Number(row.pastdue_amount) || 0,
-    overdueDays: Number(row.overdue_days) || 0,
-    status: (row.status as HSBCLoan['status']) || 'active',
-    repaymentSchedule,
-    remarks: String(row.remarks || ''),
-    totalRepaid,
-    batchDate: String(row.batch_date || ''),
+function convertDbLoanToHsbcLoan(dbLoan: any): HSBCLoan {
+  return {
+    id: dbLoan.id,
+    loanReference: dbLoan.loanReference,
+    merchantId: dbLoan.merchantId,
+    merchantName: dbLoan.merchantName || undefined,
+    borrowerName: dbLoan.borrowerName,
+    loanStartDate: dbLoan.loanStartDate || '',
+    loanDate: dbLoan.loanDate || undefined,
+    loanCurrency: (dbLoan.loanCurrency as 'CNY' | 'USD') || 'USD',
+    loanAmount: Number(dbLoan.loanAmount) || 0,
+    loanInterest: dbLoan.loanInterest || '',
+    totalInterestRate: Number(dbLoan.totalInterestRate) || 0,
+    loanTenor: dbLoan.loanTenor || '',
+    maturityDate: dbLoan.maturityDate || '',
+    repaymentSchedule: dbLoan.repaymentSchedule || [],
+    balance: dbLoan.balance !== null ? Number(dbLoan.balance) : undefined,
+    pastdueAmount: dbLoan.pastdueAmount !== null ? Number(dbLoan.pastdueAmount) : undefined,
+    totalRepaid: dbLoan.totalRepaid !== null ? Number(dbLoan.totalRepaid) : undefined,
+    freezeAccountRequested: dbLoan.freezeAccountRequested || undefined,
+    forceDebitRequested: dbLoan.forceDebitRequested || undefined,
+    approvalFromRM: dbLoan.approvalFromRM || undefined,
+    confirmationFreezeAccount: dbLoan.confirmationFreezeAccount || undefined,
+    confirmationForceDebit: dbLoan.confirmationForceDebit || undefined,
+    remarks: dbLoan.remarks || undefined,
+    batchDate: dbLoan.batchDate || undefined,
+    status: (dbLoan.status as any) || undefined,
+    overdueDays: dbLoan.overdueDays !== null ? Number(dbLoan.overdueDays) : undefined,
+    assignedTo: dbLoan.assignedTo || undefined,
+    followUpCount: dbLoan.followUpCount !== null ? Number(dbLoan.followUpCount) : undefined,
+    lastFollowUpDate: dbLoan.lastFollowUpDate || undefined,
+    createdAt: dbLoan.createdAt || undefined,
+    updatedAt: dbLoan.updatedAt || undefined,
   };
-  
-  return baseLoan;
 }
 
-// 获取所有汇丰贷款
-export async function getAllHSBCLoans(batchDate?: string): Promise<HSBCLoan[]> {
-  initCache(true);
-  
-  const supabaseAvailable = await isSupabaseAvailable();
-  
-  if (supabaseAvailable) {
-    try {
-      const client = await getSupabaseClient();
-      if (!client) {
-        console.log('⚠️ Supabase 客户端为空，使用本地存储');
-      } else {
-        const allLoans: HSBCLoan[] = [];
-        const BATCH_SIZE = 1000;
-        
-        // 分批获取数据，Supabase 默认限制 1000 行/页
-        while (true) {
-          let query = client
-            .from('hsbc_loans')
-            .select('*')
-            .order('loan_reference')
-            .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
-          
-          if (batchDate) {
-            query = query.eq('batch_date', batchDate);
-          }
-          
-          const { data, error } = await query;
-          
-          if (error) {
-            console.error('获取汇丰贷款失败:', error);
-            throw new Error(`获取汇丰贷款失败: ${error.message}`);
-          }
-          
-          if (!data || data.length === 0) break;
-          allLoans.push(...data.map(transformRow));
-          
-          if (data.length < BATCH_SIZE) break;
-        }
-        
-        return allLoans;
-      }
-    } catch (error) {
-      console.log('Supabase 获取失败，使用本地存储');
-    }
-  }
-  
-  // Fallback 到本地存储
-  let loans = loansCache || [];
-  if (batchDate) {
-    loans = loans.filter(loan => loan.batchDate === batchDate);
-  }
-  return loans;
+// ============================================================
+// 内存缓存机制
+// ============================================================
+
+let loansCache: HSBCLoan[] | null = null;
+let lastFetchedTime: number = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5分钟
+
+function clearCache(): void {
+  loansCache = null;
+  lastFetchedTime = 0;
 }
 
-// 按批次日期获取汇丰贷款
-export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLoan[]> {
-  initCache(true);
-  
-  const supabaseAvailable = await isSupabaseAvailable();
-  
-  if (supabaseAvailable) {
-    try {
-      const client = await getSupabaseClient();
-      if (!client) {
-        console.log('⚠️ Supabase 客户端为空，使用本地存储');
-      } else {
-        // 直接使用 batch_date 字段查询
-        const allLoans: HSBCLoan[] = [];
-        const BATCH_SIZE = 1000;
-        
-        while (true) {
-          const { data, error } = await client
-            .from('hsbc_loans')
-            .select('*')
-            .eq('batch_date', batchDate)
-            .order('loan_reference')
-            .range(allLoans.length, allLoans.length + BATCH_SIZE - 1);
-          
-          if (error) {
-            console.error('获取汇丰贷款失败:', error);
-            break;
-          }
-          
-          if (!data || data.length === 0) break;
-          allLoans.push(...data.map(transformRow));
-          
-          if (data.length < BATCH_SIZE) break;
-        }
-        
-        if (allLoans.length > 0) {
-          return allLoans;
-        }
-      }
-    } catch (error) {
-      console.log('Supabase 获取失败，使用本地存储');
-    }
-  }
-  
-  // Fallback 到本地存储
-  const loans = loansCache || [];
-  return loans.filter(loan => loan.batchDate === batchDate);
-}
+// ============================================================
+// 存储操作函数
+// ============================================================
 
-// 获取所有批次日期
-export async function getAllBatchDates(): Promise<string[]> {
-  initCache(true);
-  
-  const supabaseAvailable = await isSupabaseAvailable();
-  
-  if (supabaseAvailable) {
-    try {
-      const client = await getSupabaseClient();
-      if (client) {
-        // 直接从贷款数据表中获取所有不重复的批次日期
-        const { data, error } = await client
-          .from('hsbc_loans')
-          .select('batch_date')
-          .order('batch_date', { ascending: false });
-        
-        if (!error) {
-          const dates = [...new Set((data || []).map((row: Record<string, unknown>) => row.batch_date as string).filter((date): date is string => date !== undefined))];
-          if (dates.length > 0) {
-            return dates.sort((a, b) => (b || '').localeCompare(a || ''));
-          }
-        }
-      }
-    } catch (error) {
-      console.log('Supabase 获取失败，使用本地存储');
-    }
-  }
-  
-  // Fallback 到本地存储
-  // 首先尝试从批次日期文件读取
-  if (batchDatesCache && batchDatesCache.length > 0) {
-    return batchDatesCache.sort((a, b) => (b || '').localeCompare(a || ''));
-  }
-  
-  // 如果批次日期文件为空，则从贷款数据中提取
-  const loans = loansCache || [];
-  const dates = [...new Set(loans.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
-  return dates.sort((a, b) => (b || '').localeCompare(a || ''));
-}
-
-// 获取所有汇丰贷款
 export async function getAllLoans(): Promise<HSBCLoan[]> {
-  return getAllHSBCLoans();
-}
-
-// 根据贷款编号获取单条贷款
-export async function getHSBCLoanByReference(loanReference: string): Promise<HSBCLoan | null> {
-  initCache();
+  const now = Date.now();
   
-  const supabaseAvailable = await isSupabaseAvailable();
-  
-  if (supabaseAvailable) {
-    try {
-      const client = await getSupabaseClient();
-      if (client) {
-        const { data, error } = await client
-          .from('hsbc_loans')
-          .select('*')
-          .eq('loan_reference', loanReference)
-          .single();
-        
-        if (!error && data) {
-          return transformRow(data);
-        }
-      }
-    } catch (error) {
-      console.log('Supabase 获取失败，使用本地存储');
-    }
+  // 检查缓存是否有效
+  if (loansCache && (now - lastFetchedTime) < CACHE_TTL) {
+    return loansCache;
   }
-  
-  // Fallback 到本地存储
-  const loans = loansCache || [];
-  return loans.find(loan => loan.loanReference === loanReference) || null;
-}
 
-// 删除指定批次的所有贷款数据
-export async function deleteHSBCBatch(batchDate: string): Promise<{ deletedCount: number }> {
-  initCache();
-  
-  const supabaseAvailable = await isSupabaseAvailable();
-  
-  let deletedCount = 0;
-  
-  if (supabaseAvailable) {
-    try {
-      const client = await getSupabaseClient();
-      if (!client) {
-        throw new Error('Supabase 客户端未初始化');
-      }
-      
-      // 先查询一下该批次有多少条记录
-      const { count } = await client
-        .from('hsbc_loans')
-        .select('*', { count: 'exact', head: true })
-        .eq('batch_date', batchDate);
-      
-      // 删除该批次的所有数据
-      const { error } = await client
-        .from('hsbc_loans')
-        .delete()
-        .eq('batch_date', batchDate);
-      
-      if (!error) {
-        deletedCount = count || 0;
-      }
-    } catch (error) {
-      console.log('Supabase 删除失败，使用本地存储');
-    }
+  try {
+    const results = await db.select().from(hsbcLoans).orderBy(desc(hsbcLoans.createdAt));
+    loansCache = results.map(convertDbLoanToHsbcLoan);
+    lastFetchedTime = now;
+    return loansCache;
+  } catch (error) {
+    console.error('获取汇丰贷款列表失败:', error);
+    return [];
   }
-  
-  // Fallback 到本地存储
-  const originalLength = loansCache?.length || 0;
-  loansCache = (loansCache || []).filter(loan => loan.batchDate !== batchDate);
-  deletedCount = originalLength - (loansCache?.length || 0);
-  saveToLocalStorage(loansCache || []);
-  
-  // 更新批次日期文件
-  const allDates = [...new Set(loansCache.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
-  batchDatesCache = allDates.sort((a, b) => (b || '').localeCompare(a || ''));
-  saveBatchDatesToLocalStorage(batchDatesCache);
-  
-  // 删除后强制刷新缓存
-  initCache(true);
-  
-  return { deletedCount };
 }
 
-// 保存汇丰贷款数据
-export async function saveHSBCLoans(loans: HSBCLoan[], mode: 'replace' | 'merge' = 'replace'): Promise<void> {
-  // 强制刷新缓存，确保拿到最新数据
-  initCache(true);
-  
-  // 获取批次日期
-  const batchDate = loans[0]?.batchDate || new Date().toISOString().split('T')[0];
-  
-  const supabaseAvailable = await isSupabaseAvailable();
-  
-  if (supabaseAvailable) {
-    try {
-      const { getSupabase } = await import('./supabase-client');
-      const client = await getSupabaseClient();
-      if (!client) {
-        throw new Error('Supabase 客户端未初始化');
-      }
+export async function getLoanById(id: string): Promise<HSBCLoan | null> {
+  try {
+    const results = await db.select().from(hsbcLoans).where(eq(hsbcLoans.id, id));
+    if (results.length === 0) return null;
+    return convertDbLoanToHsbcLoan(results[0]);
+  } catch (error) {
+    console.error('获取汇丰贷款详情失败:', error);
+    return null;
+  }
+}
+
+export async function getLoanByReference(loanReference: string): Promise<HSBCLoan | null> {
+  try {
+    const results = await db.select().from(hsbcLoans).where(eq(hsbcLoans.loanReference, loanReference));
+    if (results.length === 0) return null;
+    return convertDbLoanToHsbcLoan(results[0]);
+  } catch (error) {
+    console.error('通过参考号获取汇丰贷款失败:', error);
+    return null;
+  }
+}
+
+export async function saveLoan(loan: HSBCLoan): Promise<HSBCLoan> {
+  const now = new Date().toISOString();
+  const loanToSave = {
+    ...loan,
+    updatedAt: now,
+  };
+
+  try {
+    if (loan.id && await getLoanById(loan.id)) {
+      // 更新现有记录
+      await db.update(hsbcLoans).set({
+        loanReference: loanToSave.loanReference,
+        merchantId: loanToSave.merchantId,
+        merchantName: loanToSave.merchantName || null,
+        borrowerName: loanToSave.borrowerName,
+        loanStartDate: loanToSave.loanStartDate || null,
+        loanDate: loanToSave.loanDate || null,
+        loanCurrency: loanToSave.loanCurrency || null,
+        loanAmount: loanToSave.loanAmount.toString(),
+        loanInterest: loanToSave.loanInterest || null,
+        totalInterestRate: loanToSave.totalInterestRate,
+        loanTenor: loanToSave.loanTenor || null,
+        maturityDate: loanToSave.maturityDate || null,
+        repaymentSchedule: loanToSave.repaymentSchedule,
+        balance: loanToSave.balance !== undefined ? loanToSave.balance.toString() : null,
+        pastdueAmount: loanToSave.pastdueAmount !== undefined ? loanToSave.pastdueAmount.toString() : null,
+        totalRepaid: loanToSave.totalRepaid !== undefined ? loanToSave.totalRepaid.toString() : null,
+        freezeAccountRequested: loanToSave.freezeAccountRequested || null,
+        forceDebitRequested: loanToSave.forceDebitRequested || null,
+        approvalFromRM: loanToSave.approvalFromRM || null,
+        confirmationFreezeAccount: loanToSave.confirmationFreezeAccount || null,
+        confirmationForceDebit: loanToSave.confirmationForceDebit || null,
+        remarks: loanToSave.remarks || null,
+        batchDate: loanToSave.batchDate || null,
+        status: loanToSave.status || null,
+        overdueDays: loanToSave.overdueDays !== undefined ? loanToSave.overdueDays : null,
+        assignedTo: loanToSave.assignedTo || null,
+        followUpCount: loanToSave.followUpCount !== undefined ? loanToSave.followUpCount : null,
+        lastFollowUpDate: loanToSave.lastFollowUpDate || null,
+        updatedAt: loanToSave.updatedAt,
+      }).where(eq(hsbcLoans.id, loan.id));
       
-      if (mode === 'replace') {
-        // 覆盖模式：删除该批次的所有旧数据
-        const { error: deleteError } = await client
-          .from('hsbc_loans')
-          .delete()
-          .eq('batch_date', batchDate);
-        
-        if (deleteError) {
-          console.error('删除旧数据失败:', deleteError);
-        }
-      }
-      
-      // 辅助函数：安全转换为数字
-      const safeToNumber = (val: unknown): number => {
-        if (typeof val === 'number' && !isNaN(val) && isFinite(val)) return val;
-        if (typeof val === 'string') {
-          const cleaned = val.replace(/[,，\s{}()\[\]]/g, '').trim();
-          const num = parseFloat(cleaned);
-          if (!isNaN(num) && isFinite(num)) return num;
-        }
-        return 0;
+      clearCache();
+      return loanToSave;
+    } else {
+      // 创建新记录
+      const newId = uuidv4();
+      const newLoan = {
+        ...loanToSave,
+        id: newId,
+        createdAt: now,
       };
       
-      // 转换数据格式
-      const dbLoans = loans.map(loan => {
-        const loanAmount = safeToNumber(loan.loanAmount);
-        const balance = safeToNumber(loan.balance);
-        const pastdueAmount = safeToNumber(loan.pastdueAmount);
-        const overdueDays = Math.floor(safeToNumber(loan.overdueDays));
-        
-        return {
-          batch_date: batchDate,
-          loan_reference: String(loan.loanReference || ''),
-          merchant_id: String(loan.merchantId || ''),
-          merchant_name: String(loan.merchantName || ''),
-          borrower_name: String(loan.borrowerName || ''),
-          currency: loan.loanCurrency === 'USD' ? 'USD' : 'CNY',
-          loan_date: String(loan.loanStartDate || loan.loanDate || ''),
-          maturity_date: String(loan.maturityDate || ''),
-          loan_interest: String(loan.loanInterest || ''),
-          interest_rate: safeToNumber(loan.totalInterestRate),
-          loan_tenor: String(loan.loanTenor || ''),
-          loan_amount: loanAmount,
-          balance: balance > 0 ? balance : loanAmount,
-          pastdue_amount: pastdueAmount,
-          overdue_days: overdueDays,
-          status: loan.status || 'normal',
-          repayment_schedule: loan.repaymentSchedule || [],
-          total_repaid: safeToNumber(loan.totalRepaid),
-          remarks: String(loan.remarks || ''),
-        };
+      await db.insert(hsbcLoans).values({
+        id: newLoan.id,
+        loanReference: newLoan.loanReference,
+        merchantId: newLoan.merchantId,
+        merchantName: newLoan.merchantName || null,
+        borrowerName: newLoan.borrowerName,
+        loanStartDate: newLoan.loanStartDate || null,
+        loanDate: newLoan.loanDate || null,
+        loanCurrency: newLoan.loanCurrency || null,
+        loanAmount: newLoan.loanAmount.toString(),
+        loanInterest: newLoan.loanInterest || null,
+        totalInterestRate: newLoan.totalInterestRate,
+        loanTenor: newLoan.loanTenor || null,
+        maturityDate: newLoan.maturityDate || null,
+        repaymentSchedule: newLoan.repaymentSchedule,
+        balance: newLoan.balance !== undefined ? newLoan.balance.toString() : null,
+        pastdueAmount: newLoan.pastdueAmount !== undefined ? newLoan.pastdueAmount.toString() : null,
+        totalRepaid: newLoan.totalRepaid !== undefined ? newLoan.totalRepaid.toString() : null,
+        freezeAccountRequested: newLoan.freezeAccountRequested || null,
+        forceDebitRequested: newLoan.forceDebitRequested || null,
+        approvalFromRM: newLoan.approvalFromRM || null,
+        confirmationFreezeAccount: newLoan.confirmationFreezeAccount || null,
+        confirmationForceDebit: newLoan.confirmationForceDebit || null,
+        remarks: newLoan.remarks || null,
+        batchDate: newLoan.batchDate || null,
+        status: newLoan.status || null,
+        overdueDays: newLoan.overdueDays !== undefined ? newLoan.overdueDays : null,
+        assignedTo: newLoan.assignedTo || null,
+        followUpCount: newLoan.followUpCount !== undefined ? newLoan.followUpCount : null,
+        lastFollowUpDate: newLoan.lastFollowUpDate || null,
+        createdAt: newLoan.createdAt,
+        updatedAt: newLoan.updatedAt,
       });
       
-      // 分批插入数据
-      const BATCH_SIZE = 500;
-      for (let i = 0; i < dbLoans.length; i += BATCH_SIZE) {
-        const batch = dbLoans.slice(i, i + BATCH_SIZE);
-        console.log(`插入第 ${Math.floor(i / BATCH_SIZE) + 1} 批数据，共 ${batch.length} 条`);
-        const { error } = await client
-          .from('hsbc_loans')
-          .upsert(batch, { onConflict: 'loan_reference' });
-        
-        if (error) {
-          throw error;
-        }
-      }
-      
-      // 同时更新 hsbc_loan_batches 表
-      const { error: batchError } = await client
-        .from('hsbc_loan_batches')
-        .upsert({ batch_date: batchDate }, { onConflict: 'batch_date' });
-      
-      if (!batchError) {
-        console.log(`成功更新批次日期表: ${batchDate}`);
-      }
-      
-      return;
-    } catch (error) {
-      console.log('Supabase 保存失败，使用本地存储');
+      clearCache();
+      return newLoan;
     }
+  } catch (error) {
+    console.error('保存汇丰贷款失败:', error);
+    throw error;
   }
-  
-  // Fallback 到本地存储
-  if (mode === 'replace') {
-    // 覆盖模式：删除该批次的所有旧数据
-    loansCache = (loansCache || []).filter(loan => loan.batchDate !== batchDate);
-  }
-  
-  // 添加新数据
-  loansCache = [...(loansCache || []), ...loans];
-  
-  // 去重（基于 loanReference + batchDate 组合）
-  const seen = new Set<string>();
-  loansCache = loansCache.filter(loan => {
-    const key = `${loan.loanReference}-${loan.batchDate}`;
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-  
-  saveToLocalStorage(loansCache);
-  
-  // 更新批次日期文件 - 确保新上传的批次日期被添加
-  const existingDates = batchDatesCache || loadBatchDatesFromLocalStorage();
-  const loanDates = [...new Set(loansCache.map(loan => loan.batchDate).filter((date): date is string => date !== undefined))];
-  
-  // 合并现有的批次日期和贷款数据中的批次日期，去重
-  const allDatesSet = new Set([...existingDates, ...loanDates]);
-  const allDates = Array.from(allDatesSet).sort((a, b) => (b || '').localeCompare(a || ''));
-  
-  batchDatesCache = allDates;
-  saveBatchDatesToLocalStorage(batchDatesCache);
-  
-  console.log(`✅ 更新批次日期文件，共 ${allDates.length} 个批次:`, allDates);
-  
-  // 保存后强制刷新缓存，确保下次读取时是最新数据
-  initCache(true);
 }
+
+export async function saveLoans(loans: HSBCLoan[]): Promise<void> {
+  for (const loan of loans) {
+    await saveLoan(loan);
+  }
+}
+
+export async function filterLoans(filter: HSBCLoanFilter): Promise<{ data: HSBCLoan[], total: number, totalPages: number }> {
+  const allLoans = await getAllLoans();
+  let filtered = [...allLoans];
+
+  if (filter.search) {
+    const searchLower = filter.search.toLowerCase();
+    filtered = filtered.filter(loan =>
+      loan.loanReference.toLowerCase().includes(searchLower) ||
+      loan.borrowerName.toLowerCase().includes(searchLower) ||
+      (loan.merchantName && loan.merchantName.toLowerCase().includes(searchLower))
+    );
+  }
+
+  if (filter.currency) {
+    filtered = filtered.filter(loan => loan.loanCurrency === filter.currency);
+  }
+
+  if (filter.status) {
+    filtered = filtered.filter(loan => loan.status === filter.status);
+  }
+
+  if (filter.hasOverdue !== undefined) {
+    filtered = filtered.filter(loan => {
+      const isOverdue = (loan.status === 'overdue') || 
+        (loan.pastdueAmount !== undefined && loan.pastdueAmount > 0.9);
+      return filter.hasOverdue ? isOverdue : !isOverdue;
+    });
+  }
+
+  if (filter.batchDate) {
+    filtered = filtered.filter(loan => loan.batchDate === filter.batchDate);
+  }
+
+  // 排序
+  if (filter.sortBy) {
+    filtered.sort((a, b) => {
+      let aVal: any = (a as any)[filter.sortBy!];
+      let bVal: any = (b as any)[filter.sortBy!];
+      
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      
+      if (aVal < bVal) return filter.sortOrder === 'asc' ? -1 : 1;
+      if (aVal > bVal) return filter.sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+  } else {
+    // 默认按创建时间倒序
+    filtered.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }
+
+  const total = filtered.length;
+  const page = filter.page || 1;
+  const pageSize = filter.pageSize || 50;
+  const totalPages = Math.ceil(total / pageSize);
+  const start = (page - 1) * pageSize;
+  const data = filtered.slice(start, start + pageSize);
+
+  return { data, total, totalPages };
+}
+
+export async function getBatchDates(): Promise<string[]> {
+  try {
+    const results = await db
+      .selectDistinct({ batchDate: hsbcLoans.batchDate })
+      .from(hsbcLoans)
+      .where(isNotNull(hsbcLoans.batchDate))
+      .orderBy(desc(hsbcLoans.batchDate));
+    
+    return results.map((r: any) => r.batchDate).filter((d: any): d is string => d !== null);
+  } catch (error) {
+    console.error('获取批次日期失败:', error);
+    return [];
+  }
+}
+
+export async function deleteLoan(id: string): Promise<void> {
+  try {
+    await db.delete(hsbcLoans).where(eq(hsbcLoans.id, id));
+    clearCache();
+  } catch (error) {
+    console.error('删除汇丰贷款失败:', error);
+    throw error;
+  }
+}
+
+export async function deleteLoansByBatchDate(batchDate: string): Promise<void> {
+  try {
+    await db.delete(hsbcLoans).where(eq(hsbcLoans.batchDate, batchDate));
+    clearCache();
+  } catch (error) {
+    console.error('按批次删除汇丰贷款失败:', error);
+    throw error;
+  }
+}
+
+// ============================================================
+// 商户销售映射
+// ============================================================
+
+export async function getMerchantSalesMappings(): Promise<{ merchantName: string; salesName: string }[]> {
+  try {
+    const results = await db.select().from(merchantSalesMappings);
+    return results.map((r: any) => ({ merchantName: r.merchantName, salesName: r.salesName }));
+  } catch (error) {
+    console.error('获取商户销售映射失败:', error);
+    return [];
+  }
+}
+
+export async function saveMerchantSalesMapping(merchantName: string, salesName: string): Promise<void> {
+  try {
+    // 先检查是否已存在
+    const existing = await db.select().from(merchantSalesMappings).where(eq(merchantSalesMappings.merchantName, merchantName));
+    
+    if (existing.length > 0) {
+      await db.update(merchantSalesMappings).set({ salesName }).where(eq(merchantSalesMappings.merchantName, merchantName));
+    } else {
+      await db.insert(merchantSalesMappings).values({ merchantName, salesName });
+    }
+  } catch (error) {
+    console.error('保存商户销售映射失败:', error);
+    throw error;
+  }
+}
+
+export async function deleteMerchantSalesMapping(merchantName: string): Promise<void> {
+  try {
+    await db.delete(merchantSalesMappings).where(eq(merchantSalesMappings.merchantName, merchantName));
+  } catch (error) {
+    console.error('删除商户销售映射失败:', error);
+    throw error;
+  }
+}
+
+export async function getExtensionMerchants(): Promise<string[]> {
+  try {
+    // 从贷款数据中提取所有商户名称
+    const results = await db.selectDistinct({ merchantName: hsbcLoans.merchantName })
+      .from(hsbcLoans)
+      .where(isNotNull(hsbcLoans.merchantName));
+    
+    return results.map((r: any) => r.merchantName).filter((m: any): m is string => m !== null);
+  } catch (error) {
+    console.error('获取展期商户列表失败:', error);
+    return [];
+  }
+}
+
+// ============================================================
+// 贷款批次
+// ============================================================
+
+export async function createLoanBatch(batchDate: string, recordCount: number, totalAmount?: number): Promise<number> {
+  try {
+    const [result] = await db.insert(hsbcLoanBatches).values({
+      batchDate,
+      recordCount,
+      totalAmount: totalAmount !== undefined ? totalAmount.toString() : null,
+    }).returning({ id: hsbcLoanBatches.id });
+    
+    return result.id;
+  } catch (error) {
+    console.error('创建贷款批次失败:', error);
+    throw error;
+  }
+}
+
+// ============================================================
+// 兼容性导出函数
+// ============================================================
+
+export async function getAllHSBCLoans(): Promise<HSBCLoan[]> {
+  return getAllLoans();
+}
+
+export async function getAllBatchDates(): Promise<string[]> {
+  return getBatchDates();
+}
+
+export async function getHSBCLoansByBatchDate(batchDate: string): Promise<HSBCLoan[]> {
+  const allLoans = await getAllLoans();
+  return allLoans.filter(loan => loan.batchDate === batchDate);
+}
+
+export async function saveHSBCLoans(loans: HSBCLoan[]): Promise<void> {
+  return saveLoans(loans);
+}
+
+export async function getHSBCLoanByReference(loanReference: string): Promise<HSBCLoan | null> {
+  return getLoanByReference(loanReference);
+}
+
+export async function deleteHSBCBatch(batchDate: string): Promise<{ deletedCount: number }> {
+  const loansToDelete = await getHSBCLoansByBatchDate(batchDate);
+  await deleteLoansByBatchDate(batchDate);
+  return { deletedCount: loansToDelete.length };
+}
+
+// ============================================================
+// 导出对象
+// ============================================================
+
+export const hsbcLoanStorage = {
+  getAllLoans,
+  getLoanById,
+  getLoanByReference,
+  saveLoan,
+  saveLoans,
+  filterLoans,
+  getBatchDates,
+  deleteLoan,
+  deleteLoansByBatchDate,
+  getMerchantSalesMappings,
+  saveMerchantSalesMapping,
+  deleteMerchantSalesMapping,
+  getExtensionMerchants,
+  createLoanBatch,
+  clearCache,
+  // 兼容性导出
+  getAllHSBCLoans,
+  getAllBatchDates,
+  getHSBCLoansByBatchDate,
+  saveHSBCLoans,
+  getHSBCLoanByReference,
+  deleteHSBCBatch,
+};

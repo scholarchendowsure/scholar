@@ -84,9 +84,8 @@ export async function POST(
     };
 
     // 3. 添加跟进记录到当前案件
-    const updatedFollowups = [...(caseData.followups || []), followupRecord];
-    console.log(`[Followup API] 添加跟进记录到案件 ${id}, 原有${caseData.followups?.length || 0}条, 新增后${updatedFollowups.length}条`);
-    await caseStorage.update(id, { followups: updatedFollowups });
+    console.log(`[Followup API] 添加跟进记录到案件 ${id}`);
+    await caseStorage.addFollowUp(id, followupRecord);
 
     // 清除列表API的查询缓存，确保后续请求返回最新数据
     clearQueryCache();
@@ -101,8 +100,7 @@ export async function POST(
       // 对每个其他案件也添加跟进记录
       for (const relatedCase of otherCases) {
         try {
-          const relatedFollowups = [...(relatedCase.followups || []), followupRecord];
-          await caseStorage.update(relatedCase.id, { followups: relatedFollowups });
+          await caseStorage.addFollowUp(relatedCase.id, followupRecord);
           syncedCount++;
         } catch (err) {
           console.error(`同步跟进记录到案件 ${relatedCase.id} 失败:`, err);

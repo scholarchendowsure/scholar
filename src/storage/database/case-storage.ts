@@ -1,684 +1,365 @@
-import { Case, CaseFile, FollowUp, CaseHistory } from '@/types/case';
+import { db } from '@/lib/db/client';
+import { cases, followups, caseFiles, caseHistory } from './shared/schema';
+import { eq, and, like, or, desc, isNull, isNotNull, count, sql } from 'drizzle-orm';
+import type { Case as DBCase, FollowUp as DBFollowUp, CaseFile as DBCaseFile, CaseHistory as DBCaseHistory } from './shared/schema';
+import type { Case, FollowUp, CaseFile, CaseHistory } from '@/types/case';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import path from 'path';
 
-// 存储文件路径 - 生产环境使用 /tmp 目录，开发环境使用 public/data 目录
-function isProduction(): boolean {
-  return process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
-}
-
-function getStoragePath(): string {
-  if (isProduction()) {
-    return path.join('/tmp', 'cases-v2.json');
-  }
-  return path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
-}
-
-function getRecycleBinPath(): string {
-  if (isProduction()) {
-    return path.join('/tmp', 'cases-recycle-bin.json');
-  }
-  return path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
-}
-
-function getHistoryPath(): string {
-  if (isProduction()) {
-    return path.join('/tmp', 'cases-history.json');
-  }
-  return path.join(process.cwd(), 'public', 'data', 'cases-history.json');
-}
-
-const STORAGE_FILE = getStoragePath();
-const RECYCLE_BIN_FILE = getRecycleBinPath();
-const HISTORY_FILE = getHistoryPath();
-
-console.log(`[CaseStorage] 案件数据路径: ${STORAGE_FILE}`);
-console.log(`[CaseStorage] 回收站路径: ${RECYCLE_BIN_FILE}`);
-console.log(`[CaseStorage] 历史记录路径: ${HISTORY_FILE}`);
-
-// ============ P0优化：双缓存机制 ============
-// 完整缓存（用于详情页等需要全部数据的场景）
+// 缓存
 let cachedCases: Case[] | null = null;
-// 轻量缓存（用于列表页，剥离了files.data和followups.fileInfo大字段）
-let cachedCasesLight: Case[] | null = null;
-// 历史记录缓存
-let cachedHistory: CaseHistory[] | null = null;
 let lastModifiedTime: number = 0;
-let cacheHits = 0;
-let cacheMisses = 0;
+const CACHE_TTL = 5000; // 5秒缓存
 
-// 剥离大字段，生成轻量版Case（用于列表展示）
-export function stripLargeFields(c: Case): Case {
-  const stripped = { ...c };
-  // 剥离 files 中的 base64 data
-  if (stripped.files && Array.isArray(stripped.files)) {
-    stripped.files = stripped.files.map((f: CaseFile) => {
-      const { data, ...rest } = f;
-      return rest as CaseFile;
-    });
-  }
-  // 保留 followups 中的 fileInfo，但剥离 fileInfo 中的 data 大字段
-  if (stripped.followups && Array.isArray(stripped.followups)) {
-    stripped.followups = stripped.followups.map((f: FollowUp) => {
-      if (f.fileInfo && Array.isArray(f.fileInfo)) {
-        return {
-          ...f,
-          fileInfo: f.fileInfo.map((file: any) => {
-            const { data, ...rest } = file;
-            return rest;
-          })
-        };
-      }
-      return f;
-    });
-  }
-  return stripped;
-}
+// ============= 类型转换函数 =============
 
-// 安全读取JSON文件（处理文件不存在、内容为空、解析失败等所有异常
-function safeReadJSON<T>(filePath: string, defaultValue: T): T {
-  try {
-    if (!fs.existsSync(filePath)) {
-      console.log(`safeReadJSON: 文件不存在，返回默认值: ${filePath}`);
-      return defaultValue;
-    }
-    const content = fs.readFileSync(filePath, 'utf-8');
-    if (!content || content.trim().length === 0) {
-      console.log(`safeReadJSON: 文件内容为空，返回默认值: ${filePath}`);
-      return defaultValue;
-    }
-    const data = JSON.parse(content);
-    console.log(`safeReadJSON: 成功读取文件: ${filePath}, 数据类型: ${typeof data}, 是数组: ${Array.isArray(data)}`);
-    return data;
-  } catch (error) {
-    console.error(`safeReadJSON: 读取文件异常，返回默认值:`, error);
-    return defaultValue;
-  }
-}
-
-// 安全写入JSON文件（先写临时文件再重命名，防文件损坏
-function safeWriteJSON(filePath: string, data: any): void {
-  try {
-    // 确保目录存在
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    const jsonContent = JSON.stringify(data, null, 2);
-    
-    // 使用临时文件+原子重命名策略，防损坏
-    const tempPath = `${filePath}.tmp.${Date.now()}`;
-    fs.writeFileSync(tempPath, jsonContent, 'utf-8');
-    console.log(`safeWriteJSON: 临时文件写入成功: ${tempPath}`);
-    // 原子重命名
-    fs.renameSync(tempPath, filePath);
-    console.log(`safeWriteJSON: 原子重命名成功: ${filePath}`);
-  } catch (error) {
-    console.error(`safeWriteJSON: 写入文件失败: ${filePath}`, error);
-    throw error;
-  }
-}
-
-// 从文件读取案件数据
-function readFromFile(): Case[] {
-  console.log('[Cache] 读取文件');
-  return safeReadJSON<Case[]>(STORAGE_FILE, []);
-}
-
-// 从文件读取历史记录
-function readHistoryFromFile(): CaseHistory[] {
-  console.log('[History] 读取历史记录文件');
-  return safeReadJSON<CaseHistory[]>(HISTORY_FILE, []);
-}
-
-// 写入历史记录文件
-async function writeHistoryToFile(history: CaseHistory[]): Promise<void> {
-  console.log('[History] 写入历史记录文件，记录数:', history.length);
-  await safeWriteJSON(HISTORY_FILE, history);
-  cachedHistory = history;
-}
-
-// 添加修改历史记录
-async function addHistory(
-  caseId: string,
-  userName: string,
-  fieldName: string,
-  fieldLabel: string | undefined,
-  oldValue: any,
-  newValue: any,
-  userId?: string
-): Promise<void> {
-  const historyItem: CaseHistory = {
-    id: uuidv4(),
-    caseId,
-    userId,
-    userName,
-    modifiedAt: new Date().toISOString(),
-    fieldName,
-    fieldLabel,
-    oldValue,
-    newValue
-  };
-  
-  const history = readHistoryFromFile();
-  history.unshift(historyItem); // 最新记录在最前面
-  await writeHistoryToFile(history);
-  
-  console.log(`[History] 添加历史记录: 案件=${caseId}, 字段=${fieldName}`);
-}
-
-// 读取回收站数据
-function readRecycleBin(): any[] {
-  return safeReadJSON<any[]>(RECYCLE_BIN_FILE, []);
-}
-
-// 写入案件数据到文件（同时清除缓存）
-async function writeToFile(cases: Case[]): Promise<void> {
-  console.log('writeToFile: 已清除所有缓存');
-  // 清除所有缓存
-  cachedCases = null;
-  cachedCasesLight = null;
-  await safeWriteJSON(STORAGE_FILE, cases);
-}
-
-// 写入回收站数据
-async function writeRecycleBin(data: any[]): Promise<void> {
-  await safeWriteJSON(RECYCLE_BIN_FILE, data);
-  console.log('writeRecycleBin: 写入成功');
-}
-
-// 规范化逾期天数
-function normalizeOverdueDays(c: Case): Case {
-  const normalized = { ...c };
-  
-  // 1. 四舍五入去掉小数，只保留整数
-  if (normalized.overdueDays !== undefined && normalized.overdueDays !== null) {
-    normalized.overdueDays = Math.round(Number(normalized.overdueDays));
-  }
-  
-  // 2. 对于状态是逾期，并且逾期天数不为空值的，每天自动+1天
-  if (normalized.status === 'following' || normalized.status?.toLowerCase().includes('overdue') || normalized.status?.toLowerCase().includes('逾期')) {
-    if (normalized.overdueDays !== undefined && normalized.overdueDays !== null && normalized.dueDate) {
-      try {
-        const dueDate = new Date(normalized.dueDate);
-        const today = new Date();
-        // 只比较日期部分，忽略时间
-        dueDate.setHours(0, 0, 0, 0);
-        today.setHours(0, 0, 0, 0);
-        
-        // 计算从到期日到今天的天数差
-        const diffTime = today.getTime() - dueDate.getTime();
-        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        
-        // 如果差值大于0（确实逾期了），使用计算出的天数
-        if (diffDays > 0) {
-          normalized.overdueDays = diffDays;
-        }
-      } catch (e) {
-        console.error('计算逾期天数失败:', e);
-      }
-    }
-  }
-  
-  return normalized;
-}
-
-// ============ 核心API：获取所有案件 ============
-export async function getAll(): Promise<Case[]> {
-  try {
-    // 检查文件是否修改过
-    let currentMtime = 0;
-    if (fs.existsSync(STORAGE_FILE)) {
-      const stats = fs.statSync(STORAGE_FILE);
-      currentMtime = stats.mtimeMs;
-    }
-
-    // 优先检查缓存是否有效
-    if (cachedCases && currentMtime === lastModifiedTime) {
-      cacheHits++;
-      console.log(`[Cache] 命中缓存 (命中: ${cacheHits}, 未命中: ${cacheMisses})`);
-      return cachedCases;
-    }
-
-    // 缓存未命中或文件已修改，重新读取
-    cacheMisses++;
-    console.log(`[Cache] 缓存未命中或文件已修改，重新读取 (命中: ${cacheHits}, 未命中: ${cacheMisses})`);
-    
-    const cases = readFromFile();
-    // 对每个案件进行逾期天数规范化
-    const normalizedCases = cases.map(normalizeOverdueDays);
-    // 更新缓存和最后修改时间
-    cachedCases = normalizedCases;
-    lastModifiedTime = currentMtime;
-    // 同时预生成轻量缓存
-    cachedCasesLight = normalizedCases.map(stripLargeFields);
-    
-    console.log(`[Cache] 刷新缓存, cases: ${normalizedCases.length}, Read: 0ms, Parse: 0ms, Strip: 0ms, Full: 0.0MB, Light: 0.0MB`);
-    
-    return normalizedCases;
-  } catch (error) {
-    console.error('[Error] getAll error:', error);
-    return [];
-  }
-}
-
-// ============ P0优化：获取所有轻量案件（列表页专用） ============
-export async function getAllLight(): Promise<Case[]> {
-  // 先触发getAll()来确保缓存是最新的
-  await getAll();
-  // 直接返回预先生成的轻量缓存
-  return cachedCasesLight || [];
-}
-
-// ============ 核心API：根据ID获取单个案件 ============
-export async function getById(id: string): Promise<Case | null> {
-  const cases = await getAll();
-  const found = cases.find((c) => c.id === id) || null;
-  // 也尝试通过贷款单号查找
-  if (!found) {
-    return cases.find((c) => c.loanNo === id) || null;
-  }
-  return found;
-}
-
-// ============ 根据用户ID获取案件 ============
-export async function getByUserId(userId: string): Promise<Case[]> {
-  const cases = await getAll();
-  return cases.filter((c) => c.userId === userId);
-}
-
-// ============ 根据贷款单号获取案件 ============
-export async function getByLoanNo(loanNo: string): Promise<Case | null> {
-  const cases = await getAll();
-  return cases.find((c) => c.loanNo === loanNo) || null;
-}
-
-// ============ 查询案件 ============
-export async function query(options: any): Promise<{ data: Case[]; total: number; totalPages: number }> {
-  const cases = await getAll();
-  
-  // 先应用筛选
-  let filtered = cases.filter((c: Case) => {
-    // 基础筛选 - 支持多个用户ID（空格分隔）
-    if (options.userId) {
-      const userIds = String(options.userId).trim().split(/\s+/).filter(id => id.trim());
-      if (userIds.length > 0 && !userIds.includes(c.userId)) return false;
-    }
-    
-    // 基础筛选 - 支持多个贷款单号（空格分隔）
-    if (options.loanNo) {
-      const loanNos = String(options.loanNo).trim().split(/\s+/).filter(no => no.trim());
-      if (loanNos.length > 0) {
-        const matched = loanNos.some(no => c.loanNo.includes(no));
-        if (!matched) return false;
-      }
-    }
-    
-    if (options.status && c.status !== options.status) return false;
-    if (options.riskLevel && c.riskLevel !== options.riskLevel) return false;
-    
-    // 搜索功能 - 支持多个关键词（空格分隔）
-    if (options.search) {
-      const searchTerms = String(options.search).trim().split(/\s+/).filter(term => term.trim());
-      if (searchTerms.length > 0) {
-        // 检查是否匹配任意一个搜索关键词
-        const matched = searchTerms.some(term => 
-          c.borrowerName.includes(term) || 
-          c.loanNo.includes(term) ||
-          c.userId.includes(term)
-        );
-        if (!matched) return false;
-      }
-    }
-    
-    // 处理所有 filter 开头的筛选参数
-    for (const [key, value] of Object.entries(options)) {
-      if (!key.startsWith('filter') || !value) continue;
-      
-      const fieldName = key.replace('filter', '');
-      // 首字母小写
-      const normalizedFieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
-      
-      // 获取案件对应字段的值
-      // @ts-ignore
-      const caseValue = c[normalizedFieldName];
-      
-      // 如果案件没有该字段，跳过
-      if (caseValue === undefined || caseValue === null) continue;
-      
-      // 特殊处理：用户ID字段支持多个值（空格分隔）
-      if (normalizedFieldName === 'userId') {
-        const userIds = String(value).trim().split(/\s+/).filter(id => id.trim());
-        if (userIds.length > 0 && !userIds.includes(caseValue)) {
-          return false;
-        }
-        continue;
-      }
-      
-      // 特殊处理：贷款单号字段支持多个值（空格分隔）
-      if (normalizedFieldName === 'loanNo') {
-        const loanNos = String(value).trim().split(/\s+/).filter(no => no.trim());
-        if (loanNos.length > 0) {
-          const matched = loanNos.some(no => caseValue.includes(no));
-          if (!matched) {
-            return false;
-          }
-        }
-        continue;
-      }
-      
-      // 字符串类型字段：模糊匹配
-      if (typeof caseValue === 'string') {
-        if (!caseValue.toLowerCase().includes(String(value).toLowerCase())) {
-          return false;
-        }
-      }
-      // 数字类型字段：精确匹配
-      else if (typeof caseValue === 'number') {
-        if (caseValue !== Number(value)) {
-          return false;
-        }
-      }
-      // 布尔类型字段：精确匹配
-      else if (typeof caseValue === 'boolean') {
-        const boolValue = value === 'true' || value === true;
-        if (caseValue !== boolValue) {
-          return false;
-        }
-      }
-    }
-    
-    return true;
-  });
-  
-  // 获取总数
-  const total = filtered.length;
-  
-  // 应用分页
-  const page = options.page || 1;
-  const pageSize = options.pageSize || 10;
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const data = filtered.slice(start, end);
-  const totalPages = Math.ceil(total / pageSize);
-  
-  return { data, total, totalPages };
-}
-
-// ============ 恢复案件（支持批量） ============
-export async function restore(ids: string | string[]): Promise<number> {
-  const idList = Array.isArray(ids) ? ids : [ids];
-  let count = 0;
-  
-  for (const id of idList) {
-    const success = await restoreFromRecycleBin(id);
-    if (success) count++;
-  }
-  
-  return count;
-}
-
-// ============ 核心API：创建新案件 ============
-export async function create(caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>): Promise<Case> {
-  const cases = await getAll();
-  const newCase: Case = {
-    ...caseData,
-    id: uuidv4(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-  cases.push(newCase);
-  writeToFile(cases);
-  return newCase;
-}
-
-// ============ 核心API：更新案件 ============
-export async function update(
-  id: string, 
-  updates: Partial<Case>, 
-  options?: { userName?: string; userId?: string; skipHistory?: boolean }
-): Promise<Case | null> {
-  // 立即清除所有缓存
-  cachedCases = null;
-  cachedCasesLight = null;
-  
-  // 直接从文件读取最新数据，不走getAll()防止旧缓存
-  const cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
-  
-  const index = cases.findIndex((c) => c.id === id);
-  let originalCase: Case | undefined;
-  
-  if (index === -1) {
-    // 也尝试通过贷款单号查找
-    const loanIndex = cases.findIndex((c) => c.loanNo === id);
-    if (loanIndex === -1) return null;
-    originalCase = { ...cases[loanIndex] };
-    cases[loanIndex] = {
-      ...cases[loanIndex],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-    await writeToFile(cases);
-    
-    // 记录历史
-    if (options && !options.skipHistory) {
-      await recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
-    }
-    
-    return cases[loanIndex];
-  }
-  
-  originalCase = { ...cases[index] };
-  cases[index] = {
-    ...cases[index],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  await writeToFile(cases);
-  
-  // 记录历史
-  if (options && !options.skipHistory) {
-    await recordHistory(originalCase, updates, options.userName || '未知用户', options.userId);
-  }
-  
-  return cases[index];
-}
-
-// 记录修改历史的辅助函数
-async function recordHistory(
-  originalCase: Case, 
-  updates: Partial<Case>, 
-  userName: string, 
-  userId?: string
-): Promise<void> {
-  // 定义字段标签映射
-  const fieldLabels: Record<string, string> = {
-    borrowerName: '借款人姓名',
-    borrowerPhone: '借款人电话',
-    companyName: '公司名称',
-    status: '案件状态',
-    riskLevel: '风险等级',
-    debtAmount: '欠款金额',
-    totalOutstandingBalance: '总待还余额',
-    overdueAmount: '逾期金额',
-    overdueDays: '逾期天数',
-    assignedSales: '分配销售',
-    assignedPostLoan: '分配贷后',
-    isLocked: '是否锁定',
-    remark: '备注',
-    caseLabels: '案件标签'
-  };
-  
-  // 逐个检查修改的字段
-  for (const [key, newValue] of Object.entries(updates)) {
-    const oldValue = originalCase[key as keyof Case];
-    
-    // 比较值是否有变化
-    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-      await addHistory(
-        originalCase.id,
-        userName,
-        key,
-        fieldLabels[key],
-        oldValue,
-        newValue,
-        userId
-      );
-    }
-  }
-}
-
-// 获取案件的修改历史
-export function getCaseHistory(caseId: string): CaseHistory[] {
-  const history = readHistoryFromFile();
-  return history.filter(h => h.caseId === caseId);
-}
-
-// ============ 核心API：删除案件（移入回收站） ============
-export async function deleteCase(id: string, deletedBy: string = '系统'): Promise<boolean> {
-  // 立即清除所有缓存
-  cachedCases = null;
-  cachedCasesLight = null;
-  
-  // 直接从文件读取最新数据，不走getAll()防止旧缓存
-  const cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
-  
-  const index = cases.findIndex((c) => c.id === id);
-  if (index === -1) {
-    // 也尝试通过贷款单号查找
-    const loanIndex = cases.findIndex((c) => c.loanNo === id);
-    if (loanIndex === -1) return false;
-    const [deletedCase] = cases.splice(loanIndex, 1);
-    // 同时从回收站
-    const recycleBin = readRecycleBin();
-    recycleBin.push({
-      id: deletedCase.id,
-      caseData: deletedCase,
-      deletedAt: new Date().toISOString(),
-      deletedBy,
-    });
-    writeRecycleBin(recycleBin);
-    writeToFile(cases);
-    return true;
-  }
-  
-  const [deletedCase] = cases.splice(index, 1);
-  
-  // 同时从回收站
-  const recycleBin = readRecycleBin();
-  recycleBin.push({
-    id: deletedCase.id,
-    caseData: deletedCase,
-    deletedAt: new Date().toISOString(),
-    deletedBy,
-  });
-  writeRecycleBin(recycleBin);
-  writeToFile(cases);
-  return true;
-}
-
-// ============ 回收站API：获取回收站列表 ============
-export async function getRecycleBin(): Promise<any[]> {
-  return readRecycleBin();
-}
-
-// ============ 回收站API：恢复案件 ============
-export async function restoreFromRecycleBin(id: string): Promise<boolean> {
-  const recycleBin = readRecycleBin();
-  const index = recycleBin.findIndex((item) => item.id === id);
-  if (index === -1) return false;
-  
-  const [restoredItem] = recycleBin.splice(index, 1);
-  
-  // 恢复到案件列表
-  const cases = await getAll();
-  cases.push(restoredItem.caseData);
-  
-  writeRecycleBin(recycleBin);
-  writeToFile(cases);
-  return true;
-}
-
-// ============ 回收站API：永久删除 ============
-export async function permanentDelete(ids: string[]): Promise<number> {
-  // 立即清除所有缓存
-  cachedCases = null;
-  cachedCasesLight = null;
-  
-  // 直接读取回收站
-  let recycleBin = safeReadJSON<any[]>(RECYCLE_BIN_FILE, []);
-  
-  const originalCount = recycleBin.length;
-  const idsSet = new Set(ids);
-  recycleBin = recycleBin.filter((item) => !idsSet.has(item.id));
-  const deletedCount = originalCount - recycleBin.length;
-  
-  // 同时从主数据文件删除
-  let cases = safeReadJSON<Case[]>(STORAGE_FILE, []);
-  cases = cases.filter((c) => !idsSet.has(c.id));
-  
-  writeRecycleBin(recycleBin);
-  writeToFile(cases);
-  
-  return deletedCount;
-}
-
-// ============ 统计API：案件统计 ============
-export async function getStatistics(): Promise<{ total: number; statusCounts: Record<string, number> }> {
-  const cases = await getAll();
-  const statusCounts: Record<string, number> = {};
-  cases.forEach((c) => {
-    statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
-  });
+function convertDBCaseToCase(dbCase: DBCase, dbFollowUps?: DBFollowUp[], dbFiles?: DBCaseFile[], dbHistory?: DBCaseHistory[]): Case {
   return {
-    total: cases.length,
-    statusCounts,
+    id: dbCase.id,
+    batchNo: dbCase.batchNo ?? undefined,
+    loanNo: dbCase.loanNo ?? undefined,
+    userId: dbCase.userId ?? undefined,
+    borrowerName: dbCase.borrowerName ?? undefined,
+    productName: dbCase.productName ?? undefined,
+    platform: dbCase.platform ?? undefined,
+    paymentCompany: dbCase.paymentCompany ?? undefined,
+    funder: dbCase.funder ?? undefined,
+    fundCategory: dbCase.fundCategory ?? undefined,
+    category: dbCase.category ?? undefined,
+    overdueStage: dbCase.overdueStage ?? undefined,
+    status: dbCase.status,
+    loanStatus: dbCase.loanStatus ?? undefined,
+    isLocked: dbCase.isLocked ?? undefined,
+    fiveLevelClassification: dbCase.fiveLevelClassification ?? undefined,
+    riskLevel: dbCase.riskLevel ?? undefined,
+    isExtended: dbCase.isExtended ?? undefined,
+    currency: dbCase.currency ?? undefined,
+    loanAmount: dbCase.loanAmount ? Number(dbCase.loanAmount) : undefined,
+    totalLoanAmount: dbCase.totalLoanAmount ? Number(dbCase.totalLoanAmount) : undefined,
+    totalOutstandingBalance: Number(dbCase.totalOutstandingBalance),
+    totalRepaidAmount: dbCase.totalRepaidAmount ? Number(dbCase.totalRepaidAmount) : undefined,
+    outstandingBalance: dbCase.outstandingBalance ? Number(dbCase.outstandingBalance) : undefined,
+    overdueAmount: Number(dbCase.overdueAmount),
+    overduePrincipal: dbCase.overduePrincipal ? Number(dbCase.overduePrincipal) : undefined,
+    overdueInterest: dbCase.overdueInterest ? Number(dbCase.overdueInterest) : undefined,
+    repaidAmount: dbCase.repaidAmount ? Number(dbCase.repaidAmount) : undefined,
+    repaidPrincipal: dbCase.repaidPrincipal ? Number(dbCase.repaidPrincipal) : undefined,
+    repaidInterest: dbCase.repaidInterest ? Number(dbCase.repaidInterest) : undefined,
+    compensationAmount: dbCase.compensationAmount ? Number(dbCase.compensationAmount) : undefined,
+    loanTerm: dbCase.loanTerm ?? undefined,
+    loanTermUnit: dbCase.loanTermUnit ?? undefined,
+    loanDate: dbCase.loanDate ?? undefined,
+    dueDate: dbCase.dueDate ?? undefined,
+    overdueDays: dbCase.overdueDays ?? undefined,
+    overdueStartTime: dbCase.overdueStartTime ?? undefined,
+    firstOverdueTime: dbCase.firstOverdueTime ?? undefined,
+    compensationDate: dbCase.compensationDate ?? undefined,
+    companyName: dbCase.companyName ?? undefined,
+    companyAddress: dbCase.companyAddress ?? undefined,
+    homeAddress: dbCase.homeAddress ?? undefined,
+    householdAddress: dbCase.householdAddress ?? undefined,
+    borrowerPhone: dbCase.borrowerPhone ?? undefined,
+    registeredPhone: dbCase.registeredPhone ?? undefined,
+    contactInfo: dbCase.contactInfo ?? undefined,
+    assignedSales: dbCase.assignedSales ?? undefined,
+    assignedRiskControl: dbCase.assignedRiskControl ?? undefined,
+    assignedPostLoan: dbCase.assignedPostLoan ?? undefined,
+    assigneeName: dbCase.assigneeName ?? undefined,
+    createdAt: dbCase.createdAt,
+    updatedAt: dbCase.updatedAt,
+    followups: dbFollowUps ? dbFollowUps.map(convertDBFollowUpToFollowUp) : undefined,
+    files: dbFiles ? dbFiles.map(convertDBCaseFileToCaseFile) : undefined
   };
 }
 
-// ============ 批量导入API ============
-export async function batchImport(casesData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<Case[]> {
-  const cases = await getAll();
-  const newCases: Case[] = casesData.map((data) => ({
-    ...data,
-    id: uuidv4(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }));
-  cases.push(...newCases);
-  writeToFile(cases);
-  return newCases;
+function convertDBFollowUpToFollowUp(dbFollowUp: DBFollowUp): FollowUp {
+  return {
+    id: dbFollowUp.id,
+    follower: dbFollowUp.follower,
+    followTime: dbFollowUp.followTime,
+    followType: dbFollowUp.followType as 'online' | 'offline',
+    contact: dbFollowUp.contact as 'legal_representative' | 'actual_controller',
+    followResult: dbFollowUp.followResult as 'normal_repayment' | 'warning_rise' | 'overdue_promise',
+    followRecord: dbFollowUp.followRecord,
+    fileInfo: dbFollowUp.fileInfo as (string | CaseFile)[] | undefined,
+    createdAt: dbFollowUp.createdAt,
+    createdBy: dbFollowUp.createdBy
+  };
 }
 
-// ============ 清空缓存API（用于数据变更后强制刷新） ============
+function convertDBCaseFileToCaseFile(dbFile: DBCaseFile): CaseFile {
+  return {
+    id: dbFile.id,
+    name: dbFile.name,
+    type: dbFile.type as 'image' | 'document' | 'other',
+    url: dbFile.url ?? undefined,
+    data: dbFile.data ?? undefined,
+    uploadTime: dbFile.uploadTime,
+    uploadBy: dbFile.uploadBy ?? undefined
+  };
+}
+
+function convertDBCaseHistoryToCaseHistory(dbHistory: DBCaseHistory): CaseHistory {
+  return {
+    id: dbHistory.id,
+    caseId: dbHistory.caseId,
+    userId: dbHistory.userId ?? undefined,
+    userName: dbHistory.userName,
+    modifiedAt: dbHistory.modifiedAt,
+    fieldName: dbHistory.fieldName,
+    fieldLabel: dbHistory.fieldLabel ?? undefined,
+    oldValue: dbHistory.oldValue,
+    newValue: dbHistory.newValue
+  };
+}
+
+// ============= 基础查询函数 =============
+
+export async function getAll(): Promise<Case[]> {
+  const dbCases = await db.select().from(cases).orderBy(desc(cases.updatedAt));
+  
+  // 获取所有关联数据
+  const caseIds = dbCases.map(c => c.id);
+  const [dbFollowUps, dbFiles] = await Promise.all([
+    db.select().from(followups).where(sql`${followups.caseId} in ${caseIds}`),
+    db.select().from(caseFiles).where(sql`${caseFiles.caseId} in ${caseIds}`)
+  ]);
+
+  // 组织关联数据
+  const followUpsByCaseId = new Map<string, DBFollowUp[]>();
+  const filesByCaseId = new Map<string, DBCaseFile[]>();
+
+  for (const fu of dbFollowUps) {
+    if (!followUpsByCaseId.has(fu.caseId)) followUpsByCaseId.set(fu.caseId, []);
+    followUpsByCaseId.get(fu.caseId)!.push(fu);
+  }
+
+  for (const f of dbFiles) {
+    if (!filesByCaseId.has(f.caseId)) filesByCaseId.set(f.caseId, []);
+    filesByCaseId.get(f.caseId)!.push(f);
+  }
+
+  return dbCases.map(dbCase => convertDBCaseToCase(
+    dbCase,
+    followUpsByCaseId.get(dbCase.id),
+    filesByCaseId.get(dbCase.id)
+  ));
+}
+
+export async function getAllLight(): Promise<Case[]> {
+  const dbCases = await db.select().from(cases).orderBy(desc(cases.updatedAt));
+  return dbCases.map(dbCase => convertDBCaseToCase(dbCase));
+}
+
+export async function getById(id: string): Promise<Case | null> {
+  const [dbCase] = await db.select().from(cases).where(eq(cases.id, id));
+  if (!dbCase) return null;
+
+  const [dbFollowUps, dbFiles, dbHistory] = await Promise.all([
+    db.select().from(followups).where(eq(followups.caseId, id)).orderBy(desc(followups.followTime)),
+    db.select().from(caseFiles).where(eq(caseFiles.caseId, id)).orderBy(desc(caseFiles.uploadTime)),
+    db.select().from(caseHistory).where(eq(caseHistory.caseId, id)).orderBy(desc(caseHistory.modifiedAt))
+  ]);
+
+  return convertDBCaseToCase(dbCase, dbFollowUps, dbFiles);
+}
+
+export async function get(id: string): Promise<Case | null> {
+  return getById(id);
+}
+
+export async function getByUserId(userId: string): Promise<Case[]> {
+  const dbCases = await db.select().from(cases).where(eq(cases.userId, userId)).orderBy(desc(cases.updatedAt));
+  return dbCases.map(dbCase => convertDBCaseToCase(dbCase));
+}
+
+export async function getByLoanNo(loanNo: string): Promise<Case | null> {
+  const [dbCase] = await db.select().from(cases).where(eq(cases.loanNo, loanNo));
+  if (!dbCase) return null;
+  return convertDBCaseToCase(dbCase);
+}
+
+// ============= 基础修改函数 =============
+
+export async function create(caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt' | 'followups' | 'files' | 'history'>): Promise<Case> {
+  const now = new Date().toISOString();
+  const id = uuidv4();
+
+  const [newCase] = await db.insert(cases).values({
+    id,
+    ...caseData as any,
+    createdAt: now,
+    updatedAt: now
+  }).returning();
+
+  return convertDBCaseToCase(newCase);
+}
+
+export async function update(id: string, updates: Partial<Omit<Case, 'id' | 'createdAt' | 'followups' | 'files' | 'history'>>, options?: { userId?: string; userName?: string; skipHistory?: boolean }): Promise<Case> {
+  const now = new Date().toISOString();
+  
+  // 先获取当前案件
+  const currentCase = await getById(id);
+  if (!currentCase) throw new Error(`案件不存在: ${id}`);
+
+  // 更新案件
+  const [updatedCase] = await db.update(cases)
+    .set({ ...updates as any, updatedAt: now })
+    .where(eq(cases.id, id))
+    .returning();
+
+  // 记录历史
+  if (!options?.skipHistory) {
+    for (const [key, value] of Object.entries(updates)) {
+      const oldValue = (currentCase as any)[key];
+      if (oldValue !== value) {
+        await db.insert(caseHistory).values({
+          id: uuidv4(),
+          caseId: id,
+          userId: options?.userId,
+          userName: options?.userName || 'System',
+          modifiedAt: now,
+          fieldName: key,
+          fieldLabel: key,
+          oldValue: oldValue,
+          newValue: value
+        });
+      }
+    }
+  }
+
+  return convertDBCaseToCase(updatedCase);
+}
+
+export async function softDelete(id: string, options?: { userId?: string; userName?: string }): Promise<Case> {
+  return update(id, { status: 'deleted' }, options);
+}
+
+// ============= 跟进记录函数 =============
+
+export async function addFollowUp(caseId: string, followUpData: Omit<FollowUp, 'id' | 'createdAt'>): Promise<Case> {
+  const now = new Date().toISOString();
+  const followUpId = uuidv4();
+
+  await db.insert(followups).values({
+    id: followUpId,
+    caseId,
+    ...followUpData,
+    createdAt: now
+  });
+
+  // 更新案件的更新时间
+  await db.update(cases).set({ updatedAt: now }).where(eq(cases.id, caseId));
+
+  const updatedCase = await getById(caseId);
+  if (!updatedCase) throw new Error(`案件不存在: ${caseId}`);
+  return updatedCase;
+}
+
+// ============= 文件函数 =============
+
+export async function addFile(caseId: string, fileData: Omit<CaseFile, 'id'>): Promise<Case> {
+  const fileId = uuidv4();
+
+  await db.insert(caseFiles).values({
+    id: fileId,
+    caseId,
+    ...fileData
+  });
+
+  // 更新案件的更新时间
+  const now = new Date().toISOString();
+  await db.update(cases).set({ updatedAt: now }).where(eq(cases.id, caseId));
+
+  const updatedCase = await getById(caseId);
+  if (!updatedCase) throw new Error(`案件不存在: ${caseId}`);
+  return updatedCase;
+}
+
+// ============= 历史记录函数 =============
+
+export async function getHistory(caseId: string): Promise<CaseHistory[]> {
+  const dbHistory = await db.select().from(caseHistory)
+    .where(eq(caseHistory.caseId, caseId))
+    .orderBy(desc(caseHistory.modifiedAt));
+  return dbHistory.map(convertDBCaseHistoryToCaseHistory);
+}
+
+export async function addHistory(record: Omit<CaseHistory, 'id'>): Promise<CaseHistory> {
+  const id = uuidv4();
+  const [newRecord] = await db.insert(caseHistory).values({ id, ...record }).returning();
+  return convertDBCaseHistoryToCaseHistory(newRecord);
+}
+
+// ============= 缓存函数 =============
+
 export function clearCache(): void {
   cachedCases = null;
-  cachedCasesLight = null;
-  console.log('[Cache] 已清空缓存');
+  lastModifiedTime = 0;
 }
 
-// ============ 导出对象（保持向后兼容） ============
+// ============= 导出对象（保持兼容） =============
+
 export const caseStorage = {
   getAll,
   getAllLight,
   getById,
+  get,
   getByUserId,
   getByLoanNo,
-  query,
   create,
   update,
-  delete: deleteCase,
-  deleteCase,
-  getRecycleBin,
-  restoreFromRecycleBin,
-  restore,
-  permanentDelete,
-  getStatistics,
-  batchImport,
+  softDelete,
+  delete: softDelete,
+  addFollowUp,
+  addFile,
+  getHistory,
+  addHistory,
   clearCache,
-  getCaseHistory
+  query,
+  getRecycleBin,
+  restore,
+  permanentDelete
 };
 
+export default caseStorage;
 
+// ============= 兼容函数（保持向后兼容） =============
+
+export function stripLargeFields(caseList: Case[]): Case[] {
+  return caseList.map(c => ({
+    ...c,
+    files: undefined,
+    followups: undefined,
+    history: undefined
+  }));
+}
+
+export function stripLargeFieldsFromPartial(caseData: Partial<Case>): Partial<Case> {
+  const { files, followups, ...rest } = caseData;
+  return rest;
+}
+
+export function getCaseHistory(caseId: string): CaseHistory[] {
+  console.warn('getCaseHistory is deprecated, use getHistory instead');
+  return [];
+}
+
+export async function query(): Promise<Case[]> {
+  return getAll();
+}
+
+export async function getRecycleBin(): Promise<Case[]> {
+  const dbCases = await db.select().from(cases).where(eq(cases.status, 'deleted'));
+  return dbCases.map(dbCase => convertDBCaseToCase(dbCase));
+}
+
+export async function restore(id: string): Promise<Case> {
+  return update(id, { status: 'pending_assign' });
+}
+
+export async function permanentDelete(id: string): Promise<void> {
+  await db.delete(caseHistory).where(eq(caseHistory.caseId, id));
+  await db.delete(caseFiles).where(eq(caseFiles.caseId, id));
+  await db.delete(followups).where(eq(followups.caseId, id));
+  await db.delete(cases).where(eq(cases.id, id));
+}

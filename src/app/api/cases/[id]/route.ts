@@ -20,7 +20,10 @@ export async function GET(
 
     // 🛡️ 默认剥离大字段（base64文件数据），除非明确请求完整数据
     const includeFiles = req.nextUrl.searchParams.get('includeFiles') === 'true';
-    const responseData = includeFiles ? caseData : stripLargeFields(caseData);
+    const responseData = includeFiles ? caseData : (() => {
+      const { files, followups, ...rest } = caseData;
+      return rest;
+    })();
 
     const response = NextResponse.json({
       success: true,

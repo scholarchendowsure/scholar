@@ -667,9 +667,8 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
         followupRecordForSync = followupRecord;
 
         // 3. 添加跟进记录到当前案件
-        const updatedFollowups = [...(caseData.followups || []), followupRecord];
-        console.log(`[Feishu Callback] 添加跟进记录到案件 ${caseId}, 原有${caseData.followups?.length || 0}条, 新增后${updatedFollowups.length}条`);
-        await caseStorage.update(caseId, { followups: updatedFollowups });
+        console.log(`[Feishu Callback] 添加跟进记录到案件 ${caseId}`);
+        await caseStorage.addFollowUp(caseId, followupRecord);
         
         // 4. 同步到相同用户ID的所有案件
         if (caseData.userId) {
@@ -678,8 +677,7 @@ async function handleCardCallback(body: Record<string, unknown>): Promise<Respon
           
           for (const relatedCase of otherCases) {
             try {
-              const relatedFollowups = [...(relatedCase.followups || []), followupRecord];
-              await caseStorage.update(relatedCase.id, { followups: relatedFollowups });
+              await caseStorage.addFollowUp(relatedCase.id, followupRecord);
               syncedToSameUserCount++;
               console.log(`✅ 已同步到案件 ${relatedCase.id}`);
             } catch (err) {

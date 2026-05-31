@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getHSBCLoansByBatchDate, saveHSBCLoans } from '@/storage/database/hsbc-loan-storage';
+import { getHSBCLoansByBatchDate, saveHSBCLoans, deleteHSBCBatch } from '@/storage/database/hsbc-loan-storage';
 import type { HSBCLoan } from '@/lib/hsbc-loan';
 
 // 解析中文日期格式 "2024年1月29日"
@@ -298,10 +298,11 @@ export async function POST(request: NextRequest) {
     // 根据导入模式处理
     if (mode === 'merge') {
       // 增量模式：使用 upsert 更新相同 loanReference 的记录，不删除其他数据
-      await saveHSBCLoans(parsedLoans, 'merge');
+      await saveHSBCLoans(parsedLoans);
     } else {
       // 覆盖模式：删除该批次所有旧数据，插入新数据
-      await saveHSBCLoans(parsedLoans, 'replace');
+      await deleteHSBCBatch(importDate);
+      await saveHSBCLoans(parsedLoans);
     }
 
     const currentLoans = await getHSBCLoansByBatchDate(importDate);
