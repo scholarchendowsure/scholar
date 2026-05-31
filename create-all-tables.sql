@@ -1,4 +1,4 @@
--- 贷后案件管理系统 - 数据库表创建脚本
+-- 贷后案件管理系统 - 数据库表创建脚本（完全匹配 schema.ts）
 
 -- 删除旧表（级联删除依赖）
 DROP TABLE IF EXISTS case_history CASCADE;
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS health_check (
     details JSONB
 );
 
--- 2. 汇丰贷款批次表
+-- 2. 汇丰贷款批次表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS hsbc_loan_batches (
     id SERIAL PRIMARY KEY,
     batch_date DATE NOT NULL,
@@ -29,56 +29,55 @@ CREATE TABLE IF NOT EXISTS hsbc_loan_batches (
 
 CREATE INDEX IF NOT EXISTS hsbc_loan_batches_batch_date_idx ON hsbc_loan_batches(batch_date);
 
--- 3. 汇丰贷款表（匹配 schema.ts）
+-- 3. 汇丰贷款表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS hsbc_loans (
     id TEXT PRIMARY KEY,
-    loan_reference TEXT,
-    merchant_id TEXT,
+    loan_reference TEXT NOT NULL,
+    merchant_id TEXT NOT NULL,
     merchant_name TEXT,
-    borrower_name TEXT,
+    borrower_name TEXT NOT NULL,
     loan_start_date TEXT,
     loan_date TEXT,
     loan_currency TEXT,
     loan_amount NUMERIC,
-    loan_interest NUMERIC,
-    total_interest_rate NUMERIC,
-    loan_tenor INTEGER,
+    loan_interest TEXT,
+    total_interest_rate REAL,
+    loan_tenor TEXT,
     maturity_date TEXT,
-    repayment_schedule TEXT,
+    repayment_schedule JSONB,
     balance NUMERIC,
     pastdue_amount NUMERIC,
     total_repaid NUMERIC,
-    freeze_account_requested BOOLEAN,
-    force_debit_requested BOOLEAN,
-    approval_from_rm BOOLEAN,
-    confirmation_freeze_account BOOLEAN,
-    confirmation_force_debit BOOLEAN,
+    freeze_account_requested TEXT,
+    force_debit_requested TEXT,
+    approval_from_rm TEXT,
+    confirmation_freeze_account TEXT,
+    confirmation_force_debit TEXT,
     remarks TEXT,
     batch_date TEXT,
     status TEXT,
     overdue_days INTEGER,
     assigned_to TEXT,
-    follow_up_count INTEGER DEFAULT 0,
+    follow_up_count INTEGER,
     last_follow_up_date TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    created_at TEXT,
+    updated_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS hsbc_loans_batch_date_idx ON hsbc_loans(batch_date);
 CREATE INDEX IF NOT EXISTS hsbc_loans_loan_reference_idx ON hsbc_loans(loan_reference);
 CREATE INDEX IF NOT EXISTS hsbc_loans_status_idx ON hsbc_loans(status);
 
--- 4. 商户销售映射表
+-- 4. 商户销售映射表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS merchant_sales_mappings (
     id SERIAL PRIMARY KEY,
-    merchant_name TEXT NOT NULL,
-    sales_name TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    merchant_name VARCHAR(200) NOT NULL,
+    sales_name VARCHAR(100) NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS merchant_sales_mappings_merchant_name_idx ON merchant_sales_mappings(merchant_name);
 
--- 5. 案件表（匹配 schema.ts）
+-- 5. 案件表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS cases (
     id TEXT PRIMARY KEY,
     batch_no TEXT NOT NULL,
@@ -94,17 +93,17 @@ CREATE TABLE IF NOT EXISTS cases (
     overdue_stage TEXT,
     status TEXT NOT NULL,
     loan_status TEXT,
-    is_locked BOOLEAN DEFAULT false,
+    is_locked BOOLEAN,
     five_level_classification TEXT,
     risk_level TEXT,
-    is_extended BOOLEAN DEFAULT false,
+    is_extended BOOLEAN,
     currency TEXT,
     loan_amount NUMERIC,
     total_loan_amount NUMERIC,
-    total_outstanding_balance NUMERIC NOT NULL DEFAULT 0,
+    total_outstanding_balance NUMERIC NOT NULL,
     total_repaid_amount NUMERIC,
     outstanding_balance NUMERIC,
-    overdue_amount NUMERIC NOT NULL DEFAULT 0,
+    overdue_amount NUMERIC NOT NULL,
     overdue_principal NUMERIC,
     overdue_interest NUMERIC,
     repaid_amount NUMERIC,
@@ -115,7 +114,7 @@ CREATE TABLE IF NOT EXISTS cases (
     loan_term_unit TEXT,
     loan_date TEXT,
     due_date TEXT,
-    overdue_days INTEGER NOT NULL DEFAULT 0,
+    overdue_days INTEGER NOT NULL,
     overdue_start_time TEXT,
     first_overdue_time TEXT,
     compensation_date TEXT,
@@ -142,7 +141,7 @@ CREATE INDEX IF NOT EXISTS cases_user_id_idx ON cases(user_id);
 CREATE INDEX IF NOT EXISTS cases_status_idx ON cases(status);
 CREATE INDEX IF NOT EXISTS cases_deleted_at_idx ON cases(deleted_at);
 
--- 6. 跟进记录表（匹配 schema.ts）
+-- 6. 跟进记录表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS followups (
     id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -160,7 +159,7 @@ CREATE TABLE IF NOT EXISTS followups (
 CREATE INDEX IF NOT EXISTS followups_case_id_idx ON followups(case_id);
 CREATE INDEX IF NOT EXISTS followups_follow_time_idx ON followups(follow_time);
 
--- 7. 案件文件表（匹配 schema.ts）
+-- 7. 案件文件表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS case_files (
     id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -176,7 +175,7 @@ CREATE TABLE IF NOT EXISTS case_files (
 CREATE INDEX IF NOT EXISTS case_files_case_id_idx ON case_files(case_id);
 CREATE INDEX IF NOT EXISTS case_files_follow_up_id_idx ON case_files(follow_up_id);
 
--- 8. 案件历史记录表（匹配 schema.ts）
+-- 8. 案件历史记录表（完全匹配 schema.ts）
 CREATE TABLE IF NOT EXISTS case_history (
     id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
