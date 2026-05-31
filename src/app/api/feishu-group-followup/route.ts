@@ -448,13 +448,7 @@ async function processGroupFollowup(event: Record<string, unknown>) {
     let successCount = 0;
     for (const userCase of userCases) {
       try {
-        const existingFollowups = userCase.followups || [];
-        const updatedCase = {
-          ...userCase,
-          followups: [...existingFollowups, followUp]
-        };
-        
-        await caseStorage.update(updatedCase.id, updatedCase, { skipHistory: true });
+        await caseStorage.addFollowUp(userCase.id, followUp);
         successCount++;
       } catch (error) {
         console.error("❌ 更新案件失败:", error);
