@@ -1,16 +1,16 @@
-import { Case, FollowUp, CaseFile, CaseHistory } from '@/types/case';
 import { db } from '@/lib/db/client';
 import { cases, followups, caseFiles, caseHistory } from './shared/schema';
-import { eq, desc, and, sql } from 'drizzle-orm';
-import { v4 as uuidv4 } from 'uuid';
+import { eq, desc, and, inArray } from 'drizzle-orm';
+import type { Case, FollowUp, CaseFile, CaseHistory } from '@/types/case';
 
 // 内存缓存
 let cachedCases: Case[] | null = null;
-let lastModifiedTime: number = 0;
+let lastFetchTime = 0;
+const CACHE_TTL = 5000; // 5秒缓存
 
 // 生成唯一ID
 function generateId(): string {
-  return uuidv4();
+  return 'case_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
 // 获取当前时间字符串
@@ -18,232 +18,231 @@ function getCurrentTime(): string {
   return new Date().toISOString();
 }
 
-// 从数据库读取所有案件
-async function readFromDatabase(): Promise<Case[]> {
-  const dbCases = await db.select().from(cases).orderBy(desc(cases.createdAt));
-  
-  const result: Case[] = [];
-  
-  for (const dbCase of dbCases) {
-    // 获取跟进记录
-    const dbFollowups = await db.select().from(followups).where(eq(followups.caseId, dbCase.id)).orderBy(desc(followups.followTime));
-    
-    // 获取案件文件
-    const dbCaseFiles = await db.select().from(caseFiles).where(eq(caseFiles.caseId, dbCase.id)).orderBy(desc(caseFiles.createdAt));
-    
-    // 转换为Case类型
-    const caseData: Case = {
-      id: dbCase.id,
-      batchNo: dbCase.batchNo,
-      loanNo: dbCase.loanNo,
-      userId: dbCase.userId,
-      borrowerName: dbCase.borrowerName,
-      productName: dbCase.productName ?? undefined,
-      platform: dbCase.platform ?? undefined,
-      paymentCompany: dbCase.paymentCompany ?? undefined,
-      funder: dbCase.funder ?? undefined,
-      fundCategory: dbCase.fundCategory ?? undefined,
-      category: dbCase.category ?? undefined,
-      overdueStage: dbCase.overdueStage ?? undefined,
-      status: dbCase.status,
-      loanStatus: dbCase.loanStatus ?? undefined,
-      isLocked: dbCase.isLocked ?? undefined,
-      fiveLevelClassification: dbCase.fiveLevelClassification ?? undefined,
-      riskLevel: dbCase.riskLevel ?? undefined,
-      isExtended: dbCase.isExtended ?? undefined,
-      currency: dbCase.currency ?? undefined,
-      loanAmount: dbCase.loanAmount ? Number(dbCase.loanAmount) : undefined,
-      totalLoanAmount: dbCase.totalLoanAmount ? Number(dbCase.totalLoanAmount) : undefined,
-      totalOutstandingBalance: dbCase.totalOutstandingBalance ? Number(dbCase.totalOutstandingBalance) : 0,
-      totalRepaidAmount: dbCase.totalRepaidAmount ? Number(dbCase.totalRepaidAmount) : undefined,
-      outstandingBalance: dbCase.outstandingBalance ? Number(dbCase.outstandingBalance) : undefined,
-      overdueAmount: dbCase.overdueAmount ? Number(dbCase.overdueAmount) : 0,
-      overduePrincipal: dbCase.overduePrincipal ? Number(dbCase.overduePrincipal) : undefined,
-      overdueInterest: dbCase.overdueInterest ? Number(dbCase.overdueInterest) : undefined,
-      repaidAmount: dbCase.repaidAmount ? Number(dbCase.repaidAmount) : undefined,
-      repaidPrincipal: dbCase.repaidPrincipal ? Number(dbCase.repaidPrincipal) : undefined,
-      repaidInterest: dbCase.repaidInterest ? Number(dbCase.repaidInterest) : undefined,
-      compensationAmount: dbCase.compensationAmount ? Number(dbCase.compensationAmount) : undefined,
-      loanTerm: dbCase.loanTerm ?? undefined,
-      loanTermUnit: dbCase.loanTermUnit ?? undefined,
-      loanDate: dbCase.loanDate ?? undefined,
-      dueDate: dbCase.dueDate ?? undefined,
-      overdueDays: dbCase.overdueDays ?? 0,
-      overdueStartTime: dbCase.overdueStartTime ?? undefined,
-      firstOverdueTime: dbCase.firstOverdueTime ?? undefined,
-      compensationDate: dbCase.compensationDate ?? undefined,
-      companyName: dbCase.companyName ?? undefined,
-      companyAddress: dbCase.companyAddress ?? undefined,
-      homeAddress: dbCase.homeAddress ?? undefined,
-      householdAddress: dbCase.householdAddress ?? undefined,
-      borrowerPhone: dbCase.borrowerPhone ?? undefined,
-      registeredPhone: dbCase.registeredPhone ?? undefined,
-      contactInfo: dbCase.contactInfo ?? undefined,
-      assignedSales: dbCase.assignedSales ?? undefined,
-      assignedRiskControl: dbCase.assignedRiskControl ?? undefined,
-      assignedPostLoan: dbCase.assignedPostLoan ?? undefined,
-      assigneeName: dbCase.assigneeName ?? undefined,
-      createdAt: dbCase.createdAt.toISOString(),
-      updatedAt: dbCase.updatedAt.toISOString(),
-      followups: dbFollowups.map(fu => ({
-        id: fu.id,
-        follower: fu.follower,
-        followTime: fu.followTime,
-        followType: fu.followType as 'online' | 'offline' | 'other',
-        contact: fu.contact as 'legal_representative' | 'actual_controller' | 'other',
-        followResult: fu.followResult as 'normal_repayment' | 'warning_rise' | 'overdue_promise' | 'other',
-        followRecord: fu.followRecord,
-        fileInfo: fu.fileInfo as (string | CaseFile)[],
-        createdAt: fu.createdAt.toISOString(),
-        createdBy: fu.createdBy,
-      })),
-      files: dbCaseFiles.map(cf => ({
-        id: cf.id,
-        name: cf.name,
-        type: cf.type as 'image' | 'document' | 'other',
-        url: cf.url ?? undefined,
-        data: cf.data ?? undefined,
-        uploadTime: cf.uploadTime,
-        uploadBy: cf.uploadBy,
-      })),
-    };
-    
-    result.push(caseData);
-  }
-  
-  return result;
+// 转换数据库案件到类型
+function dbCaseToCase(dbCase: any): Case {
+  return {
+    id: dbCase.id,
+    batchNo: dbCase.batchNo,
+    loanNo: dbCase.loanNo,
+    userId: dbCase.userId,
+    borrowerName: dbCase.borrowerName,
+    status: dbCase.status,
+    totalOutstandingBalance: dbCase.totalOutstandingBalance,
+    overdueAmount: dbCase.overdueAmount,
+    overdueDays: dbCase.overdueDays,
+    productName: dbCase.productName,
+    funder: dbCase.funder,
+    fundCategory: dbCase.fundCategory,
+    isExtended: dbCase.isExtended,
+    currency: dbCase.currency,
+    loanAmount: dbCase.loanAmount,
+    outstandingBalance: dbCase.outstandingBalance,
+    loanTerm: dbCase.loanTerm,
+    loanTermUnit: dbCase.loanTermUnit,
+    loanDate: dbCase.loanDate,
+    dueDate: dbCase.dueDate,
+    companyName: dbCase.companyName,
+    borrowerPhone: dbCase.borrowerPhone,
+    assignedSales: dbCase.assignedSales,
+    assignedPostLoan: dbCase.assignedPostLoan,
+    createdAt: dbCase.createdAt.toISOString(),
+    updatedAt: dbCase.updatedAt.toISOString(),
+    followups: [],
+    files: []
+  };
 }
 
-// 写入数据库
-async function writeToDatabase(caseData: Case[]): Promise<void> {
-  // 删除所有旧数据
-  await db.delete(caseHistory);
-  await db.delete(caseFiles);
-  await db.delete(followups);
-  await db.delete(cases);
-  
-  // 插入新数据
-  for (const c of caseData) {
-    // 插入案件
-    await db.insert(cases).values({
-      id: c.id,
-      batchNo: c.batchNo,
-      loanNo: c.loanNo,
-      userId: c.userId,
-      borrowerName: c.borrowerName,
-      productName: c.productName ?? null,
-      platform: c.platform ?? null,
-      paymentCompany: c.paymentCompany ?? null,
-      funder: c.funder ?? null,
-      fundCategory: c.fundCategory ?? null,
-      category: c.category ?? null,
-      overdueStage: c.overdueStage ?? null,
-      status: c.status,
-      loanStatus: c.loanStatus ?? null,
-      isLocked: c.isLocked ?? null,
-      fiveLevelClassification: c.fiveLevelClassification ?? null,
-      riskLevel: c.riskLevel ?? null,
-      isExtended: c.isExtended ?? null,
-      currency: c.currency ?? null,
-      loanAmount: c.loanAmount ? String(c.loanAmount) : null,
-      totalLoanAmount: c.totalLoanAmount ? String(c.totalLoanAmount) : null,
-      totalOutstandingBalance: String(c.totalOutstandingBalance),
-      totalRepaidAmount: c.totalRepaidAmount ? String(c.totalRepaidAmount) : null,
-      outstandingBalance: c.outstandingBalance ? String(c.outstandingBalance) : null,
-      overdueAmount: String(c.overdueAmount),
-      overduePrincipal: c.overduePrincipal ? String(c.overduePrincipal) : null,
-      overdueInterest: c.overdueInterest ? String(c.overdueInterest) : null,
-      repaidAmount: c.repaidAmount ? String(c.repaidAmount) : null,
-      repaidPrincipal: c.repaidPrincipal ? String(c.repaidPrincipal) : null,
-      repaidInterest: c.repaidInterest ? String(c.repaidInterest) : null,
-      compensationAmount: c.compensationAmount ? String(c.compensationAmount) : null,
-      loanTerm: c.loanTerm ?? null,
-      loanTermUnit: c.loanTermUnit ?? null,
-      loanDate: c.loanDate ?? null,
-      dueDate: c.dueDate ?? null,
-      overdueDays: c.overdueDays,
-      overdueStartTime: c.overdueStartTime ?? null,
-      firstOverdueTime: c.firstOverdueTime ?? null,
-      compensationDate: c.compensationDate ?? null,
-      companyName: c.companyName ?? null,
-      companyAddress: c.companyAddress ?? null,
-      homeAddress: c.homeAddress ?? null,
-      householdAddress: c.householdAddress ?? null,
-      borrowerPhone: c.borrowerPhone ?? null,
-      registeredPhone: c.registeredPhone ?? null,
-      contactInfo: c.contactInfo ?? null,
-      assignedSales: c.assignedSales ?? null,
-      assignedRiskControl: c.assignedRiskControl ?? null,
-      assignedPostLoan: c.assignedPostLoan ?? null,
-      assigneeName: c.assigneeName ?? null,
-      createdAt: new Date(c.createdAt),
-      updatedAt: new Date(c.updatedAt),
-    });
-    
-    // 插入跟进记录
-    if (c.followups) {
-      for (const fu of c.followups) {
-        await db.insert(followups).values({
-          id: fu.id,
-          caseId: c.id,
-          follower: fu.follower,
-          followTime: fu.followTime,
-          followType: fu.followType,
-          contact: fu.contact,
-          followResult: fu.followResult,
-          followRecord: fu.followRecord,
-          fileInfo: fu.fileInfo as any,
-          createdAt: new Date(fu.createdAt),
-          createdBy: fu.createdBy,
-        });
-      }
-    }
-    
-    // 插入文件
-    if (c.files) {
-      for (const cf of c.files) {
-        await db.insert(caseFiles).values({
-          id: cf.id,
-          caseId: c.id,
-          followupId: null,
-          name: cf.name,
-          type: cf.type,
-          url: cf.url ?? null,
-          data: cf.data ?? null,
-          uploadTime: cf.uploadTime,
-          uploadBy: cf.uploadBy,
-          createdAt: new Date(),
-        });
-      }
-    }
-  }
+// 转换类型案件到数据库
+function caseToDbCase(caseData: Case): any {
+  return {
+    id: caseData.id,
+    batchNo: caseData.batchNo,
+    loanNo: caseData.loanNo,
+    userId: caseData.userId,
+    borrowerName: caseData.borrowerName,
+    status: caseData.status,
+    totalOutstandingBalance: caseData.totalOutstandingBalance,
+    overdueAmount: caseData.overdueAmount,
+    overdueDays: caseData.overdueDays,
+    productName: caseData.productName,
+    funder: caseData.funder,
+    fundCategory: caseData.fundCategory,
+    isExtended: caseData.isExtended,
+    currency: caseData.currency,
+    loanAmount: caseData.loanAmount,
+    outstandingBalance: caseData.outstandingBalance,
+    loanTerm: caseData.loanTerm,
+    loanTermUnit: caseData.loanTermUnit,
+    loanDate: caseData.loanDate,
+    dueDate: caseData.dueDate,
+    companyName: caseData.companyName,
+    borrowerPhone: caseData.borrowerPhone,
+    assignedSales: caseData.assignedSales,
+    assignedPostLoan: caseData.assignedPostLoan,
+    createdAt: new Date(caseData.createdAt),
+    updatedAt: new Date(caseData.updatedAt)
+  };
+}
+
+// 转换数据库跟进到类型
+function dbFollowupToFollowup(dbFollowup: any): FollowUp {
+  return {
+    id: dbFollowup.id,
+    caseId: dbFollowup.caseId,
+    userId: dbFollowup.userId,
+    userName: dbFollowup.userName,
+    content: dbFollowup.content,
+    type: dbFollowup.type,
+    createdAt: dbFollowup.createdAt.toISOString(),
+    files: [],
+    location: dbFollowup.location,
+    duration: dbFollowup.duration,
+    nextFollowUpDate: dbFollowup.nextFollowUpDate
+  };
+}
+
+// 转换类型跟进到数据库
+function followupToDbFollowup(followup: FollowUp): any {
+  return {
+    id: followup.id,
+    caseId: followup.caseId,
+    userId: followup.userId,
+    userName: followup.userName,
+    content: followup.content,
+    type: followup.type,
+    createdAt: new Date(followup.createdAt),
+    location: followup.location,
+    duration: followup.duration,
+    nextFollowUpDate: followup.nextFollowUpDate
+  };
+}
+
+// 转换数据库文件到类型
+function dbFileToFile(dbFile: any): CaseFile {
+  return {
+    id: dbFile.id,
+    caseId: dbFile.caseId,
+    followUpId: dbFile.followUpId,
+    fileName: dbFile.fileName,
+    fileType: dbFile.fileType,
+    fileSize: dbFile.fileSize,
+    url: dbFile.url,
+    data: dbFile.data,
+    uploadedAt: dbFile.uploadedAt.toISOString(),
+    uploadedBy: dbFile.uploadedBy,
+    uploadedByName: dbFile.uploadedByName
+  };
+}
+
+// 转换类型文件到数据库
+function fileToDbFile(file: CaseFile): any {
+  return {
+    id: file.id,
+    caseId: file.caseId,
+    followUpId: file.followUpId,
+    fileName: file.fileName,
+    fileType: file.fileType,
+    fileSize: file.fileSize,
+    url: file.url,
+    data: file.data,
+    uploadedAt: new Date(file.uploadedAt),
+    uploadedBy: file.uploadedBy,
+    uploadedByName: file.uploadedByName
+  };
 }
 
 // 获取所有案件
 export async function getAll(): Promise<Case[]> {
   try {
-    if (cachedCases) {
+    const now = Date.now();
+    
+    // 如果缓存有效，直接返回缓存
+    if (cachedCases && (now - lastFetchTime < CACHE_TTL)) {
       return cachedCases;
     }
     
-    const cases = await readFromDatabase();
-    cachedCases = cases;
-    lastModifiedTime = Date.now();
-    return cases;
+    // 从数据库获取所有案件
+    const dbCases = await db.select().from(cases).orderBy(desc(cases.createdAt));
+    
+    // 获取所有跟进记录
+    const dbFollowups = await db.select().from(followups);
+    
+    // 获取所有文件
+    const dbFiles = await db.select().from(caseFiles);
+    
+    // 构建案件对象
+    const result: Case[] = dbCases.map(dbCase => {
+      const caseItem = dbCaseToCase(dbCase);
+      
+      // 添加该案件的跟进记录
+      caseItem.followups = dbFollowups
+        .filter(f => f.caseId === caseItem.id)
+        .map(dbFollowupToFollowup)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      // 添加文件到跟进记录
+      for (const followup of caseItem.followups) {
+        followup.files = dbFiles
+          .filter(f => f.followUpId === followup.id)
+          .map(dbFileToFile);
+      }
+      
+      // 添加案件级别的文件
+      caseItem.files = dbFiles
+        .filter(f => f.caseId === caseItem.id && !f.followUpId)
+        .map(dbFileToFile);
+      
+      return caseItem;
+    });
+    
+    // 更新缓存
+    cachedCases = result;
+    lastFetchTime = now;
+    
+    return result;
   } catch (error) {
     console.error('[caseStorage] 获取所有案件失败:', error);
-    return [];
+    throw error;
   }
 }
 
 // 根据ID获取案件
-export async function getById(id: string): Promise<Case | null> {
+export async function getById(id: string, includeFiles = true): Promise<Case | null> {
   try {
-    const allCases = await getAll();
-    return allCases.find(c => c.id === id) || null;
+    // 从数据库获取案件
+    const [dbCase] = await db.select().from(cases).where(eq(cases.id, id));
+    
+    if (!dbCase) {
+      return null;
+    }
+    
+    const result = dbCaseToCase(dbCase);
+    
+    // 获取跟进记录
+    const dbFollowups = await db.select().from(followups).where(eq(followups.caseId, id)).orderBy(desc(followups.createdAt));
+    result.followups = dbFollowups.map(dbFollowupToFollowup);
+    
+    // 获取文件
+    if (includeFiles) {
+      const dbFiles = await db.select().from(caseFiles).where(eq(caseFiles.caseId, id));
+      
+      // 添加文件到跟进记录
+      for (const followup of result.followups) {
+        followup.files = dbFiles
+          .filter(f => f.followUpId === followup.id)
+          .map(dbFileToFile);
+      }
+      
+      // 添加案件级别的文件
+      result.files = dbFiles
+        .filter(f => !f.followUpId)
+        .map(dbFileToFile);
+    }
+    
+    return result;
   } catch (error) {
     console.error('[caseStorage] 获取案件失败:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -259,11 +258,11 @@ export async function create(caseData: Omit<Case, 'id' | 'createdAt' | 'updatedA
       files: [],
     };
     
-    const allCases = await getAll();
-    allCases.unshift(newCase);
-    await writeToDatabase(allCases);
-    cachedCases = allCases;
-    lastModifiedTime = Date.now();
+    // 插入数据库
+    await db.insert(cases).values(caseToDbCase(newCase));
+    
+    // 清除缓存
+    cachedCases = null;
     
     return newCase;
   } catch (error) {
@@ -275,14 +274,12 @@ export async function create(caseData: Omit<Case, 'id' | 'createdAt' | 'updatedA
 // 更新案件
 export async function update(id: string, updates: Partial<Case>, userId?: string, userName?: string): Promise<Case | null> {
   try {
-    const allCases = await getAll();
-    const index = allCases.findIndex(c => c.id === id);
-    
-    if (index === -1) {
+    // 获取原案件
+    const oldCase = await getById(id, false);
+    if (!oldCase) {
       return null;
     }
     
-    const oldCase = { ...allCases[index] };
     const updatedCase: Case = {
       ...oldCase,
       ...updates,
@@ -290,6 +287,14 @@ export async function update(id: string, updates: Partial<Case>, userId?: string
       createdAt: oldCase.createdAt,
       updatedAt: getCurrentTime(),
     };
+    
+    // 更新数据库
+    await db.update(cases)
+      .set({
+        ...caseToDbCase(updatedCase),
+        updatedAt: new Date(updatedCase.updatedAt)
+      })
+      .where(eq(cases.id, id));
     
     // 记录修改历史
     if (userId && userName) {
@@ -313,7 +318,7 @@ export async function update(id: string, updates: Partial<Case>, userId?: string
               caseId: history.caseId,
               userId: history.userId ?? null,
               userName: history.userName,
-              modifiedAt: history.modifiedAt,
+              modifiedAt: new Date(history.modifiedAt),
               fieldName: history.fieldName,
               fieldLabel: history.fieldLabel ?? null,
               oldValue: history.oldValue as any,
@@ -325,10 +330,8 @@ export async function update(id: string, updates: Partial<Case>, userId?: string
       }
     }
     
-    allCases[index] = updatedCase;
-    await writeToDatabase(allCases);
-    cachedCases = allCases;
-    lastModifiedTime = Date.now();
+    // 清除缓存
+    cachedCases = null;
     
     return updatedCase;
   } catch (error) {
@@ -340,51 +343,49 @@ export async function update(id: string, updates: Partial<Case>, userId?: string
 // 删除案件
 export async function remove(id: string): Promise<boolean> {
   try {
-    const allCases = await getAll();
-    const index = allCases.findIndex(c => c.id === id);
+    // 删除相关的跟进记录
+    await db.delete(followups).where(eq(followups.caseId, id));
     
-    if (index === -1) {
-      return false;
-    }
+    // 删除相关的文件
+    await db.delete(caseFiles).where(eq(caseFiles.caseId, id));
     
-    allCases.splice(index, 1);
-    await writeToDatabase(allCases);
-    cachedCases = allCases;
-    lastModifiedTime = Date.now();
+    // 删除相关的历史记录
+    await db.delete(caseHistory).where(eq(caseHistory.caseId, id));
     
-    return true;
+    // 删除案件
+    const result = await db.delete(cases).where(eq(cases.id, id));
+    
+    // 清除缓存
+    cachedCases = null;
+    
+    return (result as any).rowCount > 0;
   } catch (error) {
     console.error('[caseStorage] 删除案件失败:', error);
-    return false;
+    throw error;
   }
 }
 
 // 添加跟进记录
-export async function addFollowup(caseId: string, followup: Omit<FollowUp, 'id' | 'createdAt'>): Promise<FollowUp> {
+export async function addFollowup(caseId: string, followupData: Omit<FollowUp, 'id' | 'caseId' | 'createdAt' | 'files'>): Promise<FollowUp> {
   try {
-    const allCases = await getAll();
-    const caseIndex = allCases.findIndex(c => c.id === caseId);
-    
-    if (caseIndex === -1) {
-      throw new Error('案件不存在');
-    }
-    
     const newFollowup: FollowUp = {
-      ...followup,
+      ...followupData,
       id: generateId(),
+      caseId,
       createdAt: getCurrentTime(),
+      files: [],
     };
     
-    if (!allCases[caseIndex].followups) {
-      allCases[caseIndex].followups = [];
-    }
+    // 插入数据库
+    await db.insert(followups).values(followupToDbFollowup(newFollowup));
     
-    allCases[caseIndex].followups!.unshift(newFollowup);
-    allCases[caseIndex].updatedAt = getCurrentTime();
+    // 更新案件的updatedAt
+    await db.update(cases)
+      .set({ updatedAt: new Date() })
+      .where(eq(cases.id, caseId));
     
-    await writeToDatabase(allCases);
-    cachedCases = allCases;
-    lastModifiedTime = Date.now();
+    // 清除缓存
+    cachedCases = null;
     
     return newFollowup;
   } catch (error) {
@@ -393,31 +394,96 @@ export async function addFollowup(caseId: string, followup: Omit<FollowUp, 'id' 
   }
 }
 
-// 添加文件
-export async function addFile(caseId: string, file: Omit<CaseFile, 'id'>): Promise<CaseFile> {
+// 更新跟进记录
+export async function updateFollowup(followupId: string, updates: Partial<FollowUp>): Promise<FollowUp | null> {
   try {
-    const allCases = await getAll();
-    const caseIndex = allCases.findIndex(c => c.id === caseId);
-    
-    if (caseIndex === -1) {
-      throw new Error('案件不存在');
+    // 获取原跟进记录
+    const [dbFollowup] = await db.select().from(followups).where(eq(followups.id, followupId));
+    if (!dbFollowup) {
+      return null;
     }
     
-    const newFile: CaseFile = {
-      ...file,
-      id: generateId(),
+    const oldFollowup = dbFollowupToFollowup(dbFollowup);
+    
+    const updatedFollowup: FollowUp = {
+      ...oldFollowup,
+      ...updates,
+      id: oldFollowup.id,
+      caseId: oldFollowup.caseId,
+      createdAt: oldFollowup.createdAt,
     };
     
-    if (!allCases[caseIndex].files) {
-      allCases[caseIndex].files = [];
+    // 更新数据库
+    await db.update(followups)
+      .set(followupToDbFollowup(updatedFollowup))
+      .where(eq(followups.id, followupId));
+    
+    // 更新案件的updatedAt
+    await db.update(cases)
+      .set({ updatedAt: new Date() })
+      .where(eq(cases.id, updatedFollowup.caseId));
+    
+    // 清除缓存
+    cachedCases = null;
+    
+    return updatedFollowup;
+  } catch (error) {
+    console.error('[caseStorage] 更新跟进记录失败:', error);
+    throw error;
+  }
+}
+
+// 删除跟进记录
+export async function removeFollowup(followupId: string): Promise<boolean> {
+  try {
+    // 获取跟进记录的案件ID
+    const [dbFollowup] = await db.select().from(followups).where(eq(followups.id, followupId));
+    if (!dbFollowup) {
+      return false;
     }
     
-    allCases[caseIndex].files!.unshift(newFile);
-    allCases[caseIndex].updatedAt = getCurrentTime();
+    // 删除相关的文件
+    await db.delete(caseFiles).where(eq(caseFiles.followUpId, followupId));
     
-    await writeToDatabase(allCases);
-    cachedCases = allCases;
-    lastModifiedTime = Date.now();
+    // 删除跟进记录
+    const result = await db.delete(followups).where(eq(followups.id, followupId));
+    
+    // 更新案件的updatedAt
+    await db.update(cases)
+      .set({ updatedAt: new Date() })
+      .where(eq(cases.id, dbFollowup.caseId));
+    
+    // 清除缓存
+    cachedCases = null;
+    
+    return (result as any).rowCount > 0;
+  } catch (error) {
+    console.error('[caseStorage] 删除跟进记录失败:', error);
+    throw error;
+  }
+}
+
+// 添加文件
+export async function addFile(caseId: string, fileData: Omit<CaseFile, 'id' | 'caseId' | 'uploadedAt'>, followUpId?: string): Promise<CaseFile> {
+  try {
+    const newFile: CaseFile = {
+      ...fileData,
+      id: generateId(),
+      caseId,
+      followUpId: followUpId || null,
+      uploadedAt: getCurrentTime(),
+    };
+    
+    // 插入数据库
+    await db.insert(caseFiles).values(fileToDbFile(newFile));
+    
+    // 更新案件的updatedAt
+    await db.update(cases)
+      .set({ updatedAt: new Date() })
+      .where(eq(cases.id, caseId));
+    
+    // 清除缓存
+    cachedCases = null;
     
     return newFile;
   } catch (error) {
@@ -426,109 +492,124 @@ export async function addFile(caseId: string, file: Omit<CaseFile, 'id'>): Promi
   }
 }
 
-// 批量创建案件
-export async function batchCreate(casesData: Array<Omit<Case, 'id' | 'createdAt' | 'updatedAt' | 'followups' | 'files'>>): Promise<Case[]> {
+// 删除文件
+export async function removeFile(fileId: string): Promise<boolean> {
   try {
-    const allCases = await getAll();
-    const newCases: Case[] = [];
-    
-    for (const caseData of casesData) {
-      const newCase: Case = {
-        ...caseData,
-        id: generateId(),
-        createdAt: getCurrentTime(),
-        updatedAt: getCurrentTime(),
-        followups: [],
-        files: [],
-      };
-      newCases.push(newCase);
-      allCases.unshift(newCase);
+    // 获取文件的案件ID
+    const [dbFile] = await db.select().from(caseFiles).where(eq(caseFiles.id, fileId));
+    if (!dbFile) {
+      return false;
     }
     
-    await writeToDatabase(allCases);
-    cachedCases = allCases;
-    lastModifiedTime = Date.now();
+    // 删除文件
+    const result = await db.delete(caseFiles).where(eq(caseFiles.id, fileId));
     
-    return newCases;
+    // 更新案件的updatedAt
+    await db.update(cases)
+      .set({ updatedAt: new Date() })
+      .where(eq(cases.id, dbFile.caseId));
+    
+    // 清除缓存
+    cachedCases = null;
+    
+    return (result as any).rowCount > 0;
   } catch (error) {
-    console.error('[caseStorage] 批量创建案件失败:', error);
+    console.error('[caseStorage] 删除文件失败:', error);
     throw error;
   }
 }
 
-// 获取案件历史记录
+// 获取修改历史
 export async function getHistory(caseId: string): Promise<CaseHistory[]> {
   try {
-    const historyRecords = await db.select().from(caseHistory).where(eq(caseHistory.caseId, caseId)).orderBy(desc(caseHistory.modifiedAt));
+    const dbHistories = await db.select()
+      .from(caseHistory)
+      .where(eq(caseHistory.caseId, caseId))
+      .orderBy(desc(caseHistory.modifiedAt));
     
-    return historyRecords.map(h => ({
+    return dbHistories.map(h => ({
       id: h.id,
       caseId: h.caseId,
       userId: h.userId ?? undefined,
       userName: h.userName,
-      modifiedAt: h.modifiedAt,
+      modifiedAt: h.modifiedAt.toISOString(),
       fieldName: h.fieldName,
       fieldLabel: h.fieldLabel ?? undefined,
       oldValue: h.oldValue,
-      newValue: h.newValue,
+      newValue: h.newValue
     }));
   } catch (error) {
-    console.error('[caseStorage] 获取案件历史失败:', error);
-    return [];
+    console.error('[caseStorage] 获取修改历史失败:', error);
+    throw error;
+  }
+}
+
+// 批量更新案件
+export async function batchUpdate(ids: string[], updates: Partial<Case>, userId?: string, userName?: string): Promise<number> {
+  try {
+    if (ids.length === 0) {
+      return 0;
+    }
+    
+    let count = 0;
+    
+    for (const id of ids) {
+      const result = await update(id, updates, userId, userName);
+      if (result) {
+        count++;
+      }
+    }
+    
+    return count;
+  } catch (error) {
+    console.error('[caseStorage] 批量更新案件失败:', error);
+    throw error;
+  }
+}
+
+// 批量删除案件
+export async function batchDelete(ids: string[]): Promise<number> {
+  try {
+    if (ids.length === 0) {
+      return 0;
+    }
+    
+    let count = 0;
+    
+    for (const id of ids) {
+      const result = await remove(id);
+      if (result) {
+        count++;
+      }
+    }
+    
+    return count;
+  } catch (error) {
+    console.error('[caseStorage] 批量删除案件失败:', error);
+    throw error;
   }
 }
 
 // 清空缓存
 export function clearCache(): void {
   cachedCases = null;
-  lastModifiedTime = 0;
+  lastFetchTime = 0;
 }
 
-// 导出函数
-export default {
-  getAll,
-  getById,
-  create,
-  update,
-  delete: remove,
-  addFollowup,
-  addFile,
-  batchCreate,
-  getHistory,
-  clearCache,
-};
-
-// 剥离大字段（base64文件数据），用于API返回时减小数据量
+// 剥离大字段（用于列表API，减少数据传输）
 export function stripLargeFields(caseData: Case): Case {
-  const result: Case = { ...caseData };
-  
-  // 剥离files中的data字段（base64文件数据）
-  if (result.files && result.files.length > 0) {
-    result.files = result.files.map(file => {
-      const { data, ...rest } = file;
-      return rest;
-    });
-  }
-  
-  // 剥离followups中的fileInfo大字段
-  if (result.followups && result.followups.length > 0) {
-    result.followups = result.followups.map(fu => {
-      if (fu.fileInfo && Array.isArray(fu.fileInfo)) {
-        // 对fileInfo中的每个元素，如果是对象且有data字段，剥离data
-        return {
-          ...fu,
-          fileInfo: fu.fileInfo.map(item => {
-            if (typeof item === 'object' && item !== null && 'data' in item) {
-              const { data, ...rest } = item as any;
-              return rest;
-            }
-            return item;
-          })
-        };
-      }
-      return fu;
-    });
-  }
-  
-  return result;
+  return {
+    ...caseData,
+    followups: caseData.followups.map(f => ({
+      ...f,
+      files: f.files.map(file => ({
+        ...file,
+        data: file.data && file.data.length > 100 ? '[stripped]' : file.data
+      }))
+    })),
+    files: caseData.files.map(file => ({
+      ...file,
+      data: file.data && file.data.length > 100 ? '[stripped]' : file.data
+    }))
+  };
 }
