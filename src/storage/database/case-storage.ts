@@ -3,12 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 
-// ============ 生产环境路径问题修复 ============
-// 在生产环境使用 /tmp 目录（因为 Coze 生产环境文件系统只读）
+// 存储文件路径 - 生产环境使用 /tmp 目录，开发环境使用 public/data 目录
 function getStoragePath(): string {
   const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
   if (isProd) {
-    console.log('[Case Storage] 生产环境，使用 /tmp 目录');
     return path.join('/tmp', 'cases-v2.json');
   }
   return path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
