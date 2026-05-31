@@ -92,8 +92,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div 
+      className="min-h-screen relative flex items-center justify-center p-4"
+      style={{
+        backgroundImage: 'url(/login-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* 半透明遮罩层 */}
+      <div className="absolute inset-0 bg-black/40"></div>
+      
+      <div className="w-full max-w-md relative z-10">
         {/* Logo 和标题 */}
         <div className="text-center mb-8">
           <div 
@@ -107,7 +118,7 @@ export default function LoginPage() {
         </div>
 
         {/* 登录卡片 */}
-        <Card className="border-slate-200 shadow-xl">
+        <Card className="border-slate-200/30 shadow-xl bg-white/95 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-slate-800">用户登录</CardTitle>
             <CardDescription>输入您的账户信息进行登录</CardDescription>
@@ -124,7 +135,7 @@ export default function LoginPage() {
                     placeholder="请输入用户名"
                     value={form.username}
                     onChange={(e) => setForm({ ...form, username: e.target.value })}
-                    className="pl-10"
+                    className="pl-10 bg-slate-50/50 border-slate-200/50"
                   />
                 </div>
               </div>
@@ -139,7 +150,7 @@ export default function LoginPage() {
                     placeholder="请输入密码"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-10 bg-slate-50/50 border-slate-200/50"
                   />
                   <button
                     type="button"
@@ -161,7 +172,7 @@ export default function LoginPage() {
                     placeholder="请输入手机号码"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="pl-10"
+                    className="pl-10 bg-slate-50/50 border-slate-200/50"
                     maxLength={11}
                   />
                 </div>
@@ -176,7 +187,7 @@ export default function LoginPage() {
                     placeholder="请输入验证码"
                     value={form.smsCode}
                     onChange={(e) => setForm({ ...form, smsCode: e.target.value })}
-                    className="flex-1"
+                    className="flex-1 bg-slate-50/50 border-slate-200/50"
                     maxLength={6}
                   />
                   <Button
@@ -199,7 +210,7 @@ export default function LoginPage() {
                     placeholder="请输入验证码"
                     value={form.imageCode}
                     onChange={(e) => setForm({ ...form, imageCode: e.target.value })}
-                    className="flex-1"
+                    className="flex-1 bg-slate-50/50 border-slate-200/50"
                     maxLength={4}
                   />
                   <button
