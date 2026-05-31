@@ -144,11 +144,20 @@ function extractUserIdFromMessage(event: Record<string, unknown>): string | null
     const text = parsedContent.text || parsedContent.elements?.[0]?.text?.content || "";
     console.log("📝 消息文本:", text);
 
-    // 提取用户ID（纯数字，5-8位）
-    const userIdMatch = text.match(/\b(\d{5,8})\b/);
+    // 提取用户ID（支持多种格式：USR001, USR12345, 123456, user001, USER001等）
+    // 优先匹配带前缀的格式
+    let userIdMatch = text.match(/\b(USR|user|USER)\d{3,8}\b/i);
+    if (userIdMatch) {
+      const userId = userIdMatch[0].toUpperCase();
+      console.log("✅ 提取到带前缀的用户ID:", userId);
+      return userId;
+    }
+    
+    // 如果没有前缀，匹配纯数字5-8位
+    userIdMatch = text.match(/\b(\d{5,8})\b/);
     if (userIdMatch) {
       const userId = userIdMatch[1];
-      console.log("✅ 提取到用户ID:", userId);
+      console.log("✅ 提取到纯数字用户ID:", userId);
       return userId;
     }
 
