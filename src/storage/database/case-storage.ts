@@ -4,25 +4,26 @@ import fs from 'fs';
 import path from 'path';
 
 // 存储文件路径 - 生产环境使用 /tmp 目录，开发环境使用 public/data 目录
+function isProduction(): boolean {
+  return process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
+}
+
 function getStoragePath(): string {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
-  if (isProd) {
+  if (isProduction()) {
     return path.join('/tmp', 'cases-v2.json');
   }
   return path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
 }
 
 function getRecycleBinPath(): string {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
-  if (isProd) {
+  if (isProduction()) {
     return path.join('/tmp', 'cases-recycle-bin.json');
   }
   return path.join(process.cwd(), 'public', 'data', 'cases-recycle-bin.json');
 }
 
 function getHistoryPath(): string {
-  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
-  if (isProd) {
+  if (isProduction()) {
     return path.join('/tmp', 'cases-history.json');
   }
   return path.join(process.cwd(), 'public', 'data', 'cases-history.json');
