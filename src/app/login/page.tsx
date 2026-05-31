@@ -104,8 +104,20 @@ export default function SimpleLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div 
+      className="min-h-screen relative flex items-center justify-center p-4"
+      style={{
+        backgroundImage: 'url(/login-bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* 半透明遮罩层 */}
+      <div className="absolute inset-0 bg-black/40"></div>
+      
+      {/* 登录表单 - 居中叠加在背景之上 */}
+      <Card className="w-full max-w-md relative z-10 bg-white/95 backdrop-blur-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-gray-800">
             欢迎回来
@@ -122,6 +134,7 @@ export default function SimpleLoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading}
                 required
+                className="bg-white/80"
               />
             </div>
             <div>
@@ -132,6 +145,7 @@ export default function SimpleLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
                 required
+                className="bg-white/80"
               />
             </div>
             {error && (
