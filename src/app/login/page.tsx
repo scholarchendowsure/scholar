@@ -104,8 +104,10 @@ export default function SimpleLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-cover bg-center flex items-center justify-center p-4 relative" style={{ backgroundImage: 'url(/login-bg.jpg)' }}>
+      {/* 半透明遮罩 */}
+      <div className="absolute inset-0 bg-black/30"></div>
+      <Card className="w-full max-w-md relative z-10">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-gray-800">
             欢迎回来
