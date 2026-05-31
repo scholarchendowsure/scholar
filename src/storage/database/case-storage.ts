@@ -3,12 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 
-// 存储文件路径 - 统一使用 public/data 目录，支持数据持久化
+// ============ 生产环境路径问题修复 ============
 // 在生产环境使用 /tmp 目录（因为 Coze 生产环境文件系统只读）
 function getStoragePath(): string {
   const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
   if (isProd) {
-    console.log('[CaseStorage] 生产环境，使用 /tmp 目录');
+    console.log('[Case Storage] 生产环境，使用 /tmp 目录');
     return path.join('/tmp', 'cases-v2.json');
   }
   return path.join(process.cwd(), 'public', 'data', 'cases-v2.json');
@@ -660,87 +660,6 @@ export function clearCache(): void {
   console.log('[Cache] 已清空缓存');
 }
 
-// ============ 添加跟进记录 ============
-export async function addFollowup(caseId: string, followup: Omit<FollowUp, 'id' | 'createdAt'>): Promise<FollowUp> {
-  const cases = await getAll();
-  const caseIndex = cases.findIndex(c => c.id === caseId);
-  
-  if (caseIndex === -1) {
-    throw new Error('案件不存在');
-  }
-  
-  const newFollowup: FollowUp = {
-    ...followup,
-    id: uuidv4(),
-    createdAt: new Date().toISOString(),
-  };
-  
-  if (!cases[caseIndex].followups) {
-    cases[caseIndex].followups = [];
-  }
-  
-  cases[caseIndex].followups!.unshift(newFollowup);
-  cases[caseIndex].updatedAt = new Date().toISOString();
-  
-  await writeToFile(cases);
-  
-  return newFollowup;
-}
-
-// ============ 添加文件 ============
-export async function addFile(caseId: string, file: Omit<CaseFile, 'id'>): Promise<CaseFile> {
-  const cases = await getAll();
-  const caseIndex = cases.findIndex(c => c.id === caseId);
-  
-  if (caseIndex === -1) {
-    throw new Error('案件不存在');
-  }
-  
-  const newFile: CaseFile = {
-    ...file,
-    id: uuidv4(),
-  };
-  
-  if (!cases[caseIndex].files) {
-    cases[caseIndex].files = [];
-  }
-  
-  cases[caseIndex].files!.unshift(newFile);
-  cases[caseIndex].updatedAt = new Date().toISOString();
-  
-  await writeToFile(cases);
-  
-  return newFile;
-}
-
-// ============ 批量创建案件 ============
-export async function batchCreate(casesData: Array<Omit<Case, 'id' | 'createdAt' | 'updatedAt' | 'followups' | 'files'>>): Promise<Case[]> {
-  const cases = await getAll();
-  const newCases: Case[] = [];
-  
-  for (const caseData of casesData) {
-    const newCase: Case = {
-      ...caseData,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      followups: [],
-      files: [],
-    };
-    newCases.push(newCase);
-    cases.unshift(newCase);
-  }
-  
-  await writeToFile(cases);
-  
-  return newCases;
-}
-
-// ============ 获取案件历史记录 ============
-export async function getHistory(caseId: string): Promise<CaseHistory[]> {
-  return getCaseHistory(caseId);
-}
-
 // ============ 导出对象（保持向后兼容） ============
 export const caseStorage = {
   getAll,
@@ -760,11 +679,7 @@ export const caseStorage = {
   getStatistics,
   batchImport,
   clearCache,
-  getCaseHistory,
-  addFollowup,
-  addFile,
-  batchCreate,
-  getHistory
+  getCaseHistory
 };
 
-export default caseStorage;
+
