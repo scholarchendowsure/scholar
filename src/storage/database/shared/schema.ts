@@ -1,170 +1,214 @@
-import {
-  pgTable,
-  serial,
-  text,
-  varchar,
-  timestamp,
-  integer,
-  decimal,
-  boolean,
-  jsonb,
-  date,
-  primaryKey,
-  index
-} from 'drizzle-orm/pg-core';
+import { pgTable, text, numeric, integer, boolean, timestamp, jsonb, varchar, serial, primaryKey, index, date, real } from 'drizzle-orm/pg-core';
 
-// ==================== 案件管理表 ====================
-
-// 案件表
+// ===== 案件表（汇丰贷款专项管理
 export const cases = pgTable('cases', {
-  id: varchar('id', { length: 100 }).primaryKey(),
-  batchNo: varchar('batch_no', { length: 100 }),
-  loanNo: varchar('loan_no', { length: 100 }).notNull(),
-  userId: varchar('user_id', { length: 100 }),
-  borrowerName: varchar('borrower_name', { length: 200 }).notNull(),
-  status: varchar('status', { length: 50 }).notNull().default('pending_assign'),
-  totalOutstandingBalance: decimal('total_outstanding_balance', { precision: 15, scale: 2 }),
-  overdueAmount: decimal('overdue_amount', { precision: 15, scale: 2 }),
-  overdueDays: integer('overdue_days'),
-  productName: varchar('product_name', { length: 200 }),
-  funder: varchar('funder', { length: 200 }),
-  fundCategory: varchar('fund_category', { length: 100 }),
-  isExtended: boolean('is_extended').default(false),
-  currency: varchar('currency', { length: 10 }).default('CNY'),
-  loanAmount: decimal('loan_amount', { precision: 15, scale: 2 }),
-  outstandingBalance: decimal('outstanding_balance', { precision: 15, scale: 2 }),
+  id: text('id').primaryKey(),
+  
+  // ===== 案件基础标识
+  batchNo: text('batch_no').notNull(),
+  loanNo: text('loan_no').notNull(),
+  userId: text('user_id').notNull(),
+  borrowerName: text('borrower_name').notNull(),
+  productName: text('product_name'),
+  platform: text('platform'),
+  paymentCompany: text('payment_company'),
+  funder: text('funder'),
+  fundCategory: text('fund_category'),
+  category: text('category'),
+  overdueStage: text('overdue_stage'),
+  
+  // ===== 案件核心状态
+  status: text('status').notNull(),
+  loanStatus: text('loan_status'),
+  isLocked: boolean('is_locked'),
+  fiveLevelClassification: text('five_level_classification'),
+  riskLevel: text('risk_level'),
+  isExtended: boolean('is_extended'),
+  
+  // ===== 贷款核心金额
+  currency: text('currency'),
+  loanAmount: numeric('loan_amount'),
+  totalLoanAmount: numeric('total_loan_amount'),
+  totalOutstandingBalance: numeric('total_outstanding_balance').notNull(),
+  totalRepaidAmount: numeric('total_repaid_amount'),
+  outstandingBalance: numeric('outstanding_balance'),
+  overdueAmount: numeric('overdue_amount').notNull(),
+  overduePrincipal: numeric('overdue_principal'),
+  overdueInterest: numeric('overdue_interest'),
+  repaidAmount: numeric('repaid_amount'),
+  repaidPrincipal: numeric('repaid_principal'),
+  repaidInterest: numeric('repaid_interest'),
+  compensationAmount: numeric('compensation_amount'),
+  
+  // ===== 贷款期限时间
   loanTerm: integer('loan_term'),
-  loanTermUnit: varchar('loan_term_unit', { length: 20 }),
-  loanDate: date('loan_date'),
-  dueDate: date('due_date'),
-  companyName: varchar('company_name', { length: 500 }),
-  borrowerPhone: varchar('borrower_phone', { length: 50 }),
-  assignedSales: varchar('assigned_sales', { length: 200 }),
-  assignedPostLoan: varchar('assigned_post_loan', { length: 200 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  statusIdx: index('idx_cases_status').on(table.status),
-  loanNoIdx: index('idx_cases_loan_no').on(table.loanNo),
-  userIdIdx: index('idx_cases_user_id').on(table.userId),
-  createdAtIdx: index('idx_cases_created_at').on(table.createdAt),
-}));
+  loanTermUnit: text('loan_term_unit'),
+  loanDate: text('loan_date'),
+  dueDate: text('due_date'),
+  overdueDays: integer('overdue_days').notNull(),
+  overdueStartTime: text('overdue_start_time'),
+  firstOverdueTime: text('first_overdue_time'),
+  compensationDate: text('compensation_date'),
+  
+  // ===== 借款人主体信息
+  companyName: text('company_name'),
+  companyAddress: text('company_address'),
+  homeAddress: text('home_address'),
+  householdAddress: text('household_address'),
+  borrowerPhone: text('borrower_phone'),
+  registeredPhone: text('registered_phone'),
+  contactInfo: text('contact_info'),
+  
+  // ===== 案件责任归属
+  assignedSales: text('assigned_sales'),
+  assignedRiskControl: text('assigned_risk_control'),
+  assignedPostLoan: text('assigned_post_loan'),
+  
+  // ===== 系统元数据
+  assigneeName: text('assignee_name'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => {
+  return {
+    batchNoIdx: index('cases_batch_no_idx').on(table.batchNo),
+    loanNoIdx: index('cases_loan_no_idx').on(table.loanNo),
+    userIdIdx: index('cases_user_id_idx').on(table.userId),
+    statusIdx: index('cases_status_idx').on(table.status),
+  };
+});
 
-// 跟进记录表
+// ===== 跟进记录表
 export const followups = pgTable('followups', {
-  id: varchar('id', { length: 100 }).primaryKey(),
-  caseId: varchar('case_id', { length: 100 }).notNull().references(() => cases.id, { onDelete: 'cascade' }),
-  userId: varchar('user_id', { length: 100 }),
-  userName: varchar('user_name', { length: 200 }).notNull(),
-  content: text('content').notNull(),
-  type: varchar('type', { length: 50 }).notNull().default('normal'),
-  location: varchar('location', { length: 500 }),
-  duration: integer('duration'),
-  nextFollowUpDate: date('next_follow_up_date'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({
-  caseIdIdx: index('idx_followups_case_id').on(table.caseId),
-  createdAtIdx: index('idx_followups_created_at').on(table.createdAt),
-}));
+  id: text('id').primaryKey(),
+  caseId: text('case_id').notNull().references(() => cases.id, { onDelete: 'cascade' }),
+  
+  // ===== 基础信息
+  follower: text('follower').notNull(),
+  followTime: text('follow_time').notNull(),
+  followType: text('follow_type').notNull(),
+  contact: text('contact').notNull(),
+  followResult: text('follow_result').notNull(),
+  followRecord: text('follow_record').notNull(),
+  fileInfo: jsonb('file_info'),
+  
+  // ===== 系统元数据
+  createdAt: text('created_at').notNull(),
+  createdBy: text('created_by').notNull(),
+}, (table) => {
+  return {
+    caseIdIdx: index('followups_case_id_idx').on(table.caseId),
+    followTimeIdx: index('followups_follow_time_idx').on(table.followTime),
+  };
+});
 
-// 案件文件表
+// ===== 案件文件表
 export const caseFiles = pgTable('case_files', {
-  id: varchar('id', { length: 100 }).primaryKey(),
-  caseId: varchar('case_id', { length: 100 }).notNull().references(() => cases.id, { onDelete: 'cascade' }),
-  followUpId: varchar('follow_up_id', { length: 100 }).references(() => followups.id, { onDelete: 'cascade' }),
-  fileName: varchar('file_name', { length: 500 }).notNull(),
-  fileType: varchar('file_type', { length: 100 }).notNull(),
-  fileSize: integer('file_size'),
+  id: text('id').primaryKey(),
+  caseId: text('case_id').notNull().references(() => cases.id, { onDelete: 'cascade' }),
+  followUpId: text('follow_up_id'),
+  
+  // ===== 文件信息
+  name: text('name').notNull(),
+  type: text('type').notNull(),
   url: text('url'),
   data: text('data'),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-  uploadedBy: varchar('uploaded_by', { length: 100 }),
-  uploadedByName: varchar('uploaded_by_name', { length: 200 }),
-}, (table) => ({
-  caseIdIdx: index('idx_case_files_case_id').on(table.caseId),
-  followUpIdIdx: index('idx_case_files_follow_up_id').on(table.followUpId),
-}));
+  uploadTime: text('upload_time').notNull(),
+  uploadBy: text('upload_by').notNull(),
+}, (table) => {
+  return {
+    caseIdIdx: index('case_files_case_id_idx').on(table.caseId),
+    followUpIdIdx: index('case_files_follow_up_id_idx').on(table.followUpId),
+  };
+});
 
-// 案件修改历史表
+// ===== 案件历史记录表
 export const caseHistory = pgTable('case_history', {
-  id: varchar('id', { length: 100 }).primaryKey(),
-  caseId: varchar('case_id', { length: 100 }).notNull().references(() => cases.id, { onDelete: 'cascade' }),
-  userId: varchar('user_id', { length: 100 }),
-  userName: varchar('user_name', { length: 200 }).notNull(),
-  modifiedAt: timestamp('modified_at').notNull().defaultNow(),
-  fieldName: varchar('field_name', { length: 100 }).notNull(),
-  fieldLabel: varchar('field_label', { length: 200 }),
+  id: text('id').primaryKey(),
+  caseId: text('case_id').notNull().references(() => cases.id, { onDelete: 'cascade' }),
+  userId: text('user_id'),
+  userName: text('user_name').notNull(),
+  modifiedAt: text('modified_at').notNull(),
+  fieldName: text('field_name').notNull(),
+  fieldLabel: text('field_label'),
   oldValue: jsonb('old_value'),
   newValue: jsonb('new_value'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({
-  caseIdIdx: index('idx_case_history_case_id').on(table.caseId),
-  modifiedAtIdx: index('idx_case_history_modified_at').on(table.modifiedAt),
-}));
+}, (table) => {
+  return {
+    caseIdIdx: index('case_history_case_id_idx').on(table.caseId),
+    modifiedAtIdx: index('case_history_modified_at_idx').on(table.modifiedAt),
+  };
+});
 
-// ==================== 汇丰贷款表 ====================
-
-// 汇丰贷款批次表
+// ===== 汇丰贷款批次表
 export const hsbcLoanBatches = pgTable('hsbc_loan_batches', {
   id: serial('id').primaryKey(),
   batchDate: date('batch_date').notNull(),
-  importedAt: timestamp('imported_at').notNull().defaultNow(),
-  importedBy: varchar('imported_by', { length: 200 }),
-  loanCount: integer('loan_count').notNull().default(0),
-  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }),
-  status: varchar('status', { length: 20 }).notNull().default('pending'),
-  remarks: text('remarks'),
-}, (table) => ({
-  batchDateIdx: index('idx_hsbc_batches_batch_date').on(table.batchDate),
-}));
+  importDate: timestamp('import_date').defaultNow().notNull(),
+  recordCount: integer('record_count').notNull(),
+  totalAmount: numeric('total_amount'),
+}, (table) => {
+  return {
+    batchDateIdx: index('hsbc_loan_batches_batch_date_idx').on(table.batchDate),
+  };
+});
 
-// 汇丰贷款表
+// ===== 汇丰贷款表
 export const hsbcLoans = pgTable('hsbc_loans', {
   id: serial('id').primaryKey(),
   batchId: integer('batch_id').references(() => hsbcLoanBatches.id),
-  caseNo: varchar('case_no', { length: 50 }),
-  accountNo: varchar('account_no', { length: 50 }),
-  cardNo: varchar('card_no', { length: 50 }),
+  caseNo: varchar('case_no', { length: 100 }).notNull(),
+  merchantName: varchar('merchant_name', { length: 200 }),
+  borrowerName: varchar('borrower_name', { length: 200 }),
   idCard: varchar('id_card', { length: 50 }),
-  customerName: varchar('customer_name', { length: 200 }),
-  currency: varchar('currency', { length: 10 }),
-  balance: decimal('balance', { precision: 15, scale: 2 }),
-  daysPastDue: integer('days_past_due'),
-  bucket: varchar('bucket', { length: 20 }),
-  product: varchar('product', { length: 100 }),
+  phone: varchar('phone', { length: 50 }),
   address: text('address'),
-  phone1: varchar('phone1', { length: 50 }),
-  phone2: varchar('phone2', { length: 50 }),
-  phone3: varchar('phone3', { length: 50 }),
-  phone4: varchar('phone4', { length: 50 }),
-  phone5: varchar('phone5', { length: 50 }),
-  companyName: varchar('company_name', { length: 500 }),
-  merchantId: varchar('merchant_id', { length: 100 }),
-  status: varchar('status', { length: 50 }).default('new'),
-  assignedTo: varchar('assigned_to', { length: 200 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  caseNoIdx: index('idx_hsbc_loans_case_no').on(table.caseNo),
-  idCardIdx: index('idx_hsbc_loans_id_card').on(table.idCard),
-  statusIdx: index('idx_hsbc_loans_status').on(table.status),
-  batchIdIdx: index('idx_hsbc_loans_batch_id').on(table.batchId),
-}));
+  loanAmount: numeric('loan_amount'),
+  overdueDays: integer('overdue_days'),
+  overdueAmount: numeric('overdue_amount'),
+  status: varchar('status', { length: 50 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  remark: text('remark'),
+}, (table) => {
+  return {
+    caseNoIdx: index('hsbc_loans_case_no_idx').on(table.caseNo),
+    batchIdIdx: index('hsbc_loans_batch_id_idx').on(table.batchId),
+  };
+});
 
-// 商户销售映射表
+// ===== 商户销售映射表
 export const merchantSalesMappings = pgTable('merchant_sales_mappings', {
   id: serial('id').primaryKey(),
-  merchantId: varchar('merchant_id', { length: 100 }).notNull(),
-  salesName: varchar('sales_name', { length: 200 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({
-  merchantIdIdx: index('idx_merchant_mappings_merchant_id').on(table.merchantId),
-}));
+  merchantName: varchar('merchant_name', { length: 200 }).notNull(),
+  salesName: varchar('sales_name', { length: 100 }).notNull(),
+}, (table) => {
+  return {
+    merchantNameIdx: index('merchant_sales_mappings_merchant_name_idx').on(table.merchantName),
+  };
+});
 
-// 健康检查表
+// ===== 健康检查表
 export const healthCheck = pgTable('health_check', {
   id: serial('id').primaryKey(),
-  status: varchar('status', { length: 20 }).notNull(),
-  checkedAt: timestamp('checked_at').notNull().defaultNow(),
+  checkTime: timestamp('check_time').defaultNow().notNull(),
+  status: varchar('status', { length: 50 }).notNull(),
   details: jsonb('details'),
 });
+
+// ===== 数据库类型定义
+export type Case = typeof cases.$inferSelect;
+export type NewCase = typeof cases.$inferInsert;
+export type FollowUp = typeof followups.$inferSelect;
+export type NewFollowUp = typeof followups.$inferInsert;
+export type CaseFile = typeof caseFiles.$inferSelect;
+export type NewCaseFile = typeof caseFiles.$inferInsert;
+export type CaseHistory = typeof caseHistory.$inferSelect;
+export type NewCaseHistory = typeof caseHistory.$inferInsert;
+export type HsbcLoanBatch = typeof hsbcLoanBatches.$inferSelect;
+export type NewHsbcLoanBatch = typeof hsbcLoanBatches.$inferInsert;
+export type HsbcLoan = typeof hsbcLoans.$inferSelect;
+export type NewHsbcLoan = typeof hsbcLoans.$inferInsert;
+export type MerchantSalesMapping = typeof merchantSalesMappings.$inferSelect;
+export type NewMerchantSalesMapping = typeof merchantSalesMappings.$inferInsert;
+export type HealthCheck = typeof healthCheck.$inferSelect;
+export type NewHealthCheck = typeof healthCheck.$inferInsert;
+
