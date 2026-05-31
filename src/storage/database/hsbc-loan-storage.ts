@@ -6,11 +6,26 @@ import * as path from 'path';
 // Re-export HSBCLoan type
 export type { HSBCLoan } from '@/lib/hsbc-loan';
 
-// 本地存储文件路径
-const STORAGE_FILE = path.join(process.cwd(), 'public', 'data', 'hsbc-loans.json');
+// 本地存储文件路径 - 在生产环境使用 /tmp 目录（因为 Coze 生产环境文件系统只读）
+function getHSBCStoragePath(): string {
+  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
+  if (isProd) {
+    console.log('[HSBC Storage] 生产环境，使用 /tmp 目录');
+    return path.join('/tmp', 'hsbc-loans.json');
+  }
+  return path.join(process.cwd(), 'public', 'data', 'hsbc-loans.json');
+}
 
-// 批次日期存储文件
-const BATCH_DATES_FILE = path.join(process.cwd(), 'public', 'data', 'hsbc-batch-dates.json');
+function getHSBCBatchDatesPath(): string {
+  const isProd = process.env.COZE_PROJECT_ENV === 'PROD' || process.env.NODE_ENV === 'production';
+  if (isProd) {
+    return path.join('/tmp', 'hsbc-batch-dates.json');
+  }
+  return path.join(process.cwd(), 'public', 'data', 'hsbc-batch-dates.json');
+}
+
+const STORAGE_FILE = getHSBCStoragePath();
+const BATCH_DATES_FILE = getHSBCBatchDatesPath();
 
 // 内存缓存
 let loansCache: HSBCLoan[] | null = null;
