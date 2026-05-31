@@ -234,7 +234,7 @@ export function LeftSidebar() {
                   <div className="text-left">
                     <div className="text-sm font-medium text-slate-900">{user.name}</div>
                     <div className="text-xs text-slate-500">
-                      {user.role === 'admin' ? '管理员' : user.role === 'manager' ? '经理' : '外访员'}
+                      {user.position || (user.role === 'admin' ? '管理员' : user.role === 'manager' ? '经理' : '外访员')}
                     </div>
                   </div>
                 )}

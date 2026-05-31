@@ -765,7 +765,10 @@ export default function UsersPage() {
                         <TableCell>{user.department || '-'}</TableCell>
                         <TableCell>{user.position || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{USER_ROLE_LABELS[user.role]}</Badge>
+                          <Badge variant="outline">
+                            {USER_ROLE_LABELS[user.role] || 
+                             (user.role.charAt(0).toUpperCase() + user.role.slice(1).replace(/_/g, ' '))}
+                          </Badge>
                         </TableCell>
                         <TableCell>{getStatusBadge(user.status)}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">

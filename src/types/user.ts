@@ -85,6 +85,8 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: '系统管理员',
   manager: '经理',
   agent: '外访员',
+  // 支持自定义角色
+  pmohf: '汇丰PMO',
 };
 
 export const USER_STATUS_LABELS: Record<UserStatus, string> = {
